@@ -134,6 +134,7 @@ class _LyricSectionOverlay(QWidget):
     _WIDTH   = 58   # Breite der Spalte in Pixel
 
     _EDGE_TOL = 5   # Fangbereich um eine Kante, in Pixel
+    _CUT_BAND_H = 6  # BL-200: Hoehe des Schnitt-Trenners im Figuren-Balken (Pixel)
 
     def __init__(self, owner: 'LyricsWidget'):
         super().__init__(owner)
@@ -220,6 +221,7 @@ class _LyricSectionOverlay(QWidget):
         cols = self._column_rects()
         if not cols:
             return
+        dy = self._viewport_dy()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
         font = painter.font()
@@ -238,7 +240,26 @@ class _LyricSectionOverlay(QWidget):
                 painter.setPen(QColor(255, 255, 255, 210))
                 painter.drawText(rect, Qt.AlignHCenter | Qt.AlignTop,
                                  LYRIC_SECTION_LABEL.get(name, "?"))
+            # BL-200: Schnitt-Trenner im Figuren-Balken (Call-Ende → Gesangstext).
+            # Nur wo der Schnitt echt INNERHALB des Blocks liegt (sonst kein Tail).
+            # Als breites Band in der Widget-Hintergrundfarbe: durchtrennt den
+            # farbigen Balken und faellt so in JEDEM Theme auf.
+            cy = self._figure_cut_overlay_y(name, dy)
+            if cy is not None and rect.top() + 3 < cy < rect.bottom() - 3:
+                band_h = self._CUT_BAND_H
+                band = QRect(rect.left(), int(cy) - band_h // 2,
+                             rect.width(), band_h)
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(self.palette().color(self.backgroundRole()))
+                painter.drawRect(band)
         painter.end()
+
+    def _figure_cut_overlay_y(self, name: str, dy: int):
+        """Overlay-y-Koordinate des Schnitt-Strichs einer Figur, sonst None."""
+        if name not in self._owner._DYNAMIC_FIGURES:
+            return None
+        by = self._owner.figure_cut_y(name)
+        return None if by is None else int(by) + dy
 
     # ---- Kanten ziehen (nur im Sync-Modus, weil nur dort sichtbar) ----
 
@@ -258,10 +279,16 @@ class _LyricSectionOverlay(QWidget):
         """
         best = None
         best_dist = self._EDGE_TOL + 1
+        dy = self._viewport_dy()
         for name, rect in self._column_rects():
             if not (rect.left() - 1 <= x <= rect.right() + 1):
                 continue
-            for edge, ey in (("top", rect.top()), ("bottom", rect.bottom())):
+            edges = [("top", rect.top()), ("bottom", rect.bottom())]
+            # BL-200: der Schnitt-Strich der Figur ist eine dritte greifbare Kante
+            cy = self._figure_cut_overlay_y(name, dy)
+            if cy is not None and rect.top() < cy < rect.bottom():
+                edges.append(("cut", cy))
+            for edge, ey in edges:
                 d = abs(y - ey)
                 if d < best_dist:
                     best_dist, best = d, (name, edge)
@@ -291,6 +318,7 @@ class _LyricSectionOverlay(QWidget):
         self.setCursor(Qt.ArrowCursor)
         # Erst beim Loslassen schreiben — nicht bei jedem Pixel der Bewegung
         self._owner._persist_lyric_sections()
+        self._owner._persist_figure_cuts()
 
     def _apply_drag(self, y: int):
         name, edge = self._drag
@@ -302,6 +330,14 @@ class _LyricSectionOverlay(QWidget):
         if not rng:
             return
         l0, l1 = rng
+        # BL-200: Schnitt-Strich verschieben — aendert NICHT die Abschnittsgrenzen
+        # (Timing/Anker bleiben), nur die Call-Ende-Zeile im Figuren-Block.
+        if edge == "cut":
+            new_cut = max(l0 + 1, min(line, l1))  # echt im Block halten
+            if self._owner._figure_cuts.get(name) != new_cut:
+                self._owner._figure_cuts[name] = new_cut
+                self.update()
+            return
         if edge == "top":
             l0 = min(line, l1)      # Anfang darf das Ende nicht ueberholen
         else:
@@ -556,6 +592,9 @@ class LyricsWidget(QWidget):
         # Plain-Text — Zeilen, nicht Qt-Bloecke: manche Lyrics (RTF mit <br>)
         # sind EIN Block mit vielen Zeilen, Block-Indizes taugen daher nicht.
         self._lyric_sections: dict = {}
+        # BL-200: manuell verschobene Schnitt-Zeile je Figur (figureN -> abs. Zeile).
+        # Nur User-Overrides; fehlt ein Eintrag, gilt der Algorithmus-Default.
+        self._figure_cuts: dict = {}
         self._line_offsets: list = []   # Zeile -> Zeichenposition (pristine)
         self._section_overlay = _LyricSectionOverlay(self)
         self._browser.verticalScrollBar().valueChanged.connect(
@@ -1817,6 +1856,7 @@ class LyricsWidget(QWidget):
         """Laedt die gespeicherten Abschnitte des aktuellen Lyric-Slots."""
         self._lyric_sections = {}
         self._rebuild_line_offsets()
+        self._load_figure_cuts()  # BL-200: Schnitt-Overrides mitladen
         if not (self._db and self._sync_song_id):
             return
         try:
@@ -1929,6 +1969,107 @@ class LyricsWidget(QWidget):
                 if n in self._lyric_sections]
         figs.sort(key=lambda e: e[1][0])
         return figs
+
+    # ---- BL-200: Schnitt-Zeile (Call-Ende → Gesangstext) je Figur ----
+
+    def _block_default_cut(self, l0: int, l1: int, lines: list = None) -> int:
+        """Algorithmus-Default fuer die letzte Tanz-Call-Zeile eines Figuren-
+        Blocks (l0 = Kopfzeile, l1 = letzte Blockzeile). `lines` optional, sonst
+        aus dem aktuell angezeigten Dokument."""
+        if lines is None:
+            lines = self._browser.document().toPlainText().split("\n")
+        return singing_sections.figure_call_end_line(lines, l0 + 1, l1)
+
+    def _figure_cut_line(self, name: str):
+        """Effektive Schnitt-Zeile einer Figur: User-Override falls vorhanden,
+        sonst Algorithmus-Default. None, wenn die Figur nicht existiert."""
+        rng = self._lyric_sections.get(name)
+        if not rng:
+            return None
+        l0, l1 = int(rng[0]), int(rng[1])
+        if name in self._figure_cuts:
+            return max(l0 + 1, min(int(self._figure_cuts[name]), l1))
+        return self._block_default_cut(l0, l1)
+
+    def _resolve_block_cut(self, l0: int, l1: int, lines: list,
+                           sections_map: dict = None) -> int:
+        """Schnitt-Zeile fuer einen Figuren-Block bei der Ersetzung: honoriert
+        einen User-Override (Figur mit exakt diesem Bereich), sonst Default.
+
+        `sections_map` ist der Bereich, gegen den der Override gematcht wird — bei
+        der Ersetzung MUSS das die ORIGINAL-Abschnitte sein (`base_sections`),
+        nicht das bereits auf Anzeige-Koordinaten remappte self._lyric_sections;
+        sonst faende ein Override ab dem zweiten Sequenzwechsel keinen Block mehr.
+        """
+        sections_map = sections_map if sections_map is not None \
+            else self._lyric_sections
+        for name in self._DYNAMIC_FIGURES:
+            rng = sections_map.get(name)
+            if rng and int(rng[0]) == l0 and int(rng[1]) == l1 \
+                    and name in self._figure_cuts:
+                return max(l0 + 1, min(int(self._figure_cuts[name]), l1))
+        return self._block_default_cut(l0, l1, lines)
+
+    def figure_cut_y(self, name: str):
+        """Browser-Viewport-y (Unterkante der Schnitt-Zeile) fuer den Strich im
+        Overlay. None, wenn der Schnitt nicht echt INNERHALB des Blocks liegt
+        (dann gibt es keinen geschuetzten Gesangs-Tail zum Abgrenzen)."""
+        rng = self._lyric_sections.get(name)
+        if not rng or not self._line_offsets:
+            return None
+        cut = self._figure_cut_line(name)
+        if cut is None:
+            return None
+        l0, l1 = int(rng[0]), int(rng[1])
+        if not (l0 < cut < l1):
+            return None
+        doc = self._browser.document()
+        try:
+            c = QTextCursor(doc)
+            c.setPosition(min(self._line_offsets[cut], doc.characterCount() - 1))
+            c.movePosition(QTextCursor.EndOfLine)
+            return self._browser.cursorRect(c).bottom()
+        except Exception:
+            return None
+
+    def _figure_cuts_key_prefix(self) -> str:
+        """Praefix der Schnitt-Zeilen-Keys in song_properties. Wie die Abschnitte
+        am LYRIC-Slot (Eigenschaft des Textes, nicht der Aufnahme)."""
+        return f"lyric_figcut_l{self._sync_lyric_slot}_"
+
+    def _persist_figure_cuts(self):
+        if not (self._db and self._sync_song_id):
+            return
+        try:
+            prefix = self._figure_cuts_key_prefix()
+            props = self._db.get_properties(self._sync_song_id)
+            for key in list(props.keys()):
+                if key.startswith(prefix):
+                    self._db.set_property(self._sync_song_id, key, "")
+            for name, cut in self._figure_cuts.items():
+                self._db.set_property(self._sync_song_id,
+                                      f"{prefix}{name}", str(int(cut)))
+        except Exception as e:
+            print(f"[BL-200] Schnitt-Zeilen speichern fehlgeschlagen: {e}")
+
+    def _load_figure_cuts(self):
+        """Laedt die gespeicherten Schnitt-Overrides des aktuellen Lyric-Slots."""
+        self._figure_cuts = {}
+        if not (self._db and self._sync_song_id):
+            return
+        try:
+            props = self._db.get_properties(self._sync_song_id)
+        except Exception:
+            return
+        prefix = self._figure_cuts_key_prefix()
+        for key, value in (props or {}).items():
+            if not key.startswith(prefix):
+                continue
+            name = key[len(prefix):]
+            try:
+                self._figure_cuts[name] = int(value)
+            except (ValueError, TypeError):
+                continue
 
     def _dynamic_gating_reason(self):
         """None wenn Dynamic Lyrics nutzbar ist, sonst ein i18n-Grund-Key.
@@ -2202,7 +2343,8 @@ class LyricsWidget(QWidget):
             cl0 = key[0] + 1
             if cl0 > key[1]:
                 continue  # Block ist nur die Ueberschrift → nichts zu ersetzen
-            call_end = singing_sections.figure_call_end_line(base_lines, cl0, key[1])
+            call_end = self._resolve_block_cut(key[0], key[1], base_lines,
+                                               base_sections)
             edits.append((cl0, call_end, calls))
 
         clone = pristine.clone(self._browser)
