@@ -37,6 +37,12 @@ def dlg(qapp):
     return LocationDialog(db)
 
 
+@pytest.fixture
+def leerer_dlg(qapp):
+    """Dialog ohne eine einzige Lokation — der Zustand beim allerersten Start."""
+    return LocationDialog(FakeDb())
+
+
 def sichtbar(dlg):
     """Die Eintraege, die der Nutzer gerade sieht."""
     lw = dlg.list_widget
@@ -97,3 +103,25 @@ def test_neu_geladene_liste_ist_ungefiltert(dlg):
     dlg._refresh_list()
     assert dlg.edit_search.text() == ""
     assert len(sichtbar(dlg)) == 4
+
+
+# ---------------------------------------------------------------------------
+# Fokus beim Oeffnen
+# ---------------------------------------------------------------------------
+# Geprueft wird ueber dlg.focusWidget(), nicht ueber widget.hasFocus():
+# hasFocus() ist zusaetzlich daran gebunden, dass das Fenster aktiv ist, und
+# das ist es beim Rendern ohne Bildschirm nie. focusWidget() liefert den
+# Fokus-Empfaenger des Dialogs unabhaengig davon.
+
+def test_beim_oeffnen_liegt_der_fokus_auf_der_liste(dlg):
+    # Das Suchfeld steht ueber der Liste und ist damit das erste Element im
+    # Layout — ohne das setFocus() in _refresh_list bekaeme es den Fokus. Dann
+    # waere die aktuelle Lokation zwar vorausgewaehlt, die Pfeiltasten wuerden
+    # aber ins Suchfeld tippen statt durch die Liste zu wandern.
+    assert dlg.focusWidget() is dlg.list_widget
+
+
+def test_ohne_lokationen_liegt_der_fokus_auf_neu_anlegen(leerer_dlg):
+    # Beim allerersten Start gibt es nichts zu durchsuchen. Sinnvoll ist nur
+    # der Weg zur ersten Lokation.
+    assert leerer_dlg.focusWidget() is leerer_dlg.btn_add
