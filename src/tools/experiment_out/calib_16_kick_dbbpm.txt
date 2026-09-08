@@ -1,0 +1,173 @@
+=== #10  Always look on the bright side of life  (AlwaysLookOnTheBrightSideOfLife.mp3)
+    Beatraster: bpm≈128.4  Beats=466  Suchraum=8..18
+    Bester Start: Beat 11 → 5.60s   Ende 214.90s   margin=7.78
+    Stufe 2: Kamm-roh Beat 10 → Kick-Phase mod 8 = 3 (Stärke +0.38) → Beat 11
+    Top-5 (Beat:score): 10:23.39  9:21.82  11:21.65  8:21.19  12:19.81
+    REFERENZ: 6.78s (Beat 14)   Fehler = -1.18s (-2.5 Beats)   Rang=9
+      H1 Crash-Zinken (Median): Ref=+0.54   Alias−32=+nan   Alias+32=+0.89
+      H2 Figuren-Paar: Ref=0.883   Alias−32=nan   Alias+32=nan
+
+=== #365  California Dreamin  (California Dreamin-ESP1088.mp3)
+    Beatraster: bpm≈123.5  Beats=491  Suchraum=8..43
+    Bester Start: Beat 15 → 7.43s   Ende 225.10s   margin=8.48
+    Stufe 2: Kamm-roh Beat 13 → Kick-Phase mod 8 = 7 (Stärke +0.14) → Beat 15
+    Top-5 (Beat:score): 13:20.21  14:16.88  12:16.77  15:14.29  11:13.88
+    REFERENZ: 8.08s (Beat 16)   Fehler = -0.65s (-1.3 Beats)   Rang=5
+      H1 Crash-Zinken (Median): Ref=-0.14   Alias−32=+nan   Alias+32=+0.37
+      H2 Figuren-Paar: Ref=0.790   Alias−32=nan   Alias+32=nan
+
+=== #157  American Pie (RYL)  (AmericanPie_RYL.mp3)
+    Beatraster: bpm≈131.2  Beats=502  Suchraum=8..54
+    Bester Start: Beat 38 → 17.75s   Ende 222.69s   margin=0.44
+    Stufe 2: Kamm-roh Beat 34 → Kick-Phase mod 8 = 6 (Stärke +0.04) → Beat 38
+    Top-5 (Beat:score): 34:17.70  42:17.26  33:16.89  43:16.71  35:16.70
+    REFERENZ: 18.39s (Beat 39)   Fehler = -0.64s (-1.4 Beats)   Rang=14
+      H1 Crash-Zinken (Median): Ref=-0.15   Alias−32=-0.05   Alias+32=-0.14
+      H2 Figuren-Paar: Ref=0.876   Alias−32=0.771   Alias+32=nan
+
+=== #212  ABBA Medley  (A1024m.mp3)
+    Beatraster: bpm≈126.0  Beats=502  Suchraum=8..54
+    Bester Start: Beat 14 → 7.12s   Ende 220.45s   margin=4.24
+    Stufe 2: Kamm-roh Beat 47 → Kick-Phase mod 8 = 6 (Stärke +0.05) → Beat 14  H2-Tiebreak: -32 Beats
+    Top-5 (Beat:score): 47:16.95  46:16.30  45:15.39  42:15.12  48:14.52
+    REFERENZ: 6.97s (Beat 14)   Fehler = +0.15s (+0.3 Beats)   Rang=10
+      H1 Crash-Zinken (Median): Ref=+0.73   Alias−32=+nan   Alias+32=+0.28
+      H2 Figuren-Paar: Ref=0.853   Alias−32=nan   Alias+32=0.793
+
+=== #44  Streets of London  (StreetsOfLondon.mp3)
+    Beatraster: bpm≈124.0  Beats=484  Suchraum=8..36
+    Bester Start: Beat 16 → 7.79s   Ende 224.54s   margin=9.60
+    Stufe 2: Kamm-roh Beat 15 → Kick-Phase mod 8 = 0 (Stärke +0.33) → Beat 16
+    Top-5 (Beat:score): 15:20.55  16:20.27  18:16.66  13:16.21  19:16.13
+    REFERENZ: 9.01s (Beat 19)   Fehler = -1.22s (-2.5 Beats)   Rang=4
+      H1 Crash-Zinken (Median): Ref=+0.19   Alias−32=+nan   Alias+32=+0.30
+      H2 Figuren-Paar: Ref=0.889   Alias−32=nan   Alias+32=nan
+
+=== #490  Money Money Money GP 955 (LOW KEY)  (Money Money Money GP 955 (LOW KEY).mp3)
+    Beatraster: bpm≈126.8  Beats=489  Suchraum=8..41
+    Bester Start: Beat 18 → 8.78s   Ende 220.78s   margin=5.57
+    Stufe 2: Kamm-roh Beat 16 → Kick-Phase mod 8 = 2 (Stärke +0.06) → Beat 18
+    Top-5 (Beat:score): 16:18.74  17:18.58  18:18.09  14:17.19  15:17.00
+    REFERENZ: 9.66s (Beat 20)   Fehler = -0.88s (-1.9 Beats)   Rang=7
+      H1 Crash-Zinken (Median): Ref=+0.30   Alias−32=+nan   Alias+32=+0.07
+      H2 Figuren-Paar: Ref=0.907   Alias−32=nan   Alias+32=nan
+
+=== #191  Merry Christmas Everyone  (A1026m.mp3)
+    Beatraster: bpm≈126.1  Beats=486  Suchraum=8..38
+    Bester Start: Beat 16 → 7.79s   Ende 220.94s   margin=10.85
+    Stufe 2: Kamm-roh Beat 15 → Kick-Phase mod 8 = 0 (Stärke +0.05) → Beat 16
+    Top-5 (Beat:score): 15:15.93  16:15.88  11:11.60  12:11.38  10:9.76
+    REFERENZ: 8.66s (Beat 18)   Fehler = -0.87s (-1.8 Beats)   Rang=10
+      H1 Crash-Zinken (Median): Ref=-0.17   Alias−32=+nan   Alias+32=-0.22
+      H2 Figuren-Paar: Ref=0.943   Alias−32=nan   Alias+32=nan
+
+=== #119  Hound Dog  (HoundDog.mp3)
+    Beatraster: bpm≈131.0  Beats=483  Suchraum=8..35
+    Bester Start: Beat 18 → 8.55s   Ende 213.68s   margin=1.57
+    Stufe 2: Kamm-roh Beat 23 → Kick-Phase mod 8 = 2 (Stärke +0.32) → Beat 18
+    Top-5 (Beat:score): 23:16.88  22:16.66  24:15.80  15:15.31  16:15.17
+    REFERENZ: 9.66s (Beat 20)   Fehler = -1.11s (-2.4 Beats)   Rang=15
+      H1 Crash-Zinken (Median): Ref=-0.22   Alias−32=+nan   Alias+32=+0.26
+      H2 Figuren-Paar: Ref=0.843   Alias−32=nan   Alias+32=nan
+
+=== #33  Love me tender  (LoveMeTender.mp3)
+    Beatraster: bpm≈124.5  Beats=481  Suchraum=8..33
+    Bester Start: Beat 20 → 9.83s   Ende 225.75s   margin=3.74
+    Stufe 2: Kamm-roh Beat 16 → Kick-Phase mod 8 = 4 (Stärke +0.22) → Beat 20
+    Top-5 (Beat:score): 16:13.27  15:12.60  17:12.30  21:10.86  22:9.88
+    REFERENZ: 9.47s (Beat 19)   Fehler = +0.36s (+0.7 Beats)   Rang=15
+      H1 Crash-Zinken (Median): Ref=+0.04   Alias−32=+nan   Alias+32=+0.35
+      H2 Figuren-Paar: Ref=0.930   Alias−32=nan   Alias+32=nan
+
+=== #457  Ten O´Clock Postman  (Ten O´Clock Postman - BVR104.mp3)
+    Beatraster: bpm≈129.9  Beats=504  Suchraum=8..56
+    Bester Start: Beat 13 → 6.44s   Ende 213.37s   margin=0.64
+    Stufe 2: Kamm-roh Beat 8 → Kick-Phase mod 8 = 5 (Stärke +0.03) → Beat 13
+    Top-5 (Beat:score): 8:8.27  40:7.63  41:7.08  39:7.00  35:6.48
+    REFERENZ: 10.40s (Beat 22)   Fehler = -3.96s (-8.6 Beats)   Rang=36
+      H1 Crash-Zinken (Median): Ref=-0.04   Alias−32=+nan   Alias+32=-0.09
+      H2 Figuren-Paar: Ref=0.964   Alias−32=nan   Alias+32=0.930
+
+=== #110  Splish Spash  (SplishSplash.mp3)
+    Beatraster: bpm≈133.5  Beats=470  Suchraum=8..22
+    Bester Start: Beat 19 → 8.62s   Ende 209.93s   margin=8.35
+    Stufe 2: Kamm-roh Beat 20 → Kick-Phase mod 8 = 3 (Stärke +0.34) → Beat 19
+    Top-5 (Beat:score): 20:20.65  19:18.67  18:16.52  21:16.09  22:15.45
+    REFERENZ: 9.01s (Beat 20)   Fehler = -0.39s (-0.9 Beats)   Rang=0
+      H1 Crash-Zinken (Median): Ref=+0.45   Alias−32=+nan   Alias+32=+0.05
+      H2 Figuren-Paar: Ref=0.844   Alias−32=nan   Alias+32=nan
+
+=== #301  The Lion King  (TheLionKing.mp3)
+    Beatraster: bpm≈120.7  Beats=479  Suchraum=8..31
+    Bester Start: Beat 23 → 11.61s   Ende 234.33s   margin=6.17
+    Stufe 2: Kamm-roh Beat 22 → Kick-Phase mod 8 = 7 (Stärke +0.17) → Beat 23
+    Top-5 (Beat:score): 22:19.75  16:18.14  21:17.92  15:17.76  23:16.71
+    REFERENZ: 9.38s (Beat 19)   Fehler = +2.23s (+4.5 Beats)   Rang=9
+      H1 Crash-Zinken (Median): Ref=-0.32   Alias−32=+nan   Alias+32=-0.12
+      H2 Figuren-Paar: Ref=0.867   Alias−32=nan   Alias+32=nan
+
+=== #142  One Promise Too Late  (OnePromiseTooLate.mp3)
+    Beatraster: bpm≈125.8  Beats=492  Suchraum=8..44
+    Bester Start: Beat 23 → 11.37s   Ende 224.97s   margin=0.41
+    Stufe 2: Kamm-roh Beat 18 → Kick-Phase mod 8 = 7 (Stärke +0.02) → Beat 23
+    Top-5 (Beat:score): 18:10.33  9:9.93  17:9.82  22:9.61  27:9.53
+    REFERENZ: 11.80s (Beat 24)   Fehler = -0.43s (-0.9 Beats)   Rang=8
+      H1 Crash-Zinken (Median): Ref=-0.09   Alias−32=+nan   Alias+32=+0.32
+      H2 Figuren-Paar: Ref=0.809   Alias−32=nan   Alias+32=nan
+
+=== #334  Puff The Magic Dragon  (PuffTheMagicDragon-Bogan1159+.mp3)
+    Beatraster: bpm≈125.6  Beats=469  Suchraum=8..21
+    Bester Start: Beat 11 → 5.41s   Ende 219.49s   margin=3.52
+    Stufe 2: Kamm-roh Beat 8 → Kick-Phase mod 8 = 3 (Stärke +0.12) → Beat 11
+    Top-5 (Beat:score): 8:24.89  9:22.91  15:22.72  11:22.61  14:21.58
+    REFERENZ: 5.94s (Beat 12)   Fehler = -0.53s (-1.1 Beats)   Rang=7
+      H1 Crash-Zinken (Median): Ref=-0.24   Alias−32=+nan   Alias+32=-0.12
+      H2 Figuren-Paar: Ref=0.876   Alias−32=nan   Alias+32=nan
+
+=== #31  Leap Of Faith  (LeapOfFaith.mp3)
+    Beatraster: bpm≈128.3  Beats=502  Suchraum=8..54
+    Bester Start: Beat 24 → 11.37s   Ende 220.91s   margin=1.80
+    Stufe 2: Kamm-roh Beat 23 → Kick-Phase mod 8 = 0 (Stärke +0.50) → Beat 24
+    Top-5 (Beat:score): 23:12.53  22:12.34  54:10.73  47:10.64  21:10.61
+    REFERENZ: 13.47s (Beat 28)   Fehler = -2.10s (-4.5 Beats)   Rang=30
+      H1 Crash-Zinken (Median): Ref=+0.14   Alias−32=+nan   Alias+32=+0.24
+      H2 Figuren-Paar: Ref=0.869   Alias−32=nan   Alias+32=nan
+
+=== #49  Truly, madly, deeply  (TrulyMadlyDeeply.mp3)
+    Beatraster: bpm≈128.0  Beats=504  Suchraum=8..56
+    Bester Start: Beat 48 → 22.51s   Ende 232.53s   margin=10.36
+    Stufe 2: Kamm-roh Beat 48 → Kick-Phase mod 8 = 0 (Stärke +0.45) → Beat 48
+    Top-5 (Beat:score): 48:23.83  47:23.58  45:15.52  46:14.99  8:13.47
+    REFERENZ: 16.25s (Beat 35)   Fehler = +6.26s (+13.4 Beats)   Rang=45
+      H1 Crash-Zinken (Median): Ref=-0.49   Alias−32=-0.49   Alias+32=-0.51
+      H2 Figuren-Paar: Ref=0.973   Alias−32=0.967   Alias+32=nan
+
+======================================================================
+ZUSAMMENFASSUNG — 16 Songs mit Referenz
+======================================================================
+  Treffer ≤ 1 Beat(s): 4/16  (25%)
+  Treffer ≤ 2 Beat(s): 9/16  (56%)
+  Treffer ≤ 4 Beat(s): 12/16  (75%)
+  Median |Fehler|: 1.9 Beats
+  Ränge: [0, 4, 5, 7, 7, 8, 9, 9, 10, 10, 14, 15, 15, 30, 36, 45]   → Referenz in Top-3: 1/16
+
+  H1 (Crash trennt Ref von ±32-Alias): positiv bei 5/16 Songs, Median-Separation -0.11
+  H2 (Figuren-Paar trennt Ref von ±32-Alias): positiv bei 4/4 Songs, Median-Separation +0.047
+
+  Details (id: Fehler | Rang | margin | H1-Sep | H2-Sep):
+    #212    +0.3b | Rang 10  | m= 4.24 | H1 +0.45 | H2 +0.059
+    #33     +0.7b | Rang 15  | m= 3.74 | H1 -0.31 | H2   +nan
+    #110    -0.9b | Rang 0   | m= 8.35 | H1 +0.40 | H2   +nan
+    #142    -0.9b | Rang 8   | m= 0.41 | H1 -0.41 | H2   +nan
+    #334    -1.1b | Rang 7   | m= 3.52 | H1 -0.12 | H2   +nan
+    #365    -1.3b | Rang 5   | m= 8.48 | H1 -0.51 | H2   +nan
+    #157    -1.4b | Rang 14  | m= 0.44 | H1 -0.10 | H2 +0.105
+    #191    -1.8b | Rang 10  | m=10.85 | H1 +0.04 | H2   +nan
+    #490    -1.9b | Rang 7   | m= 5.57 | H1 +0.23 | H2   +nan
+    #119    -2.4b | Rang 15  | m= 1.57 | H1 -0.48 | H2   +nan
+    #10     -2.5b | Rang 9   | m= 7.78 | H1 -0.35 | H2   +nan
+    #44     -2.5b | Rang 4   | m= 9.60 | H1 -0.11 | H2   +nan
+    #301    +4.5b | Rang 9   | m= 6.17 | H1 -0.20 | H2   +nan
+    #31     -4.5b | Rang 30  | m= 1.80 | H1 -0.11 | H2   +nan
+    #457    -8.6b | Rang 36  | m= 0.64 | H1 +0.05 | H2 +0.034
+    #49    +13.4b | Rang 45  | m=10.36 | H1 -0.01 | H2 +0.006

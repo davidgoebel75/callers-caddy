@@ -1,0 +1,8 @@
+# .gitattributes fuer Callers Caddy
+# ---------------------------------
+# Vorschlag von Thomas. Deine Quellen sind CRLF, translations.json ist LF.
+# Ohne diese Zeile wuerde Git die Zeilenenden je nach Rechner umschreiben —
+# dann sieht ein Drei-Zeilen-Patch aus wie eine komplett neue Datei.
+# "-text" heisst: Git laesst die Bytes in Ruhe, so wie sie committet wurden.
+
+* -text

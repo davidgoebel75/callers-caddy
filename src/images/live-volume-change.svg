@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<g fill="none" stroke="{{icon_color}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="3" width="5" height="10" rx="2.5"/>
+  <path d="M3.5,11 a5,5 0 0 0 10,0"/>
+  <line x1="8.5" y1="16" x2="8.5" y2="20"/>
+  <path d="M18,8 V16"/>
+  <polyline points="16.2,9.8 18,8 19.8,9.8"/>
+  <polyline points="16.2,14.2 18,16 19.8,14.2"/>
+</g>
+</svg>

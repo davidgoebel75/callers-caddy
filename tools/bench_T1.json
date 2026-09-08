@@ -1,0 +1,138 @@
+{
+  "_meta": {
+    "seq_total": 1705,
+    "sqlite": "3.49.1",
+    "reps": 7,
+    "id_sample": 200,
+    "ent_sample": 60,
+    "thr_sample": 40,
+    "series": 5,
+    "label": "T1"
+  },
+  "contains_count": {
+    "median_ms": 525.953,
+    "min_ms": 519.552,
+    "max_ms": 530.778,
+    "stdev_ms": 4.152,
+    "cv_pct": 0.8,
+    "series_ms": [
+      530.778,
+      528.124,
+      525.806,
+      525.953,
+      519.552
+    ]
+  },
+  "contains_page50": {
+    "median_ms": 371.485,
+    "min_ms": 367.519,
+    "max_ms": 374.963,
+    "stdev_ms": 2.768,
+    "cv_pct": 0.7,
+    "series_ms": [
+      373.137,
+      371.046,
+      371.485,
+      374.963,
+      367.519
+    ]
+  },
+  "limit_count": {
+    "median_ms": 0.78,
+    "min_ms": 0.756,
+    "max_ms": 0.833,
+    "stdev_ms": 0.028,
+    "cv_pct": 3.6,
+    "series_ms": [
+      0.833,
+      0.776,
+      0.784,
+      0.756,
+      0.78
+    ]
+  },
+  "only_count": {
+    "median_ms": 0.374,
+    "min_ms": 0.367,
+    "max_ms": 0.381,
+    "stdev_ms": 0.006,
+    "cv_pct": 1.7,
+    "series_ms": [
+      0.381,
+      0.374,
+      0.37,
+      0.381,
+      0.367
+    ]
+  },
+  "get_sequence_calls_x200": {
+    "median_ms": 12.046,
+    "min_ms": 11.706,
+    "max_ms": 12.305,
+    "stdev_ms": 0.235,
+    "cv_pct": 1.9,
+    "series_ms": [
+      12.046,
+      12.037,
+      11.706,
+      12.246,
+      12.305
+    ]
+  },
+  "table_page50": {
+    "median_ms": 0.3,
+    "min_ms": 0.29,
+    "max_ms": 0.311,
+    "stdev_ms": 0.008,
+    "cv_pct": 2.7,
+    "series_ms": [
+      0.29,
+      0.3,
+      0.311,
+      0.301,
+      0.293
+    ]
+  },
+  "dup_count": {
+    "median_ms": 2.324,
+    "min_ms": 2.199,
+    "max_ms": 2.634,
+    "stdev_ms": 0.174,
+    "cv_pct": 7.4,
+    "series_ms": [
+      2.324,
+      2.634,
+      2.231,
+      2.399,
+      2.199
+    ]
+  },
+  "unmapped_collect": {
+    "median_ms": 4.118,
+    "min_ms": 3.963,
+    "max_ms": 4.326,
+    "stdev_ms": 0.143,
+    "cv_pct": 3.5,
+    "series_ms": [
+      3.963,
+      4.015,
+      4.326,
+      4.118,
+      4.177
+    ]
+  },
+  "distinct_calls_collect": {
+    "median_ms": 16.341,
+    "min_ms": 15.947,
+    "max_ms": 16.56,
+    "stdev_ms": 0.237,
+    "cv_pct": 1.5,
+    "series_ms": [
+      16.341,
+      16.366,
+      15.947,
+      16.56,
+      16.119
+    ]
+  }
+}

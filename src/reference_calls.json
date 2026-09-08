@@ -1,0 +1,4814 @@
+{
+ "version": 3,
+ "merges": [
+  [
+   "call_walk_around_the_corner",
+   "call_walk_around"
+  ],
+  [
+   "call_trade",
+   "call_named_dancers_trade"
+  ]
+ ],
+ "dance_programs": [
+  {
+   "code": "BASIC1",
+   "label": "Basic 1",
+   "band": 10,
+   "sort_order": 10,
+   "origin": "builtin"
+  },
+  {
+   "code": "BASIC2",
+   "label": "Basic 2",
+   "band": 20,
+   "sort_order": 20,
+   "origin": "builtin"
+  },
+  {
+   "code": "MS",
+   "label": "Mainstream",
+   "band": 29,
+   "sort_order": 30,
+   "origin": "builtin"
+  },
+  {
+   "code": "MS2026",
+   "label": "Mainstream (2026)",
+   "band": 30,
+   "sort_order": 40,
+   "origin": "builtin"
+  },
+  {
+   "code": "MS Class",
+   "label": "Mainstream (Class)",
+   "band": 30,
+   "is_class": true,
+   "sort_order": 50,
+   "origin": "builtin"
+  },
+  {
+   "code": "PL",
+   "label": "Plus",
+   "band": 39,
+   "sort_order": 60,
+   "origin": "builtin"
+  },
+  {
+   "code": "PL2026",
+   "label": "Plus (2026)",
+   "band": 40,
+   "sort_order": 70,
+   "origin": "builtin"
+  },
+  {
+   "code": "PL Class",
+   "label": "Plus (Class)",
+   "band": 40,
+   "is_class": true,
+   "sort_order": 80,
+   "origin": "builtin"
+  },
+  {
+   "code": "A1",
+   "label": "Advanced 1",
+   "band": 49,
+   "sort_order": 90,
+   "origin": "builtin"
+  },
+  {
+   "code": "A1_2026",
+   "label": "Advanced 1 (2026)",
+   "band": 50,
+   "sort_order": 100,
+   "origin": "builtin"
+  },
+  {
+   "code": "A1 Class",
+   "label": "Advanced 1 (Class)",
+   "band": 50,
+   "is_class": true,
+   "sort_order": 110,
+   "origin": "builtin"
+  },
+  {
+   "code": "A2",
+   "label": "Advanced 2",
+   "band": 60,
+   "sort_order": 120,
+   "origin": "builtin"
+  },
+  {
+   "code": "A2 Class",
+   "label": "Advanced 2 (Class)",
+   "band": 60,
+   "is_class": true,
+   "sort_order": 130,
+   "origin": "builtin"
+  },
+  {
+   "code": "C1",
+   "label": "Challenge 1",
+   "band": 70,
+   "sort_order": 140,
+   "origin": "builtin"
+  },
+  {
+   "code": "C1 Class",
+   "label": "Challenge 1 (Class)",
+   "band": 70,
+   "is_class": true,
+   "sort_order": 150,
+   "origin": "builtin"
+  },
+  {
+   "code": "C2",
+   "label": "Challenge 2",
+   "band": 80,
+   "sort_order": 160,
+   "origin": "builtin"
+  },
+  {
+   "code": "C2 Class",
+   "label": "Challenge 2 (Class)",
+   "band": 80,
+   "is_class": true,
+   "sort_order": 170,
+   "origin": "builtin"
+  },
+  {
+   "code": "C3A",
+   "label": "Challenge 3A",
+   "band": 90,
+   "sort_order": 180,
+   "origin": "builtin"
+  },
+  {
+   "code": "C3A Class",
+   "label": "Challenge 3A (Class)",
+   "band": 90,
+   "is_class": true,
+   "sort_order": 190,
+   "origin": "builtin"
+  },
+  {
+   "code": "C3B",
+   "label": "Challenge 3B",
+   "band": 100,
+   "sort_order": 200,
+   "origin": "builtin"
+  }
+ ],
+ "call_programs": [
+  {
+   "entity_id": "call_all_eight_circulate",
+   "teaching_order": 10.002103,
+   "program": "",
+   "canonical_name": "All Eight Circulate"
+  },
+  {
+   "entity_id": "call_allemande_left",
+   "teaching_order": 10.0006,
+   "program": "",
+   "canonical_name": "Allemande Left"
+  },
+  {
+   "entity_id": "call_arm_turns",
+   "teaching_order": 10.0007,
+   "program": "",
+   "canonical_name": "Arm Turns"
+  },
+  {
+   "entity_id": "call_backtrack",
+   "teaching_order": 10.001202,
+   "program": "",
+   "canonical_name": "Backtrack"
+  },
+  {
+   "entity_id": "call_bend_the_line",
+   "teaching_order": 10.002,
+   "program": "",
+   "canonical_name": "Bend the Line"
+  },
+  {
+   "entity_id": "call_california_twirl",
+   "teaching_order": 10.0027,
+   "program": "",
+   "canonical_name": "California Twirl"
+  },
+  {
+   "entity_id": "call_chain_down_the_line",
+   "teaching_order": 10.001603,
+   "program": "",
+   "canonical_name": "Chain Down the Line"
+  },
+  {
+   "entity_id": "call_circle_left",
+   "teaching_order": 10.0001,
+   "program": "",
+   "canonical_name": "Circle Left"
+  },
+  {
+   "entity_id": "call_circle_right",
+   "teaching_order": 10.000101,
+   "program": "",
+   "canonical_name": "Circle Right"
+  },
+  {
+   "entity_id": "call_circle_to_a_line",
+   "teaching_order": 10.0031,
+   "program": "",
+   "canonical_name": "Circle to a Line"
+  },
+  {
+   "entity_id": "call_couples_circulate",
+   "teaching_order": 10.002102,
+   "program": "",
+   "canonical_name": "Couples Circulate"
+  },
+  {
+   "entity_id": "call_couples_promenade",
+   "teaching_order": 10.000501,
+   "program": "",
+   "canonical_name": "Couples Promenade"
+  },
+  {
+   "entity_id": "call_courtesy_turn",
+   "teaching_order": 10.0015,
+   "program": "",
+   "canonical_name": "Courtesy Turn"
+  },
+  {
+   "entity_id": "call_dive_thru",
+   "teaching_order": 10.0032,
+   "program": "",
+   "canonical_name": "Dive Thru"
+  },
+  {
+   "entity_id": "call_do_paso",
+   "teaching_order": 10.0017,
+   "program": "",
+   "canonical_name": "Do Paso"
+  },
+  {
+   "entity_id": "call_dosado",
+   "teaching_order": 10.0003,
+   "program": "",
+   "canonical_name": "Dosado"
+  },
+  {
+   "entity_id": "call_dosado_to_a_wave",
+   "teaching_order": 10.000301,
+   "program": "",
+   "canonical_name": "Dosado to a Wave"
+  },
+  {
+   "entity_id": "call_double_pass_thru",
+   "teaching_order": 10.0025,
+   "program": "",
+   "canonical_name": "Double Pass Thru"
+  },
+  {
+   "entity_id": "call_first_go_next_go",
+   "teaching_order": 10.0026,
+   "program": "",
+   "canonical_name": "First Couple Go Left/Right Next Couple Go Left/Right"
+  },
+  {
+   "entity_id": "call_forward_and_back",
+   "teaching_order": 10.0002,
+   "program": "",
+   "canonical_name": "Forward and Back"
+  },
+  {
+   "entity_id": "call_four_ladies_chain",
+   "teaching_order": 10.001602,
+   "program": "",
+   "canonical_name": "Four Ladies Chain"
+  },
+  {
+   "entity_id": "call_grand_square",
+   "teaching_order": 10.0023,
+   "program": "",
+   "canonical_name": "Grand Square"
+  },
+  {
+   "entity_id": "call_half_sashay",
+   "teaching_order": 10.001101,
+   "program": "",
+   "canonical_name": "Half Sashay"
+  },
+  {
+   "entity_id": "call_ladies_in_men_sashay",
+   "teaching_order": 10.001103,
+   "program": "",
+   "canonical_name": "Ladies In Men Sashay"
+  },
+  {
+   "entity_id": "call_lead_left",
+   "teaching_order": 10.001801,
+   "program": "",
+   "canonical_name": "Lead Left"
+  },
+  {
+   "entity_id": "call_lead_right",
+   "teaching_order": 10.0018,
+   "program": "",
+   "canonical_name": "Lead Right"
+  },
+  {
+   "entity_id": "call_left_hand_star",
+   "teaching_order": 10.0009,
+   "program": "",
+   "canonical_name": "Left-Hand Star"
+  },
+  {
+   "entity_id": "call_left_square_thru",
+   "teaching_order": 10.003001,
+   "program": "",
+   "canonical_name": "Left Square Thru"
+  },
+  {
+   "entity_id": "call_named_dancers_circulate",
+   "teaching_order": 10.002101,
+   "program": "",
+   "canonical_name": "(Named Dancers) Circulate"
+  },
+  {
+   "entity_id": "call_pass_thru",
+   "teaching_order": 10.001,
+   "program": "",
+   "canonical_name": "Pass Thru"
+  },
+  {
+   "entity_id": "call_right_and_left_grand",
+   "teaching_order": 10.000801,
+   "program": "",
+   "canonical_name": "Right and Left Grand"
+  },
+  {
+   "entity_id": "call_right_and_left_thru",
+   "teaching_order": 10.0022,
+   "program": "",
+   "canonical_name": "Right and Left Thru"
+  },
+  {
+   "entity_id": "call_right_hand_star",
+   "teaching_order": 10.000901,
+   "program": "",
+   "canonical_name": "Right-Hand Star"
+  },
+  {
+   "entity_id": "call_rollaway",
+   "teaching_order": 10.001102,
+   "program": "",
+   "canonical_name": "Rollaway"
+  },
+  {
+   "entity_id": "call_see_saw",
+   "teaching_order": 10.0029,
+   "program": "",
+   "canonical_name": "See Saw"
+  },
+  {
+   "entity_id": "call_separate_around_come_into_middle",
+   "teaching_order": 10.001302,
+   "program": "",
+   "canonical_name": "Separate Around 1 or 2 and Come into the Middle"
+  },
+  {
+   "entity_id": "call_separate_around_to_a_line",
+   "teaching_order": 10.001301,
+   "program": "",
+   "canonical_name": "Separate Around 1 or 2 to a Line"
+  },
+  {
+   "entity_id": "call_single_file_circulate",
+   "teaching_order": 10.002104,
+   "program": "",
+   "canonical_name": "Single File Circulate"
+  },
+  {
+   "entity_id": "call_single_file_promenade",
+   "teaching_order": 10.000502,
+   "program": "",
+   "canonical_name": "Single File Promenade"
+  },
+  {
+   "entity_id": "call_split_circulate",
+   "teaching_order": 10.002105,
+   "program": "",
+   "canonical_name": "Split Circulate"
+  },
+  {
+   "entity_id": "call_split_two",
+   "teaching_order": 10.0014,
+   "program": "",
+   "canonical_name": "Split Two"
+  },
+  {
+   "entity_id": "call_square_thru",
+   "teaching_order": 10.003,
+   "program": "",
+   "canonical_name": "Square Thru"
+  },
+  {
+   "entity_id": "call_star_promenade",
+   "teaching_order": 10.000504,
+   "program": "",
+   "canonical_name": "Star Promenade"
+  },
+  {
+   "entity_id": "call_star_thru",
+   "teaching_order": 10.0024,
+   "program": "",
+   "canonical_name": "Star Thru"
+  },
+  {
+   "entity_id": "call_swing",
+   "teaching_order": 10.0004,
+   "program": "",
+   "canonical_name": "Swing (your Partner)"
+  },
+  {
+   "entity_id": "call_two_ladies_chain",
+   "teaching_order": 10.001601,
+   "program": "",
+   "canonical_name": "Two Ladies Chain"
+  },
+  {
+   "entity_id": "call_u_turn_back",
+   "teaching_order": 10.001201,
+   "program": "",
+   "canonical_name": "U-Turn Back"
+  },
+  {
+   "entity_id": "call_veer_left",
+   "teaching_order": 10.0019,
+   "program": "",
+   "canonical_name": "Veer Left"
+  },
+  {
+   "entity_id": "call_veer_right",
+   "teaching_order": 10.001901,
+   "program": "",
+   "canonical_name": "Veer Right"
+  },
+  {
+   "entity_id": "call_walk_around",
+   "teaching_order": 10.0028,
+   "program": "",
+   "canonical_name": "Walk Around"
+  },
+  {
+   "entity_id": "call_weave_the_ring",
+   "teaching_order": 10.000802,
+   "program": "",
+   "canonical_name": "Weave the Ring"
+  },
+  {
+   "entity_id": "call_wrong_way_grand",
+   "teaching_order": 10.000803,
+   "program": "",
+   "canonical_name": "Wrong Way Grand"
+  },
+  {
+   "entity_id": "call_wrong_way_promenade",
+   "teaching_order": 10.000503,
+   "program": "",
+   "canonical_name": "Wrong Way Promenade"
+  },
+  {
+   "entity_id": "call_alamo_style",
+   "teaching_order": 20.0037,
+   "program": "",
+   "canonical_name": "Alamo Style"
+  },
+  {
+   "entity_id": "call_balance",
+   "teaching_order": 20.003602,
+   "program": "",
+   "canonical_name": "Balance"
+  },
+  {
+   "entity_id": "call_box_the_gnat",
+   "teaching_order": 20.0034,
+   "program": "",
+   "canonical_name": "Box the Gnat"
+  },
+  {
+   "entity_id": "call_couples_trade",
+   "teaching_order": 20.003503,
+   "program": "",
+   "canonical_name": "Couples Trade"
+  },
+  {
+   "entity_id": "call_cross_run",
+   "teaching_order": 20.003901,
+   "program": "",
+   "canonical_name": "Cross Run"
+  },
+  {
+   "entity_id": "call_extend",
+   "teaching_order": 20.0041,
+   "program": "",
+   "canonical_name": "Extend"
+  },
+  {
+   "entity_id": "call_ferris_wheel",
+   "teaching_order": 20.0048,
+   "program": "",
+   "canonical_name": "Ferris Wheel"
+  },
+  {
+   "entity_id": "call_flutterwheel",
+   "teaching_order": 20.0044,
+   "program": "",
+   "canonical_name": "Flutterwheel"
+  },
+  {
+   "entity_id": "call_left_swing_thru",
+   "teaching_order": 20.003801,
+   "program": "",
+   "canonical_name": "Left Swing Thru"
+  },
+  {
+   "entity_id": "call_named_dancers_trade",
+   "teaching_order": 20.003501,
+   "program": "",
+   "canonical_name": "Trade"
+  },
+  {
+   "entity_id": "call_partner_trade",
+   "teaching_order": 20.003502,
+   "program": "",
+   "canonical_name": "Partner Trade"
+  },
+  {
+   "entity_id": "call_pass_the_ocean",
+   "teaching_order": 20.004,
+   "program": "",
+   "canonical_name": "Pass the Ocean"
+  },
+  {
+   "entity_id": "call_reverse_flutterwheel",
+   "teaching_order": 20.004401,
+   "program": "",
+   "canonical_name": "Reverse Flutterwheel"
+  },
+  {
+   "entity_id": "call_reverse_wheel_around",
+   "teaching_order": 20.003301,
+   "program": "",
+   "canonical_name": "Reverse Wheel Around"
+  },
+  {
+   "entity_id": "call_run",
+   "teaching_order": 20.0039,
+   "program": "",
+   "canonical_name": "Run"
+  },
+  {
+   "entity_id": "call_step_to_a_wave",
+   "teaching_order": 20.003601,
+   "program": "",
+   "canonical_name": "Step to a Wave"
+  },
+  {
+   "entity_id": "call_sweep_a_quarter",
+   "teaching_order": 20.0045,
+   "program": "",
+   "canonical_name": "Sweep a Quarter"
+  },
+  {
+   "entity_id": "call_swing_thru",
+   "teaching_order": 20.0038,
+   "program": "",
+   "canonical_name": "Swing Thru"
+  },
+  {
+   "entity_id": "call_touch_a_quarter",
+   "teaching_order": 20.0047,
+   "program": "",
+   "canonical_name": "Touch a Quarter"
+  },
+  {
+   "entity_id": "call_trade_by",
+   "teaching_order": 20.0046,
+   "program": "",
+   "canonical_name": "Trade By"
+  },
+  {
+   "entity_id": "call_wheel_and_deal",
+   "teaching_order": 20.0042,
+   "program": "",
+   "canonical_name": "Wheel and Deal"
+  },
+  {
+   "entity_id": "call_wheel_around",
+   "teaching_order": 20.0033,
+   "program": "",
+   "canonical_name": "Wheel Around"
+  },
+  {
+   "entity_id": "call_zoom",
+   "teaching_order": 20.0043,
+   "program": "",
+   "canonical_name": "Zoom"
+  },
+  {
+   "entity_id": "call_box_counter_rotate",
+   "teaching_order": 60.000502,
+   "program": "",
+   "canonical_name": "Box Counter Rotate"
+  },
+  {
+   "entity_id": "call_box_transfer",
+   "teaching_order": 60.003102,
+   "program": "",
+   "canonical_name": "Box Transfer"
+  },
+  {
+   "entity_id": "call_checkmate_the_column",
+   "teaching_order": 60.0023,
+   "program": "",
+   "canonical_name": "Checkmate the Column"
+  },
+  {
+   "entity_id": "call_cut_the_hourglass",
+   "teaching_order": 60.0019,
+   "program": "",
+   "canonical_name": "Cut the Hourglass"
+  },
+  {
+   "entity_id": "call_diamond_chain_thru",
+   "teaching_order": 60.0032,
+   "program": "",
+   "canonical_name": "Diamond Chain Thru"
+  },
+  {
+   "entity_id": "call_flip_the_hourglass",
+   "teaching_order": 60.002,
+   "program": "",
+   "canonical_name": "Flip the Hourglass"
+  },
+  {
+   "entity_id": "call_grand_remake",
+   "teaching_order": 60.002702,
+   "program": "",
+   "canonical_name": "Grand Remake"
+  },
+  {
+   "entity_id": "call_hourglass_circulate",
+   "teaching_order": 60.0018,
+   "program": "",
+   "canonical_name": "Hourglass Circulate"
+  },
+  {
+   "entity_id": "call_in_roll_circulate",
+   "teaching_order": 60.0002,
+   "program": "",
+   "canonical_name": "In Roll Circulate"
+  },
+  {
+   "entity_id": "call_mini_busy",
+   "teaching_order": 60.0024,
+   "program": "",
+   "canonical_name": "Mini-Busy"
+  },
+  {
+   "entity_id": "call_motivate",
+   "teaching_order": 60.0009,
+   "program": "",
+   "canonical_name": "Motivate"
+  },
+  {
+   "entity_id": "call_out_roll_circulate",
+   "teaching_order": 60.0016,
+   "program": "",
+   "canonical_name": "Out Roll Circulate"
+  },
+  {
+   "entity_id": "call_pass_and_roll",
+   "teaching_order": 60.0011,
+   "program": "",
+   "canonical_name": "Pass and Roll"
+  },
+  {
+   "entity_id": "call_pass_and_roll_your_neighbor",
+   "teaching_order": 60.0021,
+   "program": "",
+   "canonical_name": "Pass and Roll Your Neighbor"
+  },
+  {
+   "entity_id": "call_peel_and_trail",
+   "teaching_order": 60.0033,
+   "program": "",
+   "canonical_name": "Peel and Trail"
+  },
+  {
+   "entity_id": "call_remake",
+   "teaching_order": 60.002701,
+   "program": "",
+   "canonical_name": "Remake"
+  },
+  {
+   "entity_id": "call_remake_the_thar",
+   "teaching_order": 60.002703,
+   "program": "",
+   "canonical_name": "Remake the Thar"
+  },
+  {
+   "entity_id": "call_scoot_and_weave",
+   "teaching_order": 60.0004,
+   "program": "",
+   "canonical_name": "Scoot and Weave"
+  },
+  {
+   "entity_id": "call_scoot_chain_thru",
+   "teaching_order": 60.0012,
+   "program": "",
+   "canonical_name": "Scoot Chain Thru"
+  },
+  {
+   "entity_id": "call_single_wheel",
+   "teaching_order": 60.0001,
+   "program": "",
+   "canonical_name": "Single Wheel"
+  },
+  {
+   "entity_id": "call_slide_a2",
+   "teaching_order": 60.0013,
+   "program": "",
+   "canonical_name": "Slide"
+  },
+  {
+   "entity_id": "call_slip",
+   "teaching_order": 60.0003,
+   "program": "",
+   "canonical_name": "Slip"
+  },
+  {
+   "entity_id": "call_slither",
+   "teaching_order": 60.0025,
+   "program": "",
+   "canonical_name": "Slither"
+  },
+  {
+   "entity_id": "call_spin_the_windmill",
+   "teaching_order": 60.0015,
+   "program": "",
+   "canonical_name": "Spin the Windmill"
+  },
+  {
+   "entity_id": "call_split_counter_rotate",
+   "teaching_order": 60.000501,
+   "program": "",
+   "canonical_name": "Split Counter Rotate"
+  },
+  {
+   "entity_id": "call_split_transfer",
+   "teaching_order": 60.003101,
+   "program": "",
+   "canonical_name": "Split Transfer"
+  },
+  {
+   "entity_id": "call_swing_a2",
+   "teaching_order": 60.0006,
+   "program": "",
+   "canonical_name": "Swing"
+  },
+  {
+   "entity_id": "call_swing_and_mix",
+   "teaching_order": 60.0007,
+   "program": "",
+   "canonical_name": "Swing and Mix"
+  },
+  {
+   "entity_id": "call_switch_the_wave",
+   "teaching_order": 60.001,
+   "program": "",
+   "canonical_name": "Switch the Wave"
+  },
+  {
+   "entity_id": "call_switch_to_a_diamond",
+   "teaching_order": 60.0017,
+   "program": "",
+   "canonical_name": "Switch to a Diamond"
+  },
+  {
+   "entity_id": "call_switch_to_an_hourglass",
+   "teaching_order": 60.003,
+   "program": "",
+   "canonical_name": "Switch to an Hourglass"
+  },
+  {
+   "entity_id": "call_trade_circulate",
+   "teaching_order": 60.0008,
+   "program": "",
+   "canonical_name": "Trade Circulate"
+  },
+  {
+   "entity_id": "call_trail_off",
+   "teaching_order": 60.0026,
+   "program": "",
+   "canonical_name": "Trail Off"
+  },
+  {
+   "entity_id": "call_zig_zag",
+   "teaching_order": 60.0022,
+   "program": "",
+   "canonical_name": "Zig Zag"
+  },
+  {
+   "entity_id": "concept_all_4_couples",
+   "teaching_order": 60.003501,
+   "program": "",
+   "canonical_name": "All 4 Couples Concept"
+  },
+  {
+   "entity_id": "concept_all_8",
+   "teaching_order": 60.003502,
+   "program": "",
+   "canonical_name": "All 8 Concept"
+  },
+  {
+   "entity_id": "concept_transfer_and_anything",
+   "teaching_order": 60.0034,
+   "program": "",
+   "canonical_name": "Transfer and (Anything)"
+  },
+  {
+   "entity_id": "call_ah_so",
+   "teaching_order": 70.0001,
+   "program": "",
+   "canonical_name": "Ah So"
+  },
+  {
+   "entity_id": "call_all_8_recycle",
+   "teaching_order": 70.003501,
+   "program": "",
+   "canonical_name": "All 8 Recycle"
+  },
+  {
+   "entity_id": "call_alter_the_wave",
+   "teaching_order": 70.0002,
+   "program": "",
+   "canonical_name": "Alter The Wave"
+  },
+  {
+   "entity_id": "call_box_recycle",
+   "teaching_order": 70.003504,
+   "program": "",
+   "canonical_name": "Box Recycle"
+  },
+  {
+   "entity_id": "call_cast_back",
+   "teaching_order": 70.000601,
+   "program": "",
+   "canonical_name": "Cast Back"
+  },
+  {
+   "entity_id": "call_chase_your_cross_neighbor",
+   "teaching_order": 70.000802,
+   "program": "",
+   "canonical_name": "Chase Your Cross Neighbor"
+  },
+  {
+   "entity_id": "call_chase_your_neighbor",
+   "teaching_order": 70.000801,
+   "program": "",
+   "canonical_name": "Chase Your Neighbor"
+  },
+  {
+   "entity_id": "call_checkover",
+   "teaching_order": 70.0009,
+   "program": "",
+   "canonical_name": "Checkover"
+  },
+  {
+   "entity_id": "call_circle_by",
+   "teaching_order": 70.001,
+   "program": "",
+   "canonical_name": "Circle By"
+  },
+  {
+   "entity_id": "call_counter_rotate",
+   "teaching_order": 70.0012,
+   "program": "",
+   "canonical_name": "Counter Rotate"
+  },
+  {
+   "entity_id": "call_cross_and_turn",
+   "teaching_order": 70.001301,
+   "program": "",
+   "canonical_name": "Cross And Turn"
+  },
+  {
+   "entity_id": "call_cross_by",
+   "teaching_order": 70.0014,
+   "program": "",
+   "canonical_name": "Cross By"
+  },
+  {
+   "entity_id": "call_cross_cast_back",
+   "teaching_order": 70.000602,
+   "program": "",
+   "canonical_name": "Cross Cast Back"
+  },
+  {
+   "entity_id": "call_cross_chain_and_roll",
+   "teaching_order": 70.001502,
+   "program": "",
+   "canonical_name": "Cross Chain And Roll"
+  },
+  {
+   "entity_id": "call_cross_chain_thru",
+   "teaching_order": 70.001501,
+   "program": "",
+   "canonical_name": "Cross Chain Thru"
+  },
+  {
+   "entity_id": "call_cross_extend",
+   "teaching_order": 70.0016,
+   "program": "",
+   "canonical_name": "Cross Extend"
+  },
+  {
+   "entity_id": "call_cross_roll_to_a_line",
+   "teaching_order": 70.001702,
+   "program": "",
+   "canonical_name": "Cross Roll To A Line"
+  },
+  {
+   "entity_id": "call_cross_roll_to_a_wave",
+   "teaching_order": 70.001701,
+   "program": "",
+   "canonical_name": "Cross Roll To A Wave"
+  },
+  {
+   "entity_id": "call_cross_your_neighbor",
+   "teaching_order": 70.001801,
+   "program": "",
+   "canonical_name": "Cross Your Neighbor"
+  },
+  {
+   "entity_id": "call_cut_the_galaxy",
+   "teaching_order": 70.002403,
+   "program": "",
+   "canonical_name": "Cut The Galaxy"
+  },
+  {
+   "entity_id": "call_cut_the_interlocked_diamond",
+   "teaching_order": 70.002503,
+   "program": "",
+   "canonical_name": "Cut The Interlocked Diamond"
+  },
+  {
+   "entity_id": "call_dixie_diamond",
+   "teaching_order": 70.002,
+   "program": "",
+   "canonical_name": "Dixie Diamond"
+  },
+  {
+   "entity_id": "call_dixie_sashay",
+   "teaching_order": 70.0021,
+   "program": "",
+   "canonical_name": "Dixie Sashay"
+  },
+  {
+   "entity_id": "call_flip_back",
+   "teaching_order": 70.006301,
+   "program": "",
+   "canonical_name": "Flip Back"
+  },
+  {
+   "entity_id": "call_flip_the_galaxy",
+   "teaching_order": 70.002404,
+   "program": "",
+   "canonical_name": "Flip The Galaxy"
+  },
+  {
+   "entity_id": "call_flip_the_interlocked_diamond",
+   "teaching_order": 70.002504,
+   "program": "",
+   "canonical_name": "Flip The Interlocked Diamond"
+  },
+  {
+   "entity_id": "call_flip_the_line",
+   "teaching_order": 70.0022,
+   "program": "",
+   "canonical_name": "Flip The Line"
+  },
+  {
+   "entity_id": "call_follow_thru",
+   "teaching_order": 70.0023,
+   "program": "",
+   "canonical_name": "Follow Thru"
+  },
+  {
+   "entity_id": "call_galaxy_circulate",
+   "teaching_order": 70.002402,
+   "program": "",
+   "canonical_name": "Galaxy Circulate"
+  },
+  {
+   "entity_id": "call_interlocked_diamond_circulate",
+   "teaching_order": 70.002502,
+   "program": "",
+   "canonical_name": "Interlocked Diamond Circulate"
+  },
+  {
+   "entity_id": "call_jaywalk",
+   "teaching_order": 70.0026,
+   "program": "",
+   "canonical_name": "Jaywalk"
+  },
+  {
+   "entity_id": "call_linear_action",
+   "teaching_order": 70.0027,
+   "program": "",
+   "canonical_name": "Linear Action"
+  },
+  {
+   "entity_id": "call_little",
+   "teaching_order": 70.004302,
+   "program": "",
+   "canonical_name": "Little"
+  },
+  {
+   "entity_id": "call_make_magic",
+   "teaching_order": 70.0029,
+   "program": "",
+   "canonical_name": "Make Magic"
+  },
+  {
+   "entity_id": "call_pass_and_roll_your_cross_neighbor",
+   "teaching_order": 70.001802,
+   "program": "",
+   "canonical_name": "Pass And Roll Your Cross Neighbor"
+  },
+  {
+   "entity_id": "call_pass_the_axle",
+   "teaching_order": 70.003101,
+   "program": "",
+   "canonical_name": "Pass The Axle"
+  },
+  {
+   "entity_id": "call_percolate",
+   "teaching_order": 70.0032,
+   "program": "",
+   "canonical_name": "Percolate"
+  },
+  {
+   "entity_id": "call_plenty",
+   "teaching_order": 70.004402,
+   "program": "",
+   "canonical_name": "Plenty"
+  },
+  {
+   "entity_id": "call_press_ahead",
+   "teaching_order": 70.0034,
+   "program": "",
+   "canonical_name": "Press Ahead"
+  },
+  {
+   "entity_id": "call_ramble",
+   "teaching_order": 70.004502,
+   "program": "",
+   "canonical_name": "Ramble"
+  },
+  {
+   "entity_id": "call_regroup",
+   "teaching_order": 70.0036,
+   "program": "",
+   "canonical_name": "Regroup"
+  },
+  {
+   "entity_id": "call_relay_the_shadow",
+   "teaching_order": 70.0037,
+   "program": "",
+   "canonical_name": "Relay The Shadow"
+  },
+  {
+   "entity_id": "call_relay_the_top",
+   "teaching_order": 70.0038,
+   "program": "",
+   "canonical_name": "Relay The Top"
+  },
+  {
+   "entity_id": "call_reverse_cross_and_turn",
+   "teaching_order": 70.001302,
+   "program": "",
+   "canonical_name": "Reverse Cross And Turn"
+  },
+  {
+   "entity_id": "call_reverse_explode",
+   "teaching_order": 70.0039,
+   "program": "",
+   "canonical_name": "Reverse Explode"
+  },
+  {
+   "entity_id": "call_reverse_rotate",
+   "teaching_order": 70.004102,
+   "program": "",
+   "canonical_name": "Reverse Rotate"
+  },
+  {
+   "entity_id": "call_reverse_single_rotate",
+   "teaching_order": 70.004104,
+   "program": "",
+   "canonical_name": "Reverse Single Rotate"
+  },
+  {
+   "entity_id": "call_rotary_spin",
+   "teaching_order": 70.004,
+   "program": "",
+   "canonical_name": "Rotary Spin"
+  },
+  {
+   "entity_id": "call_rotate",
+   "teaching_order": 70.004101,
+   "program": "",
+   "canonical_name": "Rotate"
+  },
+  {
+   "entity_id": "call_scatter_scoot",
+   "teaching_order": 70.004201,
+   "program": "",
+   "canonical_name": "Scatter Scoot"
+  },
+  {
+   "entity_id": "call_scatter_scoot_chain_thru",
+   "teaching_order": 70.004202,
+   "program": "",
+   "canonical_name": "Scatter Scoot Chain Thru"
+  },
+  {
+   "entity_id": "call_scoot_and_little",
+   "teaching_order": 70.004301,
+   "program": "",
+   "canonical_name": "Scoot And Little"
+  },
+  {
+   "entity_id": "call_scoot_and_plenty",
+   "teaching_order": 70.004401,
+   "program": "",
+   "canonical_name": "Scoot And Plenty"
+  },
+  {
+   "entity_id": "call_scoot_and_ramble",
+   "teaching_order": 70.004501,
+   "program": "",
+   "canonical_name": "Scoot And Ramble"
+  },
+  {
+   "entity_id": "call_shakedown",
+   "teaching_order": 70.0046,
+   "program": "",
+   "canonical_name": "Shakedown"
+  },
+  {
+   "entity_id": "call_single_rotate",
+   "teaching_order": 70.004103,
+   "program": "",
+   "canonical_name": "Single Rotate"
+  },
+  {
+   "entity_id": "call_split_dixie_diamond",
+   "teaching_order": 70.004903,
+   "program": "",
+   "canonical_name": "Split Dixie Diamond"
+  },
+  {
+   "entity_id": "call_split_dixie_sashay",
+   "teaching_order": 70.004904,
+   "program": "",
+   "canonical_name": "Split Dixie Sashay"
+  },
+  {
+   "entity_id": "call_split_dixie_style_to_a_wave",
+   "teaching_order": 70.004902,
+   "program": "",
+   "canonical_name": "Split Dixie Style To A Wave"
+  },
+  {
+   "entity_id": "call_split_recycle",
+   "teaching_order": 70.003503,
+   "program": "",
+   "canonical_name": "Split Recycle"
+  },
+  {
+   "entity_id": "call_split_square_chain_the_top",
+   "teaching_order": 70.004901,
+   "program": "",
+   "canonical_name": "Split Square Chain The Top"
+  },
+  {
+   "entity_id": "call_square_chain_the_top",
+   "teaching_order": 70.005,
+   "program": "",
+   "canonical_name": "Square Chain The Top"
+  },
+  {
+   "entity_id": "call_square_the_bases",
+   "teaching_order": 70.0051,
+   "program": "",
+   "canonical_name": "Square The Bases"
+  },
+  {
+   "entity_id": "call_squeeze_the_butterfly",
+   "teaching_order": 70.005204,
+   "program": "",
+   "canonical_name": "Squeeze The Butterfly"
+  },
+  {
+   "entity_id": "call_squeeze_the_diamond",
+   "teaching_order": 70.005205,
+   "program": "",
+   "canonical_name": "Squeeze The Diamond"
+  },
+  {
+   "entity_id": "call_squeeze_the_galaxy",
+   "teaching_order": 70.005201,
+   "program": "",
+   "canonical_name": "Squeeze The Galaxy"
+  },
+  {
+   "entity_id": "call_squeeze_the_hourglass",
+   "teaching_order": 70.005202,
+   "program": "",
+   "canonical_name": "Squeeze The Hourglass"
+  },
+  {
+   "entity_id": "call_squeeze_the_o",
+   "teaching_order": 70.005203,
+   "program": "",
+   "canonical_name": "Squeeze The O"
+  },
+  {
+   "entity_id": "call_step_and_flip",
+   "teaching_order": 70.0053,
+   "program": "",
+   "canonical_name": "Step And Flip"
+  },
+  {
+   "entity_id": "call_step_and_fold",
+   "teaching_order": 70.0054,
+   "program": "",
+   "canonical_name": "Step And Fold"
+  },
+  {
+   "entity_id": "call_step_and_squeeze",
+   "teaching_order": 70.0055,
+   "program": "",
+   "canonical_name": "Step And Squeeze"
+  },
+  {
+   "entity_id": "call_substitute",
+   "teaching_order": 70.0057,
+   "program": "",
+   "canonical_name": "Substitute"
+  },
+  {
+   "entity_id": "call_swing_and_circle",
+   "teaching_order": 70.0058,
+   "program": "",
+   "canonical_name": "Swing And Circle"
+  },
+  {
+   "entity_id": "call_swing_the_fractions",
+   "teaching_order": 70.0059,
+   "program": "",
+   "canonical_name": "Swing The Fractions"
+  },
+  {
+   "entity_id": "call_switch_the_line",
+   "teaching_order": 70.006,
+   "program": "",
+   "canonical_name": "Switch The Line"
+  },
+  {
+   "entity_id": "call_switch_to_an_interlocked_diamond",
+   "teaching_order": 70.0061,
+   "program": "",
+   "canonical_name": "Switch To An Interlocked Diamond"
+  },
+  {
+   "entity_id": "call_tag_back",
+   "teaching_order": 70.006302,
+   "program": "",
+   "canonical_name": "Tag Back"
+  },
+  {
+   "entity_id": "call_tally_ho",
+   "teaching_order": 70.0064,
+   "program": "",
+   "canonical_name": "Tally Ho"
+  },
+  {
+   "entity_id": "call_the_axle",
+   "teaching_order": 70.003102,
+   "program": "",
+   "canonical_name": "The Axle"
+  },
+  {
+   "entity_id": "call_three_by_two_acey_deucey",
+   "teaching_order": 70.0066,
+   "program": "",
+   "canonical_name": "Three By Two Acey Deucey"
+  },
+  {
+   "entity_id": "call_track",
+   "teaching_order": 70.0067,
+   "program": "",
+   "canonical_name": "Track"
+  },
+  {
+   "entity_id": "call_triangle_circulate",
+   "teaching_order": 70.006802,
+   "program": "",
+   "canonical_name": "Triangle Circulate"
+  },
+  {
+   "entity_id": "call_twist_the_line",
+   "teaching_order": 70.007001,
+   "program": "",
+   "canonical_name": "Twist The Line"
+  },
+  {
+   "entity_id": "call_two_thirds_recycle",
+   "teaching_order": 70.003502,
+   "program": "",
+   "canonical_name": "Two Thirds Recycle"
+  },
+  {
+   "entity_id": "call_vertical_tag",
+   "teaching_order": 70.0071,
+   "program": "",
+   "canonical_name": "Vertical Tag"
+  },
+  {
+   "entity_id": "call_vertical_tag_back",
+   "teaching_order": 70.006303,
+   "program": "",
+   "canonical_name": "Vertical Tag Back"
+  },
+  {
+   "entity_id": "call_weave",
+   "teaching_order": 70.0073,
+   "program": "",
+   "canonical_name": "Weave"
+  },
+  {
+   "entity_id": "call_wheel_fan_thru",
+   "teaching_order": 70.0075,
+   "program": "",
+   "canonical_name": "Wheel Fan Thru"
+  },
+  {
+   "entity_id": "call_with_the_flow",
+   "teaching_order": 70.0076,
+   "program": "",
+   "canonical_name": "With The Flow"
+  },
+  {
+   "entity_id": "call_zing",
+   "teaching_order": 70.0077,
+   "program": "",
+   "canonical_name": "Zing"
+  },
+  {
+   "entity_id": "concept_anything_chain_thru",
+   "teaching_order": 70.0019,
+   "program": "",
+   "canonical_name": "Anything Chain Thru"
+  },
+  {
+   "entity_id": "concept_anything_the_windmill",
+   "teaching_order": 70.0048,
+   "program": "",
+   "canonical_name": "Anything The Windmill"
+  },
+  {
+   "entity_id": "concept_anything_to_a_wave",
+   "teaching_order": 70.0072,
+   "program": "",
+   "canonical_name": "Anything To A Wave"
+  },
+  {
+   "entity_id": "concept_but_anything",
+   "teaching_order": 70.0004,
+   "program": "",
+   "canonical_name": "But Anything"
+  },
+  {
+   "entity_id": "concept_butterfly",
+   "teaching_order": 70.000502,
+   "program": "",
+   "canonical_name": "Butterfly"
+  },
+  {
+   "entity_id": "concept_concentric",
+   "teaching_order": 70.0011,
+   "program": "",
+   "canonical_name": "Concentric"
+  },
+  {
+   "entity_id": "concept_magic_column",
+   "teaching_order": 70.002802,
+   "program": "",
+   "canonical_name": "Magic Column"
+  },
+  {
+   "entity_id": "concept_o",
+   "teaching_order": 70.003002,
+   "program": "",
+   "canonical_name": "O"
+  },
+  {
+   "entity_id": "concept_phantom",
+   "teaching_order": 70.003302,
+   "program": "",
+   "canonical_name": "Phantom"
+  },
+  {
+   "entity_id": "concept_reverse_wheel_and_anything",
+   "teaching_order": 70.007402,
+   "program": "",
+   "canonical_name": "Reverse Wheel And Anything"
+  },
+  {
+   "entity_id": "concept_siamese",
+   "teaching_order": 70.0047,
+   "program": "",
+   "canonical_name": "Siamese"
+  },
+  {
+   "entity_id": "concept_stretch",
+   "teaching_order": 70.0056,
+   "program": "",
+   "canonical_name": "Stretch"
+  },
+  {
+   "entity_id": "concept_tandem",
+   "teaching_order": 70.0065,
+   "program": "",
+   "canonical_name": "Tandem"
+  },
+  {
+   "entity_id": "concept_triple_box",
+   "teaching_order": 70.006901,
+   "program": "",
+   "canonical_name": "Triple Box"
+  },
+  {
+   "entity_id": "concept_triple_column",
+   "teaching_order": 70.006902,
+   "program": "",
+   "canonical_name": "Triple Column"
+  },
+  {
+   "entity_id": "concept_triple_line",
+   "teaching_order": 70.006903,
+   "program": "",
+   "canonical_name": "Triple Line"
+  },
+  {
+   "entity_id": "concept_triple_wave",
+   "teaching_order": 70.006904,
+   "program": "",
+   "canonical_name": "Triple Wave"
+  },
+  {
+   "entity_id": "concept_twist_and_anything",
+   "teaching_order": 70.007002,
+   "program": "",
+   "canonical_name": "Twist And Anything"
+  },
+  {
+   "entity_id": "concept_wheel_and_anything",
+   "teaching_order": 70.007401,
+   "program": "",
+   "canonical_name": "Wheel And Anything"
+  },
+  {
+   "entity_id": "formation_block",
+   "teaching_order": 70.0003,
+   "program": "",
+   "canonical_name": "Block"
+  },
+  {
+   "entity_id": "formation_butterfly",
+   "teaching_order": 70.000501,
+   "program": "",
+   "canonical_name": "Butterfly"
+  },
+  {
+   "entity_id": "formation_galaxy",
+   "teaching_order": 70.002401,
+   "program": "",
+   "canonical_name": "Galaxy"
+  },
+  {
+   "entity_id": "formation_inpoint_triangle",
+   "teaching_order": 70.006805,
+   "program": "",
+   "canonical_name": "Inpoint Triangle"
+  },
+  {
+   "entity_id": "formation_inside_triangle",
+   "teaching_order": 70.006803,
+   "program": "",
+   "canonical_name": "Inside Triangle"
+  },
+  {
+   "entity_id": "formation_interlocked_diamond",
+   "teaching_order": 70.002501,
+   "program": "",
+   "canonical_name": "Interlocked Diamond"
+  },
+  {
+   "entity_id": "formation_magic_column",
+   "teaching_order": 70.002801,
+   "program": "",
+   "canonical_name": "Magic Column"
+  },
+  {
+   "entity_id": "formation_o",
+   "teaching_order": 70.003001,
+   "program": "",
+   "canonical_name": "O"
+  },
+  {
+   "entity_id": "formation_outpoint_triangle",
+   "teaching_order": 70.006806,
+   "program": "",
+   "canonical_name": "Outpoint Triangle"
+  },
+  {
+   "entity_id": "formation_outside_triangle",
+   "teaching_order": 70.006804,
+   "program": "",
+   "canonical_name": "Outside Triangle"
+  },
+  {
+   "entity_id": "formation_phantom",
+   "teaching_order": 70.003301,
+   "program": "",
+   "canonical_name": "Phantom"
+  },
+  {
+   "entity_id": "formation_t_bone",
+   "teaching_order": 70.0062,
+   "program": "",
+   "canonical_name": "T Bone"
+  },
+  {
+   "entity_id": "formation_tandem_based_triangle",
+   "teaching_order": 70.006807,
+   "program": "",
+   "canonical_name": "Tandem Based Triangle"
+  },
+  {
+   "entity_id": "formation_triangle",
+   "teaching_order": 70.006801,
+   "program": "",
+   "canonical_name": "Triangle"
+  },
+  {
+   "entity_id": "formation_wave_based_triangle",
+   "teaching_order": 70.006808,
+   "program": "",
+   "canonical_name": "Wave Based Triangle"
+  },
+  {
+   "entity_id": "call_along",
+   "teaching_order": 80.006002,
+   "program": "",
+   "canonical_name": "Along"
+  },
+  {
+   "entity_id": "call_alter_and_circulate",
+   "teaching_order": 80.0001,
+   "program": "",
+   "canonical_name": "Alter And Circulate"
+  },
+  {
+   "entity_id": "call_anyone_ripple",
+   "teaching_order": 80.004402,
+   "program": "",
+   "canonical_name": "Anyone Ripple"
+  },
+  {
+   "entity_id": "call_bounce_the_anyone",
+   "teaching_order": 80.000301,
+   "program": "",
+   "canonical_name": "Bounce The Anyone"
+  },
+  {
+   "entity_id": "call_catch",
+   "teaching_order": 80.0004,
+   "program": "",
+   "canonical_name": "Catch"
+  },
+  {
+   "entity_id": "call_chain_the_square",
+   "teaching_order": 80.0005,
+   "program": "",
+   "canonical_name": "Chain The Square"
+  },
+  {
+   "entity_id": "call_chase_your_criss_cross_neighbor",
+   "teaching_order": 80.001102,
+   "program": "",
+   "canonical_name": "Chase Your Criss Cross Neighbor"
+  },
+  {
+   "entity_id": "call_chisel_thru",
+   "teaching_order": 80.0007,
+   "program": "",
+   "canonical_name": "Chisel Thru"
+  },
+  {
+   "entity_id": "call_circle_to_a_wave",
+   "teaching_order": 80.0008,
+   "program": "",
+   "canonical_name": "Circle To A Wave"
+  },
+  {
+   "entity_id": "call_counter",
+   "teaching_order": 80.004702,
+   "program": "",
+   "canonical_name": "Counter"
+  },
+  {
+   "entity_id": "call_criss_cross_the_shadow",
+   "teaching_order": 80.001,
+   "program": "",
+   "canonical_name": "Criss Cross The Shadow"
+  },
+  {
+   "entity_id": "call_criss_cross_your_neighbor",
+   "teaching_order": 80.001101,
+   "program": "",
+   "canonical_name": "Criss Cross Your Neighbor"
+  },
+  {
+   "entity_id": "call_cross_and_wheel",
+   "teaching_order": 80.001201,
+   "program": "",
+   "canonical_name": "Cross And Wheel"
+  },
+  {
+   "entity_id": "call_cross_back",
+   "teaching_order": 80.001301,
+   "program": "",
+   "canonical_name": "Cross Back"
+  },
+  {
+   "entity_id": "call_cross_invert_the_column",
+   "teaching_order": 80.002902,
+   "program": "",
+   "canonical_name": "Cross Invert The Column"
+  },
+  {
+   "entity_id": "call_cross_kick_off",
+   "teaching_order": 80.003002,
+   "program": "",
+   "canonical_name": "Cross Kick Off"
+  },
+  {
+   "entity_id": "call_cross_ramble",
+   "teaching_order": 80.004802,
+   "program": "",
+   "canonical_name": "Cross Ramble"
+  },
+  {
+   "entity_id": "call_cross_the_k",
+   "teaching_order": 80.001501,
+   "program": "",
+   "canonical_name": "Cross The K"
+  },
+  {
+   "entity_id": "call_cross_trade_and_wheel",
+   "teaching_order": 80.001202,
+   "program": "",
+   "canonical_name": "Cross Trade And Wheel"
+  },
+  {
+   "entity_id": "call_detour",
+   "teaching_order": 80.0016,
+   "program": "",
+   "canonical_name": "Detour"
+  },
+  {
+   "entity_id": "call_drop",
+   "teaching_order": 80.001901,
+   "program": "",
+   "canonical_name": "Drop"
+  },
+  {
+   "entity_id": "call_exchange_the_diamond",
+   "teaching_order": 80.002,
+   "program": "",
+   "canonical_name": "Exchange The Diamond"
+  },
+  {
+   "entity_id": "call_fascinate",
+   "teaching_order": 80.002101,
+   "program": "",
+   "canonical_name": "Fascinate"
+  },
+  {
+   "entity_id": "call_file_to_a_line",
+   "teaching_order": 80.0022,
+   "program": "",
+   "canonical_name": "File To A Line"
+  },
+  {
+   "entity_id": "call_grand_chain_eight",
+   "teaching_order": 80.0025,
+   "program": "",
+   "canonical_name": "Grand Chain Eight"
+  },
+  {
+   "entity_id": "call_grand_cross_back",
+   "teaching_order": 80.001302,
+   "program": "",
+   "canonical_name": "Grand Cross Back"
+  },
+  {
+   "entity_id": "call_grand_cross_trade_and_wheel",
+   "teaching_order": 80.001203,
+   "program": "",
+   "canonical_name": "Grand Cross Trade And Wheel"
+  },
+  {
+   "entity_id": "call_grand_drop",
+   "teaching_order": 80.001902,
+   "program": "",
+   "canonical_name": "Grand Drop"
+  },
+  {
+   "entity_id": "call_grand_single_cross_and_wheel",
+   "teaching_order": 80.001206,
+   "program": "",
+   "canonical_name": "Grand Single Cross And Wheel"
+  },
+  {
+   "entity_id": "call_grand_single_cross_trade_and_wheel",
+   "teaching_order": 80.001207,
+   "program": "",
+   "canonical_name": "Grand Single Cross Trade And Wheel"
+  },
+  {
+   "entity_id": "call_here_comes_the_judge",
+   "teaching_order": 80.005202,
+   "program": "",
+   "canonical_name": "Here Comes The Judge"
+  },
+  {
+   "entity_id": "call_hocus_pocus",
+   "teaching_order": 80.0026,
+   "program": "",
+   "canonical_name": "Hocus Pocus"
+  },
+  {
+   "entity_id": "call_hubs_trade_back",
+   "teaching_order": 80.004302,
+   "program": "",
+   "canonical_name": "Hubs Trade Back"
+  },
+  {
+   "entity_id": "call_inlet",
+   "teaching_order": 80.002701,
+   "program": "",
+   "canonical_name": "Inlet"
+  },
+  {
+   "entity_id": "call_invert_the_column",
+   "teaching_order": 80.002901,
+   "program": "",
+   "canonical_name": "Invert The Column"
+  },
+  {
+   "entity_id": "call_kick_off",
+   "teaching_order": 80.003001,
+   "program": "",
+   "canonical_name": "Kick Off"
+  },
+  {
+   "entity_id": "call_lateral_substitute",
+   "teaching_order": 80.0031,
+   "program": "",
+   "canonical_name": "Lateral Substitute"
+  },
+  {
+   "entity_id": "call_little_more",
+   "teaching_order": 80.004902,
+   "program": "",
+   "canonical_name": "Little More"
+  },
+  {
+   "entity_id": "call_loop",
+   "teaching_order": 80.0033,
+   "program": "",
+   "canonical_name": "Loop"
+  },
+  {
+   "entity_id": "call_outlet",
+   "teaching_order": 80.002702,
+   "program": "",
+   "canonical_name": "Outlet"
+  },
+  {
+   "entity_id": "call_pass_and_roll_your_criss_cross_neighbor",
+   "teaching_order": 80.001103,
+   "program": "",
+   "canonical_name": "Pass And Roll Your Criss Cross Neighbor"
+  },
+  {
+   "entity_id": "call_peel_to_a_diamond",
+   "teaching_order": 80.003701,
+   "program": "",
+   "canonical_name": "Peel To A Diamond"
+  },
+  {
+   "entity_id": "call_perk_up",
+   "teaching_order": 80.0038,
+   "program": "",
+   "canonical_name": "Perk Up"
+  },
+  {
+   "entity_id": "call_press",
+   "teaching_order": 80.0039,
+   "program": "",
+   "canonical_name": "Press"
+  },
+  {
+   "entity_id": "call_reshape_the_triangle",
+   "teaching_order": 80.0041,
+   "program": "",
+   "canonical_name": "Reshape The Triangle"
+  },
+  {
+   "entity_id": "call_reverse_cut_the_diamond",
+   "teaching_order": 80.004201,
+   "program": "",
+   "canonical_name": "Reverse Cut The Diamond"
+  },
+  {
+   "entity_id": "call_reverse_cut_the_galaxy",
+   "teaching_order": 80.002401,
+   "program": "",
+   "canonical_name": "Reverse Cut The Galaxy"
+  },
+  {
+   "entity_id": "call_reverse_flip_the_diamond",
+   "teaching_order": 80.004202,
+   "program": "",
+   "canonical_name": "Reverse Flip The Diamond"
+  },
+  {
+   "entity_id": "call_reverse_flip_the_galaxy",
+   "teaching_order": 80.002402,
+   "program": "",
+   "canonical_name": "Reverse Flip The Galaxy"
+  },
+  {
+   "entity_id": "call_reverse_split_swap",
+   "teaching_order": 80.005402,
+   "program": "",
+   "canonical_name": "Reverse Split Swap"
+  },
+  {
+   "entity_id": "call_reverse_swap_the_wave",
+   "teaching_order": 80.005902,
+   "program": "",
+   "canonical_name": "Reverse Swap The Wave"
+  },
+  {
+   "entity_id": "call_reverse_truck",
+   "teaching_order": 80.006702,
+   "program": "",
+   "canonical_name": "Reverse Truck"
+  },
+  {
+   "entity_id": "call_rims_trade_back",
+   "teaching_order": 80.004301,
+   "program": "",
+   "canonical_name": "Rims Trade Back"
+  },
+  {
+   "entity_id": "call_ripple_the_wave",
+   "teaching_order": 80.004401,
+   "program": "",
+   "canonical_name": "Ripple The Wave"
+  },
+  {
+   "entity_id": "call_scoot_and_counter",
+   "teaching_order": 80.004701,
+   "program": "",
+   "canonical_name": "Scoot And Counter"
+  },
+  {
+   "entity_id": "call_scoot_and_cross_ramble",
+   "teaching_order": 80.004801,
+   "program": "",
+   "canonical_name": "Scoot And Cross Ramble"
+  },
+  {
+   "entity_id": "call_scoot_and_little_more",
+   "teaching_order": 80.004901,
+   "program": "",
+   "canonical_name": "Scoot And Little More"
+  },
+  {
+   "entity_id": "call_sets_in_motion",
+   "teaching_order": 80.005,
+   "program": "",
+   "canonical_name": "Sets In Motion"
+  },
+  {
+   "entity_id": "call_shazam",
+   "teaching_order": 80.0051,
+   "program": "",
+   "canonical_name": "Shazam"
+  },
+  {
+   "entity_id": "call_single_bounce_the_anyone",
+   "teaching_order": 80.000302,
+   "program": "",
+   "canonical_name": "Single Bounce The Anyone"
+  },
+  {
+   "entity_id": "call_single_cross_and_wheel",
+   "teaching_order": 80.001204,
+   "program": "",
+   "canonical_name": "Single Cross And Wheel"
+  },
+  {
+   "entity_id": "call_single_cross_trade_and_wheel",
+   "teaching_order": 80.001205,
+   "program": "",
+   "canonical_name": "Single Cross Trade And Wheel"
+  },
+  {
+   "entity_id": "call_sock_it_to_me",
+   "teaching_order": 80.005201,
+   "program": "",
+   "canonical_name": "Sock It To Me"
+  },
+  {
+   "entity_id": "call_split_swap_around",
+   "teaching_order": 80.005401,
+   "program": "",
+   "canonical_name": "Split Swap Around"
+  },
+  {
+   "entity_id": "call_split_trade_circulate",
+   "teaching_order": 80.0055,
+   "program": "",
+   "canonical_name": "Split Trade Circulate"
+  },
+  {
+   "entity_id": "call_stack_the_line",
+   "teaching_order": 80.0056,
+   "program": "",
+   "canonical_name": "Stack The Line"
+  },
+  {
+   "entity_id": "call_swap_the_wave",
+   "teaching_order": 80.005901,
+   "program": "",
+   "canonical_name": "Swap The Wave"
+  },
+  {
+   "entity_id": "call_swing_along",
+   "teaching_order": 80.006001,
+   "program": "",
+   "canonical_name": "Swing Along"
+  },
+  {
+   "entity_id": "call_the_k",
+   "teaching_order": 80.001502,
+   "program": "",
+   "canonical_name": "The K"
+  },
+  {
+   "entity_id": "call_three_by_one_checkmate_the_column",
+   "teaching_order": 80.0064,
+   "program": "",
+   "canonical_name": "Three By One Checkmate The Column"
+  },
+  {
+   "entity_id": "call_three_by_one_transfer_the_column",
+   "teaching_order": 80.0065,
+   "program": "",
+   "canonical_name": "Three By One Transfer The Column"
+  },
+  {
+   "entity_id": "call_three_by_one_triangle_circulate",
+   "teaching_order": 80.006602,
+   "program": "",
+   "canonical_name": "Three By One Triangle Circulate"
+  },
+  {
+   "entity_id": "call_trail_to_a_diamond",
+   "teaching_order": 80.003702,
+   "program": "",
+   "canonical_name": "Trail To A Diamond"
+  },
+  {
+   "entity_id": "call_truck",
+   "teaching_order": 80.006701,
+   "program": "",
+   "canonical_name": "Truck"
+  },
+  {
+   "entity_id": "call_turn_to_a_line",
+   "teaching_order": 80.0068,
+   "program": "",
+   "canonical_name": "Turn To A Line"
+  },
+  {
+   "entity_id": "call_walk_out_to_a_wave",
+   "teaching_order": 80.0071,
+   "program": "",
+   "canonical_name": "Walk Out To A Wave"
+  },
+  {
+   "entity_id": "call_wheel_the_ocean",
+   "teaching_order": 80.007201,
+   "program": "",
+   "canonical_name": "Wheel The Ocean"
+  },
+  {
+   "entity_id": "call_wheel_the_sea",
+   "teaching_order": 80.007202,
+   "program": "",
+   "canonical_name": "Wheel The Sea"
+  },
+  {
+   "entity_id": "call_zip_code",
+   "teaching_order": 80.0073,
+   "program": "",
+   "canonical_name": "Zip Code"
+  },
+  {
+   "entity_id": "concept_anyone_like_a_ripple",
+   "teaching_order": 80.004403,
+   "program": "",
+   "canonical_name": "Anyone Like A Ripple"
+  },
+  {
+   "entity_id": "concept_anything_and_circle",
+   "teaching_order": 80.0061,
+   "program": "",
+   "canonical_name": "Anything And Circle"
+  },
+  {
+   "entity_id": "concept_anything_concept",
+   "teaching_order": 80.0002,
+   "program": "",
+   "canonical_name": "Anything Concept"
+  },
+  {
+   "entity_id": "concept_checkpoint",
+   "teaching_order": 80.0006,
+   "program": "",
+   "canonical_name": "Checkpoint"
+  },
+  {
+   "entity_id": "concept_crazy",
+   "teaching_order": 80.000901,
+   "program": "",
+   "canonical_name": "Crazy"
+  },
+  {
+   "entity_id": "concept_cross_concentric",
+   "teaching_order": 80.0014,
+   "program": "",
+   "canonical_name": "Cross Concentric"
+  },
+  {
+   "entity_id": "concept_disconnected",
+   "teaching_order": 80.0017,
+   "program": "",
+   "canonical_name": "Disconnected"
+  },
+  {
+   "entity_id": "concept_dodge_anything",
+   "teaching_order": 80.0018,
+   "program": "",
+   "canonical_name": "Dodge Anything"
+  },
+  {
+   "entity_id": "concept_fascinating_anything",
+   "teaching_order": 80.002102,
+   "program": "",
+   "canonical_name": "Fascinating Anything"
+  },
+  {
+   "entity_id": "concept_funny",
+   "teaching_order": 80.0023,
+   "program": "",
+   "canonical_name": "Funny"
+  },
+  {
+   "entity_id": "concept_hubs_trade_anything",
+   "teaching_order": 80.004304,
+   "program": "",
+   "canonical_name": "Hubs Trade Anything"
+  },
+  {
+   "entity_id": "concept_lines_anything_thru",
+   "teaching_order": 80.0032,
+   "program": "",
+   "canonical_name": "Lines Anything Thru"
+  },
+  {
+   "entity_id": "concept_offset",
+   "teaching_order": 80.0034,
+   "program": "",
+   "canonical_name": "Offset"
+  },
+  {
+   "entity_id": "concept_once_removed",
+   "teaching_order": 80.0035,
+   "program": "",
+   "canonical_name": "Once Removed"
+  },
+  {
+   "entity_id": "concept_parallelogram",
+   "teaching_order": 80.0036,
+   "program": "",
+   "canonical_name": "Parallelogram"
+  },
+  {
+   "entity_id": "concept_relocate",
+   "teaching_order": 80.004,
+   "program": "",
+   "canonical_name": "Relocate"
+  },
+  {
+   "entity_id": "concept_reverse_crazy",
+   "teaching_order": 80.000902,
+   "program": "",
+   "canonical_name": "Reverse Crazy"
+  },
+  {
+   "entity_id": "concept_rims_trade_anything",
+   "teaching_order": 80.004303,
+   "program": "",
+   "canonical_name": "Rims Trade Anything"
+  },
+  {
+   "entity_id": "concept_rotary_anything",
+   "teaching_order": 80.0045,
+   "program": "",
+   "canonical_name": "Rotary Anything"
+  },
+  {
+   "entity_id": "concept_solid",
+   "teaching_order": 80.0053,
+   "program": "",
+   "canonical_name": "Solid"
+  },
+  {
+   "entity_id": "concept_stagger",
+   "teaching_order": 80.0057,
+   "program": "",
+   "canonical_name": "Stagger"
+  },
+  {
+   "entity_id": "concept_stretched_formation",
+   "teaching_order": 80.0058,
+   "program": "",
+   "canonical_name": "Stretched Formation"
+  },
+  {
+   "entity_id": "concept_tagging_call_your_criss_cross_neighbor",
+   "teaching_order": 80.006203,
+   "program": "",
+   "canonical_name": "Tagging Call Your Criss Cross Neighbor"
+  },
+  {
+   "entity_id": "concept_tagging_call_your_cross_neighbor",
+   "teaching_order": 80.006202,
+   "program": "",
+   "canonical_name": "Tagging Call Your Cross Neighbor"
+  },
+  {
+   "entity_id": "concept_tagging_call_your_neighbor",
+   "teaching_order": 80.006201,
+   "program": "",
+   "canonical_name": "Tagging Call Your Neighbor"
+  },
+  {
+   "entity_id": "concept_tandem_based_triangle_calls",
+   "teaching_order": 80.0063,
+   "program": "",
+   "canonical_name": "Tandem Based Triangle Calls"
+  },
+  {
+   "entity_id": "concept_unwrap",
+   "teaching_order": 80.0069,
+   "program": "",
+   "canonical_name": "Unwrap"
+  },
+  {
+   "entity_id": "concept_vertical_anything",
+   "teaching_order": 80.007,
+   "program": "",
+   "canonical_name": "Vertical Anything"
+  },
+  {
+   "entity_id": "formation_inpoint_interlocked_triangle",
+   "teaching_order": 80.002802,
+   "program": "",
+   "canonical_name": "Inpoint Interlocked Triangle"
+  },
+  {
+   "entity_id": "formation_inside_interlocked_triangle",
+   "teaching_order": 80.002804,
+   "program": "",
+   "canonical_name": "Inside Interlocked Triangle"
+  },
+  {
+   "entity_id": "formation_interlocked_three_by_one_triangle",
+   "teaching_order": 80.006603,
+   "program": "",
+   "canonical_name": "Interlocked Three By One Triangle"
+  },
+  {
+   "entity_id": "formation_interlocked_triangle",
+   "teaching_order": 80.002801,
+   "program": "",
+   "canonical_name": "Interlocked Triangle"
+  },
+  {
+   "entity_id": "formation_outpoint_interlocked_triangle",
+   "teaching_order": 80.002803,
+   "program": "",
+   "canonical_name": "Outpoint Interlocked Triangle"
+  },
+  {
+   "entity_id": "formation_outside_interlocked_triangle",
+   "teaching_order": 80.002805,
+   "program": "",
+   "canonical_name": "Outside Interlocked Triangle"
+  },
+  {
+   "entity_id": "formation_three_by_one_triangle",
+   "teaching_order": 80.006601,
+   "program": "",
+   "canonical_name": "Three By One Triangle"
+  },
+  {
+   "entity_id": "call_anyone_hop",
+   "teaching_order": 90.0029,
+   "program": "",
+   "canonical_name": "Anyone Hop"
+  },
+  {
+   "entity_id": "call_bias_circulate",
+   "teaching_order": 90.0004,
+   "program": "",
+   "canonical_name": "Bias Circulate"
+  },
+  {
+   "entity_id": "call_breaker",
+   "teaching_order": 90.000601,
+   "program": "",
+   "canonical_name": "Breaker"
+  },
+  {
+   "entity_id": "call_chase_the_tag",
+   "teaching_order": 90.001,
+   "program": "",
+   "canonical_name": "Chase The Tag"
+  },
+  {
+   "entity_id": "call_choice",
+   "teaching_order": 90.001201,
+   "program": "",
+   "canonical_name": "Choice"
+  },
+  {
+   "entity_id": "call_couple_up",
+   "teaching_order": 90.001301,
+   "program": "",
+   "canonical_name": "Couple Up"
+  },
+  {
+   "entity_id": "call_cross_chain_reaction",
+   "teaching_order": 90.0014,
+   "program": "",
+   "canonical_name": "Cross Chain Reaction"
+  },
+  {
+   "entity_id": "call_cross_counter",
+   "teaching_order": 90.001501,
+   "program": "",
+   "canonical_name": "Cross Counter"
+  },
+  {
+   "entity_id": "call_delight",
+   "teaching_order": 90.001601,
+   "program": "",
+   "canonical_name": "Delight"
+  },
+  {
+   "entity_id": "call_dilemma",
+   "teaching_order": 90.001602,
+   "program": "",
+   "canonical_name": "Dilemma"
+  },
+  {
+   "entity_id": "call_drift_apart",
+   "teaching_order": 90.0017,
+   "program": "",
+   "canonical_name": "Drift Apart"
+  },
+  {
+   "entity_id": "call_ease_off",
+   "teaching_order": 90.0018,
+   "program": "",
+   "canonical_name": "Ease Off"
+  },
+  {
+   "entity_id": "call_exchange_the_boxes",
+   "teaching_order": 90.002001,
+   "program": "",
+   "canonical_name": "Exchange The Boxes"
+  },
+  {
+   "entity_id": "call_exchange_the_triangles",
+   "teaching_order": 90.002002,
+   "program": "",
+   "canonical_name": "Exchange The Triangles"
+  },
+  {
+   "entity_id": "call_expand_the_column",
+   "teaching_order": 90.0021,
+   "program": "",
+   "canonical_name": "Expand The Column"
+  },
+  {
+   "entity_id": "call_explode_the_top",
+   "teaching_order": 90.0022,
+   "program": "",
+   "canonical_name": "Explode The Top"
+  },
+  {
+   "entity_id": "call_fancy",
+   "teaching_order": 90.002301,
+   "program": "",
+   "canonical_name": "Fancy"
+  },
+  {
+   "entity_id": "call_flare_out_to_a_line",
+   "teaching_order": 90.0025,
+   "program": "",
+   "canonical_name": "Flare Out To A Line"
+  },
+  {
+   "entity_id": "call_follow_to_a_diamond",
+   "teaching_order": 90.0026,
+   "program": "",
+   "canonical_name": "Follow To A Diamond"
+  },
+  {
+   "entity_id": "call_follow_your_leader",
+   "teaching_order": 90.002701,
+   "program": "",
+   "canonical_name": "Follow Your Leader"
+  },
+  {
+   "entity_id": "call_grand_mix",
+   "teaching_order": 90.002801,
+   "program": "",
+   "canonical_name": "Grand Mix"
+  },
+  {
+   "entity_id": "call_grand_quarter_mix",
+   "teaching_order": 90.002803,
+   "program": "",
+   "canonical_name": "Grand Quarter Mix"
+  },
+  {
+   "entity_id": "call_grand_swing_and_mix",
+   "teaching_order": 90.002802,
+   "program": "",
+   "canonical_name": "Grand Swing And Mix"
+  },
+  {
+   "entity_id": "call_hinge_the_lock",
+   "teaching_order": 90.004002,
+   "program": "",
+   "canonical_name": "Hinge The Lock"
+  },
+  {
+   "entity_id": "call_hinge_the_top",
+   "teaching_order": 90.004003,
+   "program": "",
+   "canonical_name": "Hinge The Top"
+  },
+  {
+   "entity_id": "call_interlocked_extend",
+   "teaching_order": 90.0031,
+   "program": "",
+   "canonical_name": "Interlocked Extend"
+  },
+  {
+   "entity_id": "call_interlocked_little",
+   "teaching_order": 90.003201,
+   "program": "",
+   "canonical_name": "Interlocked Little"
+  },
+  {
+   "entity_id": "call_interlocked_little_more",
+   "teaching_order": 90.003301,
+   "program": "",
+   "canonical_name": "Interlocked Little More"
+  },
+  {
+   "entity_id": "call_interlocked_plenty",
+   "teaching_order": 90.003401,
+   "program": "",
+   "canonical_name": "Interlocked Plenty"
+  },
+  {
+   "entity_id": "call_interlocked_scoot_and_little",
+   "teaching_order": 90.003202,
+   "program": "",
+   "canonical_name": "Interlocked Scoot And Little"
+  },
+  {
+   "entity_id": "call_interlocked_scoot_and_little_more",
+   "teaching_order": 90.003302,
+   "program": "",
+   "canonical_name": "Interlocked Scoot And Little More"
+  },
+  {
+   "entity_id": "call_interlocked_scoot_and_plenty",
+   "teaching_order": 90.003402,
+   "program": "",
+   "canonical_name": "Interlocked Scoot And Plenty"
+  },
+  {
+   "entity_id": "call_interlocked_scoot_back",
+   "teaching_order": 90.003501,
+   "program": "",
+   "canonical_name": "Interlocked Scoot Back"
+  },
+  {
+   "entity_id": "call_interlocked_scoot_chain_thru",
+   "teaching_order": 90.003502,
+   "program": "",
+   "canonical_name": "Interlocked Scoot Chain Thru"
+  },
+  {
+   "entity_id": "call_keep_busy",
+   "teaching_order": 90.0037,
+   "program": "",
+   "canonical_name": "Keep Busy"
+  },
+  {
+   "entity_id": "call_latch_on",
+   "teaching_order": 90.0038,
+   "program": "",
+   "canonical_name": "Latch On"
+  },
+  {
+   "entity_id": "call_like_a_couple_up",
+   "teaching_order": 90.001302,
+   "program": "",
+   "canonical_name": "Like A Couple Up"
+  },
+  {
+   "entity_id": "call_link_up",
+   "teaching_order": 90.0039,
+   "program": "",
+   "canonical_name": "Link Up"
+  },
+  {
+   "entity_id": "call_lock_the_hinge",
+   "teaching_order": 90.004001,
+   "program": "",
+   "canonical_name": "Lock The Hinge"
+  },
+  {
+   "entity_id": "call_lockers_choice",
+   "teaching_order": 90.001202,
+   "program": "",
+   "canonical_name": "Lockers Choice"
+  },
+  {
+   "entity_id": "call_mini_chase",
+   "teaching_order": 90.0041,
+   "program": "",
+   "canonical_name": "Mini Chase"
+  },
+  {
+   "entity_id": "call_open_up_the_column",
+   "teaching_order": 90.004301,
+   "program": "",
+   "canonical_name": "Open Up The Column"
+  },
+  {
+   "entity_id": "call_patch_the_anyone",
+   "teaching_order": 90.0045,
+   "program": "",
+   "canonical_name": "Patch The Anyone"
+  },
+  {
+   "entity_id": "call_peel_chain_thru",
+   "teaching_order": 90.0046,
+   "program": "",
+   "canonical_name": "Peel Chain Thru"
+  },
+  {
+   "entity_id": "call_plan_ahead",
+   "teaching_order": 90.0047,
+   "program": "",
+   "canonical_name": "Plan Ahead"
+  },
+  {
+   "entity_id": "call_polly_wally",
+   "teaching_order": 90.004801,
+   "program": "",
+   "canonical_name": "Polly Wally"
+  },
+  {
+   "entity_id": "call_quarter_mix",
+   "teaching_order": 90.0001,
+   "program": "",
+   "canonical_name": "Quarter Mix"
+  },
+  {
+   "entity_id": "call_quarter_the_deucey",
+   "teaching_order": 90.0002,
+   "program": "",
+   "canonical_name": "Quarter The Deucey"
+  },
+  {
+   "entity_id": "call_quarter_wheel_the_ocean",
+   "teaching_order": 90.000301,
+   "program": "",
+   "canonical_name": "Quarter Wheel The Ocean"
+  },
+  {
+   "entity_id": "call_quarter_wheel_the_sea",
+   "teaching_order": 90.000302,
+   "program": "",
+   "canonical_name": "Quarter Wheel The Sea"
+  },
+  {
+   "entity_id": "call_quick_step",
+   "teaching_order": 90.004901,
+   "program": "",
+   "canonical_name": "Quick Step"
+  },
+  {
+   "entity_id": "call_rally",
+   "teaching_order": 90.005001,
+   "program": "",
+   "canonical_name": "Rally"
+  },
+  {
+   "entity_id": "call_reach_out",
+   "teaching_order": 90.0051,
+   "program": "",
+   "canonical_name": "Reach Out"
+  },
+  {
+   "entity_id": "call_recoil",
+   "teaching_order": 90.0053,
+   "program": "",
+   "canonical_name": "Recoil"
+  },
+  {
+   "entity_id": "call_reverse_polly_wally",
+   "teaching_order": 90.004802,
+   "program": "",
+   "canonical_name": "Reverse Polly Wally"
+  },
+  {
+   "entity_id": "call_reverse_single_polly_wally",
+   "teaching_order": 90.005704,
+   "program": "",
+   "canonical_name": "Reverse Single Polly Wally"
+  },
+  {
+   "entity_id": "call_reverse_swap_the_top",
+   "teaching_order": 90.006702,
+   "program": "",
+   "canonical_name": "Reverse Swap The Top"
+  },
+  {
+   "entity_id": "call_scatter_circulate",
+   "teaching_order": 90.0055,
+   "program": "",
+   "canonical_name": "Scatter Circulate"
+  },
+  {
+   "entity_id": "call_scoot_and_cross_counter",
+   "teaching_order": 90.001502,
+   "program": "",
+   "canonical_name": "Scoot And Cross Counter"
+  },
+  {
+   "entity_id": "call_scoot_and_fancy",
+   "teaching_order": 90.002302,
+   "program": "",
+   "canonical_name": "Scoot And Fancy"
+  },
+  {
+   "entity_id": "call_scoot_and_rally",
+   "teaching_order": 90.005002,
+   "program": "",
+   "canonical_name": "Scoot And Rally"
+  },
+  {
+   "entity_id": "call_scoot_the_diamond",
+   "teaching_order": 90.0056,
+   "program": "",
+   "canonical_name": "Scoot The Diamond"
+  },
+  {
+   "entity_id": "call_single_checkmate",
+   "teaching_order": 90.005701,
+   "program": "",
+   "canonical_name": "Single Checkmate"
+  },
+  {
+   "entity_id": "call_single_ferris_wheel",
+   "teaching_order": 90.005702,
+   "program": "",
+   "canonical_name": "Single Ferris Wheel"
+  },
+  {
+   "entity_id": "call_single_file_recoil",
+   "teaching_order": 90.005802,
+   "program": "",
+   "canonical_name": "Single File Recoil"
+  },
+  {
+   "entity_id": "call_single_file_recycle",
+   "teaching_order": 90.005801,
+   "program": "",
+   "canonical_name": "Single File Recycle"
+  },
+  {
+   "entity_id": "call_single_polly_wally",
+   "teaching_order": 90.005703,
+   "program": "",
+   "canonical_name": "Single Polly Wally"
+  },
+  {
+   "entity_id": "call_single_rotary_spin",
+   "teaching_order": 90.005705,
+   "program": "",
+   "canonical_name": "Single Rotary Spin"
+  },
+  {
+   "entity_id": "call_single_shakedown",
+   "teaching_order": 90.005706,
+   "program": "",
+   "canonical_name": "Single Shakedown"
+  },
+  {
+   "entity_id": "call_single_turn_and_deal",
+   "teaching_order": 90.005707,
+   "program": "",
+   "canonical_name": "Single Turn And Deal"
+  },
+  {
+   "entity_id": "call_single_turn_to_a_line",
+   "teaching_order": 90.005708,
+   "program": "",
+   "canonical_name": "Single Turn To A Line"
+  },
+  {
+   "entity_id": "call_slant_touch_and_wheel",
+   "teaching_order": 90.005901,
+   "program": "",
+   "canonical_name": "Slant Touch And Wheel"
+  },
+  {
+   "entity_id": "call_snap_the_lock",
+   "teaching_order": 90.006,
+   "program": "",
+   "canonical_name": "Snap The Lock"
+  },
+  {
+   "entity_id": "call_something_new",
+   "teaching_order": 90.0061,
+   "program": "",
+   "canonical_name": "Something New"
+  },
+  {
+   "entity_id": "call_spin_chain_the_line",
+   "teaching_order": 90.0062,
+   "program": "",
+   "canonical_name": "Spin Chain The Line"
+  },
+  {
+   "entity_id": "call_spin_the_pulley",
+   "teaching_order": 90.007102,
+   "program": "",
+   "canonical_name": "Spin The Pulley"
+  },
+  {
+   "entity_id": "call_stampede",
+   "teaching_order": 90.0065,
+   "program": "",
+   "canonical_name": "Stampede"
+  },
+  {
+   "entity_id": "call_strip_the_diamond",
+   "teaching_order": 90.006601,
+   "program": "",
+   "canonical_name": "Strip The Diamond"
+  },
+  {
+   "entity_id": "call_strip_the_hourglass",
+   "teaching_order": 90.006602,
+   "program": "",
+   "canonical_name": "Strip The Hourglass"
+  },
+  {
+   "entity_id": "call_swap_the_top",
+   "teaching_order": 90.006701,
+   "program": "",
+   "canonical_name": "Swap The Top"
+  },
+  {
+   "entity_id": "call_swing_chain_thru",
+   "teaching_order": 90.0068,
+   "program": "",
+   "canonical_name": "Swing Chain Thru"
+  },
+  {
+   "entity_id": "call_swing_the_gamut",
+   "teaching_order": 90.007002,
+   "program": "",
+   "canonical_name": "Swing The Gamut"
+  },
+  {
+   "entity_id": "call_team_up",
+   "teaching_order": 90.0069,
+   "program": "",
+   "canonical_name": "Team Up"
+  },
+  {
+   "entity_id": "call_the_gamut",
+   "teaching_order": 90.007001,
+   "program": "",
+   "canonical_name": "The Gamut"
+  },
+  {
+   "entity_id": "call_the_pulley",
+   "teaching_order": 90.007101,
+   "program": "",
+   "canonical_name": "The Pulley"
+  },
+  {
+   "entity_id": "call_touch_by",
+   "teaching_order": 90.0072,
+   "program": "",
+   "canonical_name": "Touch By"
+  },
+  {
+   "entity_id": "call_trade_the_deucey",
+   "teaching_order": 90.0073,
+   "program": "",
+   "canonical_name": "Trade The Deucey"
+  },
+  {
+   "entity_id": "call_travel_thru",
+   "teaching_order": 90.0074,
+   "program": "",
+   "canonical_name": "Travel Thru"
+  },
+  {
+   "entity_id": "call_trip_the_set",
+   "teaching_order": 90.0075,
+   "program": "",
+   "canonical_name": "Trip The Set"
+  },
+  {
+   "entity_id": "call_triple_play",
+   "teaching_order": 90.0077,
+   "program": "",
+   "canonical_name": "Triple Play"
+  },
+  {
+   "entity_id": "call_wind_the_bobbin",
+   "teaching_order": 90.0079,
+   "program": "",
+   "canonical_name": "Wind The Bobbin"
+  },
+  {
+   "entity_id": "concept_anything_reaction",
+   "teaching_order": 90.0052,
+   "program": "",
+   "canonical_name": "Anything Reaction"
+  },
+  {
+   "entity_id": "concept_big_block",
+   "teaching_order": 90.0005,
+   "program": "",
+   "canonical_name": "Big Block"
+  },
+  {
+   "entity_id": "concept_breaker_anything",
+   "teaching_order": 90.000602,
+   "program": "",
+   "canonical_name": "Breaker Anything"
+  },
+  {
+   "entity_id": "concept_catch_anything",
+   "teaching_order": 90.0007,
+   "program": "",
+   "canonical_name": "Catch Anything"
+  },
+  {
+   "entity_id": "concept_central",
+   "teaching_order": 90.0008,
+   "program": "",
+   "canonical_name": "Central"
+  },
+  {
+   "entity_id": "concept_checker_board_anything",
+   "teaching_order": 90.001101,
+   "program": "",
+   "canonical_name": "Checker Board Anything"
+  },
+  {
+   "entity_id": "concept_checker_box_anything",
+   "teaching_order": 90.001102,
+   "program": "",
+   "canonical_name": "Checker Box Anything"
+  },
+  {
+   "entity_id": "concept_eight_by_anything",
+   "teaching_order": 90.0019,
+   "program": "",
+   "canonical_name": "Eight By Anything"
+  },
+  {
+   "entity_id": "concept_finally",
+   "teaching_order": 90.0024,
+   "program": "",
+   "canonical_name": "Finally"
+  },
+  {
+   "entity_id": "concept_initially",
+   "teaching_order": 90.003,
+   "program": "",
+   "canonical_name": "Initially"
+  },
+  {
+   "entity_id": "concept_jay",
+   "teaching_order": 90.0036,
+   "program": "",
+   "canonical_name": "Jay"
+  },
+  {
+   "entity_id": "concept_mirror",
+   "teaching_order": 90.0042,
+   "program": "",
+   "canonical_name": "Mirror"
+  },
+  {
+   "entity_id": "concept_open_up_and_anything",
+   "teaching_order": 90.004302,
+   "program": "",
+   "canonical_name": "Open Up And Anything"
+  },
+  {
+   "entity_id": "concept_own_the_anyone",
+   "teaching_order": 90.0044,
+   "program": "",
+   "canonical_name": "Own The Anyone"
+  },
+  {
+   "entity_id": "concept_quick_anything",
+   "teaching_order": 90.004902,
+   "program": "",
+   "canonical_name": "Quick Anything"
+  },
+  {
+   "entity_id": "concept_release_anything",
+   "teaching_order": 90.0054,
+   "program": "",
+   "canonical_name": "Release Anything"
+  },
+  {
+   "entity_id": "concept_slant_anything_by_anything",
+   "teaching_order": 90.005902,
+   "program": "",
+   "canonical_name": "Slant Anything By Anything"
+  },
+  {
+   "entity_id": "concept_split_phantom_columns",
+   "teaching_order": 90.006301,
+   "program": "",
+   "canonical_name": "Split Phantom Columns"
+  },
+  {
+   "entity_id": "concept_split_phantom_lines",
+   "teaching_order": 90.006302,
+   "program": "",
+   "canonical_name": "Split Phantom Lines"
+  },
+  {
+   "entity_id": "concept_split_phantom_waves",
+   "teaching_order": 90.006303,
+   "program": "",
+   "canonical_name": "Split Phantom Waves"
+  },
+  {
+   "entity_id": "concept_stable",
+   "teaching_order": 90.0064,
+   "program": "",
+   "canonical_name": "Stable"
+  },
+  {
+   "entity_id": "concept_tag_chain_thru",
+   "teaching_order": 90.0009,
+   "program": "",
+   "canonical_name": "Tag Chain Thru"
+  },
+  {
+   "entity_id": "concept_tag_your_leader",
+   "teaching_order": 90.002702,
+   "program": "",
+   "canonical_name": "Tag Your Leader"
+  },
+  {
+   "entity_id": "concept_tagger_delight",
+   "teaching_order": 90.001603,
+   "program": "",
+   "canonical_name": "Tagger Delight"
+  },
+  {
+   "entity_id": "concept_tagger_dilemma",
+   "teaching_order": 90.001604,
+   "program": "",
+   "canonical_name": "Tagger Dilemma"
+  },
+  {
+   "entity_id": "concept_the_pulley_but_anything",
+   "teaching_order": 90.007103,
+   "program": "",
+   "canonical_name": "The Pulley But Anything"
+  },
+  {
+   "entity_id": "concept_triple_diamond",
+   "teaching_order": 90.0076,
+   "program": "",
+   "canonical_name": "Triple Diamond"
+  },
+  {
+   "entity_id": "concept_twosome",
+   "teaching_order": 90.0078,
+   "program": "",
+   "canonical_name": "Twosome"
+  },
+  {
+   "entity_id": "concept_wrap_to_a_formation",
+   "teaching_order": 90.008,
+   "program": "",
+   "canonical_name": "Wrap To A Formation"
+  },
+  {
+   "entity_id": "call_circle_left",
+   "teaching_order": 30.000101,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Circle Left"
+  },
+  {
+   "entity_id": "call_circle_right",
+   "teaching_order": 30.000101,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Circle Right"
+  },
+  {
+   "entity_id": "call_circle_of_4",
+   "teaching_order": 30.000102,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Circle of 4"
+  },
+  {
+   "entity_id": "call_single_circle",
+   "teaching_order": 30.000103,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Single Circle"
+  },
+  {
+   "entity_id": "call_dosado",
+   "teaching_order": 30.0002,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Dosado"
+  },
+  {
+   "entity_id": "call_couples_promenade",
+   "teaching_order": 30.000301,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Couples Promenade"
+  },
+  {
+   "entity_id": "call_single_file_promenade",
+   "teaching_order": 30.000302,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Single File Promenade"
+  },
+  {
+   "entity_id": "call_star_promenade",
+   "teaching_order": 30.000303,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Star Promenade"
+  },
+  {
+   "entity_id": "call_wrong_way_promenade",
+   "teaching_order": 30.000304,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Wrong Way Promenade"
+  },
+  {
+   "entity_id": "call_arm_turns",
+   "teaching_order": 30.000401,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Arm Turns"
+  },
+  {
+   "entity_id": "call_allemande_left",
+   "teaching_order": 30.000402,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Allemande Left"
+  },
+  {
+   "entity_id": "call_allemande_right",
+   "teaching_order": 30.000402,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Allemande Right"
+  },
+  {
+   "entity_id": "call_right_hand_star",
+   "teaching_order": 30.0005,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Right-Hand Star"
+  },
+  {
+   "entity_id": "call_left_hand_star",
+   "teaching_order": 30.0005,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Left-Hand Star"
+  },
+  {
+   "entity_id": "call_right_and_left_grand",
+   "teaching_order": 30.000601,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Right and Left Grand"
+  },
+  {
+   "entity_id": "call_weave_the_ring",
+   "teaching_order": 30.000602,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Weave the Ring"
+  },
+  {
+   "entity_id": "call_wrong_way_grand",
+   "teaching_order": 30.000603,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Wrong Way Grand"
+  },
+  {
+   "entity_id": "call_pass_thru",
+   "teaching_order": 30.0007,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Pass Thru"
+  },
+  {
+   "entity_id": "call_wheel_around",
+   "teaching_order": 30.0008,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Wheel Around"
+  },
+  {
+   "entity_id": "call_reverse_wheel_around",
+   "teaching_order": 30.0008,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Reverse Wheel Around"
+  },
+  {
+   "entity_id": "call_courtesy_turn",
+   "teaching_order": 30.0009,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Courtesy Turn"
+  },
+  {
+   "entity_id": "call_right_and_left_thru",
+   "teaching_order": 30.001,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Right and Left Thru"
+  },
+  {
+   "entity_id": "call_swing",
+   "teaching_order": 30.0011,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Swing (your Partner)"
+  },
+  {
+   "entity_id": "call_two_ladies_chain",
+   "teaching_order": 30.001201,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Two Ladies Chain"
+  },
+  {
+   "entity_id": "call_four_ladies_chain",
+   "teaching_order": 30.001202,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Four Ladies Chain"
+  },
+  {
+   "entity_id": "call_chain_down_the_line",
+   "teaching_order": 30.001203,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Chain Down the Line"
+  },
+  {
+   "entity_id": "call_half_sashay",
+   "teaching_order": 30.001301,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Half Sashay"
+  },
+  {
+   "entity_id": "call_rollaway",
+   "teaching_order": 30.001302,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Rollaway"
+  },
+  {
+   "entity_id": "call_ladies_in_men_sashay",
+   "teaching_order": 30.001303,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Ladies In Men Sashay"
+  },
+  {
+   "entity_id": "call_u_turn_back",
+   "teaching_order": 30.001401,
+   "program": "Mainstream (2026)",
+   "canonical_name": "U-Turn Back"
+  },
+  {
+   "entity_id": "call_backtrack",
+   "teaching_order": 30.001402,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Backtrack"
+  },
+  {
+   "entity_id": "call_separate",
+   "teaching_order": 30.001501,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Separate"
+  },
+  {
+   "entity_id": "call_separate_around_to_a_line",
+   "teaching_order": 30.001502,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Separate Around 1 or 2 to a Line"
+  },
+  {
+   "entity_id": "call_separate_around_come_into_middle",
+   "teaching_order": 30.001503,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Separate Around 1 or 2 and Come into the Middle"
+  },
+  {
+   "entity_id": "call_lead_right",
+   "teaching_order": 30.0016,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Lead Right"
+  },
+  {
+   "entity_id": "call_lead_left",
+   "teaching_order": 30.0016,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Lead Left"
+  },
+  {
+   "entity_id": "call_veer_left",
+   "teaching_order": 30.0017,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Veer Left"
+  },
+  {
+   "entity_id": "call_veer_right",
+   "teaching_order": 30.0017,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Veer Right"
+  },
+  {
+   "entity_id": "call_star_thru",
+   "teaching_order": 30.0018,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Star Thru"
+  },
+  {
+   "entity_id": "call_couples_circulate",
+   "teaching_order": 30.001901,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Couples Circulate"
+  },
+  {
+   "entity_id": "call_named_dancers_circulate",
+   "teaching_order": 30.001902,
+   "program": "Mainstream (2026)",
+   "canonical_name": "(Named Dancers) Circulate"
+  },
+  {
+   "entity_id": "call_all_eight_circulate",
+   "teaching_order": 30.001903,
+   "program": "Mainstream (2026)",
+   "canonical_name": "All Eight Circulate"
+  },
+  {
+   "entity_id": "call_single_file_circulate",
+   "teaching_order": 30.001904,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Single File Circulate"
+  },
+  {
+   "entity_id": "call_split_circulate",
+   "teaching_order": 30.001905,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Split Circulate"
+  },
+  {
+   "entity_id": "call_bend_the_line",
+   "teaching_order": 30.002,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Bend the Line"
+  },
+  {
+   "entity_id": "call_square_thru",
+   "teaching_order": 30.0021,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Square Thru"
+  },
+  {
+   "entity_id": "call_left_square_thru",
+   "teaching_order": 30.0021,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Left Square Thru"
+  },
+  {
+   "entity_id": "call_split_two",
+   "teaching_order": 30.0022,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Split Two"
+  },
+  {
+   "entity_id": "call_grand_square",
+   "teaching_order": 30.0023,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Grand Square"
+  },
+  {
+   "entity_id": "call_double_pass_thru",
+   "teaching_order": 30.0024,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Double Pass Thru"
+  },
+  {
+   "entity_id": "call_first_go_next_go",
+   "teaching_order": 30.0025,
+   "program": "Mainstream (2026)",
+   "canonical_name": "First Couple Go Left/Right Next Couple Go Left/Right"
+  },
+  {
+   "entity_id": "call_wheel_and_deal",
+   "teaching_order": 30.0026,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Wheel and Deal"
+  },
+  {
+   "entity_id": "call_california_twirl",
+   "teaching_order": 30.0027,
+   "program": "Mainstream (2026)",
+   "canonical_name": "California Twirl"
+  },
+  {
+   "entity_id": "call_slide_thru",
+   "teaching_order": 30.0028,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Slide Thru"
+  },
+  {
+   "entity_id": "call_dive_thru",
+   "teaching_order": 30.0029,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Dive Thru"
+  },
+  {
+   "entity_id": "call_box_the_gnat",
+   "teaching_order": 30.003,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Box the Gnat"
+  },
+  {
+   "entity_id": "call_alamo_style",
+   "teaching_order": 30.003101,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Alamo Style"
+  },
+  {
+   "entity_id": "call_balance",
+   "teaching_order": 30.003102,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Balance"
+  },
+  {
+   "entity_id": "call_step_to_a_wave",
+   "teaching_order": 30.003103,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Step to a Wave"
+  },
+  {
+   "entity_id": "call_dosado_to_a_wave",
+   "teaching_order": 30.003104,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Dosado to a Wave"
+  },
+  {
+   "entity_id": "call_single_circle_to_a_wave",
+   "teaching_order": 30.003105,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Single Circle to a Wave"
+  },
+  {
+   "entity_id": "call_couples_trade",
+   "teaching_order": 30.003201,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Couples Trade"
+  },
+  {
+   "entity_id": "call_named_dancers_trade",
+   "teaching_order": 30.003202,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Trade"
+  },
+  {
+   "entity_id": "call_right_hand_trade",
+   "teaching_order": 30.003203,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Right Hand Trade"
+  },
+  {
+   "entity_id": "call_left_hand_trade",
+   "teaching_order": 30.003203,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Left Hand Trade"
+  },
+  {
+   "entity_id": "call_partner_trade",
+   "teaching_order": 30.003204,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Partner Trade"
+  },
+  {
+   "entity_id": "call_swing_thru",
+   "teaching_order": 30.0033,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Swing Thru"
+  },
+  {
+   "entity_id": "call_left_swing_thru",
+   "teaching_order": 30.0033,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Left Swing Thru"
+  },
+  {
+   "entity_id": "call_run",
+   "teaching_order": 30.0034,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Run"
+  },
+  {
+   "entity_id": "call_cross_run",
+   "teaching_order": 30.0034,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Cross Run"
+  },
+  {
+   "entity_id": "call_pass_the_ocean",
+   "teaching_order": 30.0035,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Pass the Ocean"
+  },
+  {
+   "entity_id": "call_extend",
+   "teaching_order": 30.0036,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Extend"
+  },
+  {
+   "entity_id": "call_flutterwheel",
+   "teaching_order": 30.0037,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Flutterwheel"
+  },
+  {
+   "entity_id": "call_reverse_flutterwheel",
+   "teaching_order": 30.0037,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Reverse Flutterwheel"
+  },
+  {
+   "entity_id": "call_sweep_a_quarter",
+   "teaching_order": 30.0038,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Sweep a Quarter"
+  },
+  {
+   "entity_id": "call_trade_by",
+   "teaching_order": 30.0039,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Trade By"
+  },
+  {
+   "entity_id": "call_ferris_wheel",
+   "teaching_order": 30.004,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Ferris Wheel"
+  },
+  {
+   "entity_id": "call_zoom",
+   "teaching_order": 30.0041,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Zoom"
+  },
+  {
+   "entity_id": "call_touch_a_quarter",
+   "teaching_order": 30.0042,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Touch a Quarter"
+  },
+  {
+   "entity_id": "call_single_hinge",
+   "teaching_order": 30.004301,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Single Hinge"
+  },
+  {
+   "entity_id": "call_couples_hinge",
+   "teaching_order": 30.004302,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Couples Hinge"
+  },
+  {
+   "entity_id": "call_centers_in",
+   "teaching_order": 30.0044,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Centers In"
+  },
+  {
+   "entity_id": "call_cast_off_three_quarters",
+   "teaching_order": 30.0045,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Cast Off Three-Quarters"
+  },
+  {
+   "entity_id": "call_spin_the_top",
+   "teaching_order": 30.0046,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Spin the Top"
+  },
+  {
+   "entity_id": "call_scoot_back",
+   "teaching_order": 30.0047,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Scoot Back"
+  },
+  {
+   "entity_id": "call_fold",
+   "teaching_order": 30.0048,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Fold"
+  },
+  {
+   "entity_id": "call_cross_fold",
+   "teaching_order": 30.0048,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Cross Fold"
+  },
+  {
+   "entity_id": "call_tag_the_line",
+   "teaching_order": 30.004901,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Tag the Line"
+  },
+  {
+   "entity_id": "call_fraction_tag",
+   "teaching_order": 30.004902,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Fraction Tag"
+  },
+  {
+   "entity_id": "call_recycle",
+   "teaching_order": 30.005,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Recycle"
+  },
+  {
+   "entity_id": "call_forward_and_back",
+   "teaching_order": 30.00015,
+   "program": "Mainstream (2026)",
+   "canonical_name": "Forward and Back"
+  },
+  {
+   "entity_id": "call_cloverleaf",
+   "teaching_order": 29.0049,
+   "program": "Mainstream",
+   "canonical_name": "Cloverleaf"
+  },
+  {
+   "entity_id": "call_turn_thru",
+   "teaching_order": 29.005,
+   "program": "Mainstream",
+   "canonical_name": "Turn Thru"
+  },
+  {
+   "entity_id": "call_eight_chain_thru",
+   "teaching_order": 29.0051,
+   "program": "Mainstream",
+   "canonical_name": "Eight Chain Thru"
+  },
+  {
+   "entity_id": "call_pass_to_the_center",
+   "teaching_order": 29.0052,
+   "program": "Mainstream",
+   "canonical_name": "Pass to the Center"
+  },
+  {
+   "entity_id": "call_allemande_thar",
+   "teaching_order": 29.005301,
+   "program": "Mainstream",
+   "canonical_name": "Allemande Thar"
+  },
+  {
+   "entity_id": "call_allemande_left_to_allemande_thar",
+   "teaching_order": 29.005302,
+   "program": "Mainstream",
+   "canonical_name": "Allemande Left to an Allemande Thar"
+  },
+  {
+   "entity_id": "call_wrong_way_thar",
+   "teaching_order": 29.005303,
+   "program": "Mainstream",
+   "canonical_name": "Wrong Way Thar"
+  },
+  {
+   "entity_id": "call_slip_the_clutch",
+   "teaching_order": 29.0054,
+   "program": "Mainstream",
+   "canonical_name": "Slip the Clutch"
+  },
+  {
+   "entity_id": "call_shoot_the_star",
+   "teaching_order": 29.0055,
+   "program": "Mainstream",
+   "canonical_name": "Shoot the Star"
+  },
+  {
+   "entity_id": "call_single_hinge",
+   "teaching_order": 29.005601,
+   "program": "Mainstream",
+   "canonical_name": "Single Hinge"
+  },
+  {
+   "entity_id": "call_couples_hinge",
+   "teaching_order": 29.005602,
+   "program": "Mainstream",
+   "canonical_name": "Couples Hinge"
+  },
+  {
+   "entity_id": "call_centers_in",
+   "teaching_order": 29.0057,
+   "program": "Mainstream",
+   "canonical_name": "Centers In"
+  },
+  {
+   "entity_id": "call_cast_off_three_quarters",
+   "teaching_order": 29.0058,
+   "program": "Mainstream",
+   "canonical_name": "Cast Off Three-Quarters"
+  },
+  {
+   "entity_id": "call_spin_the_top",
+   "teaching_order": 29.0059,
+   "program": "Mainstream",
+   "canonical_name": "Spin the Top"
+  },
+  {
+   "entity_id": "call_walk_and_dodge",
+   "teaching_order": 29.006,
+   "program": "Mainstream",
+   "canonical_name": "Walk and Dodge"
+  },
+  {
+   "entity_id": "call_slide_thru",
+   "teaching_order": 29.0061,
+   "program": "Mainstream",
+   "canonical_name": "Slide Thru"
+  },
+  {
+   "entity_id": "call_fold",
+   "teaching_order": 29.0062,
+   "program": "Mainstream",
+   "canonical_name": "Fold"
+  },
+  {
+   "entity_id": "call_cross_fold",
+   "teaching_order": 29.0062,
+   "program": "Mainstream",
+   "canonical_name": "Cross Fold"
+  },
+  {
+   "entity_id": "call_dixie_style_to_a_wave",
+   "teaching_order": 29.0063,
+   "program": "Mainstream",
+   "canonical_name": "Dixie Style to an Ocean Wave"
+  },
+  {
+   "entity_id": "call_spin_chain_thru",
+   "teaching_order": 29.0064,
+   "program": "Mainstream",
+   "canonical_name": "Spin Chain Thru"
+  },
+  {
+   "entity_id": "call_tag_the_line",
+   "teaching_order": 29.006501,
+   "program": "Mainstream",
+   "canonical_name": "Tag the Line"
+  },
+  {
+   "entity_id": "call_fraction_tag",
+   "teaching_order": 29.006502,
+   "program": "Mainstream",
+   "canonical_name": "Fraction Tag"
+  },
+  {
+   "entity_id": "call_scoot_back",
+   "teaching_order": 29.0066,
+   "program": "Mainstream",
+   "canonical_name": "Scoot Back"
+  },
+  {
+   "entity_id": "call_recycle",
+   "teaching_order": 29.0067,
+   "program": "Mainstream",
+   "canonical_name": "Recycle"
+  },
+  {
+   "entity_id": "call_acey_deucey",
+   "teaching_order": 39.0001,
+   "program": "Plus",
+   "canonical_name": "Acey Deucey"
+  },
+  {
+   "entity_id": "call_spin_chain_the_gears",
+   "teaching_order": 39.0002,
+   "program": "Plus",
+   "canonical_name": "Spin Chain the Gears"
+  },
+  {
+   "entity_id": "call_grand_swing_thru",
+   "teaching_order": 39.0003,
+   "program": "Plus",
+   "canonical_name": "Grand Swing Thru"
+  },
+  {
+   "entity_id": "call_triple_scoot",
+   "teaching_order": 39.0004,
+   "program": "Plus",
+   "canonical_name": "Triple Scoot"
+  },
+  {
+   "entity_id": "call_teacup_chain",
+   "teaching_order": 39.0005,
+   "program": "Plus",
+   "canonical_name": "Teacup Chain"
+  },
+  {
+   "entity_id": "call_ping_pong_circulate",
+   "teaching_order": 39.0006,
+   "program": "Plus",
+   "canonical_name": "Ping Pong Circulate"
+  },
+  {
+   "entity_id": "call_load_the_boat",
+   "teaching_order": 39.0007,
+   "program": "Plus",
+   "canonical_name": "Load the Boat"
+  },
+  {
+   "entity_id": "call_peel_off",
+   "teaching_order": 39.0008,
+   "program": "Plus",
+   "canonical_name": "Peel Off"
+  },
+  {
+   "entity_id": "call_coordinate",
+   "teaching_order": 39.0009,
+   "program": "Plus",
+   "canonical_name": "Coordinate"
+  },
+  {
+   "entity_id": "concept_anything_and_spread",
+   "teaching_order": 39.001,
+   "program": "Plus",
+   "canonical_name": "(Anything) & Spread"
+  },
+  {
+   "entity_id": "call_track_2",
+   "teaching_order": 39.0011,
+   "program": "Plus",
+   "canonical_name": "Track 2"
+  },
+  {
+   "entity_id": "concept_anything_and_roll",
+   "teaching_order": 39.0012,
+   "program": "Plus",
+   "canonical_name": "(Anything) & Roll"
+  },
+  {
+   "entity_id": "call_follow_your_neighbor",
+   "teaching_order": 39.0013,
+   "program": "Plus",
+   "canonical_name": "Follow Your Neighbor"
+  },
+  {
+   "entity_id": "call_fan_the_top",
+   "teaching_order": 39.0014,
+   "program": "Plus",
+   "canonical_name": "Fan the Top"
+  },
+  {
+   "entity_id": "call_dixie_grand",
+   "teaching_order": 39.0015,
+   "program": "Plus",
+   "canonical_name": "Dixie Grand"
+  },
+  {
+   "entity_id": "call_spin_chain_and_exchange_the_gears",
+   "teaching_order": 39.0016,
+   "program": "Plus",
+   "canonical_name": "Spin Chain & Exchange the Gears"
+  },
+  {
+   "entity_id": "call_explode_the_wave",
+   "teaching_order": 39.0017,
+   "program": "Plus",
+   "canonical_name": "Explode the Wave"
+  },
+  {
+   "entity_id": "concept_explode_and_anything",
+   "teaching_order": 39.0018,
+   "program": "Plus",
+   "canonical_name": "Explode & (Anything)"
+  },
+  {
+   "entity_id": "call_crossfire",
+   "teaching_order": 39.0019,
+   "program": "Plus",
+   "canonical_name": "Crossfire"
+  },
+  {
+   "entity_id": "call_relay_the_deucey",
+   "teaching_order": 39.002,
+   "program": "Plus",
+   "canonical_name": "Relay the Deucey"
+  },
+  {
+   "entity_id": "call_linear_cycle",
+   "teaching_order": 39.0021,
+   "program": "Plus",
+   "canonical_name": "Linear Cycle"
+  },
+  {
+   "entity_id": "call_peel_the_top",
+   "teaching_order": 39.0022,
+   "program": "Plus",
+   "canonical_name": "Peel the Top"
+  },
+  {
+   "entity_id": "call_diamond_circulate",
+   "teaching_order": 39.0023,
+   "program": "Plus",
+   "canonical_name": "Diamond Circulate"
+  },
+  {
+   "entity_id": "call_cut_the_diamond",
+   "teaching_order": 39.0024,
+   "program": "Plus",
+   "canonical_name": "Cut the Diamond"
+  },
+  {
+   "entity_id": "call_single_circle_to_a_wave",
+   "teaching_order": 39.0025,
+   "program": "Plus",
+   "canonical_name": "Single Circle to a Wave"
+  },
+  {
+   "entity_id": "call_trade_the_wave",
+   "teaching_order": 39.0026,
+   "program": "Plus",
+   "canonical_name": "Trade the Wave"
+  },
+  {
+   "entity_id": "call_flip_the_diamond",
+   "teaching_order": 39.0027,
+   "program": "Plus",
+   "canonical_name": "Flip the Diamond"
+  },
+  {
+   "entity_id": "call_all_8_spin_the_top",
+   "teaching_order": 39.0028,
+   "program": "Plus",
+   "canonical_name": "All 8 Spin the Top"
+  },
+  {
+   "entity_id": "call_chase_right",
+   "teaching_order": 39.0029,
+   "program": "Plus",
+   "canonical_name": "Chase Right"
+  },
+  {
+   "entity_id": "call_acey_deucey",
+   "teaching_order": 40.0001,
+   "program": "Plus (2026)",
+   "canonical_name": "Acey Deucey"
+  },
+  {
+   "entity_id": "call_cloverleaf",
+   "teaching_order": 40.0002,
+   "program": "Plus (2026)",
+   "canonical_name": "Cloverleaf"
+  },
+  {
+   "entity_id": "call_ping_pong_circulate",
+   "teaching_order": 40.0003,
+   "program": "Plus (2026)",
+   "canonical_name": "Ping Pong Circulate"
+  },
+  {
+   "entity_id": "call_turn_thru",
+   "teaching_order": 40.0004,
+   "program": "Plus (2026)",
+   "canonical_name": "Turn Thru"
+  },
+  {
+   "entity_id": "call_pass_to_the_center",
+   "teaching_order": 40.0005,
+   "program": "Plus (2026)",
+   "canonical_name": "Pass to the Center"
+  },
+  {
+   "entity_id": "call_spin_chain_thru",
+   "teaching_order": 40.0006,
+   "program": "Plus (2026)",
+   "canonical_name": "Spin Chain Thru"
+  },
+  {
+   "entity_id": "call_scoot_and_dodge",
+   "teaching_order": 40.0007,
+   "program": "Plus (2026)",
+   "canonical_name": "Scoot & Dodge"
+  },
+  {
+   "entity_id": "call_pair_off",
+   "teaching_order": 40.0008,
+   "program": "Plus (2026)",
+   "canonical_name": "Pair Off"
+  },
+  {
+   "entity_id": "call_teacup_chain",
+   "teaching_order": 40.0009,
+   "program": "Plus (2026)",
+   "canonical_name": "Teacup Chain"
+  },
+  {
+   "entity_id": "call_dixie_style_to_a_wave",
+   "teaching_order": 40.001,
+   "program": "Plus (2026)",
+   "canonical_name": "Dixie Style to an Ocean Wave"
+  },
+  {
+   "entity_id": "call_walk_around",
+   "teaching_order": 40.0011,
+   "program": "Plus (2026)",
+   "canonical_name": "Walk Around"
+  },
+  {
+   "entity_id": "call_see_saw",
+   "teaching_order": 40.0012,
+   "program": "Plus (2026)",
+   "canonical_name": "See Saw"
+  },
+  {
+   "entity_id": "call_load_the_boat",
+   "teaching_order": 40.0013,
+   "program": "Plus (2026)",
+   "canonical_name": "Load the Boat"
+  },
+  {
+   "entity_id": "call_quarter_thru",
+   "teaching_order": 40.001401,
+   "program": "Plus (2026)",
+   "canonical_name": "Quarter Thru"
+  },
+  {
+   "entity_id": "call_three_quarter_thru",
+   "teaching_order": 40.001402,
+   "program": "Plus (2026)",
+   "canonical_name": "Three-Quarter Thru"
+  },
+  {
+   "entity_id": "call_grand_quarter_thru",
+   "teaching_order": 40.001403,
+   "program": "Plus (2026)",
+   "canonical_name": "Grand Quarter Thru"
+  },
+  {
+   "entity_id": "call_grand_three_quarter_thru",
+   "teaching_order": 40.001404,
+   "program": "Plus (2026)",
+   "canonical_name": "Grand Three-Quarter Thru"
+  },
+  {
+   "entity_id": "call_walk_and_dodge",
+   "teaching_order": 40.0015,
+   "program": "Plus (2026)",
+   "canonical_name": "Walk and Dodge"
+  },
+  {
+   "entity_id": "call_spin_chain_the_gears",
+   "teaching_order": 40.0016,
+   "program": "Plus (2026)",
+   "canonical_name": "Spin Chain the Gears"
+  },
+  {
+   "entity_id": "call_grand_swing_thru",
+   "teaching_order": 40.0017,
+   "program": "Plus (2026)",
+   "canonical_name": "Grand Swing Thru"
+  },
+  {
+   "entity_id": "call_triple_scoot",
+   "teaching_order": 40.0018,
+   "program": "Plus (2026)",
+   "canonical_name": "Triple Scoot"
+  },
+  {
+   "entity_id": "call_track_2",
+   "teaching_order": 40.0019,
+   "program": "Plus (2026)",
+   "canonical_name": "Track 2"
+  },
+  {
+   "entity_id": "concept_anything_and_roll",
+   "teaching_order": 40.002,
+   "program": "Plus (2026)",
+   "canonical_name": "(Anything) & Roll"
+  },
+  {
+   "entity_id": "call_diamond_circulate",
+   "teaching_order": 40.0021,
+   "program": "Plus (2026)",
+   "canonical_name": "Diamond Circulate"
+  },
+  {
+   "entity_id": "call_pass_the_sea",
+   "teaching_order": 40.0022,
+   "program": "Plus (2026)",
+   "canonical_name": "Pass the Sea"
+  },
+  {
+   "entity_id": "call_flip_the_diamond",
+   "teaching_order": 40.0023,
+   "program": "Plus (2026)",
+   "canonical_name": "Flip the Diamond"
+  },
+  {
+   "entity_id": "call_follow_your_neighbor",
+   "teaching_order": 40.0024,
+   "program": "Plus (2026)",
+   "canonical_name": "Follow Your Neighbor"
+  },
+  {
+   "entity_id": "call_cut_the_diamond",
+   "teaching_order": 40.0025,
+   "program": "Plus (2026)",
+   "canonical_name": "Cut the Diamond"
+  },
+  {
+   "entity_id": "call_allemande_thar",
+   "teaching_order": 40.002601,
+   "program": "Plus (2026)",
+   "canonical_name": "Allemande Thar"
+  },
+  {
+   "entity_id": "call_allemande_left_to_allemande_thar",
+   "teaching_order": 40.002602,
+   "program": "Plus (2026)",
+   "canonical_name": "Allemande Left to an Allemande Thar"
+  },
+  {
+   "entity_id": "call_wrong_way_thar",
+   "teaching_order": 40.002603,
+   "program": "Plus (2026)",
+   "canonical_name": "Wrong Way Thar"
+  },
+  {
+   "entity_id": "call_slip_the_clutch",
+   "teaching_order": 40.0027,
+   "program": "Plus (2026)",
+   "canonical_name": "Slip the Clutch"
+  },
+  {
+   "entity_id": "call_triple_trade",
+   "teaching_order": 40.0028,
+   "program": "Plus (2026)",
+   "canonical_name": "Triple Trade"
+  },
+  {
+   "entity_id": "call_shoot_the_star",
+   "teaching_order": 40.0029,
+   "program": "Plus (2026)",
+   "canonical_name": "Shoot the Star"
+  },
+  {
+   "entity_id": "call_peel_off",
+   "teaching_order": 40.003,
+   "program": "Plus (2026)",
+   "canonical_name": "Peel Off"
+  },
+  {
+   "entity_id": "call_coordinate",
+   "teaching_order": 40.0031,
+   "program": "Plus (2026)",
+   "canonical_name": "Coordinate"
+  },
+  {
+   "entity_id": "concept_anything_and_spread",
+   "teaching_order": 40.0032,
+   "program": "Plus (2026)",
+   "canonical_name": "(Anything) & Spread"
+  },
+  {
+   "entity_id": "call_fan_the_top",
+   "teaching_order": 40.0033,
+   "program": "Plus (2026)",
+   "canonical_name": "Fan the Top"
+  },
+  {
+   "entity_id": "call_relay_the_deucey",
+   "teaching_order": 40.0034,
+   "program": "Plus (2026)",
+   "canonical_name": "Relay the Deucey"
+  },
+  {
+   "entity_id": "call_partner_tag",
+   "teaching_order": 40.0035,
+   "program": "Plus (2026)",
+   "canonical_name": "Partner Tag"
+  },
+  {
+   "entity_id": "call_dixie_grand",
+   "teaching_order": 40.0036,
+   "program": "Plus (2026)",
+   "canonical_name": "Dixie Grand"
+  },
+  {
+   "entity_id": "call_explode_the_wave",
+   "teaching_order": 40.0037,
+   "program": "Plus (2026)",
+   "canonical_name": "Explode the Wave"
+  },
+  {
+   "entity_id": "call_crossfire",
+   "teaching_order": 40.0038,
+   "program": "Plus (2026)",
+   "canonical_name": "Crossfire"
+  },
+  {
+   "entity_id": "concept_explode_and_anything",
+   "teaching_order": 40.0039,
+   "program": "Plus (2026)",
+   "canonical_name": "Explode & (Anything)"
+  },
+  {
+   "entity_id": "call_partner_hinge",
+   "teaching_order": 40.004,
+   "program": "Plus (2026)",
+   "canonical_name": "Partner Hinge"
+  },
+  {
+   "entity_id": "call_spin_chain_and_exchange_the_gears",
+   "teaching_order": 40.0041,
+   "program": "Plus (2026)",
+   "canonical_name": "Spin Chain & Exchange the Gears"
+  },
+  {
+   "entity_id": "call_linear_cycle",
+   "teaching_order": 40.0042,
+   "program": "Plus (2026)",
+   "canonical_name": "Linear Cycle"
+  },
+  {
+   "entity_id": "call_peel_the_top",
+   "teaching_order": 40.0043,
+   "program": "Plus (2026)",
+   "canonical_name": "Peel the Top"
+  },
+  {
+   "entity_id": "call_circle_to_a_line",
+   "teaching_order": 40.0044,
+   "program": "Plus (2026)",
+   "canonical_name": "Circle to a Line"
+  },
+  {
+   "entity_id": "call_chase_right",
+   "teaching_order": 40.0045,
+   "program": "Plus (2026)",
+   "canonical_name": "Chase Right"
+  },
+  {
+   "entity_id": "concept_clover_and_anything",
+   "teaching_order": 40.0046,
+   "program": "Plus (2026)",
+   "canonical_name": "Clover and (Anything)"
+  },
+  {
+   "entity_id": "call_trade_the_wave",
+   "teaching_order": 40.0047,
+   "program": "Plus (2026)",
+   "canonical_name": "Trade the Wave"
+  },
+  {
+   "entity_id": "call_eight_chain_thru",
+   "teaching_order": 40.0048,
+   "program": "Plus (2026)",
+   "canonical_name": "Eight Chain Thru"
+  },
+  {
+   "entity_id": "call_all_8_spin_the_top",
+   "teaching_order": 40.0049,
+   "program": "Plus (2026)",
+   "canonical_name": "All 8 Spin the Top"
+  },
+  {
+   "entity_id": "call_do_paso",
+   "teaching_order": 40.005,
+   "program": "Plus (2026)",
+   "canonical_name": "Do Paso"
+  },
+  {
+   "entity_id": "dancer_belle",
+   "teaching_order": 49.0001,
+   "program": "Advanced 1",
+   "canonical_name": "Belle"
+  },
+  {
+   "entity_id": "dancer_beau",
+   "teaching_order": 49.0001,
+   "program": "Advanced 1",
+   "canonical_name": "Beau"
+  },
+  {
+   "entity_id": "call_brace_thru",
+   "teaching_order": 49.0002,
+   "program": "Advanced 1",
+   "canonical_name": "Brace Thru"
+  },
+  {
+   "entity_id": "call_cross_trail_thru",
+   "teaching_order": 49.0003,
+   "program": "Advanced 1",
+   "canonical_name": "Cross Trail Thru"
+  },
+  {
+   "entity_id": "call_triple_trade",
+   "teaching_order": 49.0004,
+   "program": "Advanced 1",
+   "canonical_name": "Triple Trade"
+  },
+  {
+   "entity_id": "call_grand_follow_your_neighbor",
+   "teaching_order": 49.0005,
+   "program": "Advanced 1",
+   "canonical_name": "Grand Follow Your Neighbor"
+  },
+  {
+   "entity_id": "call_quarter_thru",
+   "teaching_order": 49.0006,
+   "program": "Advanced 1",
+   "canonical_name": "Quarter Thru"
+  },
+  {
+   "entity_id": "call_wheel_thru",
+   "teaching_order": 49.0007,
+   "program": "Advanced 1",
+   "canonical_name": "Wheel Thru"
+  },
+  {
+   "entity_id": "call_turn_and_deal",
+   "teaching_order": 49.0008,
+   "program": "Advanced 1",
+   "canonical_name": "Turn and Deal"
+  },
+  {
+   "entity_id": "call_pass_in",
+   "teaching_order": 49.000901,
+   "program": "Advanced 1",
+   "canonical_name": "Pass In"
+  },
+  {
+   "entity_id": "call_pass_out",
+   "teaching_order": 49.000902,
+   "program": "Advanced 1",
+   "canonical_name": "Pass Out"
+  },
+  {
+   "entity_id": "call_chain_reaction",
+   "teaching_order": 49.001,
+   "program": "Advanced 1",
+   "canonical_name": "Chain Reaction"
+  },
+  {
+   "entity_id": "call_mix",
+   "teaching_order": 49.0011,
+   "program": "Advanced 1",
+   "canonical_name": "Mix"
+  },
+  {
+   "entity_id": "call_lockit",
+   "teaching_order": 49.0012,
+   "program": "Advanced 1",
+   "canonical_name": "Lockit"
+  },
+  {
+   "entity_id": "call_roll_to_a_wave",
+   "teaching_order": 49.0013,
+   "program": "Advanced 1",
+   "canonical_name": "Right Roll to a Wave"
+  },
+  {
+   "entity_id": "call_cast_a_shadow",
+   "teaching_order": 49.0014,
+   "program": "Advanced 1",
+   "canonical_name": "Cast a Shadow"
+  },
+  {
+   "entity_id": "call_six_two_acey_deucey",
+   "teaching_order": 49.0015,
+   "program": "Advanced 1",
+   "canonical_name": "Six-Two Acey Deucey"
+  },
+  {
+   "entity_id": "concept_clover_and_anything",
+   "teaching_order": 49.0016,
+   "program": "Advanced 1",
+   "canonical_name": "Clover and (Anything)"
+  },
+  {
+   "entity_id": "call_quarter_in",
+   "teaching_order": 49.001701,
+   "program": "Advanced 1",
+   "canonical_name": "Quarter In"
+  },
+  {
+   "entity_id": "call_quarter_out",
+   "teaching_order": 49.001702,
+   "program": "Advanced 1",
+   "canonical_name": "Quarter Out"
+  },
+  {
+   "entity_id": "call_cross_over_circulate",
+   "teaching_order": 49.0018,
+   "program": "Advanced 1",
+   "canonical_name": "Cross Over Circulate"
+  },
+  {
+   "entity_id": "call_partner_tag",
+   "teaching_order": 49.0019,
+   "program": "Advanced 1",
+   "canonical_name": "Partner Tag"
+  },
+  {
+   "entity_id": "call_partner_hinge",
+   "teaching_order": 49.002,
+   "program": "Advanced 1",
+   "canonical_name": "Partner Hinge"
+  },
+  {
+   "entity_id": "call_horseshoe_turn",
+   "teaching_order": 49.0021,
+   "program": "Advanced 1",
+   "canonical_name": "Horseshoe Turn"
+  },
+  {
+   "entity_id": "call_pass_the_sea",
+   "teaching_order": 49.0022,
+   "program": "Advanced 1",
+   "canonical_name": "Pass the Sea"
+  },
+  {
+   "entity_id": "call_split_square_thru",
+   "teaching_order": 49.0023,
+   "program": "Advanced 1",
+   "canonical_name": "Split Square Thru"
+  },
+  {
+   "entity_id": "call_step_and_slide",
+   "teaching_order": 49.0024,
+   "program": "Advanced 1",
+   "canonical_name": "Step and Slide"
+  },
+  {
+   "entity_id": "call_transfer_the_column",
+   "teaching_order": 49.0025,
+   "program": "Advanced 1",
+   "canonical_name": "Transfer the Column"
+  },
+  {
+   "entity_id": "call_swap_around",
+   "teaching_order": 49.0026,
+   "program": "Advanced 1",
+   "canonical_name": "Swap Around"
+  },
+  {
+   "entity_id": "call_explode_the_line",
+   "teaching_order": 49.0027,
+   "program": "Advanced 1",
+   "canonical_name": "Explode the Line"
+  },
+  {
+   "entity_id": "concept_as_couples",
+   "teaching_order": 49.0028,
+   "program": "Advanced 1",
+   "canonical_name": "As Couples Concept"
+  },
+  {
+   "entity_id": "call_ends_bend",
+   "teaching_order": 49.0029,
+   "program": "Advanced 1",
+   "canonical_name": "Ends Bend"
+  },
+  {
+   "entity_id": "call_square_chain_thru",
+   "teaching_order": 49.003,
+   "program": "Advanced 1",
+   "canonical_name": "Square Chain Thru"
+  },
+  {
+   "entity_id": "call_scoot_and_dodge",
+   "teaching_order": 49.0031,
+   "program": "Advanced 1",
+   "canonical_name": "Scoot & Dodge"
+  },
+  {
+   "entity_id": "call_double_star_thru",
+   "teaching_order": 49.0032,
+   "program": "Advanced 1",
+   "canonical_name": "Double Star Thru"
+  },
+  {
+   "entity_id": "call_left_wheel_thru",
+   "teaching_order": 49.0033,
+   "program": "Advanced 1",
+   "canonical_name": "Left Wheel Thru"
+  },
+  {
+   "entity_id": "call_anything_and_cross",
+   "teaching_order": 49.0034,
+   "program": "Advanced 1",
+   "canonical_name": "(Anything) and Cross"
+  },
+  {
+   "entity_id": "call_named_dancers_cross",
+   "teaching_order": 49.0035,
+   "program": "Advanced 1",
+   "canonical_name": "(Named Dancers) Cross"
+  },
+  {
+   "entity_id": "call_fractional_tops",
+   "teaching_order": 49.0036,
+   "program": "Advanced 1",
+   "canonical_name": "Fractional Tops"
+  },
+  {
+   "entity_id": "call_three_quarter_thru",
+   "teaching_order": 49.0037,
+   "program": "Advanced 1",
+   "canonical_name": "Three-Quarter Thru"
+  },
+  {
+   "entity_id": "call_triple_star_thru",
+   "teaching_order": 49.0038,
+   "program": "Advanced 1",
+   "canonical_name": "Triple Star Thru"
+  },
+  {
+   "entity_id": "call_cycle_and_wheel",
+   "teaching_order": 49.0039,
+   "program": "Advanced 1",
+   "canonical_name": "Cycle and Wheel"
+  },
+  {
+   "entity_id": "call_grand_quarter_thru",
+   "teaching_order": 49.004,
+   "program": "Advanced 1",
+   "canonical_name": "Grand Quarter Thru"
+  },
+  {
+   "entity_id": "call_grand_three_quarter_thru",
+   "teaching_order": 49.0041,
+   "program": "Advanced 1",
+   "canonical_name": "Grand Three-Quarter Thru"
+  },
+  {
+   "entity_id": "concept_explode_and_anything",
+   "teaching_order": 49.0042,
+   "program": "Advanced 1",
+   "canonical_name": "Explode & (Anything)"
+  },
+  {
+   "entity_id": "call_pair_off",
+   "teaching_order": 49.0043,
+   "program": "Advanced 1",
+   "canonical_name": "Pair Off"
+  },
+  {
+   "entity_id": "call_reverse_swap_around",
+   "teaching_order": 49.0044,
+   "program": "Advanced 1",
+   "canonical_name": "Reverse Swap Around"
+  },
+  {
+   "entity_id": "call_cross_clover_and_anything",
+   "teaching_order": 49.0045,
+   "program": "Advanced 1",
+   "canonical_name": "Cross Clover and (Anything)"
+  },
+  {
+   "entity_id": "concept_any_hand",
+   "teaching_order": 49.0046,
+   "program": "Advanced 1",
+   "canonical_name": "Any Hand Concept"
+  },
+  {
+   "entity_id": "call_split_square_chain_thru",
+   "teaching_order": 49.0047,
+   "program": "Advanced 1",
+   "canonical_name": "Split Square Chain Thru"
+  },
+  {
+   "entity_id": "call_triple_cross",
+   "teaching_order": 49.004801,
+   "program": "Advanced 1",
+   "canonical_name": "Triple Cross"
+  },
+  {
+   "entity_id": "call_double_cross",
+   "teaching_order": 49.004802,
+   "program": "Advanced 1",
+   "canonical_name": "Double Cross"
+  },
+  {
+   "entity_id": "call_anything_and_cross",
+   "teaching_order": 50.0034,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "(Anything) and Cross"
+  },
+  {
+   "entity_id": "call_brace_thru",
+   "teaching_order": 50.0002,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Brace Thru"
+  },
+  {
+   "entity_id": "call_cast_a_shadow",
+   "teaching_order": 50.0014,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Cast a Shadow"
+  },
+  {
+   "entity_id": "call_chain_reaction",
+   "teaching_order": 50.001,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Chain Reaction"
+  },
+  {
+   "entity_id": "call_cross_clover_and_anything",
+   "teaching_order": 50.0045,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Cross Clover and (Anything)"
+  },
+  {
+   "entity_id": "call_cross_over_circulate",
+   "teaching_order": 50.0018,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Cross Over Circulate"
+  },
+  {
+   "entity_id": "call_cross_trail_thru",
+   "teaching_order": 50.0003,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Cross Trail Thru"
+  },
+  {
+   "entity_id": "call_cycle_and_wheel",
+   "teaching_order": 50.0039,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Cycle and Wheel"
+  },
+  {
+   "entity_id": "call_double_cross",
+   "teaching_order": 50.004802,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Double Cross"
+  },
+  {
+   "entity_id": "call_double_star_thru",
+   "teaching_order": 50.0032,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Double Star Thru"
+  },
+  {
+   "entity_id": "call_ends_bend",
+   "teaching_order": 50.0029,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Ends Bend"
+  },
+  {
+   "entity_id": "call_explode_the_line",
+   "teaching_order": 50.0027,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Explode the Line"
+  },
+  {
+   "entity_id": "call_fractional_tops",
+   "teaching_order": 50.0036,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Fractional Tops"
+  },
+  {
+   "entity_id": "call_grand_follow_your_neighbor",
+   "teaching_order": 50.0005,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Grand Follow Your Neighbor"
+  },
+  {
+   "entity_id": "call_horseshoe_turn",
+   "teaching_order": 50.0021,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Horseshoe Turn"
+  },
+  {
+   "entity_id": "call_left_wheel_thru",
+   "teaching_order": 50.0033,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Left Wheel Thru"
+  },
+  {
+   "entity_id": "call_lockit",
+   "teaching_order": 50.0012,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Lockit"
+  },
+  {
+   "entity_id": "call_mix",
+   "teaching_order": 50.0011,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Mix"
+  },
+  {
+   "entity_id": "call_named_dancers_cross",
+   "teaching_order": 50.0035,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "(Named Dancers) Cross"
+  },
+  {
+   "entity_id": "call_pass_in",
+   "teaching_order": 50.000901,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Pass In"
+  },
+  {
+   "entity_id": "call_pass_out",
+   "teaching_order": 50.000902,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Pass Out"
+  },
+  {
+   "entity_id": "call_quarter_in",
+   "teaching_order": 50.001701,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Quarter In"
+  },
+  {
+   "entity_id": "call_quarter_out",
+   "teaching_order": 50.001702,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Quarter Out"
+  },
+  {
+   "entity_id": "call_reverse_swap_around",
+   "teaching_order": 50.0044,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Reverse Swap Around"
+  },
+  {
+   "entity_id": "call_roll_to_a_wave",
+   "teaching_order": 50.0013,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Right Roll to a Wave"
+  },
+  {
+   "entity_id": "call_six_two_acey_deucey",
+   "teaching_order": 50.0015,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Six-Two Acey Deucey"
+  },
+  {
+   "entity_id": "call_split_square_chain_thru",
+   "teaching_order": 50.0047,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Split Square Chain Thru"
+  },
+  {
+   "entity_id": "call_split_square_thru",
+   "teaching_order": 50.0023,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Split Square Thru"
+  },
+  {
+   "entity_id": "call_square_chain_thru",
+   "teaching_order": 50.003,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Square Chain Thru"
+  },
+  {
+   "entity_id": "call_step_and_slide",
+   "teaching_order": 50.0024,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Step and Slide"
+  },
+  {
+   "entity_id": "call_swap_around",
+   "teaching_order": 50.0026,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Swap Around"
+  },
+  {
+   "entity_id": "call_transfer_the_column",
+   "teaching_order": 50.0025,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Transfer the Column"
+  },
+  {
+   "entity_id": "call_triple_cross",
+   "teaching_order": 50.004801,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Triple Cross"
+  },
+  {
+   "entity_id": "call_triple_star_thru",
+   "teaching_order": 50.0038,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Triple Star Thru"
+  },
+  {
+   "entity_id": "call_turn_and_deal",
+   "teaching_order": 50.0008,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Turn and Deal"
+  },
+  {
+   "entity_id": "call_wheel_thru",
+   "teaching_order": 50.0007,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Wheel Thru"
+  },
+  {
+   "entity_id": "concept_any_hand",
+   "teaching_order": 50.0046,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Any Hand Concept"
+  },
+  {
+   "entity_id": "concept_as_couples",
+   "teaching_order": 50.0028,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "As Couples Concept"
+  },
+  {
+   "entity_id": "dancer_beau",
+   "teaching_order": 50.0001,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Beau"
+  },
+  {
+   "entity_id": "dancer_belle",
+   "teaching_order": 50.0001,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "Belle"
+  },
+  {
+   "entity_id": "separator_10",
+   "teaching_order": 10.999999,
+   "program": "Basic 1",
+   "canonical_name": "-- Basic 1 --"
+  },
+  {
+   "entity_id": "separator_20",
+   "teaching_order": 20.999999,
+   "program": "Basic 2",
+   "canonical_name": "-- Basic 2 --"
+  },
+  {
+   "entity_id": "separator_29",
+   "teaching_order": 29.999999,
+   "program": "Mainstream",
+   "canonical_name": "-- Mainstream --"
+  },
+  {
+   "entity_id": "separator_30",
+   "teaching_order": 30.999999,
+   "program": "Mainstream (2026)",
+   "canonical_name": "-- Mainstream (2026) --"
+  },
+  {
+   "entity_id": "separator_39",
+   "teaching_order": 39.999999,
+   "program": "Plus",
+   "canonical_name": "-- Plus --"
+  },
+  {
+   "entity_id": "separator_40",
+   "teaching_order": 40.999999,
+   "program": "Plus (2026)",
+   "canonical_name": "-- Plus (2026) --"
+  },
+  {
+   "entity_id": "separator_49",
+   "teaching_order": 49.999999,
+   "program": "Advanced 1",
+   "canonical_name": "-- Advanced 1 --"
+  },
+  {
+   "entity_id": "separator_50",
+   "teaching_order": 50.999999,
+   "program": "Advanced 1 (2026)",
+   "canonical_name": "-- Advanced 1 (2026) --"
+  },
+  {
+   "entity_id": "separator_60",
+   "teaching_order": 60.999999,
+   "program": "Advanced 2",
+   "canonical_name": "-- Advanced 2 --"
+  },
+  {
+   "entity_id": "separator_70",
+   "teaching_order": 70.999999,
+   "program": "Challenge 1",
+   "canonical_name": "-- Challenge 1 --"
+  },
+  {
+   "entity_id": "separator_80",
+   "teaching_order": 80.999999,
+   "program": "Challenge 2",
+   "canonical_name": "-- Challenge 2 --"
+  },
+  {
+   "entity_id": "separator_90",
+   "teaching_order": 90.999999,
+   "program": "Challenge 3A",
+   "canonical_name": "-- Challenge 3A --"
+  },
+  {
+   "entity_id": "separator_100",
+   "teaching_order": 100.999999,
+   "program": "Challenge 3B",
+   "canonical_name": "-- Challenge 3B --"
+  }
+ ]
+}

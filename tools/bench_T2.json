@@ -1,0 +1,138 @@
+{
+  "_meta": {
+    "seq_total": 11723,
+    "sqlite": "3.49.1",
+    "reps": 7,
+    "id_sample": 200,
+    "ent_sample": 60,
+    "thr_sample": 40,
+    "series": 5,
+    "label": "T2"
+  },
+  "contains_count": {
+    "median_ms": 50.689,
+    "min_ms": 50.422,
+    "max_ms": 51.195,
+    "stdev_ms": 0.293,
+    "cv_pct": 0.6,
+    "series_ms": [
+      50.422,
+      50.849,
+      51.195,
+      50.592,
+      50.689
+    ]
+  },
+  "contains_page50": {
+    "median_ms": 38.133,
+    "min_ms": 37.608,
+    "max_ms": 38.784,
+    "stdev_ms": 0.422,
+    "cv_pct": 1.1,
+    "series_ms": [
+      38.133,
+      38.163,
+      38.784,
+      38.015,
+      37.608
+    ]
+  },
+  "limit_count": {
+    "median_ms": 2.786,
+    "min_ms": 2.69,
+    "max_ms": 2.787,
+    "stdev_ms": 0.042,
+    "cv_pct": 1.5,
+    "series_ms": [
+      2.786,
+      2.747,
+      2.787,
+      2.787,
+      2.69
+    ]
+  },
+  "only_count": {
+    "median_ms": 1.07,
+    "min_ms": 1.044,
+    "max_ms": 1.119,
+    "stdev_ms": 0.028,
+    "cv_pct": 2.6,
+    "series_ms": [
+      1.084,
+      1.044,
+      1.119,
+      1.07,
+      1.06
+    ]
+  },
+  "get_sequence_calls_x200": {
+    "median_ms": 12.191,
+    "min_ms": 12.137,
+    "max_ms": 12.25,
+    "stdev_ms": 0.043,
+    "cv_pct": 0.4,
+    "series_ms": [
+      12.191,
+      12.25,
+      12.137,
+      12.157,
+      12.194
+    ]
+  },
+  "table_page50": {
+    "median_ms": 0.294,
+    "min_ms": 0.288,
+    "max_ms": 0.302,
+    "stdev_ms": 0.006,
+    "cv_pct": 1.9,
+    "series_ms": [
+      0.298,
+      0.294,
+      0.302,
+      0.29,
+      0.288
+    ]
+  },
+  "dup_count": {
+    "median_ms": 36.959,
+    "min_ms": 36.53,
+    "max_ms": 37.434,
+    "stdev_ms": 0.357,
+    "cv_pct": 1.0,
+    "series_ms": [
+      37.281,
+      36.53,
+      37.434,
+      36.856,
+      36.959
+    ]
+  },
+  "unmapped_collect": {
+    "median_ms": 44.703,
+    "min_ms": 44.311,
+    "max_ms": 45.145,
+    "stdev_ms": 0.359,
+    "cv_pct": 0.8,
+    "series_ms": [
+      45.145,
+      44.604,
+      45.135,
+      44.311,
+      44.703
+    ]
+  },
+  "distinct_calls_collect": {
+    "median_ms": 133.278,
+    "min_ms": 132.544,
+    "max_ms": 136.64,
+    "stdev_ms": 1.677,
+    "cv_pct": 1.3,
+    "series_ms": [
+      133.278,
+      136.64,
+      132.66,
+      132.544,
+      133.559
+    ]
+  }
+}

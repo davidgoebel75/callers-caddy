@@ -1,0 +1,40 @@
+Markierliste (musikalischer Beat 1, Format id:mm:ss.xx)
+   22  Gospel Medley 0:09,20
+   23  Ghostriders in the Sky 0:08,82
+   27  I have to say I love you in a Song 0:16,25
+   30  Johnny B. Goode 0:08,31
+   35  My Way 0:04,92
+   37  Peacefull Easy Feeling  0:05,29
+   40  Rocky Top 0:10,59
+   50  Walkin in Memphis 0:08,73
+   60  Two out of three ain´t bad 0:08,64
+   61  Witch Doctor 0:06,87
+  111  You´re talking to the wrong man 0:09,01
+  115  Y.M.C.A.0:08,82
+  118  Somewhere Over The Rainbow 0:09,01
+  167  Keep On The Sunny Side (SilverSounds181) 0:05,94
+  169  Why Dont You Love Me 0:07,06
+  179  Gentle On My Mind 0:08,73
+  198  Wonderful Tonight 0:09,75
+  206  Double Bogie Blues 0:09,47
+  211  Don´t Worry, Be Happy 0:16,90
+  214  Wish I Didn´t Know Now 0:10,68
+  231  Rockn In Rosalies Boat 0:07,99
+  236  Rocky Mountain Music 0:08,86
+  251  Waltzing Matilda 0:08,82
+  261  Keep It In The Middle Of The Road  0:05,48
+  262  Little Bit Is Better Than Nada 0:09,29
+  263  No Matter What 0:05,94
+  328  I Saw The Light 0:05,57
+  330  Mexican Love Song 0:05,11
+  353  Rivers Of Babylon 0:18,02
+  373  Nananana Hehe Goodbye 0:09,75
+  381  Willenlos 0:10,96
+  415  Windy Town 0:16,90
+  440  City of New Orleans (New) 0:05,85
+  442  Hard Rock Cafe 0:18,11
+  445  When will I see you again 0:17,93
+  451  Hey Li Lee 0:05,02
+  455  Pretty Belinda 0:09,94
+  480  Genghis Khan 0:05,85
+  484  Waterloo (nicht ABBA) 0:09,20

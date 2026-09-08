@@ -1,0 +1,8 @@
+PySide6>=6.10
+numpy>=2.0
+scipy>=1.17
+soundfile>=0.13
+sounddevice>=0.5
+access-parser>=0.0.4
+pycaw>=20231030
+pypdf>=4.0
