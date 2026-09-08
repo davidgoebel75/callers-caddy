@@ -1,0 +1,57 @@
+# .gitignore fuer Callers Caddy (Repo-Wurzel = ehemals 1_Source)
+# ---------------------------------------------------------------
+# Diese Datei MUSS vor dem ersten Commit stehen. Was einmal committet ist,
+# bleibt fuer immer in der Historie (auch nach dem Loeschen).
+# Grundlage: Vorschlag von Thomas, angepasst an die echte Ordnerstruktur.
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+
+# --- Virtuelle Umgebungen ----------------------------------------------------
+.venv/
+venv/
+env/
+
+# --- Manuelle Backups (das uebernimmt jetzt Git selbst) ----------------------
+_fallback/
+src/_fallback/
+*.bak
+*.bak_*
+
+# --- Laufzeitdaten, die die App selbst anlegt (gehoeren dem Nutzer) ----------
+src/callers_caddy.db
+src/callers_caddy.db.*
+src/callers_caddy.ini
+src/logs/
+src/music/
+src/neu/
+src/lyrics/
+src/playlists/
+src/loop_presets/
+src/notes/
+src/rules/
+
+# --- Build-Artefakte ---------------------------------------------------------
+installer/dist/
+installer/build/
+build/
+dist/
+Output/
+
+# --- Bei jedem Build neu erzeugte Artefakte (nicht versionieren) -------------
+# clean_db.py baut die Seed-DB frisch aus der Dev-DB; build.py schreibt die
+# version_info-Dateien aus __version__. Wuerden sonst nach jedem Build als
+# "geaendert" auftauchen.
+installer/callers_caddy_clean.db
+installer/*.db.bak_*
+installer/version_info.txt
+installer/migration_version_info.txt
+installer/class_designer_version_info.txt
+
+# --- Editor / IDE ------------------------------------------------------------
+.vscode/
+.idea/
+
+# --- Claude Code lokale Einstellungen ----------------------------------------
+.claude/settings.local.json

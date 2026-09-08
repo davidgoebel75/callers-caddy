@@ -1,0 +1,56 @@
+# Ground Truth Singing-Body-Start (Ohr-Marken David). Format: id;start_sec;quelle;titel
+10;6.78;calib;Always look on the bright side of life
+22;9.20;validation;Gospel Medley
+23;8.82;validation;Ghostriders in the Sky
+27;16.25;validation;I have to say I love you in a Song
+30;8.31;validation;Johnny B. Goode
+31;13.47;calib;Leap Of Faith
+33;9.47;calib;Love me tender
+35;4.92;validation;My Way
+37;5.29;validation;Peacefull Easy Feeling
+40;10.59;validation;Rocky Top
+44;9.01;calib;Streets of London
+49;16.25;calib;Truly, madly, deeply
+50;8.73;validation;Walkin in Memphis
+60;8.64;validation;Two out of three ain´t bad
+61;6.87;validation;Witch Doctor
+110;9.01;calib;Splish Spash
+111;9.01;validation;You´re talking to the wrong man
+115;8.82;validation;Y.M.C.A.
+118;9.01;validation;Somewhere Over The Rainbow
+119;9.66;calib;Hound Dog
+142;11.80;calib;One Promise Too Late
+157;18.39;calib;American Pie (RYL)
+167;5.94;validation;Keep On The Sunny Side (SilverSounds181)
+169;7.06;validation;Why Dont You Love Me
+179;8.73;validation;Gentle On My Mind
+191;8.66;calib;Merry Christmas Everyone
+198;9.75;validation;Wonderful Tonight
+206;9.47;validation;Double Bogie Blues
+211;16.90;validation;Don´t Worry, Be Happy
+212;6.97;calib;ABBA Medley
+214;10.68;validation;Wish I Didn´t Know Now
+231;7.99;validation;Rockn In Rosalies Boat
+236;8.86;validation;Rocky Mountain Music
+251;8.82;validation;Waltzing Matilda
+261;5.48;validation;Keep It In The Middle Of The Road
+262;9.29;validation;Little Bit Is Better Than Nada
+263;5.94;validation;No Matter What
+301;9.38;calib;The Lion King
+328;5.57;validation;I Saw The Light
+330;5.11;validation;Mexican Love Song
+334;5.94;calib;Puff The Magic Dragon
+353;18.02;validation;Rivers Of Babylon
+365;8.08;calib;California Dreamin
+373;9.75;validation;Nananana Hehe Goodbye
+381;10.96;validation;Willenlos
+415;16.90;validation;Windy Town
+440;5.85;validation;City of New Orleans (New)
+442;18.11;validation;Hard Rock Cafe
+445;17.93;validation;When will I see you again
+451;5.02;validation;Hey Li Lee
+455;9.94;validation;Pretty Belinda
+457;10.40;calib;Ten O´Clock Postman
+480;5.85;validation;Genghis Khan
+484;9.20;validation;Waterloo (nicht ABBA)
+490;9.66;calib;Money Money Money GP 955 (LOW KEY)

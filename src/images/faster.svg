@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<g fill="{{icon_color}}">
+  <ellipse cx="9" cy="6.5" rx="1.6" ry="4.3" transform="rotate(-13 9 6.5)"/>
+  <ellipse cx="13" cy="6.5" rx="1.6" ry="4.3" transform="rotate(13 13 6.5)"/>
+  <circle cx="11" cy="14.5" r="5.3"/>
+</g>
+<path d="M2,17 H5 M2,13.5 H4.5" stroke="{{icon_color}}" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

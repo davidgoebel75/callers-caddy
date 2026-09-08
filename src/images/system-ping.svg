@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<g fill="none" stroke="{{icon_color}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6,17 C6,17 7.2,15.2 7.2,11 a4.8,4.8 0 0 1 9.6,0 C16.8,15.2 18,17 18,17 Z"/>
+  <path d="M10.2,20 a2.1,2.1 0 0 0 3.6,0"/>
+  <line x1="12" y1="3.2" x2="12" y2="5.2"/>
+</g>
+</svg>

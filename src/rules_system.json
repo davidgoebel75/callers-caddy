@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "sys_singing_lyrics_fullscreen",
+      "name": "Singing Call → Lyrics Fullscreen",
+      "active": true,
+      "trigger": "song_started",
+      "conditions": [
+        [
+          {
+            "type": "song_type_is_singing"
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "type": "dock_open",
+          "params": {
+            "dock_name": "lyrics"
+          }
+        },
+        {
+          "type": "dock_fullsize",
+          "params": {
+            "dock_name": "lyrics"
+          }
+        },
+        {
+          "type": "dock_focus",
+          "params": {
+            "dock_name": "lyrics"
+          }
+        },
+        {
+          "type": "auto_scroll_start",
+          "params": {}
+        }
+      ]
+    },
+    {
+      "id": "sys_singing_stop_default",
+      "name": "Singing Call Stop → Default Layout",
+      "active": true,
+      "trigger": "song_stopped",
+      "conditions": [
+        [
+          {
+            "type": "song_type_is_singing"
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "type": "auto_scroll_stop",
+          "params": {}
+        },
+        {
+          "type": "layout_load",
+          "params": {
+            "layout_name": "default"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sys_singing_pause_default",
+      "name": "Singing Call Pause → Default Layout",
+      "active": true,
+      "trigger": "song_paused",
+      "conditions": [
+        [
+          {
+            "type": "song_type_is_singing"
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "type": "auto_scroll_stop",
+          "params": {}
+        },
+        {
+          "type": "layout_load",
+          "params": {
+            "layout_name": "default"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sys_stop_auto_advance",
+      "name": "Song Stop → Auto-Advance",
+      "active": true,
+      "trigger": "song_stopped",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "auto_advance",
+          "params": {}
+        }
+      ]
+    },
+    {
+      "id": "sys_manager_closed_focus_playlist",
+      "name": "Manager Closed → Focus Playlist",
+      "active": true,
+      "trigger": "manager_closed",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "dock_focus",
+          "params": {
+            "dock_name": "playlist"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sys_key_f5_play",
+      "name": "F5 → Play",
+      "active": true,
+      "trigger": "key_f5",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "play",
+          "params": {}
+        }
+      ],
+      "button_number": 1,
+      "button_icon": "play.svg"
+    },
+    {
+      "id": "sys_key_f6_pause",
+      "name": "F6 → Pause",
+      "active": true,
+      "trigger": "key_f6",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "pause",
+          "params": {}
+        }
+      ],
+      "button_number": 2,
+      "button_icon": "pause.svg"
+    },
+    {
+      "id": "sys_key_f7_stop",
+      "name": "F7 → Stop",
+      "active": true,
+      "trigger": "key_f7",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "stop",
+          "params": {}
+        }
+      ],
+      "button_number": 3,
+      "button_icon": "stop.svg"
+    },
+    {
+      "id": "sys_key_f8_fade_out",
+      "name": "F8 → Fade Out",
+      "active": true,
+      "trigger": "key_f8",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "fade_out",
+          "params": {}
+        }
+      ],
+      "button_number": 4,
+      "button_icon": "fade-out.svg"
+    },
+    {
+      "id": "sys_key_space_toggle",
+      "name": "Space → Play/Pause Toggle",
+      "active": true,
+      "trigger": "key_space",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "play_pause_toggle",
+          "params": {}
+        }
+      ],
+      "button_number": 5,
+      "button_icon": "play-pause.svg"
+    },
+    {
+      "id": "sys_key_l_location",
+      "name": "L → Open Location Dialog",
+      "active": true,
+      "trigger": "key_l",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "open_location_dialog",
+          "params": {}
+        }
+      ]
+    },
+    {
+      "id": "sys_key_p_manager",
+      "name": "P → Toggle Playlist Manager",
+      "active": true,
+      "trigger": "key_p",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "toggle_manager",
+          "params": {}
+        }
+      ]
+    }
+  ]
+}

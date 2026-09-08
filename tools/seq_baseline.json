@@ -1,0 +1,18 @@
+{
+  "seq_total": 1705,
+  "calls_sum": 15029,
+  "per_seq_hash": "689f69f0949d2f781bb4bca285bccf9828b540bba873059f6056b0a4f7dffaf0",
+  "per_seq_len_hash": "ecf1ae2bf3f5e382f1144426c98310199b0a9ea1e2fcaf9ff0feebd410a1d4d3",
+  "contains_entity_count": 330,
+  "contains_total_hits": 12814,
+  "contains_hash": "59cb8e1fc99a9630ea277802cf92bf9b22d6bcc516016151a426e9f261d40112",
+  "threshold_count": 591,
+  "limit_hash": "8ca3a7b3987faa0932215faf959596849ec06a17f7551b50863d4f07b8112f33",
+  "only_hash": "abab39ac8868d8a8b80dbbfec1225092e53e9a2d7d32f3bcb186b227a0ff73b3",
+  "limit_total": 468043,
+  "only_total": 131653,
+  "dup_groups": 0,
+  "dup_to_delete": 0,
+  "unmapped_count": 830,
+  "distinct_call_texts": 1832
+}

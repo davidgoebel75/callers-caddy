@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<g fill="{{icon_color}}">
+  <ellipse cx="11" cy="9.2" rx="4.4" ry="5"/>
+  <circle cx="6.5"  cy="6.0" r="1.15"/>
+  <circle cx="8.6"  cy="3.3" r="1.3"/>
+  <circle cx="11.6" cy="2.6" r="1.4"/>
+  <circle cx="14.5" cy="3.8" r="1.15"/>
+  <ellipse cx="12" cy="18.9" rx="3.1" ry="3.5"/>
+</g>
+</svg>

@@ -1,0 +1,190 @@
+=== #10  Always look on the bright side of life  (AlwaysLookOnTheBrightSideOfLife.mp3)
+    Beatraster: bpm≈128.4  Beats=466  Beat≈467 ms  Suchraum=0..18
+    Novelty-Spitzen (Kante an Beat): 461(215.9s)  465(217.7s)  457(214.0s)  11(5.6s)  235(110.3s)  51(24.3s)
+    Bester Start: Beat 12 → 6.05s   Ende: Beat 461 → 215.86s
+    Top-5 (Beat:score): 12:13.35  13:12.83  11:12.71  14:12.55  15:11.68
+    REFERENZ: 6.78s (Beat 14)   Fehler = -0.73s (-1.6 Beats)
+      Rang der Referenz: combined=3  nur-Timbre=2 (0 = Spitze)
+      Terme an Referenz: nov(start)=+0.98 step(start)=+1.49  |  nov(ende)=+7.61 step(ende)=-5.55
+      64er-Raster: Kanten-Phase=12 (Stärke 1.37)  Referenz-Phase=14  → Delta=(Kante−Ref) mod 64 = 62
+
+=== #365  California Dreamin  (California Dreamin-ESP1088.mp3)
+    Beatraster: bpm≈123.4  Beats=491  Beat≈486 ms  Suchraum=0..43
+    Novelty-Spitzen (Kante an Beat): 481(233.9s)  477(232.0s)  485(235.9s)  15(7.3s)  142(69.1s)  254(123.5s)
+    Bester Start: Beat 32 → 15.61s   Ende: Beat 481 → 233.92s
+    Top-5 (Beat:score): 32:8.02  33:7.92  34:7.87  35:7.34  31:7.25
+    REFERENZ: 8.08s (Beat 17)   Fehler = +7.53s (+15.5 Beats)
+      Rang der Referenz: combined=39  nur-Timbre=24 (0 = Spitze)
+      Terme an Referenz: nov(start)=+1.40 step(start)=+1.27  |  nov(ende)=-0.60 step(ende)=-0.00
+      64er-Raster: Kanten-Phase=62 (Stärke 1.24)  Referenz-Phase=17  → Delta=(Kante−Ref) mod 64 = 45
+
+=== #157  American Pie (RYL)  (AmericanPie_RYL.mp3)
+    Beatraster: bpm≈131.0  Beats=501  Beat≈458 ms  Suchraum=0..53
+    Novelty-Spitzen (Kante an Beat): 493(226.0s)  497(227.8s)  489(224.2s)  36(16.7s)  40(18.5s)  32(14.9s)
+    Bester Start: Beat 44 → 20.35s   Ende: Beat 493 → 226.00s
+    Top-5 (Beat:score): 44:10.63  43:10.49  45:10.13  46:9.73  42:9.38
+    REFERENZ: 18.39s (Beat 40)   Fehler = +1.96s (+4.3 Beats)
+      Rang der Referenz: combined=8  nur-Timbre=8 (0 = Spitze)
+      Terme an Referenz: nov(start)=+2.06 step(start)=+1.64  |  nov(ende)=+2.78 step(ende)=-1.87
+      64er-Raster: Kanten-Phase=44 (Stärke 1.20)  Referenz-Phase=40  → Delta=(Kante−Ref) mod 64 = 4
+
+=== #212  ABBA Medley  (A1024m.mp3)
+    Beatraster: bpm≈126.0  Beats=502  Beat≈476 ms  Suchraum=0..54
+    Novelty-Spitzen (Kante an Beat): 0(0.5s)  492(234.7s)  447(213.3s)  63(30.5s)  431(205.7s)  47(22.8s)
+    Bester Start: Beat 0 → 0.45s   Ende: Beat 447 → 213.31s
+    Top-5 (Beat:score): 0:11.11  1:9.68  46:8.94  47:8.84  45:8.68
+    REFERENZ: 6.97s (Beat 14)   Fehler = -6.52s (-13.7 Beats)
+      Rang der Referenz: combined=37  nur-Timbre=38 (0 = Spitze)
+      Terme an Referenz: nov(start)=-0.76 step(start)=+0.82  |  nov(ende)=-0.92 step(ende)=+0.04
+      64er-Raster: Kanten-Phase=47 (Stärke 1.32)  Referenz-Phase=14  → Delta=(Kante−Ref) mod 64 = 33
+
+=== #44  Streets of London  (StreetsOfLondon.mp3)
+    Beatraster: bpm≈124.0  Beats=484  Beat≈484 ms  Suchraum=0..36
+    Novelty-Spitzen (Kante an Beat): 480(232.3s)  0(0.0s)  143(69.2s)  80(38.7s)  336(162.6s)  476(230.4s)
+    Bester Start: Beat 31 → 15.03s   Ende: Beat 480 → 232.29s
+    Top-5 (Beat:score): 31:7.44  32:7.43  33:7.42  34:7.20  0:6.81
+    REFERENZ: 9.01s (Beat 19)   Fehler = +6.02s (+12.4 Beats)
+      Rang der Referenz: combined=24  nur-Timbre=19 (0 = Spitze)
+      Terme an Referenz: nov(start)=+1.12 step(start)=+0.11  |  nov(ende)=-0.34 step(ende)=-0.26
+      64er-Raster: Kanten-Phase=16 (Stärke 1.91)  Referenz-Phase=19  → Delta=(Kante−Ref) mod 64 = 61
+
+=== #490  Money Money Money GP 955 (LOW KEY)  (Money Money Money GP 955 (LOW KEY).mp3)
+    Beatraster: bpm≈126.0  Beats=486  Beat≈476 ms  Suchraum=0..38
+    Novelty-Spitzen (Kante an Beat): 16(8.0s)  457(218.0s)  20(9.9s)  12(6.1s)  472(225.1s)  73(35.1s)
+    Bester Start: Beat 16 → 7.96s   Ende: Beat 463 → 220.81s
+    Top-5 (Beat:score): 16:8.52  15:8.10  17:7.89  14:7.71  13:7.36
+    REFERENZ: 9.66s (Beat 20)   Fehler = -1.70s (-3.6 Beats)
+      Rang der Referenz: combined=12  nur-Timbre=12 (0 = Spitze)
+      Terme an Referenz: nov(start)=+3.66 step(start)=+0.57  |  nov(ende)=+0.49 step(ende)=-3.10
+      64er-Raster: Kanten-Phase=9 (Stärke 1.49)  Referenz-Phase=20  → Delta=(Kante−Ref) mod 64 = 53
+
+=== #191  Merry Christmas Everyone  (A1026m.mp3)
+    Beatraster: bpm≈126.0  Beats=486  Beat≈476 ms  Suchraum=0..38
+    Novelty-Spitzen (Kante an Beat): 45(21.4s)  49(23.4s)  461(219.5s)  41(19.5s)  457(217.6s)  465(221.4s)
+    Bester Start: Beat 14 → 6.68s   Ende: Beat 461 → 219.54s
+    Top-5 (Beat:score): 14:4.85  13:4.83  15:4.80  12:4.70  16:4.14
+    REFERENZ: 8.66s (Beat 18)   Fehler = -1.98s (-4.1 Beats)
+      Rang der Referenz: combined=10  nur-Timbre=7 (0 = Spitze)
+      Terme an Referenz: nov(start)=+0.48 step(start)=-0.12  |  nov(ende)=+1.50 step(ende)=-1.42
+      64er-Raster: Kanten-Phase=48 (Stärke 1.80)  Referenz-Phase=18  → Delta=(Kante−Ref) mod 64 = 30
+
+=== #119  Hound Dog  (HoundDog.mp3)
+    Beatraster: bpm≈130.6  Beats=482  Beat≈459 ms  Suchraum=0..34
+    Novelty-Spitzen (Kante an Beat): 210(96.7s)  2(1.1s)  475(218.4s)  332(152.7s)  479(220.3s)  243(111.8s)
+    Bester Start: Beat 1 → 0.67s   Ende: Beat 449 → 206.49s
+    Top-5 (Beat:score): 1:5.83  0:5.73  2:5.68  26:5.03  27:4.91
+    REFERENZ: 9.66s (Beat 21)   Fehler = -8.99s (-19.6 Beats)
+      Rang der Referenz: combined=20  nur-Timbre=16 (0 = Spitze)
+      Terme an Referenz: nov(start)=-0.02 step(start)=-0.03  |  nov(ende)=+0.89 step(ende)=-1.66
+      64er-Raster: Kanten-Phase=18 (Stärke 1.06)  Referenz-Phase=21  → Delta=(Kante−Ref) mod 64 = 61
+
+=== #33  Love me tender  (LoveMeTender.mp3)
+    Beatraster: bpm≈124.3  Beats=481  Beat≈483 ms  Suchraum=0..33
+    Novelty-Spitzen (Kante an Beat): 2(1.0s)  473(228.3s)  6(2.9s)  165(79.6s)  48(23.2s)  81(39.1s)
+    Bester Start: Beat 2 → 0.97s   Ende: Beat 451 → 217.70s
+    Top-5 (Beat:score): 2:9.19  1:8.91  0:8.54  3:7.38  4:6.11
+    REFERENZ: 9.47s (Beat 20)   Fehler = -8.50s (-17.6 Beats)
+      Rang der Referenz: combined=21  nur-Timbre=21 (0 = Spitze)
+      Terme an Referenz: nov(start)=+0.72 step(start)=-0.08  |  nov(ende)=+0.34 step(ende)=-2.27
+      64er-Raster: Kanten-Phase=2 (Stärke 0.69)  Referenz-Phase=20  → Delta=(Kante−Ref) mod 64 = 46
+
+=== #457  Ten O´Clock Postman  (Ten O´Clock Postman - BVR104.mp3)
+    Beatraster: bpm≈130.0  Beats=504  Beat≈462 ms  Suchraum=0..56
+    Novelty-Spitzen (Kante an Beat): 484(223.8s)  3(1.8s)  488(225.7s)  480(222.0s)  7(3.7s)  476(220.1s)
+    Bester Start: Beat 3 → 1.83s   Ende: Beat 450 → 208.14s
+    Top-5 (Beat:score): 3:7.95  2:7.49  1:6.86  37:6.71  35:6.69
+    REFERENZ: 10.40s (Beat 22)   Fehler = -8.57s (-18.6 Beats)
+      Rang der Referenz: combined=34  nur-Timbre=25 (0 = Spitze)
+      Terme an Referenz: nov(start)=+0.92 step(start)=+0.13  |  nov(ende)=+1.16 step(ende)=-0.14
+      64er-Raster: Kanten-Phase=20 (Stärke 0.43)  Referenz-Phase=22  → Delta=(Kante−Ref) mod 64 = 62
+
+=== #110  Splish Spash  (SplishSplash.mp3)
+    Beatraster: bpm≈134.1  Beats=471  Beat≈447 ms  Suchraum=0..23
+    Novelty-Spitzen (Kante an Beat): 470(210.7s)  336(150.7s)  0(0.4s)  332(148.9s)  146(65.7s)  466(208.9s)
+    Bester Start: Beat 21 → 9.76s   Ende: Beat 470 → 210.65s
+    Top-5 (Beat:score): 21:9.88  22:9.67  23:9.54  20:8.21  19:7.19
+    REFERENZ: 9.01s (Beat 19)   Fehler = +0.75s (+1.7 Beats)
+      Rang der Referenz: combined=4  nur-Timbre=4 (0 = Spitze)
+      Terme an Referenz: nov(start)=+1.46 step(start)=+0.01  |  nov(ende)=+2.62 step(ende)=-4.33
+      64er-Raster: Kanten-Phase=17 (Stärke 1.42)  Referenz-Phase=19  → Delta=(Kante−Ref) mod 64 = 62
+
+=== #301  The Lion King  (TheLionKing.mp3)
+    Beatraster: bpm≈120.7  Beats=479  Beat≈497 ms  Suchraum=0..31
+    Novelty-Spitzen (Kante an Beat): 0(0.2s)  473(235.3s)  4(2.2s)  271(134.9s)  477(237.3s)  16(8.1s)
+    Bester Start: Beat 0 → 0.19s   Ende: Beat 447 → 222.39s
+    Top-5 (Beat:score): 0:11.46  1:10.00  2:8.31  3:6.49  24:6.25
+    REFERENZ: 9.38s (Beat 18)   Fehler = -9.19s (-18.5 Beats)
+      Rang der Referenz: combined=17  nur-Timbre=12 (0 = Spitze)
+      Terme an Referenz: nov(start)=+1.23 step(start)=-0.22  |  nov(ende)=+0.62 step(ende)=-1.89
+      64er-Raster: Kanten-Phase=16 (Stärke 1.07)  Referenz-Phase=18  → Delta=(Kante−Ref) mod 64 = 62
+
+=== #142  One Promise Too Late  (OnePromiseTooLate.mp3)
+    Beatraster: bpm≈125.8  Beats=492  Beat≈477 ms  Suchraum=0..44
+    Novelty-Spitzen (Kante an Beat): 482(230.2s)  4(2.3s)  486(232.2s)  0(0.4s)  478(228.3s)  85(40.9s)
+    Bester Start: Beat 35 → 17.05s   Ende: Beat 483 → 230.72s
+    Top-5 (Beat:score): 35:6.79  34:6.74  4:6.71  36:6.67  3:6.53
+    REFERENZ: 11.80s (Beat 24)   Fehler = +5.25s (+11.0 Beats)
+      Rang der Referenz: combined=32  nur-Timbre=28 (0 = Spitze)
+      Terme an Referenz: nov(start)=+0.31 step(start)=-0.14  |  nov(ende)=-0.34 step(ende)=-0.23
+      64er-Raster: Kanten-Phase=20 (Stärke 1.04)  Referenz-Phase=24  → Delta=(Kante−Ref) mod 64 = 60
+
+=== #334  Puff The Magic Dragon  (PuffTheMagicDragon-Bogan1159+.mp3)
+    Beatraster: bpm≈167.2  Beats=625  Beat≈359 ms  Suchraum=0..177
+    Novelty-Spitzen (Kante an Beat): 0(0.0s)  620(222.5s)  4(1.5s)  351(126.0s)  12(4.4s)  624(224.0s)
+    Bester Start: Beat 0 → 0.05s   Ende: Beat 447 → 160.45s
+    Top-5 (Beat:score): 0:8.60  1:7.65  171:7.52  172:7.38  173:7.14
+    REFERENZ: 5.94s (Beat 16)   Fehler = -5.89s (-16.4 Beats)
+      Rang der Referenz: combined=47  nur-Timbre=45 (0 = Spitze)
+      Terme an Referenz: nov(start)=+1.91 step(start)=+0.06  |  nov(ende)=-0.88 step(ende)=+0.03
+      64er-Raster: Kanten-Phase=18 (Stärke 0.72)  Referenz-Phase=16  → Delta=(Kante−Ref) mod 64 = 2
+
+=== #31  Leap Of Faith  (LeapOfFaith.mp3)
+    Beatraster: bpm≈127.9  Beats=500  Beat≈469 ms  Suchraum=0..52
+    Novelty-Spitzen (Kante an Beat): 2(0.9s)  495(232.2s)  499(234.1s)  6(2.8s)  491(230.3s)  216(101.3s)
+    Bester Start: Beat 2 → 0.94s   Ende: Beat 451 → 211.57s
+    Top-5 (Beat:score): 2:8.73  0:8.24  1:8.01  46:7.82  47:7.76
+    REFERENZ: 13.47s (Beat 29)   Fehler = -12.53s (-26.7 Beats)
+      Rang der Referenz: combined=40  nur-Timbre=32 (0 = Spitze)
+      Terme an Referenz: nov(start)=+0.58 step(start)=-0.34  |  nov(ende)=-0.12 step(ende)=+0.17
+      64er-Raster: Kanten-Phase=23 (Stärke 0.50)  Referenz-Phase=29  → Delta=(Kante−Ref) mod 64 = 58
+
+=== #49  Truly, madly, deeply  (TrulyMadlyDeeply.mp3)
+    Beatraster: bpm≈128.0  Beats=504  Beat≈469 ms  Suchraum=0..56
+    Novelty-Spitzen (Kante an Beat): 498(233.5s)  64(30.0s)  320(150.0s)  448(210.0s)  384(180.0s)  192(90.0s)
+    Bester Start: Beat 49 → 23.00s   Ende: Beat 498 → 233.47s
+    Top-5 (Beat:score): 49:8.48  48:8.20  50:7.61  51:7.00  47:6.82
+    REFERENZ: 16.25s (Beat 35)   Fehler = +6.75s (+14.4 Beats)
+      Rang der Referenz: combined=48  nur-Timbre=44 (0 = Spitze)
+      Terme an Referenz: nov(start)=-0.05 step(start)=+0.06  |  nov(ende)=-0.90 step(ende)=-0.02
+      64er-Raster: Kanten-Phase=63 (Stärke 2.76)  Referenz-Phase=35  → Delta=(Kante−Ref) mod 64 = 28
+
+======================================================================
+ZUSAMMENFASSUNG — 16 Songs mit Referenz
+======================================================================
+  Treffer ≤ 1 Beat(s): 0/16  (0%)
+  Treffer ≤ 2 Beat(s): 2/16  (12%)
+  Treffer ≤ 4 Beat(s): 3/16  (19%)
+  Median |Fehler|: 14.0 Beats
+  Ränge combined:   [3, 4, 8, 10, 12, 17, 20, 21, 24, 32, 34, 37, 39, 40, 47, 48]   → Referenz in Top-3: 0/16
+  Ränge nur-Timbre: [2, 4, 7, 8, 12, 12, 16, 19, 21, 24, 25, 28, 32, 38, 44, 45]   → Referenz in Top-3: 1/16
+
+  Details (id: Fehler in Beats | Rang | Raster-Delta | Stärke):
+    #10     -1.6b  | Rang 3   | Delta 62 | Stärke 1.37
+    #110    +1.7b  | Rang 4   | Delta 62 | Stärke 1.42
+    #490    -3.6b  | Rang 12  | Delta 53 | Stärke 1.49
+    #191    -4.1b  | Rang 10  | Delta 30 | Stärke 1.80
+    #157    +4.3b  | Rang 8   | Delta  4 | Stärke 1.20
+    #142   +11.0b  | Rang 32  | Delta 60 | Stärke 1.04
+    #44    +12.4b  | Rang 24  | Delta 61 | Stärke 1.91
+    #212   -13.7b  | Rang 37  | Delta 33 | Stärke 1.32
+    #49    +14.4b  | Rang 48  | Delta 28 | Stärke 2.76
+    #365   +15.5b  | Rang 39  | Delta 45 | Stärke 1.24
+    #334   -16.4b  | Rang 47  | Delta  2 | Stärke 0.72
+    #33    -17.6b  | Rang 21  | Delta 46 | Stärke 0.69
+    #301   -18.5b  | Rang 17  | Delta 62 | Stärke 1.07
+    #457   -18.6b  | Rang 34  | Delta 62 | Stärke 0.43
+    #119   -19.6b  | Rang 20  | Delta 61 | Stärke 1.06
+    #31    -26.7b  | Rang 40  | Delta 58 | Stärke 0.50
+
+  Raster-Deltas gesammelt: [2, 4, 28, 30, 33, 45, 46, 53, 58, 60, 61, 61, 62, 62, 62, 62]
+  (Konstantes Delta über Songs ⇒ Kanten-Phase + Konstante = Startphase ⇒ Detektor gefunden)

@@ -1,0 +1,64 @@
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:INT123_parse_new_id3():1113] warning: ID3v2: skipping invalid/unsupported frame
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:INT123_parse_new_id3():1113] warning: ID3v2: skipping invalid/unsupported frame
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+[C:\vcpkg\buildtrees\mpg123\src\-66150af195.clean\src\libmpg123\id3.c:process_comment():587] error: No comment text / valid description?
+
+==============================================================================
+ZUSAMMENFASSUNG — 64 Songs (davon 8 Kamm-Fehl-Locks markiert)
+==============================================================================
+  Variante            ≤2b    ≤4b    >6b  Median   Fehl-Locks-repariert
+  kamm               8/64   44/64   11      4.0    0/8
+  coh_tim           14/64   36/64   19      4.0    1/8
+  coh_tim-edge      10/64   22/64   37      9.0    0/8
+  coh_chr-edge       8/64   20/64   37      8.0    1/8
+  contrast_tim      17/64   32/64   27      4.5    3/8
+  coh_env           11/64   23/64   38      8.0    4/8
+  coh_env-edge      12/64   18/64   40      9.5    1/8
+  contrast_env      16/64   24/64   38      9.0    2/8
+  content_full       9/64   21/64   39      8.5    0/8
+  kamm+content       8/64   44/64   11      4.0    0/8
+
+  Key-Change-Diagnose (kc@ref > 0.02 = Closer moduliert):
+    moduliert bei 3/64 Songs — IDs: [50, 261, 328]
+
+  Fehl-Lock-Detail (Kamm >6b) — hilft Content?
+       id   kamm  coh_tim-edge  content_full  kamm+content  kc@ref
+    #442    +36          +36          +36          +36  -0.159
+    #212    +33          +29          +29          +33  -0.239
+    #211    +27          +28          +28          +27  -0.251
+    #381    +27          -12          -11          +27  -0.268
+    #415    +26          +20          +21          +26  -0.311
+    #27     -21          +13          +13          -21  -0.139
+    #206    +21          +15          +15          +21  -0.129
+    #236    +21           -9           -9          +21  -0.112
+    #457    -14          +15          +15          -14  -0.358
+    #49     +13          -27          -27          +13  -0.320
+    #455    -13          +10           +7          -13  -0.235
