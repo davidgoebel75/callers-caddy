@@ -7718,6 +7718,11 @@
     "en": "The database is locked.\n\nPlease close Callers Caddy first before starting the Class Designer.",
     "ja": "データベースがロックされています。\n\nClass Designer を起動する前に、まず Callers Caddy を閉じてください。"
   },
+  "loc_search_placeholder": {
+    "de": "Suche...",
+    "en": "Search...",
+    "ja": "検索..."
+  },
   "loc_btn_settings": {
     "de": "Einstellungen",
     "en": "Settings",
