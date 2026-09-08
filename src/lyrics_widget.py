@@ -2186,12 +2186,24 @@ class LyricsWidget(QWidget):
         # Zu ersetzen ist der INHALT jeder Figur AB DER ZEILE NACH der Ueberschrift
         # (l0 ist die "FIGURE"-Kopfzeile, die bewusst stehen bleibt). Der
         # Inhaltsbereich (l0+1 .. l1) wird durch die Sequenz-Calls getauscht.
-        edits = []  # (content_l0, l1, calls) — Original-Zeilen
+        #
+        # BL-200: Endet ein FIGURE-Block nicht mit dem letzten Tanz-Call, sondern
+        # mit angehaengtem Gesangstext (laeuft, waehrend die Taenzer nach Hause
+        # promenieren), soll dieser Text erhalten bleiben. Wir ersetzen daher nur
+        # bis zur letzten "...promenade"-Zeile (call_end); die Zeilen danach bis
+        # key[1] bleiben stehen. Blockgrenzen und Sync-Anker aendern sich NICHT —
+        # der Ende-Anker liegt weiter auf key[1] (jetzt hinter dem Ersetzungs-
+        # bereich) und wird nur um den Zeilenversatz verschoben. Dadurch ruht die
+        # Anzeige waehrend des Schluss-Gesangs unveraendert an ihrer Stelle
+        # (Option B: nur der ersetzte Textbereich wird kuerzer, nicht das Timing).
+        base_lines = pristine.toPlainText().split("\n")  # alte Zeilen == old_offsets
+        edits = []  # (content_l0, call_end, calls) — Original-Zeilen
         for key in self._dyn_block_keys:
             cl0 = key[0] + 1
             if cl0 > key[1]:
                 continue  # Block ist nur die Ueberschrift → nichts zu ersetzen
-            edits.append((cl0, key[1], calls))
+            call_end = singing_sections.figure_call_end_line(base_lines, cl0, key[1])
+            edits.append((cl0, call_end, calls))
 
         clone = pristine.clone(self._browser)
         for cl0, l1, calls in sorted(edits, key=lambda e: e[0], reverse=True):
