@@ -6,6 +6,15 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## 0.151 — Dynamic Lyrics schützt den Gesangstext am Figuren-Ende (mit verschiebbarer Schnittmarke) & Suchfeld im Lokationsdialog (2026-09-08)
+
+### Verbesserungen
+- **Beim automatischen Ersetzen des Figurentextes durch die aktuelle Sequenz (Dynamic Lyrics) bleibt der angehängte Gesangstext am Figuren-Ende jetzt erhalten.** In vielen Cuesheets endet ein Figuren-Block nicht mit dem letzten Tanz-Call, sondern mit ein bis zwei Zeilen reinem Gesangstext, die laufen, während die Tänzer nach Hause promenieren. Bisher wurden auch diese Zeilen durch die Sequenz-Calls überschrieben; jetzt endet die Ersetzung an der letzten Heim-Promenade-Zeile, und der Schluss-Gesang bleibt sichtbar stehen. Das Timing bleibt unverändert — die Anzeige ruht während des Schluss-Gesangs weiter an ihrer Stelle. Die Erkennung wurde an allen echten Lyrics geprüft und trifft in rund 96 % der Figuren-Blöcke die richtige Stelle.
+- **Neue verschiebbare Schnittmarke im Abschnitts-Streifen (Sync-Modus).** Ein breiter Trenner im Figuren-Balken zeigt jetzt, wo die Tanz-Calls enden und der Gesangstext beginnt. Die Marke wird automatisch gesetzt; liegt sie einmal nicht richtig, lässt sie sich einfach per Ziehen nach oben oder unten verschieben. Die Position wird pro Song gespeichert und steuert direkt, bis wohin Dynamic Lyrics ersetzt.
+- **Der Lokationsdialog hat jetzt ein Suchfeld mit Löschen-Schaltfläche.** Damit lassen sich Einträge schnell filtern; ein Klick auf das X leert die Suche wieder.
+
+---
+
 ## 0.150 — Text lässt sich während der Wiedergabe von Hand scrollen (2026-09-08)
 
 ### Bugfixes

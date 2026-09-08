@@ -63,6 +63,21 @@ DEFAULT_SECTIONS = {
 # Figur-Ordinalzahl (1..4) -> kanonischer Teil im 7er-Schema.
 FIGURE_ORDINAL_TO_PART = {1: 2, 2: 3, 3: 5, 4: 6}
 
+# Schnitt-Signale fuer das Figuren-Ende (BL-200). Ein FIGURE-Block endet in vielen
+# Cuesheets nicht mit dem letzten Tanz-Call, sondern hat danach 1-2 Zeilen reinen
+# Gesangstext (laeuft, waehrend die Taenzer nach Hause promenieren). Die LETZTE
+# Zeile mit einem dieser Woerter ist die Heimschick-Zeile ("...and promenade");
+# alles danach im Block ist geschuetzter Gesangstext, den Dynamic Lyrics NICHT
+# ersetzen soll. Bewusst NICHT Teil von DEFAULT_SECTIONS: diese Woerter duerfen
+# die Ueberschriften-Erkennung (classify_heading/_keyword_words) nicht beeinflussen.
+# `swing` allein bleibt aussen vor (ist ein Call: "swing thru"). "HOME" ist als
+# Signal bewusst NICHT dabei: in einer Batch-Gegenprobe ueber alle echten Lyrics
+# (2_Test/lyrics, 403 Figuren-Bloecke) erzeugte "home" nur False-Cuts (es steht
+# fast immer im Songtext: "back home in Nashville" o. Kuerzel "Go Home"), waehrend
+# "promenade" allein sauberer traf (95,8 % vs. 94,0 %, 0 statt 7 Fehlschnitte).
+# Wer "HOME" o. a. dennoch will, ergaenzt es per User-Delta (load_sections-JSON).
+DEFAULT_FIGURE_TAIL_CUT = ["PROMENADE"]
+
 # Maximale Zeilenlaenge, ab der eine Zeile sicher KEINE Ueberschrift mehr ist.
 MAX_HEADING_LEN = 40
 
@@ -200,6 +215,47 @@ def classify_heading(line: str, sections: dict, kw_words: set) -> Optional[dict]
         return None
     return {"parts": parts, "figure": figure, "tag": is_tag,
             "intro": is_intro, "additional": is_additional}
+
+
+def figure_call_end_line(lines: list, start_line: int, end_line: int,
+                         tail_cut: Optional[list] = None) -> int:
+    """Liefert fuer einen Figuren-INHALTSBEREICH (start_line..end_line, beides
+    Inhaltszeilen ohne die FIGURE-Ueberschrift) den Index der letzten Tanz-Call-
+    Zeile (BL-200, Option B). Zeilen NACH diesem Index bis `end_line` sind
+    angehaengter Gesangstext (laeuft waehrend der Heim-Promenade) und sollen bei
+    Dynamic Lyrics erhalten bleiben.
+
+    `lines`      : alle Plain-Text-Zeilen (wie aus _lines_with_offsets / split).
+    `start_line` : erste Inhaltszeile des Figuren-Blocks (== Kopfzeile + 1).
+    `end_line`   : letzte Inhaltszeile des Figuren-Blocks (inklusive).
+    `tail_cut`   : Schnitt-Signale (Default DEFAULT_FIGURE_TAIL_CUT).
+
+    Heuristik (Pareto/80%): vom Blockende RUECKWAERTS die letzte nicht-leere Zeile
+    mit einem Schnitt-Signal (Default PROMENADE) suchen. Nur schneiden, wenn
+    (a) so eine Zeile existiert, (b) danach noch mind. eine nicht-leere Zeile folgt
+    und (c) die Schnittzeile nicht die erste Inhaltszeile ist (sonst waere praktisch
+    der ganze Block Gesangstext). Sonst `end_line` zurueckgeben = KEIN Trim; der
+    Block bleibt unveraendert (kein Schaden bei atypischen Sheets).
+
+    GUI-frei und einzeln testbar; die Blockgrenzen/Sync-Anker bleiben davon
+    unberuehrt — nur der Ersetzungsbereich in _dynamic_build_document wird kuerzer.
+    """
+    tail_cut = tail_cut if tail_cut is not None else DEFAULT_FIGURE_TAIL_CUT
+    if not tail_cut or start_line < 0 or end_line >= len(lines) \
+            or start_line > end_line:
+        return end_line
+    pattern = re.compile(
+        r"\b(?:" + "|".join(re.escape(w) for w in tail_cut) + r")\b",
+        re.IGNORECASE)
+    for idx in range(end_line, start_line - 1, -1):
+        if not lines[idx].strip():
+            continue  # Leerzeilen sind kein Tail-Signal
+        if pattern.search(lines[idx]):
+            has_tail = any(lines[k].strip() for k in range(idx + 1, end_line + 1))
+            if has_tail and idx > start_line:
+                return idx
+            return end_line  # Block endet auf Promenade / Promenade ist Zeile 1
+    return end_line
 
 
 def _lines_with_offsets(plain_text: str):
