@@ -23,6 +23,7 @@ class LocationDialog(QDialog):
 
     Features:
     - Liste aller Lokationen (alphabetisch)
+    - Suchfeld ueber der Liste (enthaelt-Suche, X leert die Eingabe)
     - '+' Button zum Hinzufuegen neuer Lokationen (Inline-Eingabe)
     - Doppelklick auf Lokation = uebernehmen und Dialog schliessen
     - Umbenennen per Button
@@ -48,6 +49,15 @@ class LocationDialog(QDialog):
         info = QLabel(_t("dialog_location_info"))
         info.setObjectName("label_dim")
         layout.addWidget(info)
+
+        # Suchfeld: 'enthaelt'-Suche ueber den angezeigten Text.
+        # setClearButtonEnabled liefert das X zum Leeren mit — gleiches
+        # Verhalten wie im Song-Suchfeld der SongFilterBar.
+        self.edit_search = QLineEdit()
+        self.edit_search.setPlaceholderText(_t("loc_search_placeholder"))
+        self.edit_search.setClearButtonEnabled(True)
+        self.edit_search.textChanged.connect(self._apply_filter)
+        layout.addWidget(self.edit_search)
 
         # Lokation-Liste
         self.list_widget = QListWidget()
@@ -115,6 +125,10 @@ class LocationDialog(QDialog):
 
     def _refresh_list(self):
         """Laedt alle Lokationen neu in die Liste."""
+        # Die Liste hat sich geaendert — Filter zuruecknehmen. Sonst kann ein
+        # neu angelegter Eintrag versteckt sein, waehrend ihn der Aufrufer
+        # gleich darauf selektiert (unsichtbare Auswahl mit aktivem OK).
+        self.edit_search.clear()
         self.list_widget.clear()
         locations = self.db.get_all_locations()
         # BL-178 P2: Namensauflösung fuer die "teilt Historie mit"-Kennzeichnung
@@ -144,6 +158,25 @@ class LocationDialog(QDialog):
                 self._on_item_clicked(self.list_widget.item(0))
         else:
             self.btn_add.setFocus()
+
+    def _apply_filter(self):
+        """Blendet Eintraege aus, die den Suchtext nicht enthalten."""
+        text = self.edit_search.text().strip().lower()
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setHidden(bool(text) and text not in item.text().lower())
+        # Eine ausgeblendete Auswahl bliebe aktiv, waere aber unsichtbar —
+        # Loeschen/Umbenennen wuerden dann eine Lokation treffen, die der
+        # Nutzer gar nicht sieht.
+        current = self.list_widget.currentItem()
+        if current is not None and current.isHidden():
+            self.list_widget.setCurrentItem(None)
+            self._selected_location = None
+            self.btn_ok.setEnabled(False)
+            self.btn_rename.setEnabled(False)
+            self.btn_delete.setEnabled(False)
+            self.btn_settings.setEnabled(False)
+            self.btn_add_sub.setEnabled(False)
 
     def _on_current_changed(self, current, previous):
         """Pfeiltasten-Navigation: Auswahl bei Cursor-Wechsel aktualisieren."""
