@@ -129,6 +129,9 @@ def register_v1_definitions(engine: RuleEngine):
     reg.add_action("live_volume_change", "Change Live-Volume (±)",
                    {"delta": {"type": "int", "default": -10, "min": -100, "max": 100}},
                    group="Audio")
+    reg.add_action("live_volume_set", "Set Live-Volume (absolute %)",
+                   {"value": {"type": "int", "default": 100, "min": 0, "max": 100}},
+                   group="Audio")
     reg.add_action("auto_set_best_loop", "Auto-Set Best Loop",
                    {"preset": {"type": "preset_choice", "default": "Singing"}},
                    group="Audio")

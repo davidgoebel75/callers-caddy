@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.151"
+__version__ = "0.152"
 
 import sys
 import os
@@ -1391,6 +1391,12 @@ class P29MainWindow(QMainWindow):
         # Deferred, damit Fenster/Sequenzen/Rules fertig sind und der Audio-Start
         # nicht belastet wird. Nach dem Tutorial-Delay, um Dialog-Stapelung zu meiden.
         QTimer.singleShot(2500, self._auto_detect_location_on_startup)
+
+        # Evening Planner nach dem Start im Hintergrund vorbauen, damit das Dock
+        # beim ersten Oeffnen sofort gefuellt ist (sonst blitzt ~2s lang das leere
+        # Lazy-Platzhalter-Fenster auf). Bewusst spaet, nach den start-kritischen
+        # Timern oben.
+        QTimer.singleShot(3000, self._preload_evening_planner)
 
     # ---- Import-Workflow (P22) ----
 
@@ -2846,6 +2852,22 @@ class P29MainWindow(QMainWindow):
         if self._ep_location_id is not None:
             self.evening_planner.set_location(self._ep_location_id)
 
+    def _preload_evening_planner(self):
+        """Baut den Evening Planner nach dem Start im Hintergrund vor, damit beim
+        ersten Oeffnen kein leeres Platzhalter-Fenster kurz aufblitzt. No-op, wenn
+        er durch frueheres Oeffnen bereits existiert."""
+        if self.evening_planner is not None:
+            return
+        # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
+        # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
+        # ausloest.
+        try:
+            self.dock_evening_planner.visibilityChanged.disconnect(
+                self._on_evening_planner_visibility)
+        except (TypeError, RuntimeError):
+            pass
+        self._init_evening_planner()
+
     def _on_reports_visibility(self, visible):
         """Lazy Init: Reports-Widget beim ersten Oeffnen erstellen."""
         if visible and self.reports_widget is None:
@@ -3827,6 +3849,7 @@ class P29MainWindow(QMainWindow):
         re.register_action("pitch_change", self._rule_pitch_change)
         re.register_action("volume_change", self._rule_volume_change)
         re.register_action("live_volume_change", self._rule_live_volume_change)
+        re.register_action("live_volume_set", self._rule_live_volume_set)
         re.register_action("auto_set_best_loop", self._rule_auto_set_best_loop)
         re.register_action("auto_detect_bpm",    self._rule_auto_detect_bpm)
         re.register_action("toggle_loop_active", self._rule_toggle_loop_active)
@@ -5087,6 +5110,11 @@ class P29MainWindow(QMainWindow):
         current = self.player.slider_live_volume.value()
         new_val = max(0, min(100, current + delta))
         self.player.slider_live_volume.setValue(new_val)
+
+    def _rule_live_volume_set(self, params: dict):
+        """Live-Volume-Slider auf einen absoluten Wert (%) setzen (0–100)."""
+        value = int(params.get("value", 100))
+        self.player.slider_live_volume.setValue(max(0, min(100, value)))
 
     def _rule_toggle_loop_active(self, params: dict):
         """Loop Active Checkbox umschalten."""

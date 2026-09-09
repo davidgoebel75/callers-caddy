@@ -6,6 +6,18 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## 0.152 — Live-Lautstärke bleibt erhalten, einheitlich grüne Aktiv-Schalter & flüssigerer Abendplaner (2026-09-09)
+
+### Verbesserungen
+- **Die Live-Lautstärke bleibt beim Songwechsel jetzt stehen.** Bisher sprang der Live-Regler bei jedem neuen Song zurück auf 100 %, sodass man ihn beim Aufbau der Playlist immer wieder nachregeln musste. Jetzt behält er den eingestellten Wert für die ganze Sitzung. Wer pro Song bewusst einen festen Pegel möchte, kann das über die neue Regel-Aktion „Set Live-Volume" einstellen (z. B. mit dem Auslöser „Song Changed") — Standard bleibt 100 %.
+- **Aktive Umschalt-Schaltflächen sind jetzt einheitlich grün.** Schalter, die eine laufende Funktion anzeigen — Auto-Scroll, Auto-Größe, Auto-Breite und Dynamic Lyrics im Lyric-Fenster, Zufall (🎲) in der Sequenz-Ansicht und Shuffle im Abendplaner — leuchten im aktiven Zustand grün, genau wie der Sync-Schalter. Gleiche Bedeutung, gleiche Farbe, auf einen Blick erkennbar. Die Farbe kommt aus dem jeweiligen Design-Theme.
+- **Der Abendplaner öffnet sich ohne kurzes leeres Fenster.** Er wird jetzt kurz nach dem Programmstart im Hintergrund vorbereitet, sodass beim ersten Öffnen sofort der fertige Inhalt erscheint statt für einen Moment ein leeres Fenster.
+
+### Bugfixes
+- **Die „Shuffle"-Auswahl in der Songliste lässt sich jetzt immer umschalten.** Bisher war sie bei bestimmten Sortierungen (z. B. alphabetisch oder rein zufällig) ausgegraut, was verwirrte. Jetzt ist sie immer bedienbar; sie wirkt weiterhin nur dort, wo ein Zufalls-Ausgleich bei Gleichstand sinnvoll ist (Empfehlung, Qualität, Einfügedatum), und bleibt in den anderen Sortierungen bewusst ohne Wirkung.
+
+---
+
 ## 0.151 — Dynamic Lyrics schützt den Gesangstext am Figuren-Ende (mit verschiebbarer Schnittmarke) & Suchfeld im Lokationsdialog (2026-09-08)
 
 ### Verbesserungen

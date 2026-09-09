@@ -1811,11 +1811,9 @@ class SongFilterBar(QWidget):
 
         layout.addLayout(row2)
 
-        # Initialer Tiebreaker-State — richtet sich nach der (ggf. aus der INI
-        # vorausgewaehlten) Startsortierung, nicht pauschal nach "Alphabetisch".
-        self._chk_random_tb.setEnabled(
-            self.sort_mode in (self.SORT_QUALITY, self.SORT_RECOMMENDATION,
-                               self.SORT_DATE_ADDED))
+        # Checkbox ist bewusst IMMER schaltbar (Nutzerwunsch) — keine Ausgrauung
+        # je Sort-Modus. Ob der Tiebreaker tatsaechlich greift, entscheidet die
+        # Sort-Logik (use_tb), nicht der Enabled-Zustand.
 
         # --- Zeile 3: Suchfeld ---
         search_row = QHBoxLayout()
@@ -1863,11 +1861,10 @@ class SongFilterBar(QWidget):
         return self._combo_genre.currentData() or 0
 
     def _on_sort_changed(self):
-        """Sort-ComboBox geaendert: Tiebreaker-Checkbox aktivieren/deaktivieren + Signal."""
+        """Sort-ComboBox geaendert: bei Umschalten auf eine Zufallssortierung neu
+        mischen + Signal. Die Shuffle-Checkbox bleibt bewusst immer schaltbar;
+        ob der Tiebreaker greift, entscheidet die Sort-Logik (use_tb)."""
         sm = self.sort_mode
-        relevant = sm in (self.SORT_QUALITY, self.SORT_RECOMMENDATION,
-                          self.SORT_DATE_ADDED)
-        self._chk_random_tb.setEnabled(relevant)
         # BL-170: Beim Umschalten AUF eine Zufallssortierung neu mischen. Der
         # Tiebreaker-Cache bleibt unberuehrt — das sind zwei getrennte Dinge.
         if sm in (self.SORT_RANDOM, self.SORT_WEIGHTED_RANDOM):
@@ -2064,8 +2061,14 @@ class SongFilterBar(QWidget):
         def _days_since(song_id):
             return _reco_days_since(song_id, last_played_map, sd)
 
-        # BL-113: Stabiler Zufalls-Tiebreaker — einmal pro Session zuweisen, dann cachen
-        use_tb = self._chk_random_tb.isChecked() and self._chk_random_tb.isEnabled()
+        # BL-113: Stabiler Zufalls-Tiebreaker — einmal pro Session zuweisen, dann cachen.
+        # Die Checkbox ist immer schaltbar; der Tiebreaker greift aber nur bei
+        # score-basierten Sortierungen mit moeglichen Gleichstaenden. In anderen
+        # Modi (alphabetisch, Zufall) ist der Haken bewusst folgenlos.
+        _tb_relevant = self.sort_mode in (self.SORT_QUALITY,
+                                          self.SORT_RECOMMENDATION,
+                                          self.SORT_DATE_ADDED)
+        use_tb = self._chk_random_tb.isChecked() and _tb_relevant
 
         def _tb(song_id):
             if song_id not in self._sort_random:
