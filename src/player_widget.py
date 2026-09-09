@@ -1056,8 +1056,11 @@ class PlayerWidget(QWidget):
             # die Engine-Loops auf (0, Songlaenge) zuruecksetzt
             if self.on_before_load:
                 self.on_before_load()
-            # Live-Volume bei Song-Wechsel auf 100% zuruecksetzen
-            self.reset_live_volume()
+            # Live-Volume bewusst NICHT zuruecksetzen: der Regler bleibt fuer die
+            # Session auf dem eingestellten Wert (Nutzerwunsch). Die Engine
+            # re-appliziert _live_volume nach load() selbst (_wasapi_lookup_delayed).
+            # Wer pro Song/Auto-Advance einen festen Pegel will, nutzt die
+            # Rules-Action "Set Live-Volume" (z.B. Trigger "Song Changed").
             self.engine.load(filepath)
             self._current_filename = os.path.basename(filepath)
             self.label_file.setText(self._current_filename)

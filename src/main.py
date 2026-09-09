@@ -3827,6 +3827,7 @@ class P29MainWindow(QMainWindow):
         re.register_action("pitch_change", self._rule_pitch_change)
         re.register_action("volume_change", self._rule_volume_change)
         re.register_action("live_volume_change", self._rule_live_volume_change)
+        re.register_action("live_volume_set", self._rule_live_volume_set)
         re.register_action("auto_set_best_loop", self._rule_auto_set_best_loop)
         re.register_action("auto_detect_bpm",    self._rule_auto_detect_bpm)
         re.register_action("toggle_loop_active", self._rule_toggle_loop_active)
@@ -5087,6 +5088,11 @@ class P29MainWindow(QMainWindow):
         current = self.player.slider_live_volume.value()
         new_val = max(0, min(100, current + delta))
         self.player.slider_live_volume.setValue(new_val)
+
+    def _rule_live_volume_set(self, params: dict):
+        """Live-Volume-Slider auf einen absoluten Wert (%) setzen (0–100)."""
+        value = int(params.get("value", 100))
+        self.player.slider_live_volume.setValue(max(0, min(100, value)))
 
     def _rule_toggle_loop_active(self, params: dict):
         """Loop Active Checkbox umschalten."""
