@@ -4148,7 +4148,12 @@ class LyricsWidget(QWidget):
         if self._auto_calc_active:
             self._label_sync_time.setText(self._fmt_mmss(pos))
 
-        if not self._auto_scroll_enabled or not self._auto_scroll_active or not self._lyrics_loaded:
+        # Bewusst NICHT auf self._auto_scroll_active gaten: dieser Flag wird beim
+        # Laden evtl. mit noch falscher Viewport-Hoehe berechnet, sodass Auto-Scroll
+        # nach dem Start erst anspringt, wenn ein Zoom/Toggle ihn neu berechnet.
+        # Ob es ueberhaupt etwas zu scrollen gibt, sagt die Live-Scrollbar weiter
+        # unten (max_val <= 0) verlaesslich — das heilt den Start-Fall selbst.
+        if not self._auto_scroll_enabled or not self._lyrics_loaded:
             return
 
         # Manuelles Scrollen hat Vorrang: waehrend des Pausenfensters nicht
