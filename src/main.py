@@ -1392,6 +1392,12 @@ class P29MainWindow(QMainWindow):
         # nicht belastet wird. Nach dem Tutorial-Delay, um Dialog-Stapelung zu meiden.
         QTimer.singleShot(2500, self._auto_detect_location_on_startup)
 
+        # Evening Planner nach dem Start im Hintergrund vorbauen, damit das Dock
+        # beim ersten Oeffnen sofort gefuellt ist (sonst blitzt ~2s lang das leere
+        # Lazy-Platzhalter-Fenster auf). Bewusst spaet, nach den start-kritischen
+        # Timern oben.
+        QTimer.singleShot(3000, self._preload_evening_planner)
+
     # ---- Import-Workflow (P22) ----
 
     # Pattern: Buchstaben + optionales Leerzeichen + Ziffern + optionaler Suffix.
@@ -2845,6 +2851,22 @@ class P29MainWindow(QMainWindow):
             self.evening_planner.set_planned_tips(self._ep_planned_tips)
         if self._ep_location_id is not None:
             self.evening_planner.set_location(self._ep_location_id)
+
+    def _preload_evening_planner(self):
+        """Baut den Evening Planner nach dem Start im Hintergrund vor, damit beim
+        ersten Oeffnen kein leeres Platzhalter-Fenster kurz aufblitzt. No-op, wenn
+        er durch frueheres Oeffnen bereits existiert."""
+        if self.evening_planner is not None:
+            return
+        # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
+        # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
+        # ausloest.
+        try:
+            self.dock_evening_planner.visibilityChanged.disconnect(
+                self._on_evening_planner_visibility)
+        except (TypeError, RuntimeError):
+            pass
+        self._init_evening_planner()
 
     def _on_reports_visibility(self, visible):
         """Lazy Init: Reports-Widget beim ersten Oeffnen erstellen."""
