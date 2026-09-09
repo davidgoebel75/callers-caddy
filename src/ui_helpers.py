@@ -783,3 +783,22 @@ def _style_date_cell(item, inherited: bool):
     item.setFont(f)
     item.setForeground(QColor("#888"))
     item.setToolTip(_t("tooltip_added_inherited"))
+
+
+def mark_toggle(btn, active=False):
+    """Einheitliche Toggle-Semantik fuer das Theme-QSS (gemeinsamer Code fuer
+    alle umschaltbaren Buttons).
+
+    Setzt IMMER die Property ``checkable="true"`` — dafuer greifen die generischen
+    QSS-Regeln (AN = normal, AUS = gedimmt). Mit ``active=True`` kommt zusaetzlich
+    ``activeState="true"`` dazu; die themebare Regel ``[activeState="true"]:checked``
+    faerbt den Button dann bei AN gruen (Skin-Token ``success``). So gilt fuer alle
+    Buttons gleicher Bedeutung dieselbe Farbe (Gestaltprinzip), rein ueber das Theme.
+
+    Gibt den Button zurueck (verkettbar).
+    """
+    btn.setCheckable(True)
+    btn.setProperty("checkable", "true")
+    if active:
+        btn.setProperty("activeState", "true")
+    return btn

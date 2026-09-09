@@ -15,6 +15,7 @@ from datetime import date
 from typing import Optional
 
 from i18n import _t
+from ui_helpers import mark_toggle
 from zoom_wheel import install_ctrl_wheel_zoom
 from PySide6.QtCore import Qt, Signal, QSize, QRect, QPoint, QTimer
 from PySide6.QtGui import (
@@ -1139,7 +1140,7 @@ class EveningPlannerWidget(QWidget):
         row1.addWidget(_vline())
 
         self._btn_shuffle = QPushButton(_t("ep_btn_shuffle"))
-        self._btn_shuffle.setCheckable(True)
+        mark_toggle(self._btn_shuffle, active=True)
         self._btn_shuffle.setChecked(self._shuffle_tb)
         self._btn_shuffle.setToolTip(_t("ep_tooltip_shuffle"))
         self._btn_shuffle.toggled.connect(self._on_shuffle_toggled)

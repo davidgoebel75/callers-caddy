@@ -25,6 +25,7 @@ from PySide6.QtGui import (
 
 from song_db import calls_to_json
 from i18n import _t
+from ui_helpers import mark_toggle
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
 from sequence_mapper import CallMatcher as _CallMatcher
@@ -140,10 +141,12 @@ class SequenceViewWidget(QWidget):
         # zufälligen passenden Sequenz statt zur nächsten in der Reihenfolge.
         self._btn_random = QPushButton("🎲")
         self._btn_random.setFixedSize(44, _NAV_H)
-        self._btn_random.setCheckable(True)
+        mark_toggle(self._btn_random, active=True)
+        # Nur Groesse/Font inline; die Aktiv-Faerbung (gruen) kommt themebar
+        # ueber die QSS-Regel [activeState="true"]:checked (Skin-Token success),
+        # damit alle Aktiv-Toggles dieselbe Farbe teilen (Gestaltprinzip).
         self._btn_random.setStyleSheet(
-            "QPushButton { font-size: 16px; padding: 0px; }"
-            "QPushButton:checked { border: 2px solid #4a9eff; }")
+            "QPushButton { font-size: 16px; padding: 0px; }")
         self._btn_random.setToolTip(_t("seq_nav_random_tooltip"))
         self._btn_random.toggled.connect(self._on_random_toggled)
 

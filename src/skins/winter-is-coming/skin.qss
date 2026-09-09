@@ -523,3 +523,14 @@ QSplitter::handle:hover {
 QPushButton#fileBtn {
     padding: 2px 2px;
 }
+
+/* Aktiv-Toggle (activeState="true"): AN = gruen. Gestaltprinzip — gleiche
+   Bedeutung, gleiche Farbe. Faerbung themebar ueber success/success_hover.
+   Spezifischer als die generische QPushButton:checked-Regel, gewinnt daher. */
+QPushButton[activeState="true"]:checked {
+    background-color: {{success}};
+    color: #ffffff;
+}
+QPushButton[activeState="true"]:checked:hover {
+    background-color: {{success_hover}};
+}

@@ -19,7 +19,7 @@ from path_manager import PathManager
 from skin_manager import SkinManager
 from zoom_wheel import install_ctrl_wheel_zoom
 from song_db import CHECK_START_GENRE_NAME
-from ui_helpers import _WrapButtonBar
+from ui_helpers import _WrapButtonBar, mark_toggle
 
 from PySide6.QtCore import (
     Qt, QTimer, QSettings, QEvent, QPoint, QRect,
@@ -450,9 +450,8 @@ class LyricsWidget(QWidget):
         toolbar = _WrapButtonBar()
 
         self._btn_auto_scroll = QPushButton(_t("btn_auto_scroll"))
-        self._btn_auto_scroll.setCheckable(True)
+        mark_toggle(self._btn_auto_scroll, active=True)
         self._btn_auto_scroll.setChecked(True)
-        self._btn_auto_scroll.setProperty("checkable", "true")
         self._btn_auto_scroll.setToolTip(_t("tooltip_auto_scroll"))
         self._btn_auto_scroll.toggled.connect(self._on_auto_scroll_toggled)
         toolbar.add(self._btn_auto_scroll)
@@ -486,16 +485,14 @@ class LyricsWidget(QWidget):
         toolbar.add(self._label_sync_time)
 
         self._btn_auto_size = QPushButton(_t("btn_auto_size"))
-        self._btn_auto_size.setCheckable(True)
+        mark_toggle(self._btn_auto_size, active=True)
         self._btn_auto_size.setChecked(True)
-        self._btn_auto_size.setProperty("checkable", "true")
         self._btn_auto_size.setToolTip(_t("tooltip_auto_size"))
         self._btn_auto_size.toggled.connect(self._on_auto_size_toggled)
         toolbar.add(self._btn_auto_size)
 
         self._btn_auto_width = QPushButton(_t("btn_auto_width"))
-        self._btn_auto_width.setCheckable(True)
-        self._btn_auto_width.setProperty("checkable", "true")
+        mark_toggle(self._btn_auto_width, active=True)
         self._btn_auto_width.setToolTip(_t("tooltip_auto_width"))
         self._btn_auto_width.toggled.connect(self._on_auto_width_toggled)
         toolbar.add(self._btn_auto_width)
@@ -505,8 +502,7 @@ class LyricsWidget(QWidget):
         # den Figuren-Text temporaer durch die im Sequence-View gewaehlten
         # Sequenzen (Lyric-Datei bleibt unberuehrt).
         self._btn_dynamic = QPushButton(_t("btn_dynamic_lyrics"))
-        self._btn_dynamic.setCheckable(True)
-        self._btn_dynamic.setProperty("checkable", "true")
+        mark_toggle(self._btn_dynamic, active=True)
         self._btn_dynamic.setToolTip(_t("tooltip_dynamic_lyrics"))
         self._btn_dynamic.toggled.connect(self._on_dynamic_toggled)
         toolbar.add(self._btn_dynamic)
@@ -1697,8 +1693,7 @@ class LyricsWidget(QWidget):
             else:
                 b.setText(fallback_text)
             if checkable:
-                b.setCheckable(True)
-                b.setProperty("checkable", "true")
+                mark_toggle(b, active=False)
             b.clicked.connect(slot)
             hl.addWidget(b)
             return b
