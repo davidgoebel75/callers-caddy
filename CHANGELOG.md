@@ -6,6 +6,14 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## 0.153 — Auto-Scroll startet zuverlässig & Schriftgröße bleibt beim Speichern erhalten (2026-09-09)
+
+### Bugfixes
+- **Der Auto-Scroll läuft jetzt schon beim Start eines Songs von selbst.** Bisher blieb der Lyric-Text nach dem Abspielen zunächst stehen, obwohl Auto-Scroll aktiv war — er lief erst los, wenn man am Zoom drehte oder Auto-Scroll kurz aus- und wieder einschaltete. Jetzt scrollt der Text ab dem ersten Moment korrekt mit. (Sehr kurze Texte, die komplett ins Fenster passen, scrollen wie bisher nicht.)
+- **Beim Bearbeiten und Speichern von Lyrics wird die Schriftgröße nicht mehr versehentlich verändert.** Wer das Lyric-Fenster im Bearbeiten-Modus verkleinerte (wodurch die Anzeige die Schrift automatisch anpasst) und dann speicherte, hatte danach dauerhaft kleinere Buchstaben in der Datei. Die reine Anzeige-Anpassung landet jetzt nicht mehr in der gespeicherten Datei; die bewusst pro Wort gesetzten Größen bleiben erhalten.
+
+---
+
 ## 0.152 — Live-Lautstärke bleibt erhalten, einheitlich grüne Aktiv-Schalter & flüssigerer Abendplaner (2026-09-09)
 
 ### Verbesserungen
