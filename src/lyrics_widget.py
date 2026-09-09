@@ -3749,6 +3749,17 @@ class LyricsWidget(QWidget):
                 was_migrated: True wenn von RTF/TXT auf neue HTML-Datei migriert
                 old_basename: Dateiname der Originaldatei (relevant fuer Hinweis)
         """
+        # Anzeige-Skalierung NICHT in die Datei schreiben: Auto-Width/Zoom
+        # skalieren den Default-Font des Dokuments (setDefaultFont), und
+        # toHtml() brennt den als <body style="font-size:...pt"> ein — beim
+        # Neuladen waeren dann alle Spans ohne eigene Groesse veraendert. Vor
+        # der Serialisierung also den Default-Font auf die Basisgroesse
+        # zuruecksetzen. Der Editor wird danach ohnehin neu geladen (kein
+        # Restore noetig). Per-Zeichen-Groessen sind unberuehrt: im Edit-Modus
+        # ist _original_sizes leer, _apply_zoom_factor also ein No-Op.
+        _base_font = self._browser.document().defaultFont()
+        _base_font.setPointSizeF(self._base_font_size * 0.75)  # px -> pt (96dpi)
+        self._browser.document().setDefaultFont(_base_font)
         html = self._browser.document().toHtml()
         src_path = self._current_path
         src_ext = os.path.splitext(src_path)[1].lower()
