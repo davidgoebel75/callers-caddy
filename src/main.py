@@ -3770,6 +3770,8 @@ class P29MainWindow(QMainWindow):
                         (song.loop_out > 0 and orig_dur > 0 and
                          abs(song.loop_out - orig_dur) > 0.5))
         bpm_set = bool(song and getattr(song, 'base_bpm', 0) > 0)
+        # BL-205: Gesamtlaenge des geladenen Songs in Sekunden (0 = nichts geladen)
+        song_length = self.engine.get_original_duration() if self.engine.is_loaded() else 0
         # Spieldauer in Sekunden
         play_elapsed = 0
         if self.player._play_start_time is not None:
@@ -3788,6 +3790,7 @@ class P29MainWindow(QMainWindow):
             "location_selected": loc is not None,
             "location_not_selected": loc is None,
             "play_elapsed_seconds": play_elapsed,
+            "song_length_seconds": song_length,
         }
 
     def _register_rule_conditions(self):
@@ -3819,6 +3822,26 @@ class P29MainWindow(QMainWindow):
         re.register_condition("play_duration_above",
                               lambda ctx, p: ctx.get("play_elapsed_seconds", 0)
                               >= p.get("minutes", 5) * 60)
+        # BL-205: Songlaenge über/unter Schwellwert (mm:ss)
+        re.register_condition("song_length", self._eval_song_length)
+
+    @staticmethod
+    def _eval_song_length(ctx, p) -> bool:
+        """BL-205: Vergleicht die Gesamtlaenge des Songs gegen einen mm:ss-Wert.
+
+        operator 'above' -> Song ist mindestens so lang (>=),
+        operator 'below' -> Song ist kuerzer (<). Ohne geladenen Song (Laenge 0)
+        oder bei ungueltiger Eingabe: nicht erfuellt.
+        """
+        length = ctx.get("song_length_seconds", 0) or 0
+        if length <= 0:
+            return False
+        threshold = parse_time_offset(p.get("value", ""))
+        if threshold is None:
+            return False
+        if p.get("operator", "above") == "below":
+            return length < threshold
+        return length >= threshold
 
     def _register_rule_actions(self):
         """Registriert alle V1-Action-Handler."""

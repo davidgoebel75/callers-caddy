@@ -1017,6 +1017,29 @@ class RulesWidget(QWidget):
                 w.setValue(int(value) if value else schema.get("default", 0))
                 w.setProperty("cond_param_name", param_name)
                 w.valueChanged.connect(self._on_editor_changed)
+            elif param_type == "choice":
+                # Rohwerte als Item-Text (englisch, keine i18n — Rules-Konvention)
+                w = QComboBox()
+                w.setEnabled(not readonly)
+                for c in schema.get("choices", []):
+                    w.addItem(c)
+                cur = value if value else schema.get("default", "")
+                if cur:
+                    idx = w.findText(str(cur))
+                    if idx >= 0:
+                        w.setCurrentIndex(idx)
+                w.setProperty("cond_param_name", param_name)
+                w.currentIndexChanged.connect(self._on_editor_changed)
+            elif param_type == "mmss":
+                # BL-205: Zeit-Eingabe mm:ss (auch reine Sekunden), als String
+                # gespeichert; der Evaluator parst zu Sekunden.
+                w = QLineEdit()
+                w.setEnabled(not readonly)
+                w.setPlaceholderText("mm:ss")
+                w.setFixedWidth(70)
+                w.setText(str(value) if value else schema.get("default", ""))
+                w.setProperty("cond_param_name", param_name)
+                w.textChanged.connect(self._on_editor_changed)
             else:
                 w = QLineEdit()
                 w.setEnabled(not readonly)
@@ -1571,7 +1594,9 @@ class RulesWidget(QWidget):
                         current_params = {}
                     elif child.property("cond_param_name"):
                         pname = child.property("cond_param_name")
-                        if isinstance(child, QDoubleSpinBox):
+                        if isinstance(child, QComboBox):
+                            current_params[pname] = child.currentText()
+                        elif isinstance(child, QDoubleSpinBox):
                             current_params[pname] = child.value()
                         elif isinstance(child, QSpinBox):
                             current_params[pname] = child.value()
