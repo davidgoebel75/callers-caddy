@@ -219,7 +219,6 @@ from ui_helpers import (
     _UNRATED_QUALITY,
     opens_combo_popup,
     widen_combo_popup,
-    ensure_combo_min_width,
 )
 
 
@@ -6613,14 +6612,10 @@ class P29MainWindow(QMainWindow):
 
         Priorität: Text-Input/List-Search > Modal-Dialog > Tasten-Trigger
         """
-        # Comboboxen zentral: Feld darf mit dem Dock mitschrumpfen (Polish/Show,
-        # einmalig), und die Aufklappliste bleibt inhaltsbreit (Klick/Taste kommt
-        # hier VOR showPopup() an). Gilt fuer alle — auch dynamisch erzeugte.
-        if isinstance(obj, QComboBox):
-            if event.type() in (QEvent.Polish, QEvent.Show):
-                ensure_combo_min_width(obj)
-            elif opens_combo_popup(event):
-                widen_combo_popup(obj)
+        # Aufklappliste jeder Combobox breit genug fuer ihren Inhalt, egal wie
+        # schmal das Control ist. Klick/Taste kommt hier VOR showPopup() an.
+        if isinstance(obj, QComboBox) and opens_combo_popup(event):
+            widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
             if event.modifiers() == Qt.NoModifier:
                 key_code = event.key()

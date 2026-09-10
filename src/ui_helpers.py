@@ -840,33 +840,3 @@ def opens_combo_popup(event):
     return ((key == Qt.Key_F4 and mods == Qt.NoModifier)
             or (key == Qt.Key_Down and bool(mods & Qt.AltModifier))
             or key in (Qt.Key_Space, Qt.Key_Select))
-
-
-# Mindestbreite einer Combobox in logischen Pixeln (skaliert mit der
-# Display-Skalierung mit). Hier zentral justierbar; spaeter auf andere
-# Eingabefelder erweiterbar.
-COMBO_MIN_WIDTH = 120
-
-
-def ensure_combo_min_width(combo):
-    """Setzt einmalig eine feste Mindestbreite (COMBO_MIN_WIDTH), damit das Feld
-    mit dem Dock/Fenster mitschrumpfen kann.
-
-    Ohne das ist die Mindestbreite inhaltsbasiert (so breit wie der laengste bzw.
-    aktuelle Eintrag) — dann kann weder das Feld noch der Dock enger werden.
-    `setMinimumWidth` ueberschreibt diesen Layout-Minimalwert deterministisch; die
-    bevorzugte Breite (sizeHint) bleibt inhaltsbreit, die Box oeffnet also weiter
-    normal. Unterschreitet der Dock die Mindestbreite, stoppt Qt das Verkleinern
-    von selbst — die 'Konflikt-Grenze'.
-
-    (Der native `setMinimumContentsLength` waere zeichenbasiert schoener, wirkt
-    aber bei zentraler Anwendung nach Polish/Show nicht: Qt cached minimumSizeHint
-    und invalidiert ihn dabei nicht. Deshalb der robuste QWidget-Weg.)
-
-    Idempotent (per dynamischer Property markiert): der App-weite eventFilter ruft
-    das bei Polish/Show jeder Combobox auf, auch bei dynamisch erzeugten.
-    """
-    if combo.property("_cc_min_width_applied"):
-        return
-    combo.setMinimumWidth(COMBO_MIN_WIDTH)
-    combo.setProperty("_cc_min_width_applied", True)
