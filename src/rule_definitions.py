@@ -79,6 +79,13 @@ def register_v1_definitions(engine: RuleEngine):
     reg.add_condition("play_duration_above",    "Play Duration Above (min)",
                       {"minutes": {"type": "float", "default": 5,
                                    "min": 0.5, "max": 60}})
+    # BL-205: Gesamtlaenge des Songs gegen Schwellwert (mm:ss) vergleichen.
+    # Operator und Wert bleiben englisch (Rules-interne Namen, i18n-Ausnahme).
+    reg.add_condition("song_length",            "Song Length",
+                      {"operator": {"type": "choice",
+                                    "choices": ["above", "below"],
+                                    "default": "above"},
+                       "value": {"type": "mmss", "default": "3:00"}})
 
     # --- Aktionen ---
 
