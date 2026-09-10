@@ -1299,6 +1299,12 @@ class P29MainWindow(QMainWindow):
         )
         self.dock_rules.setObjectName("dock_rules")
         self.dock_rules.setAllowedAreas(Qt.NoDockWidgetArea)
+        # Rules ist nicht dockbar (nur freies Fenster). _make_dock setzt fuer die
+        # Andockbarkeit eine Mini-Mindestgroesse (50x50) und ueberschreibt damit
+        # die vom RulesWidget gewuenschte echte Mindestgroesse. Hier
+        # wiederherstellen, sonst laesst sich das Fenster schmaler ziehen als sein
+        # Inhalt und die Felder werden abgeschnitten.
+        self.rules_widget.setMinimumSize(700, 400)
         self.dock_rules.setFloating(True)
         self.dock_rules.resize(900, 500)
         self.dock_rules.hide()
