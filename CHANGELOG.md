@@ -6,6 +6,17 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## 0.154 — Neue Regel-Bedingung „Songlänge", breitere Auswahllisten & frei skalierbares Rules-Fenster (2026-09-10)
+
+### Verbesserungen
+- **Neue Regel-Bedingung „Song Length" — reagiert auf die Gesamtlänge des geladenen Songs.** In den Regeln lässt sich jetzt prüfen, ob ein Song **länger** oder **kürzer** als eine eingestellte Zeit ist (Eingabe als `mm:ss`, z. B. `3:00`). Damit kann man z. B. nur bei kurzen Pattern-Titeln automatisch einen Loop setzen lassen, bevor der Song gestartet wird, längere aber unangetastet lassen. Die Bedingung wählt man über ein Auswahlfeld „above/below"; ist gerade kein Song geladen, gilt sie als nicht erfüllt.
+- **Auswahllisten (Comboboxen) klappen jetzt so breit auf wie ihr längster Eintrag.** Auf schmalen Laptop-Auflösungen quetschte das Layout die Auswahlfelder zusammen, sodass beim Aufklappen längere Einträge abgeschnitten und unlesbar waren. Die Aufklappliste öffnet sich nun immer so breit wie nötig (maximal bis zum Bildschirmrand) — das eigentliche Feld bleibt platzsparend. Gilt automatisch für alle Auswahlfelder im Programm.
+
+### Bugfixes
+- **Das freischwebende Regeln-Fenster lässt sich nicht mehr schmaler ziehen als sein Inhalt.** Zuletzt konnte man das Rules-Fenster so klein ziehen, dass Felder abgeschnitten wurden und ein horizontaler Scrollbalken erschien. Die sinnvolle Mindestgröße (700 × 400) ist jetzt wiederhergestellt, sodass der Inhalt immer vollständig sichtbar bleibt.
+
+---
+
 ## 0.153 — Auto-Scroll startet zuverlässig & Schriftgröße bleibt beim Speichern erhalten (2026-09-09)
 
 ### Bugfixes
