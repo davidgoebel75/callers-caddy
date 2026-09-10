@@ -217,6 +217,8 @@ from ui_helpers import (
     _weighted_random_order,
     _style_date_cell,
     _UNRATED_QUALITY,
+    opens_combo_popup,
+    widen_combo_popup,
 )
 
 
@@ -6610,6 +6612,10 @@ class P29MainWindow(QMainWindow):
 
         Priorität: Text-Input/List-Search > Modal-Dialog > Tasten-Trigger
         """
+        # Aufklappliste jeder Combobox breit genug fuer ihren Inhalt, egal wie
+        # schmal das Control ist. Klick/Taste kommt hier VOR showPopup() an.
+        if isinstance(obj, QComboBox) and opens_combo_popup(event):
+            widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
             if event.modifiers() == Qt.NoModifier:
                 key_code = event.key()
