@@ -802,3 +802,41 @@ def mark_toggle(btn, active=False):
     if active:
         btn.setProperty("activeState", "true")
     return btn
+
+
+def widen_combo_popup(combo):
+    """Aufklappliste einer Combobox so breit wie ihr laengster Eintrag, auch wenn
+    das Control selbst schmal ist (schmale Laptop-Aufloesung schrumpft die Combo,
+    die Eintraege waren dann in der Mitte abgeschnitten).
+
+    Qt nimmt die Mindestbreite der View als Untergrenze fuer das Popup und
+    schiebt es selbst in den Bildschirm. Ist die Combo breiter als ihr Inhalt,
+    aendert sich nichts.
+    """
+    view = combo.view()
+    width = (view.sizeHintForColumn(combo.modelColumn())
+             + view.verticalScrollBar().sizeHint().width() + 2 * view.frameWidth())
+    # Deckel: Popup (View + Rahmen des Containers drumherum) nie breiter als
+    # der Bildschirm, sonst ragt es bei Riesen-Eintraegen raus
+    screen = (combo.screen().availableGeometry().width()
+              - 2 * view.parentWidget().frameWidth())
+    view.setMinimumWidth(min(width, screen))
+
+
+def opens_combo_popup(event):
+    """True fuer die Ereignisse, mit denen Qt eine Combobox aufklappt
+    (QComboBox::mousePressEvent/keyPressEvent, nachgemessen mit Qt 6.11):
+    Mausklick, F4, Alt+Runter, Leertaste, Select.
+
+    Leertaste/Select klappen editierbare Comboboxen nicht auf — dort kostet der
+    Treffer nur ein ueberfluessiges Nachmessen. Blaettern (Runter ohne Alt)
+    misst bewusst nicht, das waere bei langen Listen pro Tastendruck teuer.
+    """
+    if event.type() == QEvent.MouseButtonPress:
+        return True
+    if event.type() != QEvent.KeyPress:
+        return False
+    key, mods = event.key(), event.modifiers()
+    return ((key == Qt.Key_F4 and mods == Qt.NoModifier)
+            or (key == Qt.Key_Down and bool(mods & Qt.AltModifier))
+            or key in (Qt.Key_Space, Qt.Key_Select))

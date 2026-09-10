@@ -25,7 +25,7 @@ from PySide6.QtGui import (
 
 from song_db import calls_to_json
 from i18n import _t
-from ui_helpers import mark_toggle
+from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
 from sequence_mapper import CallMatcher as _CallMatcher
@@ -47,6 +47,9 @@ class _ComboClickToOpen(QObject):
     def eventFilter(self, obj, event):
         if (event.type() == QEvent.MouseButtonPress
                 and not self._combo.view().isVisible()):
+            # Klick kommt beim QLineEdit an, nicht bei der Combobox — der
+            # App-Filter im Hauptfenster verbreitert hier also nicht
+            widen_combo_popup(self._combo)
             self._combo.showPopup()
             return True
         return super().eventFilter(obj, event)
