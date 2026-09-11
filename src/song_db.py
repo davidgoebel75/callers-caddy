@@ -1455,6 +1455,70 @@ class SongDatabase:
         )
         self._conn.commit()
 
+    # ---- BL-206: Universeller Spalten-Zugriff fuer Songdaten-Export/Import ----
+
+    def list_song_columns(self) -> list:
+        """Alle Spalten der songs-Tabelle in Schema-Reihenfolge.
+
+        Dynamisch per PRAGMA: neue Spalten erscheinen automatisch, ohne dass
+        Export/Import angepasst werden muss (BL-206 — universelle Feldliste).
+        Rueckgabe: [(name, affinity), ...] mit affinity z.B. 'INTEGER', 'REAL',
+        'TEXT' (Gross geschrieben).
+        """
+        cur = self._conn.execute("PRAGMA table_info(songs)")
+        # Spalten je Zeile: cid, name, type, notnull, dflt_value, pk
+        return [(row[1], (row[2] or "").upper()) for row in cur.fetchall()]
+
+    def get_song_row(self, song_id: int) -> dict:
+        """Eine songs-Zeile als {spalte: wert} (alle Spalten, universell).
+
+        Liest direkt aus dem Schema statt aus dem Song-Dataclass, damit auch
+        kuenftige Spalten ohne Code-Aenderung mitgelesen werden (BL-206).
+        """
+        cols = [name for name, _ in self.list_song_columns()]
+        cur = self._conn.execute(
+            f"SELECT {', '.join(cols)} FROM songs WHERE id = ?", (int(song_id),))
+        row = cur.fetchone()
+        return dict(zip(cols, row)) if row else {}
+
+    def apply_import_fields(self, song_id: int, col_values: dict) -> None:
+        """Schreibt GENAU die uebergebenen songs-Spalten (BL-206-Import).
+
+        Bewusst OHNE den Loop-Guard aus update(): ein importierter loop_in/
+        loop_out/loop_offset_ms soll exakt uebernommen werden (auch 0.0).
+        Spaltennamen werden gegen das echte Schema geprueft (kein Einschleusen
+        ueber Feldnamen); 'id' ist nie beschreibbar.
+        """
+        valid = {name for name, _ in self.list_song_columns()} - {"id"}
+        sets, params = [], []
+        for col, val in col_values.items():
+            if col not in valid:
+                raise ValueError(f"Spalte '{col}' nicht beschreibbar")
+            sets.append(f"{col} = ?")
+            params.append(val)
+        if not sets:
+            return
+        params.append(int(song_id))
+        self._conn.execute(
+            f"UPDATE songs SET {', '.join(sets)} WHERE id = ?", params)
+        self._conn.commit()
+
+    def get_all_property_keys(self, song_ids=None) -> list:
+        """Alle vorkommenden song_properties-Keys (Extended Data), sortiert.
+
+        Mit song_ids: nur Keys, die bei diesen Songs vorkommen (fuer die
+        Feld-Auswahl beim Export der gefilterten Liste). Ohne: alle Keys der DB.
+        """
+        if song_ids:
+            ids = [int(s) for s in song_ids]
+            marks = ",".join("?" * len(ids))
+            cur = self._conn.execute(
+                f"SELECT DISTINCT key FROM song_properties WHERE song_id IN ({marks})",
+                ids)
+        else:
+            cur = self._conn.execute("SELECT DISTINCT key FROM song_properties")
+        return sorted(row[0] for row in cur.fetchall())
+
     def get_songs_missing_song_field(self, field: str) -> list:
         """Songs bei denen artist oder label leer ist. Gibt [(id, title, filename)] zurueck."""
         cur = self._conn.execute(

@@ -9442,5 +9442,265 @@
     "de": "{count} Datei(en) konnten nicht kopiert werden.",
     "en": "{count} file(s) could not be copied.",
     "ja": "{count} 件のファイルをコピーできませんでした。"
+  },
+  "sdio_field_filename": {
+    "de": "Dateiname",
+    "en": "Filename",
+    "ja": "ファイル名"
+  },
+  "sdio_field_title": {
+    "de": "Titel",
+    "en": "Title",
+    "ja": "タイトル"
+  },
+  "sdio_field_artist": {
+    "de": "Interpret (Caller)",
+    "en": "Artist (Caller)",
+    "ja": "アーティスト（コーラー）"
+  },
+  "sdio_field_label": {
+    "de": "Label + Nr.",
+    "en": "Label + No.",
+    "ja": "レーベル＋番号"
+  },
+  "sdio_field_quality": {
+    "de": "Quality",
+    "en": "Quality",
+    "ja": "品質"
+  },
+  "sdio_field_base_bpm": {
+    "de": "Basis-BPM",
+    "en": "Base BPM",
+    "ja": "基準BPM"
+  },
+  "sdio_field_standard_tempo": {
+    "de": "Standard-Tempo",
+    "en": "Standard tempo",
+    "ja": "標準テンポ"
+  },
+  "sdio_field_pitch": {
+    "de": "Pitch",
+    "en": "Pitch",
+    "ja": "ピッチ"
+  },
+  "sdio_field_volume": {
+    "de": "Lautstärke",
+    "en": "Volume",
+    "ja": "音量"
+  },
+  "sdio_field_loop_in": {
+    "de": "Loop-In",
+    "en": "Loop in",
+    "ja": "ループ開始"
+  },
+  "sdio_field_loop_out": {
+    "de": "Loop-Out",
+    "en": "Loop out",
+    "ja": "ループ終了"
+  },
+  "sdio_field_loop_offset_ms": {
+    "de": "Loop-Offset (ms)",
+    "en": "Loop offset (ms)",
+    "ja": "ループオフセット (ms)"
+  },
+  "sdio_field_lyrics_file": {
+    "de": "Lyrics-Datei",
+    "en": "Lyrics file",
+    "ja": "歌詞ファイル"
+  },
+  "sdio_field_is_pattern": {
+    "de": "Patter",
+    "en": "Patter",
+    "ja": "パター"
+  },
+  "sdio_field_is_singing": {
+    "de": "Singing",
+    "en": "Singing",
+    "ja": "シンギング"
+  },
+  "sdio_field_date_added": {
+    "de": "Aufnahmedatum",
+    "en": "Date added",
+    "ja": "追加日"
+  },
+  "sdio_field_err": {
+    "de": "ERR",
+    "en": "ERR",
+    "ja": "ERR"
+  },
+  "sdio_field_genres": {
+    "de": "Genres",
+    "en": "Genres",
+    "ja": "ジャンル"
+  },
+  "sdio_export_btn": {
+    "de": "Exportieren…",
+    "en": "Export…",
+    "ja": "エクスポート…"
+  },
+  "sdio_export_btn_tip": {
+    "de": "DB-Daten der aktuell gefilterten Liste als JSON exportieren (Feld-Auswahl).",
+    "en": "Export the DB data of the currently filtered list as JSON (field selection).",
+    "ja": "現在フィルターされたリストのDBデータをJSONでエクスポート（フィールド選択）。"
+  },
+  "sdio_export_title": {
+    "de": "Songdaten exportieren",
+    "en": "Export song data",
+    "ja": "曲データのエクスポート"
+  },
+  "sdio_export_empty": {
+    "de": "Die aktuelle Liste enthält keine Songs.",
+    "en": "The current list contains no songs.",
+    "ja": "現在のリストに曲がありません。"
+  },
+  "sdio_export_fields_title": {
+    "de": "Felder für den Export wählen",
+    "en": "Choose fields to export",
+    "ja": "エクスポートするフィールドを選択"
+  },
+  "sdio_export_fields_info": {
+    "de": "Wähle, welche Felder exportiert werden. Kritische Felder (Datei-/Pfadbezug, Aufnahmedatum) sind vorsichtshalber abgewählt.",
+    "en": "Choose which fields to export. Critical fields (file/path reference, date added) are unchecked for safety.",
+    "ja": "エクスポートするフィールドを選択します。重要なフィールド（ファイル/パス参照、追加日）は安全のため未選択です。"
+  },
+  "sdio_identifier_hint": {
+    "de": "(Zuordnungsschlüssel — immer dabei)",
+    "en": "(matching key — always included)",
+    "ja": "（照合キー — 常に含まれます）"
+  },
+  "sdio_critical_tooltip": {
+    "de": "Kritisches Feld: Überschreiben kann Datei-/Pfadbezüge brechen.",
+    "en": "Critical field: overwriting can break file/path references.",
+    "ja": "重要なフィールド：上書きするとファイル/パス参照が壊れる可能性があります。"
+  },
+  "sdio_select_all": {
+    "de": "Alle",
+    "en": "All",
+    "ja": "すべて"
+  },
+  "sdio_select_none": {
+    "de": "Keine",
+    "en": "None",
+    "ja": "なし"
+  },
+  "sdio_select_noncritical": {
+    "de": "Nur unkritische (empfohlen)",
+    "en": "Non-critical only (recommended)",
+    "ja": "重要でないもののみ（推奨）"
+  },
+  "sdio_export_done": {
+    "de": "{count} Song(s) mit {fields} Feld(ern) exportiert nach:\n{path}",
+    "en": "Exported {count} song(s) with {fields} field(s) to:\n{path}",
+    "ja": "{count} 曲を {fields} フィールドでエクスポートしました:\n{path}"
+  },
+  "sdio_import_tab": {
+    "de": "Daten-Import",
+    "en": "Data import",
+    "ja": "データインポート"
+  },
+  "sdio_import_tab_desc": {
+    "de": "Songdaten aus einer Export-JSON einspielen. Es werden nur bestehende Songs aktualisiert (kein Neuanlegen); die Zuordnung erfolgt über den Songnamen. Vor dem Schreiben siehst du jede Änderung (alt → neu) und bestätigst sie einzeln.",
+    "en": "Import song data from an export JSON. Only existing songs are updated (no new songs); matching is by song name. Before writing you see every change (old → new) and confirm each one.",
+    "ja": "エクスポートJSONから曲データをインポートします。既存の曲のみ更新され（新規作成なし）、照合は曲名で行われます。書き込み前にすべての変更（旧→新）を確認し、個別に承認します。"
+  },
+  "sdio_import_btn": {
+    "de": "JSON wählen und einspielen…",
+    "en": "Choose JSON and import…",
+    "ja": "JSONを選択してインポート…"
+  },
+  "sdio_import_btn_tip": {
+    "de": "Export-JSON auswählen, Änderungen prüfen und bestätigen.",
+    "en": "Select an export JSON, review the changes and confirm.",
+    "ja": "エクスポートJSONを選択し、変更を確認して承認します。"
+  },
+  "sdio_import_title": {
+    "de": "Songdaten importieren",
+    "en": "Import song data",
+    "ja": "曲データのインポート"
+  },
+  "sdio_import_wrong_format": {
+    "de": "Diese Datei stammt nicht aus dem Songdaten-Export. Trotzdem versuchen?",
+    "en": "This file is not from the song-data export. Try anyway?",
+    "ja": "このファイルは曲データエクスポート由来ではありません。それでも試しますか？"
+  },
+  "sdio_import_no_title": {
+    "de": "Eintrag ohne Titel",
+    "en": "Entry without title",
+    "ja": "タイトルのないエントリ"
+  },
+  "sdio_import_preview_title": {
+    "de": "Import-Vorschau — Änderungen bestätigen",
+    "en": "Import preview — confirm changes",
+    "ja": "インポートプレビュー — 変更の承認"
+  },
+  "sdio_import_summary": {
+    "de": "{changes} Änderung(en) gefunden. Nicht gefunden: {notfound} · Mehrdeutig: {ambiguous} · Unverändert: {unchanged}.",
+    "en": "{changes} change(s) found. Not found: {notfound} · Ambiguous: {ambiguous} · Unchanged: {unchanged}.",
+    "ja": "{changes} 件の変更が見つかりました。未検出: {notfound} · 曖昧: {ambiguous} · 変更なし: {unchanged}。"
+  },
+  "sdio_col_song": {
+    "de": "Song",
+    "en": "Song",
+    "ja": "曲"
+  },
+  "sdio_col_field": {
+    "de": "Feld",
+    "en": "Field",
+    "ja": "フィールド"
+  },
+  "sdio_col_old": {
+    "de": "Alt",
+    "en": "Old",
+    "ja": "旧"
+  },
+  "sdio_col_new": {
+    "de": "Neu",
+    "en": "New",
+    "ja": "新"
+  },
+  "sdio_col_hint": {
+    "de": "Hinweis",
+    "en": "Note",
+    "ja": "備考"
+  },
+  "sdio_hint_critical": {
+    "de": "kritisch — bewusst anhaken",
+    "en": "critical — check deliberately",
+    "ja": "重要 — 意図的にチェック"
+  },
+  "sdio_apply_btn": {
+    "de": "Ausgewählte übernehmen",
+    "en": "Apply selected",
+    "ja": "選択を適用"
+  },
+  "sdio_report_notfound": {
+    "de": "Nicht gefunden ({n})",
+    "en": "Not found ({n})",
+    "ja": "未検出 ({n})"
+  },
+  "sdio_report_ambiguous": {
+    "de": "Mehrdeutig, übersprungen ({n})",
+    "en": "Ambiguous, skipped ({n})",
+    "ja": "曖昧のためスキップ ({n})"
+  },
+  "sdio_report_unchanged": {
+    "de": "Unverändert: {n}",
+    "en": "Unchanged: {n}",
+    "ja": "変更なし: {n}"
+  },
+  "sdio_report_invalid": {
+    "de": "Ungültige Einträge: {n}",
+    "en": "Invalid entries: {n}",
+    "ja": "無効なエントリ: {n}"
+  },
+  "sdio_import_nothing": {
+    "de": "Keine Änderungen zu übernehmen. Nicht gefunden: {notfound} · Mehrdeutig: {ambiguous} · Unverändert: {unchanged}.",
+    "en": "No changes to apply. Not found: {notfound} · Ambiguous: {ambiguous} · Unchanged: {unchanged}.",
+    "ja": "適用する変更はありません。未検出: {notfound} · 曖昧: {ambiguous} · 変更なし: {unchanged}。"
+  },
+  "sdio_import_done": {
+    "de": "{songs} Song(s) aktualisiert, {changes} Feld-Änderung(en) übernommen.",
+    "en": "Updated {songs} song(s), applied {changes} field change(s).",
+    "ja": "{songs} 曲を更新し、{changes} 件のフィールド変更を適用しました。"
   }
 }

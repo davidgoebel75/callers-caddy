@@ -32,6 +32,7 @@ from lyrics_widget import LyricsWidget, lyric_plain_text, lyric_section_lines
 import zip_import
 import singing_sections
 import ceder_lookup
+import song_data_io
 import song_match
 
 
@@ -1596,6 +1597,7 @@ class PotentialWidget(QWidget):
         nobpm_w = self._build_no_bpm_tab()
         nosstart_w = self._build_no_singing_start_tab()
         meta_w = self._build_meta_tab()
+        import_w = self._build_songdata_import_tab()
         bulk_w = self._build_bulk_delete_tab()
 
         # --- Hilfsfunktion: Check-Tab an aktueller Position einfuegen ---
@@ -1635,6 +1637,7 @@ class PotentialWidget(QWidget):
         # ④ Wartung
         _add_check('location_no_history')
         _add_check('history_orphaned')
+        self._import_idx = self._tabs.addTab(import_w, _t('sdio_import_tab'))
         self._bulk_idx = self._tabs.addTab(bulk_w, _t('pot_bulk_delete'))
 
         self._tabs.currentChanged.connect(self._on_tab_changed)
@@ -2180,6 +2183,45 @@ class PotentialWidget(QWidget):
 
         layout.addStretch()
         return w
+
+    # ---- BL-206: Songdaten-Import (JSON) ----
+
+    def _build_songdata_import_tab(self):
+        """Import der per Export erzeugten Songdaten-JSON (BL-206).
+
+        Bewusst getrennt vom Export (der im Song-Listen-Widget sitzt): der
+        Import kann bestehende Daten ueberschreiben und gehoert daher an eine
+        ruhige, absichtsvolle Stelle. Es werden NIE neue Songs angelegt; die
+        Zuordnung laeuft ueber den Songnamen, vor dem Schreiben steht ein
+        Feld-Diff mit Vetorecht."""
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        desc = QLabel(_t('sdio_import_tab_desc'))
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        btn = QPushButton(_t('sdio_import_btn'))
+        btn.setToolTip(_t('sdio_import_btn_tip'))
+        btn.clicked.connect(self._on_songdata_import)
+        row = QHBoxLayout()
+        row.addWidget(btn)
+        row.addStretch()
+        layout.addLayout(row)
+
+        layout.addStretch()
+        return w
+
+    def _on_songdata_import(self):
+        changed = song_data_io.import_songs_interactive(self, self.db)
+        if changed:
+            # Aenderungen koennen Filter/Statistiken beruehren -> Hauptfenster
+            # einmalig auffrischen lassen (wie nach Bulk-Aktionen).
+            if self.on_bulk_done:
+                self.on_bulk_done()
+            self.refresh()
 
     # ---- BL-148: Massen-Loeschen ----
 

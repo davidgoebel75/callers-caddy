@@ -24,6 +24,7 @@ from PySide6.QtGui import QColor
 from song_db import SongDatabase, Song, SONG_PROPERTY_KEYS
 from path_manager import PathManager
 from i18n import _t
+import song_data_io
 from perf import perf_start, perf_split, perf_log
 from stats_widget import add_song_rating_actions
 from ui_helpers import (
@@ -2157,6 +2158,7 @@ class SongListWidget(QWidget):
         self.on_add_to_notes = None           # callback(song_title)
         self.on_song_rating_changed = None    # callback(song_id) — Quality/ERR ueber Kontextmenue geaendert
         self._all_songs = []
+        self._filtered = []         # BL-206: aktuell gefilterte Liste (fuer Export)
         self._last_played_map = {}  # {song_id: "2026-03-08 20:30:00"}
         self._genre_song_ids = {}   # {genre_id: set(song_ids)} — gecacht, wird bei refresh() aktualisiert
         self._row_by_id = {}        # {song_id: row_index} — nach jedem _apply_filter aktuell
@@ -2210,6 +2212,11 @@ class SongListWidget(QWidget):
         self._btn_to_playlist.setToolTip(_t("tooltip_to_playlist_song"))
         self._btn_to_playlist.clicked.connect(self._on_to_playlist_clicked)
         _sl_btn_bar.add(self._btn_to_playlist)
+        # BL-206: Export der DB-Daten der aktuell gefilterten Liste (JSON).
+        self._btn_export = QPushButton(_t("sdio_export_btn"))
+        self._btn_export.setToolTip(_t("sdio_export_btn_tip"))
+        self._btn_export.clicked.connect(self._on_export_clicked)
+        _sl_btn_bar.add(self._btn_export)
         layout.addWidget(_sl_btn_bar)
 
     def set_date_format(self, fmt: str):
@@ -2324,6 +2331,8 @@ class SongListWidget(QWidget):
         filtered = self._filter_bar.filter_and_sort(
             self._all_songs, self._last_played_map, self._genre_song_ids,
             start_date=self._start_date, added_fallback=self._start_date)
+        # BL-206: aktuell gefilterte Liste fuer den Export merken.
+        self._filtered = filtered
 
         # Die zweite Spalte wandert mit der Sortierung mit: Einfuegedatum bei
         # "Hinzugefuegt", der Empfehlungs-Score bei "Empfehlung", sonst das
@@ -2447,6 +2456,10 @@ class SongListWidget(QWidget):
         title_item = self.table.item(self.table.currentRow(), 0)
         if title_item and self.on_add_to_playlist:
             self.on_add_to_playlist(title_item.data(Qt.UserRole))
+
+    def _on_export_clicked(self):
+        """BL-206: DB-Daten der aktuell gefilterten Liste als JSON exportieren."""
+        song_data_io.export_songs_interactive(self, self.db, self._filtered)
 
     def _on_context_menu(self, pos):
         item = self.table.itemAt(pos)
