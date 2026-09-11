@@ -6,7 +6,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
-## (Unreleased — seit 0.154)
+## 0.155 — Songdaten als JSON exportieren & behutsam importieren (2026-09-11)
 
 ### Verbesserungen
 - **Songdaten als JSON exportieren und wieder einspielen.** In der Songliste gibt es jetzt „Exportieren…": schreibt die Datenbank-Daten aller Songs der aktuell gefilterten Liste in eine JSON-Datei. Vorher wählt man die Felder — die Liste umfasst alles aus Song-Info und den erweiterten Daten und wächst automatisch mit künftigen Feldern mit. Der Titel ist als Zuordnungsschlüssel immer dabei; kritische Felder (Dateiname, Pfade, Aufnahmedatum) und erweiterte Datenfelder sind vorsichtshalber abgewählt — wer sie will, hakt sie an. Derselbe Export steht zusätzlich im Tab „Potential → Daten-Export/-Import" bereit, dort über alle Songs.
