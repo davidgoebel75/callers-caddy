@@ -52,7 +52,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QProgressDialog,
 )
-from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent
+from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QCursor
 
 # --- Frühest möglicher Crash-Handler -----------------------------------------
@@ -6641,6 +6641,12 @@ class P29MainWindow(QMainWindow):
 
         Priorität: Text-Input/List-Search > Modal-Dialog > Tasten-Trigger
         """
+        # Schutz gegen PySide6/shiboken-Marshalling bei app-weiten Event-Filtern:
+        # Qt liefert in bestimmten Layout-Situationen ein QWidgetItem (QLayoutItem,
+        # KEIN QObject) als watched. super().eventFilter() wirft darauf einen
+        # TypeError -> App-Crash. Unerwartete Typen einfach nicht filtern.
+        if not isinstance(obj, QObject):
+            return False
         # Aufklappliste jeder Combobox breit genug fuer ihren Inhalt, egal wie
         # schmal das Control ist. Klick/Taste kommt hier VOR showPopup() an.
         if isinstance(obj, QComboBox) and opens_combo_popup(event):

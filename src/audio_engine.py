@@ -1651,13 +1651,21 @@ class AudioEngine:
             min10s:   Rolling-Minimum der letzten 10 Sekunden (in ms)
             xruns:    PortAudio-Underflows seit letztem reset_audio_diag()
         """
-        history = self._diag_history  # deque, nur lesen
-        min10s = min((v for _, v in history), default=self._diag_buf_ms)
+        # Snapshot ziehen: _diag_history wird parallel vom Audio-Callback
+        # befuellt. Direkte Iteration ueber die Live-Deque warf sporadisch
+        # "RuntimeError: deque mutated during iteration" -> App-Crash. Der
+        # Callback darf nicht gelockt werden (Echtzeit), darum kopieren und
+        # den seltenen Mutations-Fall abfangen — Diagnostik ist unkritisch.
+        try:
+            snapshot = list(self._diag_history)
+        except RuntimeError:
+            snapshot = []
+        min10s = min((v for _, v in snapshot), default=self._diag_buf_ms)
         return {
             "buf_ms":      self._diag_buf_ms,
             "min10s":      min10s,
             "xruns":       self._diag_xruns,
-            "history_len": len(history),
+            "history_len": len(snapshot),
         }
 
     def reset_audio_diag(self):
