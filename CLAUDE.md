@@ -2,13 +2,17 @@
 
 ## Changelog-Pflicht
 
-Bei **jedem abgeschlossenen Prototyp oder Release** wird `CHANGELOG.md` im Projektstamm aktualisiert:
-- Neuen Eintrag oben einfuegen (neueste Version zuerst)
-- Versionsnummer: `0.XX` (XX = Prototyp-Nummer, zweistellig). Ab offiziellem Launch: `2.0+` (1.x war die alte Version)
-- Datum angeben
-- Neue und verbesserte Features als Bullet Points auflisten
-- Bugfixes und Performance-Verbesserungen erwaehnen wenn relevant
-- Sprache: Deutsch
+`CHANGELOG.md` liegt im Projektstamm. **Jede Aenderung wird dokumentiert, solange sie frisch ist** — nicht erst vorm Release (dann weiss man die Details nicht mehr). Ablauf in zwei Stufen:
+
+**1. Sofort beim Feature/Fix (Sammler-Abschnitt):**
+- Ganz oben steht ein Abschnitt `## (Unreleased — seit 0.XX)` als **Sammler fuer noch nicht veroeffentlichte Aenderungen**. Fehlt er (weil gerade frisch gebaut wurde), beim naechsten Feature neu anlegen.
+- Neue/verbesserte Features und relevante Bugfixes/Perf als Bullet Points **direkt nach dem Merge** dort eintragen. **Noch KEINE Versionsnummer, KEIN Datum** — das bleibt dem Build vorbehalten (eine Sammelversion pro Build, keine neue Nummer pro Feature).
+- Endnutzer-orientiert formulieren, Sprache: **Deutsch**.
+
+**2. Beim Build (Sammelversion + Versions-Bump):**
+- Aus `(Unreleased)` wird die fertige Version: Ueberschrift auf `## 0.XX — <Kurztitel> (YYYY-MM-DD)` setzen (neueste Version zuerst).
+- Versionsnummer: `0.XX` (XX = Prototyp-Nummer, zweistellig). Ab offiziellem Launch: `2.0+` (1.x war die alte Version).
+- Siehe „Versions-Bump — PFLICHT-DOPPELPACK".
 
 ## Versions-Bump — PFLICHT-DOPPELPACK
 
