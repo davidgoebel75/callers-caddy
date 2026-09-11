@@ -49,6 +49,8 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QAbstractItemView,
     QTextBrowser,
+    QPlainTextEdit,
+    QTextEdit,
     QSizePolicy,
     QProgressDialog,
 )
@@ -1357,6 +1359,26 @@ class P29MainWindow(QMainWindow):
         tc_action.setText(_t("dock_to_call"))
         self._view_menu.addAction(tc_action)
         perf_log("    ToCall dock", _ttc)
+
+        # --- Dock: Pilot Square (BL-207) — vollwertig andockbar ---
+        # Vor _restore_layout(), damit der Dock uniform am windowState-Restore
+        # teilnimmt (Grundsatz: jeder Dock VOR restoreState() erzeugen).
+        _tsq = perf_start()
+        from pilot_square_widget import PilotSquareWidget
+        self.pilot_square_widget = PilotSquareWidget(
+            on_close=lambda: self.dock_pilot_square.hide()
+        )
+        self.pilot_square_widget.apply_skin(self.skin_mgr)
+        self.dock_pilot_square = _make_dock(
+            self, _t("dock_pilot_square"), self.pilot_square_widget,
+            Qt.RightDockWidgetArea
+        )
+        self.dock_pilot_square.setObjectName("dock_pilot_square")
+        self.dock_pilot_square.hide()
+        sq_action = self.dock_pilot_square.toggleViewAction()
+        sq_action.setText(_t("dock_pilot_square"))
+        self._view_menu.addAction(sq_action)
+        perf_log("    PilotSquare dock", _tsq)
 
         # Layout wiederherstellen
         self._restore_layout()
@@ -6623,7 +6645,7 @@ class P29MainWindow(QMainWindow):
         w = QApplication.focusWidget()
         return isinstance(w, (
             QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextBrowser,
-            QTableWidget, QListWidget,
+            QPlainTextEdit, QTextEdit, QTableWidget, QListWidget,
         ))
 
     def _on_key_space(self):
@@ -6842,6 +6864,8 @@ class P29MainWindow(QMainWindow):
                 self.notes_widget.apply_skin(self.skin_mgr)
             if self.evening_planner is not None:
                 self.evening_planner.apply_skin(self.skin_mgr)
+            if getattr(self, "pilot_square_widget", None) is not None:
+                self.pilot_square_widget.apply_skin(self.skin_mgr)
             # Break-Pausen-Uhr (Dock + ggf. Overlay)
             self.break_widget.set_skin(self.skin_mgr)
             # Stream Deck: Icons mit neuen Theme-Farben neu einfaerben

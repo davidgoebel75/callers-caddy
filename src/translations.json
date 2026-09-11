@@ -9732,5 +9732,65 @@
     "de": "{songs} Song(s) aktualisiert, {changes} Feld-Änderung(en) übernommen.",
     "en": "Updated {songs} song(s), applied {changes} field change(s).",
     "ja": "{songs} 曲を更新し、{changes} 件のフィールド変更を適用しました。"
+  },
+  "square.couple_label": {
+    "de": "Paar {n}",
+    "en": "Couple {n}",
+    "ja": "カップル{n}"
+  },
+  "square.man_placeholder": {
+    "de": "Mann",
+    "en": "Man",
+    "ja": "男性"
+  },
+  "square.woman_placeholder": {
+    "de": "Frau",
+    "en": "Woman",
+    "ja": "女性"
+  },
+  "square.color_pick": {
+    "de": "Farbe dem gewählten Feld zuweisen",
+    "en": "Assign colour to the selected field",
+    "ja": "選択したフィールドに色を割り当てる"
+  },
+  "square.color_none": {
+    "de": "Füllfarbe entfernen (Feld anklicken, dann hier)",
+    "en": "Remove fill colour (select a field, then click here)",
+    "ja": "塗りつぶしを解除（フィールドを選択してからクリック）"
+  },
+  "square.clear_btn": {
+    "de": "Leeren",
+    "en": "Clear",
+    "ja": "クリア"
+  },
+  "square.clear_tooltip": {
+    "de": "Alle Felder und Farben zurücksetzen",
+    "en": "Reset all fields and colours",
+    "ja": "すべてのフィールドと色をリセット"
+  },
+  "square.close_btn": {
+    "de": "Schließen",
+    "en": "Close",
+    "ja": "閉じる"
+  },
+  "square.close_tooltip": {
+    "de": "Square-Notizen schließen",
+    "en": "Close Square Notes",
+    "ja": "スクエアメモを閉じる"
+  },
+  "square.clear_confirm_title": {
+    "de": "Alles leeren?",
+    "en": "Clear everything?",
+    "ja": "すべてクリアしますか？"
+  },
+  "square.clear_confirm_msg": {
+    "de": "Alle Notizen und Farben im Square werden gelöscht.",
+    "en": "All notes and colours in the square will be deleted.",
+    "ja": "スクエア内のすべてのメモと色が削除されます。"
+  },
+  "dock_pilot_square": {
+    "de": "Pilot Square",
+    "en": "Pilot Square",
+    "ja": "Pilot Square"
   }
 }
