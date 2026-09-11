@@ -6,6 +6,14 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## 0.156 — Absturzbehebungen (2026-09-11)
+
+### Bugfixes
+- **Absturz beim Bedienen von Auswahllisten behoben.** In bestimmten Situationen (u. a. beim Aufklappen/Anklicken von Auswahlfeldern) konnte die App mit einem internen Typfehler komplett abstürzen. Der app-weite Tasten-/Maus-Filter fängt solche unerwarteten Fälle jetzt ab, statt sich zu beenden.
+- **Absturz bei der Audio-Diagnose behoben.** Eine seltene Kollision zwischen dem Audio-Thread und der Diagnose-Anzeige konnte die App beenden. Die Diagnose arbeitet jetzt auf einer Kopie und lässt den Audio-Thread ungestört.
+
+---
+
 ## 0.155 — Songdaten als JSON exportieren & behutsam importieren (2026-09-11)
 
 ### Verbesserungen
