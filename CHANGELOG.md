@@ -6,6 +6,16 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.156)
+
+### Neu
+- **Neues Fenster „Pilot Square" — Notizen zu den acht Tänzern im Square.** Über „Ansicht → Pilot Square" öffnet sich ein andockbares Feld, das die acht Tänzer räumlich als Square anordnet (Paar 1 unten, Paar 2 rechts, Paar 3 oben, Paar 4 links – jeweils Mann und Frau an ihrer realen Position). In jedes Feld lässt sich frei etwas eintragen: Name, Level oder Hinweise wie „braucht Blickkontakt". Die Schrift passt sich automatisch an die Textlänge an und füllt das Feld optimal aus; der Text steht immer mittig und gut lesbar. Über die Farbpalette in der Mitte kann man jedem Feld eine Farbe geben – erst das Feld anklicken, dann eine Farbe wählen (das erste Feld entfernt die Farbe wieder); die Textfarbe stellt sich automatisch kontrastreich ein. „Leeren" setzt alle Felder zurück, „Schließen" blendet das Fenster aus. Die Notizen gelten für die laufende Sitzung.
+
+### Bugfixes
+- **Einzelne Buchstaben werden beim Tippen in mehrzeiligen Textfeldern nicht mehr als Tastenbefehl abgefangen.** Wer einen Buchstaben (z. B. „L") als Regel-Auslöser eingerichtet hatte, konnte diesen in manchen Textfeldern nicht eintippen – er löste stattdessen die Regel aus. Jetzt haben Texteingaben in solchen Feldern Vorrang.
+
+---
+
 ## 0.156 — Absturzbehebungen (2026-09-11)
 
 ### Bugfixes
