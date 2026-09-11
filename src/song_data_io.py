@@ -38,8 +38,13 @@ FORMAT_VERSION = 1
 # Reserviertes synthetisches Feld (M:N ueber song_genres, keine echte Spalte).
 GENRES_FIELD = "genres"
 
-# Der Songname ist der Zuordnungsschluessel und immer mit dabei.
+# Der Songname ist der primaere Zuordnungsschluessel und immer mit dabei.
 IDENTIFIER = "title"
+
+# Stabiler Zweitschluessel (lokale Song-id). Nur wirksam, wenn die JSON von
+# derselben Installation stammt (install_id-Abgleich) -> erlaubt Umbenennen.
+# Automatisch exportiert, kein auswaehlbares Datenfeld.
+LOCAL_ID_KEY = "_local_id"
 
 # Kritische Felder: Ueberschreiben hat Nebenwirkungen (Datei-/Pfadbezug bzw.
 # Bibliotheks-Aufnahmedatum). Sie werden angeboten, aber per Default NICHT
@@ -82,12 +87,16 @@ _REAL_TOLERANCE = 1e-9
 class FieldDef:
     """Ein anbietbares Feld: technischer Name, Quelle, Label, kritisch?"""
 
-    def __init__(self, key, source, label, critical, affinity=""):
+    def __init__(self, key, source, label, critical, affinity="", default_on=None):
         self.key = key            # technischer Name / Property-Key
         self.source = source      # 'column' | 'property' | 'genres'
         self.label = label        # Anzeigetext
-        self.critical = critical  # Default abgewaehlt + Warnhinweis
+        self.critical = critical  # Warnhinweis + Warnfarbe (Datei-/Pfadbezug)
         self.affinity = affinity  # nur bei 'column' relevant (INTEGER/REAL/TEXT)
+        # Ob die Checkbox per Default an ist. Kritische Felder UND alle
+        # Extended-Data-Properties sind per Default AUS (wer sie will, hakt an).
+        self.default_on = (not critical and source != "property") \
+            if default_on is None else default_on
 
 
 def _label_for(key, source):
@@ -152,7 +161,9 @@ def build_export(db, songs, selected_fields):
     out_songs = []
     for s in songs:
         row = db.get_song_row(s.id)
-        entry = {IDENTIFIER: row.get(IDENTIFIER, s.title or "")}
+        # _local_id: stabiler Zweitschluessel fuer den Re-Import auf DERSELBEN
+        # Installation (erlaubt Titel-Umbenennen). Automatisch, kein Datenfeld.
+        entry = {LOCAL_ID_KEY: s.id, IDENTIFIER: row.get(IDENTIFIER, s.title or "")}
         if want_genres:
             entry[GENRES_FIELD] = [name for _, name in db.get_genres_for_song(s.id)]
         for f in col_fields:
@@ -168,6 +179,9 @@ def build_export(db, songs, selected_fields):
         "format": FORMAT_TAG,
         "version": FORMAT_VERSION,
         "exported_at": datetime.now().isoformat(timespec="seconds"),
+        # Installations-Fingerprint: nur bei Gleichheit darf der Import ueber
+        # _local_id zuordnen (Titel-Umbenennen). Sonst Titel-Abgleich.
+        "install_id": db.get_install_id(),
         "fields": field_names,
         "count": len(out_songs),
         "songs": out_songs,
@@ -214,12 +228,28 @@ def _values_differ(affinity, old, new):
     return o != n
 
 
-def build_local_index(db):
-    """{normalisierter_titel: [song_id, ...]} ueber alle lokalen Songs."""
-    index = {}
-    for s in db.get_all():
-        index.setdefault(normalize_title(s.title), []).append(s.id)
-    return index
+def _change_default_on(ch):
+    """Default-Haken je Aenderung: Extended-Data-Properties und kritische Felder
+    sind AUS, uebrige Spalten (inkl. Titel-Umbenennen) und Genres AN."""
+    if ch.critical or ch.kind == "property":
+        return False
+    return True
+
+
+def skipped_report_text(plan):
+    """Mehrzeiliger Report ueber uebersprungene/ungleiche Songs (mit Namen)."""
+    lines = []
+    if plan["not_found"]:
+        lines.append(_t("sdio_report_notfound", n=len(plan["not_found"]))
+                     + ": " + ", ".join(plan["not_found"][:50]))
+    if plan["ambiguous"]:
+        lines.append(_t("sdio_report_ambiguous", n=len(plan["ambiguous"]))
+                     + ": " + ", ".join(plan["ambiguous"][:50]))
+    if plan["unchanged"]:
+        lines.append(_t("sdio_report_unchanged", n=len(plan["unchanged"])))
+    if plan["invalid"]:
+        lines.append(_t("sdio_report_invalid", n=len(plan["invalid"])))
+    return "\n".join(lines)
 
 
 class Change:
@@ -238,33 +268,62 @@ class Change:
 def compute_plan(db, data):
     """Vergleicht die JSON-Songs mit der lokalen DB.
 
+    Zuordnung: stammt die JSON von DIESER Installation (install_id-Abgleich),
+    wird ein Eintrag mit gueltiger _local_id direkt ueber die Song-id zugeordnet
+    (erlaubt Titel-Umbenennen). Sonst Abgleich ueber den normalisierten Titel.
+
     Rueckgabe: dict mit
       changes:   [Change, ...]  (nur abweichende Felder)
       not_found: [titel, ...]
       ambiguous: [titel, ...]   (>1 lokaler Song mit gleichem Titel)
       unchanged: [titel, ...]   (gefunden, aber keine Abweichung)
-      invalid:   [beschreibung] (Eintraege ohne Titel / Datei-interne Dubletten)
+      invalid:   [beschreibung] (Eintraege ohne Titel)
     """
     entries = data if isinstance(data, list) else data.get("songs", [])
     col_affinity = {name: aff for name, aff in db.list_song_columns()}
-    local_index = build_local_index(db)
+
+    all_songs = db.get_all()
+    local_ids = {s.id for s in all_songs}
+    title_index = {}
+    for s in all_songs:
+        title_index.setdefault(normalize_title(s.title), []).append(s.id)
+
+    same_install = False
+    if isinstance(data, dict):
+        jid = data.get("install_id")
+        same_install = bool(jid) and jid == db.get_install_id()
 
     result = {"changes": [], "not_found": [], "ambiguous": [],
               "unchanged": [], "invalid": []}
 
+    # Datei-interne Titel-Dubletten nur fuer den Titel-Pfad sperren (nicht bei
+    # id-gematchten Eintraegen — dort ist der Titel egal).
     seen_norms = {}
     for entry in entries:
+        if same_install and _valid_local_id(entry, local_ids):
+            continue
+        raw_title = entry.get(IDENTIFIER)
+        if raw_title and str(raw_title).strip():
+            seen_norms[normalize_title(str(raw_title))] = \
+                seen_norms.get(normalize_title(str(raw_title)), 0) + 1
+
+    for entry in entries:
+        # 1) Stabiler Zweitschluessel (nur bei gleicher Installation)
+        if same_install and _valid_local_id(entry, local_ids):
+            song_id = int(entry[LOCAL_ID_KEY])
+            song_changes = _diff_entry(db, song_id, entry, col_affinity,
+                                       allow_title=True)
+            if song_changes:
+                result["changes"].extend(song_changes)
+            else:
+                result["unchanged"].append(_local_title(db, song_id))
+            continue
+
+        # 2) Titel-Abgleich (Standard, auch fuer Caller-Austausch)
         raw_title = entry.get(IDENTIFIER)
         if not raw_title or not str(raw_title).strip():
             result["invalid"].append(_t("sdio_import_no_title"))
             continue
-        norm = normalize_title(str(raw_title))
-        seen_norms[norm] = seen_norms.get(norm, 0) + 1
-
-    for entry in entries:
-        raw_title = entry.get(IDENTIFIER)
-        if not raw_title or not str(raw_title).strip():
-            continue  # schon als invalid gezaehlt
         title = str(raw_title)
         norm = normalize_title(title)
 
@@ -273,7 +332,7 @@ def compute_plan(db, data):
                 result["ambiguous"].append(title)
             continue
 
-        matches = local_index.get(norm, [])
+        matches = title_index.get(norm, [])
         if not matches:
             result["not_found"].append(title)
             continue
@@ -282,7 +341,8 @@ def compute_plan(db, data):
             continue
 
         song_id = matches[0]
-        song_changes = _diff_entry(db, song_id, entry, col_affinity)
+        song_changes = _diff_entry(db, song_id, entry, col_affinity,
+                                   allow_title=False)
         if song_changes:
             result["changes"].extend(song_changes)
         else:
@@ -291,15 +351,30 @@ def compute_plan(db, data):
     return result
 
 
-def _diff_entry(db, song_id, entry, col_affinity):
-    """Feld-Diff eines einzelnen JSON-Eintrags gegen den lokalen Song."""
+def _valid_local_id(entry, local_ids):
+    """True, wenn der Eintrag eine _local_id traegt, die lokal existiert."""
+    lid = entry.get(LOCAL_ID_KEY)
+    try:
+        return lid is not None and int(lid) in local_ids
+    except (TypeError, ValueError):
+        return False
+
+
+def _diff_entry(db, song_id, entry, col_affinity, allow_title=False):
+    """Feld-Diff eines einzelnen JSON-Eintrags gegen den lokalen Song.
+
+    allow_title: bei id-basierter Zuordnung darf auch der Titel geaendert werden
+    (Umbenennen). Beim Titel-Abgleich ist der Titel der Schluessel und bleibt.
+    """
     changes = []
     local_title = _local_title(db, song_id)
     row = db.get_song_row(song_id)
     local_props = db.get_properties(song_id)
 
     for key, new_val in entry.items():
-        if key == IDENTIFIER:
+        if key == LOCAL_ID_KEY:
+            continue
+        if key == IDENTIFIER and not allow_title:
             continue
 
         if key == GENRES_FIELD:
@@ -411,11 +486,13 @@ class FieldSelectDialog(QDialog):
         vinner.setSpacing(2)
         for fd in fields:
             cb = QCheckBox(fd.label)
-            cb.setChecked(not fd.critical)
+            cb.setChecked(fd.default_on)
             if fd.critical:
                 cb.setText(fd.label + "  ⚠")
                 cb.setToolTip(_t("sdio_critical_tooltip"))
                 cb.setStyleSheet("color:#c0392b;")
+            elif fd.source == "property":
+                cb.setToolTip(_t("sdio_extended_tooltip"))
             self._checks.append((fd, cb))
             vinner.addWidget(cb)
         vinner.addStretch()
@@ -427,8 +504,8 @@ class FieldSelectDialog(QDialog):
         btn_all.clicked.connect(lambda: self._set_all(True))
         btn_none = QPushButton(_t("sdio_select_none"))
         btn_none.clicked.connect(lambda: self._set_all(False))
-        btn_safe = QPushButton(_t("sdio_select_noncritical"))
-        btn_safe.clicked.connect(self._select_noncritical)
+        btn_safe = QPushButton(_t("sdio_select_default"))
+        btn_safe.clicked.connect(self._select_default)
         quick.addWidget(btn_all)
         quick.addWidget(btn_none)
         quick.addWidget(btn_safe)
@@ -444,9 +521,9 @@ class FieldSelectDialog(QDialog):
         for _, cb in self._checks:
             cb.setChecked(state)
 
-    def _select_noncritical(self):
+    def _select_default(self):
         for fd, cb in self._checks:
-            cb.setChecked(not fd.critical)
+            cb.setChecked(fd.default_on)
 
     def selected(self):
         return [fd for fd, cb in self._checks if cb.isChecked()]
@@ -496,7 +573,7 @@ class ImportPreviewDialog(QDialog):
         for r, ch in enumerate(self._changes):
             chk = QTableWidgetItem()
             chk.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            chk.setCheckState(Qt.Unchecked if ch.critical else Qt.Checked)
+            chk.setCheckState(Qt.Checked if _change_default_on(ch) else Qt.Unchecked)
             chk.setData(Qt.UserRole, r)
             table.setItem(r, self.COL_CHECK, chk)
 
@@ -522,16 +599,16 @@ class ImportPreviewDialog(QDialog):
         btn_all.clicked.connect(lambda: self._set_all(Qt.Checked))
         btn_none = QPushButton(_t("sdio_select_none"))
         btn_none.clicked.connect(lambda: self._set_all(Qt.Unchecked))
-        btn_safe = QPushButton(_t("sdio_select_noncritical"))
-        btn_safe.clicked.connect(self._check_noncritical)
+        btn_safe = QPushButton(_t("sdio_select_default"))
+        btn_safe.clicked.connect(self._check_default)
         quick.addWidget(btn_all)
         quick.addWidget(btn_none)
         quick.addWidget(btn_safe)
         quick.addStretch()
         layout.addLayout(quick)
 
-        # Report ueber uebersprungene Songs
-        skipped = self._skipped_text(plan)
+        # Report ueber uebersprungene / ungleiche Songs (mit Namen)
+        skipped = skipped_report_text(plan)
         if skipped:
             box = QTextEdit()
             box.setReadOnly(True)
@@ -561,27 +638,11 @@ class ImportPreviewDialog(QDialog):
         for r in range(self._table.rowCount()):
             self._table.item(r, self.COL_CHECK).setCheckState(state)
 
-    def _check_noncritical(self):
+    def _check_default(self):
         for r in range(self._table.rowCount()):
             ch = self._changes[r]
             self._table.item(r, self.COL_CHECK).setCheckState(
-                Qt.Unchecked if ch.critical else Qt.Checked)
-
-    def _skipped_text(self, plan):
-        lines = []
-        if plan["not_found"]:
-            lines.append(_t("sdio_report_notfound",
-                            n=len(plan["not_found"])) + ": "
-                         + ", ".join(plan["not_found"][:50]))
-        if plan["ambiguous"]:
-            lines.append(_t("sdio_report_ambiguous",
-                            n=len(plan["ambiguous"])) + ": "
-                         + ", ".join(plan["ambiguous"][:50]))
-        if plan["unchanged"]:
-            lines.append(_t("sdio_report_unchanged", n=len(plan["unchanged"])))
-        if plan["invalid"]:
-            lines.append(_t("sdio_report_invalid", n=len(plan["invalid"])))
-        return "\n".join(lines)
+                Qt.Checked if _change_default_on(ch) else Qt.Unchecked)
 
     def selected_changes(self):
         out = []
@@ -653,11 +714,13 @@ def import_songs_interactive(parent, db):
 
     plan = compute_plan(db, data)
     if not plan["changes"]:
-        QMessageBox.information(
-            parent, _t("sdio_import_title"),
-            _t("sdio_import_nothing", notfound=len(plan["not_found"]),
-               ambiguous=len(plan["ambiguous"]),
-               unchanged=len(plan["unchanged"])))
+        msg = _t("sdio_import_nothing", notfound=len(plan["not_found"]),
+                 ambiguous=len(plan["ambiguous"]),
+                 unchanged=len(plan["unchanged"]))
+        detail = skipped_report_text(plan)
+        if detail:
+            msg += "\n\n" + detail
+        QMessageBox.information(parent, _t("sdio_import_title"), msg)
         return
 
     dlg = ImportPreviewDialog(plan, parent)

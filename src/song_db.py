@@ -1519,6 +1519,27 @@ class SongDatabase:
             cur = self._conn.execute("SELECT DISTINCT key FROM song_properties")
         return sorted(row[0] for row in cur.fetchall())
 
+    def get_install_id(self) -> str:
+        """Stabile, pro-Datenbank eindeutige Installations-ID (lazy erzeugt).
+
+        Dient dem Songdaten-Import (BL-206): nur wenn eine Export-JSON von
+        DIESER Installation stammt, darf ueber die stabile lokale Song-id
+        zugeordnet werden (das erlaubt Titel-Umbenennen). Fremde JSONs
+        (Caller-Austausch) tragen eine andere/keine install_id -> dort greift
+        weiter der Titel-Abgleich, damit keine id auf einen fremden Song zeigt.
+        """
+        row = self._conn.execute(
+            "SELECT value FROM app_meta WHERE key='install_id'").fetchone()
+        if row and row[0]:
+            return row[0]
+        import uuid
+        iid = uuid.uuid4().hex
+        self._conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('install_id', ?)",
+            (iid,))
+        self._conn.commit()
+        return iid
+
     def get_songs_missing_song_field(self, field: str) -> list:
         """Songs bei denen artist oder label leer ist. Gibt [(id, title, filename)] zurueck."""
         cur = self._conn.execute(

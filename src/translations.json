@@ -9588,6 +9588,16 @@
     "en": "Non-critical only (recommended)",
     "ja": "重要でないもののみ（推奨）"
   },
+  "sdio_select_default": {
+    "de": "Standardauswahl (empfohlen)",
+    "en": "Default selection (recommended)",
+    "ja": "既定の選択（推奨）"
+  },
+  "sdio_extended_tooltip": {
+    "de": "Erweitertes Datenfeld — per Default abgewählt. Wer es braucht, hakt es an.",
+    "en": "Extended data field — unchecked by default. Check it if you need it.",
+    "ja": "拡張データフィールド — 既定では未選択。必要な場合はチェックしてください。"
+  },
   "sdio_export_done": {
     "de": "{count} Song(s) mit {fields} Feld(ern) exportiert nach:\n{path}",
     "en": "Exported {count} song(s) with {fields} field(s) to:\n{path}",
