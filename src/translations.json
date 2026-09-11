@@ -9608,6 +9608,26 @@
     "en": "Data import",
     "ja": "データインポート"
   },
+  "sdio_io_tab": {
+    "de": "Daten-Export/-Import",
+    "en": "Data export/import",
+    "ja": "データのエクスポート/インポート"
+  },
+  "sdio_export_tab_desc": {
+    "de": "Alle Songs als JSON exportieren (Feld-Auswahl im nächsten Schritt). Zum Exportieren einer gefilterten Teilmenge den Button „Exportieren…“ in der Songliste nutzen.",
+    "en": "Export all songs as JSON (field selection in the next step). To export a filtered subset, use the “Export…” button in the song list.",
+    "ja": "すべての曲をJSONでエクスポート（次のステップでフィールド選択）。フィルターした一部をエクスポートするには、曲リストの「エクスポート…」ボタンを使用してください。"
+  },
+  "sdio_export_all_btn": {
+    "de": "Alle Songs exportieren…",
+    "en": "Export all songs…",
+    "ja": "すべての曲をエクスポート…"
+  },
+  "sdio_export_all_btn_tip": {
+    "de": "DB-Daten aller Songs als JSON exportieren (Feld-Auswahl).",
+    "en": "Export the DB data of all songs as JSON (field selection).",
+    "ja": "すべての曲のDBデータをJSONでエクスポート（フィールド選択）。"
+  },
   "sdio_import_tab_desc": {
     "de": "Songdaten aus einer Export-JSON einspielen. Es werden nur bestehende Songs aktualisiert (kein Neuanlegen); die Zuordnung erfolgt über den Songnamen. Vor dem Schreiben siehst du jede Änderung (alt → neu) und bestätigst sie einzeln.",
     "en": "Import song data from an export JSON. Only existing songs are updated (no new songs); matching is by song name. Before writing you see every change (old → new) and confirm each one.",

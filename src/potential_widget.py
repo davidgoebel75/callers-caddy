@@ -1637,7 +1637,7 @@ class PotentialWidget(QWidget):
         # ④ Wartung
         _add_check('location_no_history')
         _add_check('history_orphaned')
-        self._import_idx = self._tabs.addTab(import_w, _t('sdio_import_tab'))
+        self._import_idx = self._tabs.addTab(import_w, _t('sdio_io_tab'))
         self._bulk_idx = self._tabs.addTab(bulk_w, _t('pot_bulk_delete'))
 
         self._tabs.currentChanged.connect(self._on_tab_changed)
@@ -2184,21 +2184,40 @@ class PotentialWidget(QWidget):
         layout.addStretch()
         return w
 
-    # ---- BL-206: Songdaten-Import (JSON) ----
+    # ---- BL-206: Songdaten-Export/-Import (JSON) ----
 
     def _build_songdata_import_tab(self):
-        """Import der per Export erzeugten Songdaten-JSON (BL-206).
+        """Export und Import der Songdaten-JSON (BL-206).
 
-        Bewusst getrennt vom Export (der im Song-Listen-Widget sitzt): der
-        Import kann bestehende Daten ueberschreiben und gehoert daher an eine
-        ruhige, absichtsvolle Stelle. Es werden NIE neue Songs angelegt; die
-        Zuordnung laeuft ueber den Songnamen, vor dem Schreiben steht ein
-        Feld-Diff mit Vetorecht."""
+        Der Import kann bestehende Daten ueberschreiben und gehoert daher an
+        eine ruhige, absichtsvolle Stelle (hier statt im Listen-Widget). Es
+        werden NIE neue Songs angelegt; die Zuordnung laeuft ueber den Songnamen,
+        vor dem Schreiben steht ein Feld-Diff mit Vetorecht. Der Export hier
+        umfasst ALLE Songs (das Listen-Widget exportiert die gefilterte Liste)."""
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
 
+        # Export (alle Songs)
+        exp_desc = QLabel(_t('sdio_export_tab_desc'))
+        exp_desc.setWordWrap(True)
+        layout.addWidget(exp_desc)
+
+        btn_exp = QPushButton(_t('sdio_export_all_btn'))
+        btn_exp.setToolTip(_t('sdio_export_all_btn_tip'))
+        btn_exp.clicked.connect(self._on_songdata_export)
+        exp_row = QHBoxLayout()
+        exp_row.addWidget(btn_exp)
+        exp_row.addStretch()
+        layout.addLayout(exp_row)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(sep)
+
+        # Import
         desc = QLabel(_t('sdio_import_tab_desc'))
         desc.setWordWrap(True)
         layout.addWidget(desc)
@@ -2213,6 +2232,10 @@ class PotentialWidget(QWidget):
 
         layout.addStretch()
         return w
+
+    def _on_songdata_export(self):
+        """Exportiert ALLE Songs als JSON (Feld-Auswahl im Dialog)."""
+        song_data_io.export_songs_interactive(self, self.db, self.db.get_all())
 
     def _on_songdata_import(self):
         changed = song_data_io.import_songs_interactive(self, self.db)
