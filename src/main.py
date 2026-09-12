@@ -3939,32 +3939,32 @@ class P29MainWindow(QMainWindow):
         re.register_action("dock_focus_cursor",    self._rule_dock_focus_cursor)     # BL-176
         re.register_action("load_song",            self._rule_load_song)          # BL-181 B
 
+    # Docks, deren interner Kurzname historisch von der objectName-Ableitung
+    # abweicht — als Alias erhalten, damit bestehende Regeln weiter funktionieren.
+    _DOCK_NAME_ALIASES = {
+        "dock_songlist": "song_list",
+        "dock_songdata": "song_data",
+    }
+
     def _dock_map(self) -> dict:
-        """Mapping: Kurzname -> QDockWidget."""
-        m = {
-            "player": self.dock_player,
-            "loop": self.dock_loop,
-            "song_list": self.dock_list,
-            "song_data": self.dock_data,
-            "playlist": self.dock_playlist,
-            "manager": self.dock_manager,
-            "lyrics": self.dock_lyrics,
-            "sequences": self.dock_sequences,
-            "reports": self.dock_reports,
-            "potential": self.dock_potential,
-        }
-        if hasattr(self, 'dock_loop_finder'):
-            m["loop_finder"] = self.dock_loop_finder
-        if hasattr(self, 'dock_photo'):
-            m["photo"] = self.dock_photo
-        if hasattr(self, 'dock_rules'):
-            m["rules"] = self.dock_rules
-        if hasattr(self, 'dock_sequence_view'):
-            m["sequence_view"] = self.dock_sequence_view
-        if hasattr(self, 'dock_stats'):
-            m["stats"] = self.dock_stats
-        if hasattr(self, 'dock_break'):
-            m["break"] = self.dock_break
+        """Mapping: Kurzname -> QDockWidget.
+
+        Generisch: sammelt ALLE Docks des Fensters ueber ihre objectName
+        ("dock_<name>" -> "<name>"). Neue Widgets erscheinen dadurch automatisch
+        in den Regel-Aktionen (Dock oeffnen/schliessen) und am Stream Deck, ohne
+        dass hier etwas ergaenzt werden muss. Zwei historische Docks behalten
+        ihren alten Kurznamen (siehe _DOCK_NAME_ALIASES).
+        """
+        m: dict = {}
+        for dock in self.findChildren(QDockWidget):
+            obj = dock.objectName()
+            if not obj:
+                continue
+            name = self._DOCK_NAME_ALIASES.get(obj)
+            if name is None:
+                name = obj[5:] if obj.startswith("dock_") else obj
+            if name:
+                m[name] = dock
         return m
 
     def _rule_dock_open(self, params: dict):
