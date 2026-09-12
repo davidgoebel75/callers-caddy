@@ -967,16 +967,32 @@ class _LocationSettingsDialog(QDialog):
 class _MultiProgramPickerDialog(QDialog):
     """MS50: Mehrfachauswahl der Tanzprogramme einer Lokation (Checkbox-Liste).
 
-    Der Caller waehlt bewusst ALLE Programme, die er tanzt — inkl. der tieferen
-    (z.B. Plus 2026 + Mainstream 2026). Nicht kumulativ: ohne die tieferen sieht
-    er nur die Sequenzen des gewaehlten Bandes.
+    Issue #64 (Komfort-Kaskade): Aktiviert der Caller ein hoeheres Programm,
+    werden die tieferen Programme derselben Kette automatisch mit angehakt
+    (z.B. Plus 2026 -> auch Mainstream 2026). Ohne die tieferen saehe er keine
+    Sequenzen, weil es keine Sequenz ohne die tieferen Calls gibt. Abwaehlen
+    bleibt frei (keine Rueckwirkung nach oben/unten).
+
+    Zwei getrennte Ketten (rein Band-basiert, keine Code-Namen hartkodiert):
+    - Alte Kette:  Basic 1/2 (10/20) + krumme Baender (29/39/49)
+    - 2026er/obere Kette: runde Baender ab 30 (30/40/50/60/...)
+    WICHTIG: Die 2026er-Kette enthaelt KEINE Basics und kein altes MS/PL/A1 —
+    Mainstream 2026 (Band 30) hat die uebrig gebliebenen Basic-Calls bereits
+    absorbiert (vgl. SET2026 in song_db.reseed_reference_data). "Ab A2 die
+    2026er" folgt automatisch, weil A2 (60) rund ist. Pro tieferem Band wird
+    das regulaere (non-Class) Programm angehakt (= kleinster sort_order im
+    Band); das angeklickte Programm selbst bleibt wie gewaehlt (auch Class).
     """
 
     def __init__(self, db, selected_ids=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(_t("dance_picker_title"))
         sel = set(selected_ids or [])
-        self._checks = []  # [(pid, QCheckBox)]
+        self._checks = []             # [(pid, QCheckBox)]
+        self._cb_by_pid = {}          # pid -> QCheckBox
+        self._band_by_pid = {}        # pid -> Band (int) oder None
+        self._primary_pid_by_band = {}  # Band -> (pid, sort_order) des non-Class-Programms
+        self._suppress_cascade = False  # Reentranz-Schutz beim Auto-Anhaken
 
         layout = QVBoxLayout(self)
         layout.setSpacing(4)
@@ -984,17 +1000,74 @@ class _MultiProgramPickerDialog(QDialog):
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
-        for row in db.get_all_dance_programs():
+        programs = db.get_all_dance_programs()
+        # Band je Programm ableiten: sequence_limit_to = Band + 0.999999, also
+        # ergibt int() das Band. Pro Band merken wir das regulaere Programm
+        # (kleinster sort_order) — dorthin kaskadieren wir die tieferen Baender,
+        # damit nicht versehentlich eine Class-Variante angehakt wird.
+        for row in programs:
+            pid, sort_order, slt = row[0], row[3], row[5]
+            band = int(slt) if slt is not None else None
+            self._band_by_pid[pid] = band
+            if band is not None:
+                cur = self._primary_pid_by_band.get(band)
+                if cur is None or sort_order < cur[1]:
+                    self._primary_pid_by_band[band] = (pid, sort_order)
+        self._all_bands = sorted({b for b in self._band_by_pid.values()
+                                  if b is not None})
+
+        for row in programs:
             pid, code, label = row[0], row[1], row[2]
             cb = QCheckBox(f"{code} — {label}" if label and label != code else code)
             cb.setChecked(pid in sel)
+            # toggled ERST nach setChecked verbinden, damit die Vorbelegung
+            # keine Kaskade ausloest (nur bewusste Klicks kaskadieren).
+            cb.toggled.connect(lambda checked, p=pid: self._on_toggle(p, checked))
             layout.addWidget(cb)
             self._checks.append((pid, cb))
+            self._cb_by_pid[pid] = cb
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
+
+    def _predecessor_bands(self, band):
+        """Baender unterhalb von `band`, die mit-aktiviert werden (Issue #64).
+
+        Alte Kette (Basics 10/20 + krumme Baender 29/39/49) und 2026er/obere
+        Kette (runde Baender ab 30) sind getrennt. Die 2026er-Kette zieht KEINE
+        Basics und kein altes MS/PL/A1 mit — Mainstream 2026 (Band 30) hat die
+        uebrig gebliebenen Basic-Calls bereits absorbiert.
+        """
+        if band is None:
+            return []
+        old_chain = [b for b in self._all_bands if b < 30 or b % 10 != 0]
+        new_chain = [b for b in self._all_bands if b >= 30 and b % 10 == 0]
+        chain = old_chain if (band < 30 or band % 10 != 0) else new_chain
+        return [b for b in chain if b < band]
+
+    def _on_toggle(self, pid, checked):
+        """Komfort-Kaskade: Aktivieren hakt die tieferen Programme mit an.
+
+        Abwaehlen bleibt bewusst wirkungslos (der Nutzer darf einzelne untere
+        Programme wieder entfernen). Einmalig beim Anhaken, kein dauerhafter
+        Zwang.
+        """
+        if not checked or self._suppress_cascade:
+            return
+        band = self._band_by_pid.get(pid)
+        self._suppress_cascade = True
+        try:
+            for b in self._predecessor_bands(band):
+                entry = self._primary_pid_by_band.get(b)
+                if not entry:
+                    continue
+                cb = self._cb_by_pid.get(entry[0])
+                if cb is not None and not cb.isChecked():
+                    cb.setChecked(True)
+        finally:
+            self._suppress_cascade = False
 
     def get_selected_ids(self):
         return [pid for pid, cb in self._checks if cb.isChecked()]

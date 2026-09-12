@@ -7759,9 +7759,9 @@
     "ja": "— なし —"
   },
   "loc_settings_multi_hint": {
-    "de": "Mehrere Programme wählbar. Wähle auch die tieferen Programme mit (z. B. Plus 2026 UND Mainstream 2026) — sonst siehst du nur die Sequenzen des jeweiligen Programms.",
-    "en": "Multiple programs can be selected. Also select the lower programs (e.g. Plus 2026 AND Mainstream 2026) — otherwise you only see the sequences of that single program.",
-    "ja": "複数のプログラムを選択できます。下位のプログラムも一緒に選んでください（例：Plus 2026 と Mainstream 2026）。そうしないと、その単一プログラムのシーケンスしか表示されません。"
+    "de": "Mehrere Programme wählbar. Aktivierst du ein höheres Programm, werden die tieferen automatisch mit angehakt (z. B. Plus 2026 → auch Mainstream 2026), sonst gäbe es keine Sequenzen. Nicht Benötigtes kannst du wieder abwählen.",
+    "en": "Multiple programs can be selected. Activating a higher program automatically also checks the lower ones (e.g. Plus 2026 → also Mainstream 2026), otherwise there would be no sequences. You can uncheck any you don't need.",
+    "ja": "複数のプログラムを選択できます。上位のプログラムを有効にすると、下位のプログラムも自動的に選択されます（例：Plus 2026 → Mainstream 2026 も）。そうしないとシーケンスが表示されません。不要なものは選択を外せます。"
   },
   "setting_label_sequences_dance_programs": {
     "de": "Tanzprogramm(e)",
