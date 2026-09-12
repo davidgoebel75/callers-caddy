@@ -1382,6 +1382,14 @@ class P29MainWindow(QMainWindow):
 
         # Layout wiederherstellen
         self._restore_layout()
+        # View-Menue-Haekchen nach dem Restore mit der tatsaechlichen
+        # Sichtbarkeit abgleichen. restoreState() kann Docks sichtbar
+        # herstellen (z. B. einen im Layout gespeicherten Loop Finder),
+        # ohne dass toggleViewAction() das Haekchen zuverlaessig nachzieht
+        # -> sichtbares Fenster, aber ungehaktes Menue. Deferrt, damit der
+        # Abgleich NACH dem ebenfalls deferrten setFloating() der Tool-Docks
+        # laeuft.
+        QTimer.singleShot(0, self._sync_dock_view_actions)
         _t5 = perf_split("  Layout restore", _t4)
 
         # Auto-Save Layout alle 60 Sekunden (Safety-Net bei unerwartetem Beenden)
@@ -6761,6 +6769,24 @@ class P29MainWindow(QMainWindow):
         # Mindesthoehen nach restoreState() erneut erzwingen
         self.player.setMinimumHeight(380)
         self.loop_widget.setMinimumHeight(190)
+
+    def _sync_dock_view_actions(self):
+        """Gleicht die View-Menue-Haekchen mit der echten Dock-Sichtbarkeit ab.
+
+        Invariante: ein sichtbares Dock hat im View-Menue ein Haekchen, ein
+        verstecktes keines. Beim Start kann restoreState() die Sichtbarkeit
+        setzen, ohne dass toggleViewAction() das Haekchen mitzieht (Qt-Timing
+        mit hidden-Placeholder + deferrtem setFloating) -> Divergenz.
+
+        setChecked() aktualisiert nur die Anzeige und ruft KEIN _q_toggleView
+        auf (Qt verbindet den Dock an triggered(), nicht an toggled()), aendert
+        also die Dock-Sichtbarkeit nicht. Generisch fuer ALLE Docks, damit die
+        einheitliche Layout-Persistenz unberuehrt bleibt (keine Sonderregel)."""
+        for dock in self.findChildren(QDockWidget):
+            action = dock.toggleViewAction()
+            visible = dock.isVisible()
+            if action.isChecked() != visible:
+                action.setChecked(visible)
 
     def _open_rules_dock(self):
         """Oeffnet das Rules-Fenster (Zahnrad-Button im Stream Deck)."""
