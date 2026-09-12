@@ -16,6 +16,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Einzelne Buchstaben werden beim Tippen in mehrzeiligen Textfeldern nicht mehr als Tastenbefehl abgefangen.** Wer einen Buchstaben (z. B. „L") als Regel-Auslöser eingerichtet hatte, konnte diesen in manchen Textfeldern nicht eintippen – er löste stattdessen die Regel aus. Jetzt haben Texteingaben in solchen Feldern Vorrang.
+- **Die Häkchen im Ansicht-Menü stimmen nach dem Start wieder mit den sichtbaren Fenstern überein.** Ein im Layout gespeichertes, sichtbares Fenster (z. B. der Loop Finder) wurde beim Start korrekt angezeigt, im Ansicht-Menü aber ohne Häkchen – das wirkte widersprüchlich. Die Häkchen werden jetzt nach dem Wiederherstellen des Layouts an die tatsächliche Sichtbarkeit angeglichen.
 
 ---
 
