@@ -1305,6 +1305,16 @@
     "en": "Replace the figure text with the sequences selected in the Sequence View (the file stays unchanged). Auto-scroll keeps following the sync points.",
     "ja": "フィギュアのテキストを Sequence View で選択したシーケンスに置き換えます（ファイルは変更されません）。自動スクロールは同期ポイントに従います。"
   },
+  "ctx_figure_cut_add": {
+    "de": "Trenner hier platzieren",
+    "en": "Place separator here",
+    "ja": "ここに区切りを配置"
+  },
+  "ctx_figure_cut_delete": {
+    "de": "Trenner loeschen",
+    "en": "Remove separator",
+    "ja": "区切りを削除"
+  },
   "dynamic_reason_no_lyrics": {
     "de": "Dynamic Lyrics: kein Lyric geladen.",
     "en": "Dynamic Lyrics: no lyrics loaded.",

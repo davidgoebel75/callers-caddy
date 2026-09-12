@@ -346,6 +346,38 @@ class _LyricSectionOverlay(QWidget):
             sections[name] = (l0, l1)
             self.update()
 
+    def _figure_at(self, x: int, y: int):
+        """Name der Figuren-Spalte unter (x,y), sonst None. Nur Figuren (1..4)
+        tragen einen Schnitt-Trenner — Opener/Break/Closer werden ignoriert."""
+        for name, rect in self._column_rects():
+            if name in self._owner._DYNAMIC_FIGURES and rect.contains(x, y):
+                return name
+        return None
+
+    def contextMenuEvent(self, event):
+        # Der Streifen ist nur im Sync-Modus sichtbar; dort auch das Menue.
+        if not self._owner._sync_mode:
+            return
+        pos = event.pos()
+        x, y = int(pos.x()), int(pos.y())
+        name = self._figure_at(x, y)
+        if name is None:
+            return
+        dy = self._viewport_dy()
+        has_cut = self._figure_cut_overlay_y(name, dy) is not None
+        menu = QMenu(self)
+        if has_cut:
+            act = menu.addAction(_t("ctx_figure_cut_delete"))
+        else:
+            act = menu.addAction(_t("ctx_figure_cut_add"))
+        if menu.exec(event.globalPos()) is not act:
+            return
+        if has_cut:
+            self._owner._suppress_figure_cut(name)
+        else:
+            line = self._owner.line_at_viewport_y(y - dy)
+            self._owner._place_figure_cut(name, line)
+
 
 class LyricsWidget(QWidget):
     """Lyrics-Anzeige fuer den aktuell geladenen Song.
@@ -1958,6 +1990,11 @@ class LyricsWidget(QWidget):
 
     _DYNAMIC_FIGURES = ("figure1", "figure2", "figure3", "figure4")
 
+    # BL-200: Sentinel in _figure_cuts — vom Nutzer bewusst geloeschter Trenner.
+    # Unterdrueckt den (auch automatisch erkannten) Schnitt: kein Strich im
+    # Overlay, und bei Dynamic wird der ganze Figurenblock ersetzt (kein Tail).
+    _FIGURE_CUT_SUPPRESSED = -1
+
     def _figures_present(self) -> list:
         """Vorhandene Figuren-Abschnitte, nach Textzeile (l0) sortiert."""
         figs = [(n, self._lyric_sections[n]) for n in self._DYNAMIC_FIGURES
@@ -1983,7 +2020,10 @@ class LyricsWidget(QWidget):
             return None
         l0, l1 = int(rng[0]), int(rng[1])
         if name in self._figure_cuts:
-            return max(l0 + 1, min(int(self._figure_cuts[name]), l1))
+            ov = int(self._figure_cuts[name])
+            if ov == self._FIGURE_CUT_SUPPRESSED:
+                return l1   # bewusst geloescht: kein Strich, kein Tail
+            return max(l0 + 1, min(ov, l1))
         return self._block_default_cut(l0, l1)
 
     def _resolve_block_cut(self, l0: int, l1: int, lines: list,
@@ -2002,7 +2042,10 @@ class LyricsWidget(QWidget):
             rng = sections_map.get(name)
             if rng and int(rng[0]) == l0 and int(rng[1]) == l1 \
                     and name in self._figure_cuts:
-                return max(l0 + 1, min(int(self._figure_cuts[name]), l1))
+                ov = int(self._figure_cuts[name])
+                if ov == self._FIGURE_CUT_SUPPRESSED:
+                    return l1   # geloescht: ganzen Block ersetzen (kein Tail)
+                return max(l0 + 1, min(ov, l1))
         return self._block_default_cut(l0, l1, lines)
 
     def figure_cut_y(self, name: str):
@@ -2065,6 +2108,24 @@ class LyricsWidget(QWidget):
                 self._figure_cuts[name] = int(value)
             except (ValueError, TypeError):
                 continue
+
+    def _place_figure_cut(self, name: str, line):
+        """BL-200: Trenner per Kontextmenue an der angeklickten Zeile setzen.
+        Auf den Block-Innenraum geklemmt, damit der Strich echt sichtbar ist."""
+        rng = self._lyric_sections.get(name)
+        if not rng or line is None:
+            return
+        l0, l1 = int(rng[0]), int(rng[1])
+        self._figure_cuts[name] = max(l0 + 1, min(int(line), l1 - 1))
+        self._persist_figure_cuts()
+        self._section_overlay.update()
+
+    def _suppress_figure_cut(self, name: str):
+        """BL-200: Trenner per Kontextmenue loeschen — auch einen automatisch
+        erkannten. Der Sentinel unterdrueckt ihn dauerhaft (persistiert)."""
+        self._figure_cuts[name] = self._FIGURE_CUT_SUPPRESSED
+        self._persist_figure_cuts()
+        self._section_overlay.update()
 
     def _dynamic_gating_reason(self):
         """None wenn Dynamic Lyrics nutzbar ist, sonst ein i18n-Grund-Key.
@@ -2465,8 +2526,10 @@ class LyricsWidget(QWidget):
         self._dyn_rendered_part = self._dynamic_current_part(self._sync_last_pos)
         self._dynamic_enabled = True
 
-        # Sync-/Edit-Buttons sperren, solange getauschter Text sichtbar ist
-        self._btn_sync.setEnabled(False)
+        # Edit-Button sperren, solange getauschter Text sichtbar ist. Der
+        # Sync-Button bleibt bewusst klickbar (Issue #63): beim Einschalten des
+        # Sync-Modus wird Dynamic in _on_sync_toggled sauber abgeschaltet und
+        # nach dem Verlassen automatisch wieder angewandt.
         self._btn_edit.setEnabled(False)
 
         # Aktuelle Sequenz sofort spiegeln (nicht deferred — beim Klick sichtbar).
@@ -2685,6 +2748,17 @@ class LyricsWidget(QWidget):
             self._btn_sync.blockSignals(False)
             return
 
+        # Issue #63: Dynamic Lyrics und Sync-Bearbeitung schliessen sich aus.
+        # Beim Einschalten Dynamic VOR dem Sync-Dialog sauber abschalten, damit
+        # die Erkennung/Bearbeitung auf dem Originaltext laeuft. Der Wunsch
+        # (_dynamic_wanted) bleibt erhalten → nach Verlassen des Sync-Modus wird
+        # Dynamic via update_dynamic_button_state automatisch wieder angewandt.
+        if checked and self._dynamic_enabled:
+            self._revert_dynamic()
+            self._btn_dynamic.blockSignals(True)
+            self._btn_dynamic.setChecked(False)
+            self._btn_dynamic.blockSignals(False)
+
         # BL-161: Erster Sync an diesem Song (noch keine Punkte) → Methode abfragen
         auto = False
         auto_saved_start = None
@@ -2700,6 +2774,9 @@ class LyricsWidget(QWidget):
                 self._btn_sync.blockSignals(True)
                 self._btn_sync.setChecked(False)
                 self._btn_sync.blockSignals(False)
+                # Sync doch nicht betreten → zuvor abgeschaltetes Dynamic
+                # (Issue #63) wieder anwenden, falls weiterhin gewuenscht.
+                self._reapply_dynamic_if_wanted()
                 return
             if choice == "auto_saved":
                 auto_saved_start, auto_saved_end = saved
