@@ -969,16 +969,19 @@ class _MultiProgramPickerDialog(QDialog):
 
     Issue #64 (Komfort-Kaskade): Aktiviert der Caller ein hoeheres Programm,
     werden die tieferen Programme derselben Kette automatisch mit angehakt
-    (z.B. Plus 2026 -> auch Mainstream 2026 + Basic 1/2). Ohne die tieferen
-    saehe er keine Sequenzen, weil es keine Sequenz ohne die tieferen Calls
-    gibt. Abwaehlen bleibt frei (keine Rueckwirkung nach oben/unten).
+    (z.B. Plus 2026 -> auch Mainstream 2026). Ohne die tieferen saehe er keine
+    Sequenzen, weil es keine Sequenz ohne die tieferen Calls gibt. Abwaehlen
+    bleibt frei (keine Rueckwirkung nach oben/unten).
 
-    Ketten (rein Band-basiert, keine Code-Namen hartkodiert):
-    - krummes Band (29/39/49) -> alte Kette (krumme Baender + Basic 10/20)
-    - rundes Band (30/40/50/60/...) -> 2026er/obere Kette (nur runde Baender)
-    Basic 1/2 (10/20) sind die gemeinsame Grundlage beider Ketten. Pro tieferem
-    Band wird das regulaere (non-Class) Programm angehakt (= kleinster sort_order
-    im Band); das angeklickte Programm selbst bleibt wie gewaehlt (auch Class).
+    Zwei getrennte Ketten (rein Band-basiert, keine Code-Namen hartkodiert):
+    - Alte Kette:  Basic 1/2 (10/20) + krumme Baender (29/39/49)
+    - 2026er/obere Kette: runde Baender ab 30 (30/40/50/60/...)
+    WICHTIG: Die 2026er-Kette enthaelt KEINE Basics und kein altes MS/PL/A1 —
+    Mainstream 2026 (Band 30) hat die uebrig gebliebenen Basic-Calls bereits
+    absorbiert (vgl. SET2026 in song_db.reseed_reference_data). "Ab A2 die
+    2026er" folgt automatisch, weil A2 (60) rund ist. Pro tieferem Band wird
+    das regulaere (non-Class) Programm angehakt (= kleinster sort_order im
+    Band); das angeklickte Programm selbst bleibt wie gewaehlt (auch Class).
     """
 
     def __init__(self, db, selected_ids=None, parent=None):
@@ -1032,16 +1035,16 @@ class _MultiProgramPickerDialog(QDialog):
     def _predecessor_bands(self, band):
         """Baender unterhalb von `band`, die mit-aktiviert werden (Issue #64).
 
-        Krummes Band (29/39/49) -> alte Kette: krumme Baender plus die Basics
-        (10/20). Rundes Band -> nur runde Baender (2026er/obere Kette). So folgt
-        Davids Regel "ab A2 die 2026er" automatisch, weil A2 (60) rund ist.
+        Alte Kette (Basics 10/20 + krumme Baender 29/39/49) und 2026er/obere
+        Kette (runde Baender ab 30) sind getrennt. Die 2026er-Kette zieht KEINE
+        Basics und kein altes MS/PL/A1 mit — Mainstream 2026 (Band 30) hat die
+        uebrig gebliebenen Basic-Calls bereits absorbiert.
         """
         if band is None:
             return []
-        if band % 10 == 0:
-            chain = [b for b in self._all_bands if b % 10 == 0]
-        else:
-            chain = [b for b in self._all_bands if b % 10 != 0 or b < 30]
+        old_chain = [b for b in self._all_bands if b < 30 or b % 10 != 0]
+        new_chain = [b for b in self._all_bands if b >= 30 and b % 10 == 0]
+        chain = old_chain if (band < 30 or band % 10 != 0) else new_chain
         return [b for b in chain if b < band]
 
     def _on_toggle(self, pid, checked):
