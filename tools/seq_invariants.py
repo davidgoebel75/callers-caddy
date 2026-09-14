@@ -96,9 +96,10 @@ def capture(db_path: str) -> dict:
     snap["per_seq_len_hash"] = _hash({k: len(v) for k, v in per_seq.items()})
 
     # --- 4. "enthält"-Filter: Trefferzahl je entity_id ---
+    # BL-210: alle Figuren der Mengen. Ohne Mengen liefert die VIEW dieselben
+    # entity_ids wie call_text_mappings, alte Snapshots bleiben vergleichbar.
     entity_ids = [r[0] for r in conn.execute(
-        "SELECT DISTINCT entity_id FROM call_text_mappings "
-        "WHERE entity_id IS NOT NULL ORDER BY entity_id")]
+        "SELECT DISTINCT entity_id FROM call_text_figures ORDER BY entity_id")]
     contains = {}
     for eid in entity_ids:
         contains[eid] = db.get_filtered_count(entity_id_filter=eid)

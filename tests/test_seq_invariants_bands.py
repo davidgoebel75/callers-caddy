@@ -87,3 +87,21 @@ def test_mengengeruest_ist_wiederholbar(db_path, snap):
     zweiter = seq_invariants.capture(db_path)
     assert zweiter["band_counts"] == snap["band_counts"]
     assert zweiter["band_counts_hash"] == snap["band_counts_hash"]
+
+
+def test_enthaelt_erfasst_auch_weitere_figuren_der_menge(tmp_path):
+    # BL-210: Dosado steht nur in der Zusatztabelle, Box Transfer ist die
+    # hoechste Figur. Der Fingerabdruck muss beide Figuren erfassen.
+    from song_db import SongDatabase
+
+    path = str(tmp_path / "menge.db")
+    db = SongDatabase(path)
+    db.insert_sequence(["Dosado & Box Transfer"])
+    db.set_call_text_figures("Dosado & Box Transfer",
+                             ["call_dosado", "call_box_transfer"])
+    db.close()
+
+    snap = seq_invariants.capture(path)
+
+    assert snap["contains_entity_count"] == 2
+    assert snap["contains_total_hits"] == 2
