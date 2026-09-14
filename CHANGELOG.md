@@ -10,6 +10,10 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Verbesserungen
 - **Höhere Tanzprogramme haken die darunterliegenden jetzt automatisch mit an.** Wählte man bisher nur ein höheres Programm (z. B. „Plus 2026"), ohne das darunterliegende („Mainstream 2026"), blieb die Sequenzliste leer – es gibt schlicht keine Sequenz ohne die tieferen Calls. Jetzt genügt ein Klick auf das gewünschte Programm: Die tieferen Programme derselben Reihe werden automatisch mitgewählt (z. B. „Plus 2026" → auch „Mainstream 2026"; „A2" und höher greifen auf die 2026er-Programme zu). Die alten Programme (Basic, Mainstream, Plus, A1 ohne „2026") nutzen weiterhin ihre eigene Reihe inklusive der Basics. Nicht Benötigtes lässt sich jederzeit wieder abwählen.
+- **Buchstaben-Tastenbefehle reagieren jetzt unabhängig von der Groß-/Kleinschreibung.** Ein als Auslöser eingerichteter Buchstabe (z. B. „L") wird jetzt auch mit gedrückter Umschalttaste bzw. aktiver Feststelltaste erkannt – „L" wirkt wie „l". (Hinweis: Buchstaben eignen sich generell weniger gut als Tastenbefehl, weil sie in Text- und Listenfeldern zum Tippen gebraucht werden und das Programmfenster den Fokus haben muss.)
+
+### Bugfixes
+- **Sync-Marken auf den letzten Zeilen langer Songs werden wieder angezeigt.** Bei Liedern mit vielen Sync-Punkten (z. B. mehrfach getanzten Figuren) fehlten die Zeit-Marken auf den hintersten Textzeilen, obwohl sie gesetzt waren (der Rechtsklick zeigte sie weiterhin). Sie werden jetzt korrekt an allen Zeilen eingeblendet.
 
 ---
 

@@ -3417,9 +3417,15 @@ class LyricsWidget(QWidget):
         doc_len = doc.characterCount()
         shift = 0
         for pos in sorted(set(int(p) for _s, p in self._sync_anchors)):
+            # Gueltigkeit gegen die pristine-Laenge pruefen, NICHT gegen die
+            # verschobene Position (#65): doc_len wurde vor der Schleife gemessen,
+            # das Dokument waechst aber mit jedem eingefuegten Marker (shift). Ein
+            # Vergleich von (pos+shift) gegen das alte doc_len wirft sonst die
+            # hintersten Anker faelschlich raus — die Marker der letzten Zeilen
+            # langer Songs fehlten dadurch (Anker vorhanden, nur nicht gezeichnet).
+            if pos >= doc_len:
+                continue  # pristine-Position jenseits des Dokuments — ueberspringen
             actual = pos + shift
-            if actual >= doc_len:
-                continue  # Anker ausserhalb des Dokuments — ueberspringen
             text = self._marker_text(self._times_for_pos(pos))
             cursor = QTextCursor(doc)
             cursor.setPosition(actual)

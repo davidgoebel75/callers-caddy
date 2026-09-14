@@ -6682,7 +6682,11 @@ class P29MainWindow(QMainWindow):
         if isinstance(obj, QComboBox) and opens_combo_popup(event):
             widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
-            if event.modifiers() == Qt.NoModifier:
+            # #68: Buchstaben-Hotkeys sollen unabhaengig von Gross-/Kleinschreibung
+            # feuern — Shift zusaetzlich zu NoModifier zulassen (event.text().lower()
+            # normalisiert den Trigger-Namen, sodass L wie l wirkt). Ctrl/Alt bleiben
+            # ausgeschlossen, damit echte Shortcuts nicht abgefangen werden.
+            if event.modifiers() in (Qt.NoModifier, Qt.ShiftModifier):
                 key_code = event.key()
 
                 # F13-F24: haben keinen event.text() — direkt ueber key_code abfangen
