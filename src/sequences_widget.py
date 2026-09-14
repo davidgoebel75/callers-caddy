@@ -3117,6 +3117,9 @@ class CallFiguresPickerDialog(QDialog):
         unknown = [(f"[{eid}]", eid) for eid in dict.fromkeys(selected or ())
                    if eid not in known]
         first_checked = None
+        # entity_id -> Eintraege in Listen-Reihenfolge. Haken und Anzeige laufen
+        # darueber statt ueber alle ~760 Eintraege (Main-Thread, je Klick).
+        self._items_by_eid = {}
         self._list = QListWidget()
         self._list.setUpdatesEnabled(False)
         for label, eid in unknown + entities:
@@ -3125,9 +3128,11 @@ class CallFiguresPickerDialog(QDialog):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if eid in chosen else Qt.Unchecked)
             self._list.addItem(item)
+            self._items_by_eid.setdefault(eid, []).append(item)
             if first_checked is None and eid in chosen:
                 first_checked = item
         self._list.setUpdatesEnabled(True)
+        self._checked = chosen & self._items_by_eid.keys()
         # Erst nach dem Befuellen verbinden: das Vorab-Anhaken loest nichts aus
         self._list.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._list, 1)
@@ -3173,20 +3178,22 @@ class CallFiguresPickerDialog(QDialog):
         """Die Referenz fuehrt eine Figur je Programm (z.B. Plus und Plus (2026))
         -> alle Eintraege derselben entity_id gleich anhaken."""
         eid, state = item.data(Qt.UserRole), item.checkState()
+        if state == Qt.Checked:
+            self._checked.add(eid)
+        else:
+            self._checked.discard(eid)
         self._list.blockSignals(True)
-        for it in self._items():
-            if it.data(Qt.UserRole) == eid and it.checkState() != state:
+        for it in self._items_by_eid[eid]:
+            if it.checkState() != state:
                 it.setCheckState(state)
         self._list.blockSignals(False)
         self._update_selected_label()
 
     def _update_selected_label(self):
-        labels = {}
-        for it in self._items():
-            if it.checkState() == Qt.Checked:
-                labels.setdefault(it.data(Qt.UserRole), it.text())
+        labels = [its[0].text() for eid, its in self._items_by_eid.items()
+                  if eid in self._checked]
         self._lbl_selected.setText(
-            _t("call_mapping_picker_selected", names=" | ".join(labels.values()))
+            _t("call_mapping_picker_selected", names=" | ".join(labels))
             if labels else _t("call_mapping_none"))
 
     def _apply_filter(self, text):
@@ -3209,9 +3216,7 @@ class CallFiguresPickerDialog(QDialog):
 
     def selected_entity_ids(self) -> list:
         """Angehakte entity_ids in Listen-Reihenfolge (jede Figur einmal)."""
-        return list(dict.fromkeys(
-            it.data(Qt.UserRole) for it in self._items()
-            if it.checkState() == Qt.Checked))
+        return [eid for eid in self._items_by_eid if eid in self._checked]
 
     def split_requested(self) -> bool:
         """True, wenn "An Komma aufteilen" gewaehlt wurde (statt einer Menge)."""
