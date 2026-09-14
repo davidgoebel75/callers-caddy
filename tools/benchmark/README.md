@@ -78,9 +78,22 @@ schließt. Ein Watchdog dumpt zudem den Stack, falls ein Schritt >60 s hängt.
 | 7 | Sequenz-Widget aufbauen (`load_sequences`) | ✅ v1 |
 | 8 | Sequenzen filtern (Contains) | ✅ v1 |
 
-Mit `--repeat N` werden die interaktiven Schritte (2–8) N-mal gefahren und je
-Schritt der **Median** berichtet (`meta.samples_ms` listet die Einzelwerte);
-Schritt 1 (Start) bleibt einmalig, da der Prozess einmal hochfährt.
+**Singing-Block** (nach Schritt 8) mit dem voll gepflegten „Sounds Of Silence":
+
+| Schritt | was | Status |
+|---|---|---|
+| `song_select_singing` | Auswahl → lädt Audio **+ Lyrics + SyncPoints** | ✅ v1 |
+| `song_play_singing` / `song_stop_singing` | Play/Stop des Singing-Calls | ✅ v1 |
+| `lyrics_dynamic_on` / `_off` | Dynamic-Lyrics (BL-173): Figuren-Text ↔ Sequenzen | ✅ v1 |
+
+Dynamic-Lyrics braucht Lyrics+Sync+Figuren+Sequenzen; fehlt eine Voraussetzung,
+steht der Grund in `meta.gating` und der Schritt ist `ok:false`. Dafür zeigt der
+Runner die Daten-Verzeichnisse (`lyrics`, `playlists`, `import`) auf die echten
+Quellordner, sofern sie existieren.
+
+Mit `--repeat N` werden die interaktiven Schritte N-mal gefahren und je Schritt
+der **Median** berichtet (`meta.samples_ms` listet die Einzelwerte); Schritt 1
+(Start) bleibt einmalig, da der Prozess einmal hochfährt.
 
 Jeder weitere Schritt wird inkrementell ergänzt; die dafür nötige CC-Naht wird
 beim Bau im Issue #72 dokumentiert.

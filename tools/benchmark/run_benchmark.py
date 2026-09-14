@@ -110,6 +110,17 @@ def _clone_settings_ini(source_ini: Path, sandbox: Path, source_dir: Path,
         if isinstance(raw, str) and raw and not os.path.isabs(raw):
             s.setValue(key, os.path.abspath(os.path.join(str(source_dir), raw)))
     s.endGroup()
+    # Daten-Verzeichnisse (lyrics/playlists/import) stehen oft NICHT in der INI
+    # und defaulten dann relativ zum (leeren) Sandbox-cwd. Damit Lyrics-Dateien
+    # (fuer Dynamic-Lyrics) und Playlists gefunden werden, auf die echten
+    # Quellordner zeigen, sofern sie existieren.
+    for key, default in (("import_dir", "neu"), ("lyrics_dir", "lyrics"),
+                         ("playlist_dir", "playlists")):
+        ini_key = f"paths/{key}"
+        if not s.contains(ini_key):
+            src_path = os.path.join(str(source_dir), default)
+            if os.path.isdir(src_path):
+                s.setValue(ini_key, os.path.abspath(src_path))
     # Sprache sicherstellen (kein Erststart-Dialog) + Perf-Logging nach Flag.
     if not s.contains("display/language"):
         s.setValue("display/language", "de")
@@ -118,6 +129,10 @@ def _clone_settings_ini(source_ini: Path, sandbox: Path, source_dir: Path,
     # Dialog (main._trigger_song_stopped) — unbeaufsichtigt wuerde er blockieren.
     # Er ist reine UX, kein Performance-Pfad, daher fuer den Benchmark aus.
     s.setValue("feedback/enabled", "false")
+    # Dynamic-Lyrics-Modus vorwaehlen (falls nicht gesetzt), sonst kaeme beim
+    # ersten Toggle ein modaler Auswahl-Dialog. Vorhandene Wahl bleibt erhalten.
+    if not s.contains("lyrics/dynamic_mode"):
+        s.setValue("lyrics/dynamic_mode", "1")
     s.sync()
 
 
@@ -297,9 +312,71 @@ def _measure(bench: Bench, name, fn, wait_pred=None, timeout_ms=10000):
     return (time.perf_counter() - t0) * 1000.0, ok
 
 
+def _select_play_stop(bench: Bench, out: list, title_sub: str, suffix: str) -> bool:
+    """Auswahl -> Play -> Stop fuer einen Song. Haengt drei Eintraege an out
+    (song_select{suffix}, song_play{suffix}, song_stop{suffix}). Rueckgabe:
+    True wenn geladen (Play/Stop wurden dann gemessen)."""
+    window = bench.window
+    engine = window.player.engine
+    target = find_target_song(window, title_sub)
+    if not target:
+        out.append({"name": f"song_select{suffix}", "ms": 0.0, "ok": False,
+                    "meta": {"grund": f"{title_sub} nicht gefunden"}})
+        return False
+
+    engine.stop()
+    ms, loaded = _measure(bench, f"song_select{suffix}",
+                          lambda: window._on_song_selected(target.id),
+                          engine.is_loaded, timeout_ms=15000)
+    out.append({"name": f"song_select{suffix}", "ms": ms, "ok": loaded, "meta": {
+        "song": getattr(target, "title", "") or getattr(target, "filename", ""),
+        "geladen": loaded}})
+    if not loaded:
+        out.append({"name": f"song_play{suffix}", "ms": 0.0, "ok": False,
+                    "meta": {"grund": "Datei nicht geladen (MP3 im Musikordner?)"}})
+        return False
+
+    # Play-Latenz (Aufruf -> is_playing): synchroner play()-Aufwand
+    # (Feed + Preprocess + WSOLA-Warmup).
+    ms, playing = _measure(bench, f"song_play{suffix}", window.player._on_play,
+                           engine.is_playing, timeout_ms=10000)
+    out.append({"name": f"song_play{suffix}", "ms": ms, "ok": playing,
+                "meta": {"is_playing": playing}})
+
+    ms, stopped = _measure(bench, f"song_stop{suffix}", window.player._on_stop,
+                           lambda: not engine.is_playing(), timeout_ms=5000)
+    out.append({"name": f"song_stop{suffix}", "ms": ms, "ok": stopped,
+                "meta": {"is_playing": engine.is_playing()}})
+    return True
+
+
+def _lyrics_dynamic(bench: Bench, out: list):
+    """Singing-spezifisch (BL-173): Dynamic-Lyrics an/aus — ersetzt den
+    Figuren-Text live durch die Sequence-View-Sequenzen. Voraussetzung:
+    Lyrics + SyncPoints + Figuren + Sequenzen (Sounds Of Silence erfuellt das).
+    Gating-Grund landet im meta, falls Dynamic nicht anwendbar ist."""
+    window = bench.window
+    lw = window.lyrics_widget
+    btn = getattr(lw, "_btn_dynamic", None)
+    if btn is None:
+        out.append({"name": "lyrics_dynamic_on", "ms": 0.0, "ok": False,
+                    "meta": {"grund": "kein Dynamic-Button"}})
+        return
+    reason = lw._dynamic_gating_reason() if hasattr(lw, "_dynamic_gating_reason") else "?"
+
+    ms, _ = _measure(bench, "lyrics_dynamic_on", lambda: btn.setChecked(True))
+    enabled = bool(getattr(lw, "_dynamic_enabled", False))
+    out.append({"name": "lyrics_dynamic_on", "ms": ms, "ok": enabled,
+                "meta": {"aktiviert": enabled, "gating": reason}})
+
+    ms, _ = _measure(bench, "lyrics_dynamic_off", lambda: btn.setChecked(False))
+    out.append({"name": "lyrics_dynamic_off", "ms": ms, "ok": True,
+                "meta": {"aktiviert": bool(getattr(lw, "_dynamic_enabled", False))}})
+
+
 def run_interactive(bench: Bench) -> list[dict]:
-    """Schritte 2-8 (ein Durchlauf). Gibt rohe Schritt-Eintraege zurueck (ohne
-    Ausgabe) — scenario() aggregiert bei --repeat den Median."""
+    """Schritte 2-8 + Singing-Block (ein Durchlauf). Gibt rohe Schritt-Eintraege
+    zurueck (ohne Ausgabe) — scenario() aggregiert bei --repeat den Median."""
     window = bench.window
     fb = window.song_list._filter_bar
     engine = window.player.engine
@@ -319,36 +396,8 @@ def run_interactive(bench: Bench) -> list[dict]:
                              "gefunden": target is not None,
                              "zeile_in_treffern": row}})
 
-    # --- Schritt 3: Song auswaehlen (Patter "Tu Es Foutu") -> laden ----------
-    target = find_target_song(window, TARGETS[0][1])
-    if not target:
-        out.append({"name": "song_select", "ms": 0.0, "ok": False,
-                    "meta": {"grund": f"{TARGETS[0][1]} nicht gefunden"}})
-        return out
-    engine.stop()
-    ms, loaded = _measure(bench, "song_select",
-                          lambda: window._on_song_selected(target.id),
-                          engine.is_loaded, timeout_ms=15000)
-    out.append({"name": "song_select", "ms": ms, "ok": loaded, "meta": {
-        "song": getattr(target, "title", "") or getattr(target, "filename", ""),
-        "geladen": loaded}})
-    if not loaded:
-        out.append({"name": "song_play", "ms": 0.0, "ok": False,
-                    "meta": {"grund": "Datei nicht geladen (MP3 im Musikordner?)"}})
-        return out
-
-    # --- Schritt 4: Play-Latenz (Aufruf -> is_playing) -----------------------
-    # Enthaelt den synchronen play()-Aufwand (Feed + Preprocess + WSOLA-Warmup).
-    ms, playing = _measure(bench, "song_play", window.player._on_play,
-                           engine.is_playing, timeout_ms=10000)
-    out.append({"name": "song_play", "ms": ms, "ok": playing,
-                "meta": {"is_playing": playing}})
-
-    # --- Schritt 5: Stop -----------------------------------------------------
-    ms, stopped = _measure(bench, "song_stop", window.player._on_stop,
-                           lambda: not engine.is_playing(), timeout_ms=5000)
-    out.append({"name": "song_stop", "ms": ms, "ok": stopped,
-                "meta": {"is_playing": engine.is_playing()}})
+    # --- Schritte 3-5: Patter "Tu Es Foutu" auswaehlen / Play / Stop ---------
+    _select_play_stop(bench, out, TARGETS[0][1], "")
 
     # --- Schritt 6: Lokation waehlen (Dialog umgehen -> _set_current_location)
     locs = window.db.get_all_locations() or []
@@ -378,6 +427,16 @@ def run_interactive(bench: Bench) -> list[dict]:
                 "meta": {"contains": SEQ_FILTER_TERM, "treffer": filt_count}})
     sw.set_contains_filter("")   # Filter zuruecksetzen (fuer den naechsten Lauf)
     bench.pump()
+
+    # --- Singing-Block: "Sounds Of Silence" (voll gepflegt) ------------------
+    # Auswahl laedt zugleich Lyrics + SyncPoints; danach Play/Stop und die
+    # Dynamic-Lyrics (Figuren-Text -> Sequenzen). Suchfeld vorher leeren, damit
+    # der Song sichtbar/auffindbar ist.
+    fb.edit_search.clear()
+    bench.pump()
+    if _select_play_stop(bench, out, TARGETS[1][1], "_singing"):
+        _lyrics_dynamic(bench, out)
+
     return out
 
 
