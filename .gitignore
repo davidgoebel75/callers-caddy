@@ -20,7 +20,7 @@ src/_fallback/
 *.bak_*
 
 # --- Laufzeitdaten, die die App selbst anlegt (gehoeren dem Nutzer) ----------
-src/callers_caddy.db*
+src/*.db*
 src/callers_caddy.ini
 src/logs/
 src/music/
