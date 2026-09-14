@@ -2614,8 +2614,8 @@ class SongDatabase:
                            MAX(CASE WHEN {cond}
                                     THEN 1 ELSE 0 END) AS covered
                     FROM sequence_calls sc
-                    JOIN call_text_mappings m
-                         ON m.call_text = sc.call_text AND m.entity_id IS NOT NULL
+                    JOIN call_text_figures m
+                         ON m.call_text = sc.call_text
                     JOIN call_programs cp ON cp.entity_id = m.entity_id
                     GROUP BY sc.sequence_id, m.entity_id
                   )
@@ -2699,12 +2699,12 @@ class SongDatabase:
 
         if entity_id_filter:
             # enthält-Filter ueber den indizierten sequence_calls-Index: von der
-            # entity_id ueber call_text_mappings (idx_ctm_entity) auf die
+            # entity_id ueber call_text_figures (idx_ctm_entity/idx_ctfe_entity) auf die
             # call_texts, von dort ueber idx_seqcalls_calltext auf die
             # sequence_ids. Index-Seek statt Full-Scan; deckt auch Calls >15 ab.
             where_clauses.append("""id IN (
                 SELECT sc.sequence_id
-                FROM call_text_mappings m
+                FROM call_text_figures m
                 JOIN sequence_calls sc ON sc.call_text = m.call_text
                 WHERE m.entity_id = ?
             )""")
@@ -2842,8 +2842,8 @@ class SongDatabase:
                        MAX(CASE WHEN CAST(cp.teaching_order AS INTEGER) IN ({placeholders})
                                 THEN 1 ELSE 0 END) AS covered
                 FROM sequence_calls sc
-                JOIN call_text_mappings m
-                     ON m.call_text = sc.call_text AND m.entity_id IS NOT NULL
+                JOIN call_text_figures m
+                     ON m.call_text = sc.call_text
                 JOIN call_programs cp ON cp.entity_id = m.entity_id
                 GROUP BY sc.sequence_id, m.entity_id
             )
@@ -3675,7 +3675,7 @@ class SongDatabase:
     def recompute_sequence_max_to(self):
         """Berechnet max_teaching_order fuer alle Sequenzen neu.
 
-        Basiert auf call_text_mappings + teaching_order_calls.
+        Basiert auf call_text_mappings + call_text_figures_extra + teaching_order_calls.
         Konservativ: NULL wenn mindestens ein Feld unmapped ist.
         """
         cur = self._conn.execute(
@@ -3693,6 +3693,15 @@ class SongDatabase:
             "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id"
         )
         text_to_to = {row[0]: row[1] for row in cur2.fetchall()}
+        # BL-210: weitere Figuren eines Textes -> hoechste Teaching-Order zaehlt.
+        # Ohne Zusatzzeilen bleibt text_to_to bitgleich; fehlt einer Figur die
+        # Teaching-Order, gilt der Text wie bisher als ungemappt.
+        for text, to in self._conn.execute(
+                "SELECT e.call_text, t.teaching_order "
+                "FROM call_text_figures_extra e "
+                "LEFT JOIN teaching_order_calls t ON t.entity_id = e.entity_id"):
+            prev = text_to_to.get(text)
+            text_to_to[text] = None if prev is None or to is None else max(prev, to)
 
         updates = []
         for seq in sequences:
