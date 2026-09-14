@@ -29,6 +29,7 @@ import json
 import os
 import platform
 import shutil
+import statistics
 import sys
 import time
 from datetime import datetime
@@ -113,6 +114,10 @@ def _clone_settings_ini(source_ini: Path, sandbox: Path, source_dir: Path,
     if not s.contains("display/language"):
         s.setValue("display/language", "de")
     s.setValue("debug/performance_logging", "true" if perf_logging else "false")
+    # Headless-Override: der Feedback-Dialog beim Stop ist ein MODALER Nutzer-
+    # Dialog (main._trigger_song_stopped) — unbeaufsichtigt wuerde er blockieren.
+    # Er ist reine UX, kein Performance-Pfad, daher fuer den Benchmark aus.
+    s.setValue("feedback/enabled", "false")
     s.sync()
 
 
@@ -176,6 +181,18 @@ def boot(sandbox: Path, perf_logging: bool):
     if str(SRC_DIR) not in sys.path:
         sys.path.insert(0, str(SRC_DIR))
 
+    # Verwaisten Sandbox-Lock entfernen: import main greift auf Modulebene den
+    # Single-Instance-Lock; bleibt von einem abgebrochenen Lauf ein Lock liegen,
+    # zeigt CC eine MODALE MessageBox und blockiert (offscreen fatal). Der
+    # Lock-Name haengt am cwd-Hash (siehe main._acquire_single_instance_lock).
+    import hashlib
+    import tempfile
+    _tag = hashlib.md5(os.path.abspath(str(sandbox)).encode("utf-8", "replace")).hexdigest()[:8]
+    try:
+        os.remove(os.path.join(tempfile.gettempdir(), f"callers_caddy_{_tag}.lock"))
+    except OSError:
+        pass
+
     timings = {}
 
     t0 = time.perf_counter()
@@ -207,6 +224,20 @@ def boot(sandbox: Path, perf_logging: bool):
     QTimer.singleShot(0, window._init_sequences)
     QApplication.processEvents()
     timings["startup_show"] = (time.perf_counter() - t0) * 1000.0
+
+    # Sicherheitsnetz gegen unerwartete MODALE Dialoge (Feedback, Tutorial,
+    # Bestaetigungen ...): ein wiederkehrender Timer schliesst jeden Modal-/
+    # Popup-Dialog sofort. Verhindert Haenger im unbeaufsichtigten Lauf; feuert
+    # auch in verschachtelten exec()-Eventloops.
+    def _dismiss_modals():
+        w = app.activeModalWidget() or app.activePopupWidget()
+        if w is not None:
+            w.close()
+    _guard = QTimer()
+    _guard.setInterval(200)
+    _guard.timeout.connect(_dismiss_modals)
+    _guard.start()
+    window._bench_modal_guard = _guard   # Referenz halten (kein GC)
 
     timings["cc_version"] = cc_main.__version__
     return app, window, timings
@@ -245,96 +276,150 @@ TARGETS = [
     ("singing", "Sounds Of Silence", "sound"),
 ]
 
+# Contains-Filter fuer Schritt 8 (haeufiger Mainstream-Call). Findet er nichts,
+# wird trotzdem die Filter-Operation gemessen (Treffer stehen im meta).
+SEQ_FILTER_TERM = "Square Thru"
+
+
+def _measure(bench: Bench, name, fn, wait_pred=None, timeout_ms=10000):
+    """Fuehrt fn() aus und misst die Wandzeit. Mit wait_pred wird bis zur
+    Bedingung gepumpt (Rueckgabe erreicht?), sonst einmal Events gepumpt.
+    Druckt eine Live-Fortschrittszeile (auch bei --repeat sichtbar)."""
+    print(f"  .. {name} ...", flush=True)
+    import faulthandler
+    faulthandler.dump_traceback_later(60, exit=True)  # Watchdog: Stack bei Haenger
+    t0 = time.perf_counter()
+    fn()
+    ok = bench.wait_until(wait_pred, timeout_ms=timeout_ms) if wait_pred else True
+    if wait_pred is None:
+        bench.pump()
+    faulthandler.cancel_dump_traceback_later()
+    return (time.perf_counter() - t0) * 1000.0, ok
+
+
+def run_interactive(bench: Bench) -> list[dict]:
+    """Schritte 2-8 (ein Durchlauf). Gibt rohe Schritt-Eintraege zurueck (ohne
+    Ausgabe) — scenario() aggregiert bei --repeat den Median."""
+    window = bench.window
+    fb = window.song_list._filter_bar
+    engine = window.player.engine
+    out: list[dict] = []
+
+    # --- Schritt 2: Suche je Referenz-Song (Typ-Filter "Alle") ---------------
+    for name, title_sub, query in TARGETS:
+        fb.edit_search.clear()
+        bench.pump()
+        ms, _ = _measure(bench, f"search_{name}",
+                         lambda q=query: fb.edit_search.setText(q))
+        hits = len(getattr(window.song_list, "_filtered", []) or [])
+        target = find_target_song(window, title_sub)
+        row = row_in_filtered(window, target) if target else -1
+        out.append({"name": f"search_{name}", "ms": ms, "ok": target is not None,
+                    "meta": {"query": query, "treffer": hits, "ziel": title_sub,
+                             "gefunden": target is not None,
+                             "zeile_in_treffern": row}})
+
+    # --- Schritt 3: Song auswaehlen (Patter "Tu Es Foutu") -> laden ----------
+    target = find_target_song(window, TARGETS[0][1])
+    if not target:
+        out.append({"name": "song_select", "ms": 0.0, "ok": False,
+                    "meta": {"grund": f"{TARGETS[0][1]} nicht gefunden"}})
+        return out
+    engine.stop()
+    ms, loaded = _measure(bench, "song_select",
+                          lambda: window._on_song_selected(target.id),
+                          engine.is_loaded, timeout_ms=15000)
+    out.append({"name": "song_select", "ms": ms, "ok": loaded, "meta": {
+        "song": getattr(target, "title", "") or getattr(target, "filename", ""),
+        "geladen": loaded}})
+    if not loaded:
+        out.append({"name": "song_play", "ms": 0.0, "ok": False,
+                    "meta": {"grund": "Datei nicht geladen (MP3 im Musikordner?)"}})
+        return out
+
+    # --- Schritt 4: Play-Latenz (Aufruf -> is_playing) -----------------------
+    # Enthaelt den synchronen play()-Aufwand (Feed + Preprocess + WSOLA-Warmup).
+    ms, playing = _measure(bench, "song_play", window.player._on_play,
+                           engine.is_playing, timeout_ms=10000)
+    out.append({"name": "song_play", "ms": ms, "ok": playing,
+                "meta": {"is_playing": playing}})
+
+    # --- Schritt 5: Stop -----------------------------------------------------
+    ms, stopped = _measure(bench, "song_stop", window.player._on_stop,
+                           lambda: not engine.is_playing(), timeout_ms=5000)
+    out.append({"name": "song_stop", "ms": ms, "ok": stopped,
+                "meta": {"is_playing": engine.is_playing()}})
+
+    # --- Schritt 6: Lokation waehlen (Dialog umgehen -> _set_current_location)
+    locs = window.db.get_all_locations() or []
+    if locs:
+        loc = next((l for l in locs if window._location_program_ids(l)), locs[0])
+        ms, _ = _measure(bench, "location_apply",
+                         lambda: window._set_current_location(loc))
+        out.append({"name": "location_apply", "ms": ms, "ok": True,
+                    "meta": {"lokation": getattr(loc, "name", ""),
+                             "hat_programme": bool(window._location_program_ids(loc))}})
+    else:
+        out.append({"name": "location_apply", "ms": 0.0, "ok": False,
+                    "meta": {"grund": "keine Lokation in DB"}})
+
+    # --- Schritt 7: Sequenz-Widget aufbauen (Reload) -------------------------
+    sw = window.sequences_widget
+    ms, _ = _measure(bench, "sequences_build", sw.load_sequences)
+    seq_count = len(sw.get_filtered_seq_ids() or [])
+    out.append({"name": "sequences_build", "ms": ms, "ok": seq_count > 0,
+                "meta": {"sequenzen": seq_count}})
+
+    # --- Schritt 8: Sequenzen filtern (Contains) -----------------------------
+    ms, _ = _measure(bench, "sequences_filter",
+                     lambda: sw.set_contains_filter(SEQ_FILTER_TERM))
+    filt_count = len(sw.get_filtered_seq_ids() or [])
+    out.append({"name": "sequences_filter", "ms": ms, "ok": True,
+                "meta": {"contains": SEQ_FILTER_TERM, "treffer": filt_count}})
+    sw.set_contains_filter("")   # Filter zuruecksetzen (fuer den naechsten Lauf)
+    bench.pump()
+    return out
+
 
 def scenario(bench: Bench, timings: dict):
-    """Spielt den Nutzer-Ablauf ab. v1: Schritt 1 (Start) + Schritt 2 (Suche
-    je Referenz-Song).
-
-    Schritte 3-8 (Song waehlen, Play, Stop, Lokation, Sequenz-Widget, Filter)
-    folgen inkrementell — jeder mit der beim Bau festgezurrten CC-Naht. Siehe
-    Issue #72 fuer die Gesamtliste.
-    """
+    """Spielt den kompletten Nutzer-Ablauf ab: Schritt 1 (Start, einmalig) +
+    Schritte 2-8 (interaktiv, bei --repeat mehrfach -> Median je Schritt)."""
     window = bench.window
 
-    # --- Schritt 1: App-Start (Teilphasen aus dem Boot) ----------------------
+    # --- Schritt 1: App-Start (Teilphasen aus dem Boot; einmalig) ------------
     for phase in ("startup_qapplication", "startup_import",
                   "startup_window_init", "startup_show"):
         bench.add(phase, timings.get(phase, 0.0))
-    startup_total = sum(timings.get(p, 0.0) for p in
-                        ("startup_qapplication", "startup_import",
-                         "startup_window_init", "startup_show"))
-    bench.add("startup_total", startup_total)
+    bench.add("startup_total", sum(timings.get(p, 0.0) for p in
+              ("startup_qapplication", "startup_import",
+               "startup_window_init", "startup_show")))
 
-    # sicherstellen, dass die Songliste steht
     bench.wait_until(lambda: getattr(window.song_list, "_all_songs", None)
                      is not None, timeout_ms=3000)
-    song_count = len(getattr(window.song_list, "_all_songs", []) or [])
-    if not song_count:
+    if not len(getattr(window.song_list, "_all_songs", []) or []):
         bench.add("songlist_search", 0.0, ok=False,
                   meta={"grund": "keine Songs in DB"})
         return
 
-    # --- Schritt 2: Suche in der Songliste (je Referenz-Song) ----------------
-    # Typ-Filter bleibt auf "Alle" (Default), damit Patter UND Singing sichtbar
-    # sind. Zwischen den Suchen wird das Suchfeld geleert.
-    fb = window.song_list._filter_bar
-    for name, title_sub, query in TARGETS:
-        fb.edit_search.clear()
-        bench.pump()
-        t0 = time.perf_counter()
-        fb.edit_search.setText(query)     # loest synchron _apply_filter aus
-        bench.pump()
-        dt = (time.perf_counter() - t0) * 1000.0
-        hits = len(getattr(window.song_list, "_filtered", []) or [])
-        target = find_target_song(window, title_sub)
-        row = row_in_filtered(window, target) if target else -1
-        bench.add(f"search_{name}", dt, ok=(target is not None), meta={
-            "query": query, "treffer": hits,
-            "ziel": title_sub, "gefunden": target is not None,
-            "zeile_in_treffern": row,
-        })
+    # --- Schritte 2-8: interaktiv, N-fach -> Median --------------------------
+    n = max(1, bench.repeat)
+    runs = [run_interactive(bench) for _ in range(n)]
 
-    # --- Schritt 3+4: Song auswaehlen + Play (Patter "Tu Es Foutu") ----------
-    # Keine neue CC-Naht: wir rufen die vorhandenen Callbacks und pollen
-    # engine.is_loaded() / engine.is_playing() (beide Zustaende existieren).
-    _select_and_play(bench, TARGETS[0][1])   # ("Tu Es Foutu")
-
-
-def _select_and_play(bench: Bench, title_sub: str):
-    window = bench.window
-    engine = window.player.engine
-    target = find_target_song(window, title_sub)
-    if not target:
-        bench.add("song_select", 0.0, ok=False, meta={"grund": f"{title_sub} nicht gefunden"})
-        return
-
-    # Schritt 3: Auswahl (wie ein Klick in der Liste) -> laedt die Datei.
-    # engine.load() ist synchron (sf.read), is_loaded() flippt danach sofort.
-    engine.stop()  # sicherer Ausgangszustand
-    t0 = time.perf_counter()
-    window._on_song_selected(target.id)      # Songliste-Callback (1:1 wie Klick)
-    loaded = bench.wait_until(engine.is_loaded, timeout_ms=15000)
-    dt = (time.perf_counter() - t0) * 1000.0
-    bench.add("song_select", dt, ok=loaded, meta={
-        "song": getattr(target, "title", "") or getattr(target, "filename", ""),
-        "geladen": loaded,
-    })
-    if not loaded:
-        bench.add("song_play", 0.0, ok=False, meta={"grund": "Datei nicht geladen (MP3 im Musikordner?)"})
-        return
-
-    # Schritt 4: Play-Latenz (Aufruf -> is_playing). Enthaelt den synchronen
-    # play()-Aufwand (Feed + Preprocess + WSOLA-Warmup) — nah an der gefuehlten
-    # Startverzoegerung. Ohne konfigurierte Rules laeuft der Orchestrator direkt.
-    t0 = time.perf_counter()
-    window.player._on_play()                 # Play-Button-Pfad (Orchestrator)
-    playing = bench.wait_until(engine.is_playing, timeout_ms=10000)
-    dt = (time.perf_counter() - t0) * 1000.0
-    bench.add("song_play", dt, ok=playing, meta={"is_playing": playing})
-
-    # Aufraeumen: Stream stoppen (Schritt 5 "Stop" wird spaeter eigens gemessen).
-    engine.stop()
-    bench.pump(50)
+    order = [e["name"] for e in runs[0]]
+    by_name: dict[str, list] = {}
+    for r in runs:
+        for e in r:
+            by_name.setdefault(e["name"], []).append(e)
+    for name in order:
+        entries = by_name.get(name, [])
+        samples = [e["ms"] for e in entries]
+        med = statistics.median(samples) if samples else 0.0
+        ok = all(e["ok"] for e in entries)
+        meta = dict(entries[-1].get("meta") or {})
+        if n > 1:
+            meta["n"] = n
+            meta["samples_ms"] = [round(s, 1) for s in samples]
+        bench.add(name, med, ok=ok, meta=meta)
 
 
 # --- Report ------------------------------------------------------------------

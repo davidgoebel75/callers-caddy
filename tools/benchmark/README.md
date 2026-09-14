@@ -59,6 +59,12 @@ absolut gegen den Quellordner aufgelöst, weil das Arbeitsverzeichnis wechselt.
 
 > Play (Schritt 4) öffnet damit das **echte Audiogerät** und gibt kurz Ton aus.
 
+**Headless-Ausnahmen:** Rein interaktive Modal-Dialoge lassen sich unbeaufsichtigt
+nicht fahren. Daher setzt der Runner `feedback/enabled=false` (der Feedback-Dialog
+beim Stop ist UX, kein Performance-Pfad) und hält einen Timer bereit, der
+unerwartete Modal-/Popup-Dialoge (Tutorial, Bestätigungen …) automatisch
+schließt. Ein Watchdog dumpt zudem den Stack, falls ein Schritt >60 s hängt.
+
 ## Szenario-Schritte
 
 | # | Schritt | Status |
@@ -67,10 +73,14 @@ absolut gegen den Quellordner aufgelöst, weil das Arbeitsverzeichnis wechselt.
 | 2 | Songliste: Suche je Referenz-Song | ✅ v1 |
 | 3 | Song auswählen (Tu Es Foutu) → laden | ✅ v1 |
 | 4 | Play (Play-Latenz bis `is_playing`) | ✅ v1 |
-| 5 | Stop | ⏳ folgt |
-| 6 | Lokation wählen | ⏳ folgt |
-| 7 | Sequenz-Widget aufbauen | ⏳ folgt |
-| 8 | Sequenzen filtern | ⏳ folgt |
+| 5 | Stop (bis `is_playing`=false) | ✅ v1 |
+| 6 | Lokation wählen (`_set_current_location`, Dialog umgangen) | ✅ v1 |
+| 7 | Sequenz-Widget aufbauen (`load_sequences`) | ✅ v1 |
+| 8 | Sequenzen filtern (Contains) | ✅ v1 |
+
+Mit `--repeat N` werden die interaktiven Schritte (2–8) N-mal gefahren und je
+Schritt der **Median** berichtet (`meta.samples_ms` listet die Einzelwerte);
+Schritt 1 (Start) bleibt einmalig, da der Prozess einmal hochfährt.
 
 Jeder weitere Schritt wird inkrementell ergänzt; die dafür nötige CC-Naht wird
 beim Bau im Issue #72 dokumentiert.
