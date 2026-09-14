@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.157"
+__version__ = "0.158"
 
 import sys
 import os

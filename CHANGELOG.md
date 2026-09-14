@@ -6,7 +6,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
-## (Unreleased — seit 0.157)
+## 0.158 — Fokus-Rahmen, Medley-Auto-Sync & Fenster-Positionen (2026-09-14)
 
 ### Verbesserungen
 - **Höhere Tanzprogramme haken die darunterliegenden jetzt automatisch mit an.** Wählte man bisher nur ein höheres Programm (z. B. „Plus 2026"), ohne das darunterliegende („Mainstream 2026"), blieb die Sequenzliste leer – es gibt schlicht keine Sequenz ohne die tieferen Calls. Jetzt genügt ein Klick auf das gewünschte Programm: Die tieferen Programme derselben Reihe werden automatisch mitgewählt (z. B. „Plus 2026" → auch „Mainstream 2026"; „A2" und höher greifen auf die 2026er-Programme zu). Die alten Programme (Basic, Mainstream, Plus, A1 ohne „2026") nutzen weiterhin ihre eigene Reihe inklusive der Basics. Nicht Benötigtes lässt sich jederzeit wieder abwählen.
