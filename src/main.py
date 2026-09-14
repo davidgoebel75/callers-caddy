@@ -5993,7 +5993,8 @@ class P29MainWindow(QMainWindow):
             _json.dump(rows, f, ensure_ascii=False, indent=2)
         QMessageBox.information(
             self, _t("mapping_export_title"),
-            _t("mapping_export_ok", count=len(rows))
+            # BL-210: eine Zeile je Figur -> Zuordnungen = Call-Texte zaehlen
+            _t("mapping_export_ok", count=len({r["call_text"] for r in rows}))
         )
 
     def _on_mapping_import(self):
