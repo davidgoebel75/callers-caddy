@@ -127,6 +127,13 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QTimeEdit {
     selection-color: {{selection_text}};
 }
 
+/* #70: Sichtbarer Fokus-Rahmen auf editierbaren Feldern (gleiche Breite -> kein Layout-Versatz) */
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus, QTimeEdit:focus,
+QComboBox:editable:focus {
+    border: 1px solid {{focus_border}};
+}
+
 QLineEdit:read-only {
     background-color: {{muted_bg}};
     color: {{muted_text}};

@@ -131,8 +131,11 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QTimeEdit {
     selection-color: {{selection_text}};
 }
 
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QTimeEdit:focus {
-    border-color: {{button_bg}};
+/* #70: Sichtbarer Fokus-Rahmen auf editierbaren Feldern (gleiche Breite -> kein Layout-Versatz) */
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus, QTimeEdit:focus,
+QComboBox:editable:focus {
+    border: 1px solid {{focus_border}};
 }
 
 QLineEdit:read-only {
@@ -236,9 +239,7 @@ QComboBox {
     padding: 3px 8px;
 }
 
-QComboBox:focus {
-    border-color: {{button_bg}};
-}
+/* #70: editierbarer Combobox-Fokus jetzt zentral oben (QComboBox:editable:focus) */
 
 QComboBox::drop-down {
     background-color: {{title_bg}};
