@@ -394,6 +394,10 @@ class RuleEngine:
         if not rule.id:
             rule.id = f"usr_{int(time.time() * 1000)}"
         self._rules_user.append(rule)
+        # Neuen Trigger sofort registrieren, sonst feuert eine frisch angelegte
+        # Tasten-Regel (z.B. key_s) erst nach App-Neustart (der eventFilter prueft
+        # trigger_name in registry.triggers). Methode ist idempotent.
+        self._register_missing_triggers()
         self.save_user_rules()
         self._notify_rules_changed()
 
@@ -403,6 +407,8 @@ class RuleEngine:
             if r.id == rule.id:
                 self._rules_user[i] = rule
                 break
+        # Geaenderten Trigger sofort registrieren (analog add_user_rule).
+        self._register_missing_triggers()
         self.save_user_rules()
         self._notify_rules_changed()
 

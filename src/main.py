@@ -6646,14 +6646,20 @@ class P29MainWindow(QMainWindow):
         space.activated.connect(self._on_key_space)
 
     def _is_text_input_focused(self) -> bool:
-        """Prueft ob aktuell ein Widget den Fokus hat, das Tasteneingaben braucht.
+        """Prueft, ob ein Widget Fokus hat, in das gerade TEXT getippt wird.
 
-        Neben Texteingabe-Widgets auch QTableWidget/QListWidget (Type-to-Search).
+        Nur echte Texteingabe sperrt Buchstaben-Hotkeys (C-1, #68): QLineEdit,
+        QPlainTextEdit, QTextEdit, Spinboxen und EDITIERBARE Comboboxen. Tabellen,
+        Listen und das read-only Lyrics-Fenster (QTextBrowser) sperren NICHT mehr —
+        dort soll eine belegte Taste die Regel ausloesen statt Type-to-Search.
+        Nicht belegte Tasten fallen weiterhin durch: der eventFilter feuert nur,
+        wenn der Trigger registriert ist, sonst bekommt das Widget die Taste.
         """
         w = QApplication.focusWidget()
+        if isinstance(w, QComboBox):
+            return w.isEditable()
         return isinstance(w, (
-            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextBrowser,
-            QPlainTextEdit, QTextEdit, QTableWidget, QListWidget,
+            QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit,
         ))
 
     def _on_key_space(self):
@@ -6682,7 +6688,11 @@ class P29MainWindow(QMainWindow):
         if isinstance(obj, QComboBox) and opens_combo_popup(event):
             widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
-            if event.modifiers() == Qt.NoModifier:
+            # #68: Buchstaben-Hotkeys sollen unabhaengig von Gross-/Kleinschreibung
+            # feuern — Shift zusaetzlich zu NoModifier zulassen (event.text().lower()
+            # normalisiert den Trigger-Namen, sodass L wie l wirkt). Ctrl/Alt bleiben
+            # ausgeschlossen, damit echte Shortcuts nicht abgefangen werden.
+            if event.modifiers() in (Qt.NoModifier, Qt.ShiftModifier):
                 key_code = event.key()
 
                 # F13-F24: haben keinen event.text() — direkt ueber key_code abfangen
