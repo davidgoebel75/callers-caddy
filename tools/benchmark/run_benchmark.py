@@ -173,24 +173,41 @@ def boot(sandbox: Path, perf_logging: bool):
 
 # --- Szenario-Schritte -------------------------------------------------------
 
-def pick_pattern_target(window):
-    """Waehlt einen Patter-Song, der NICHT ganz oben steht (fuer realistische
-    Suche/Selektion). Rueckgabe: (song, suchbegriff) oder (None, "")."""
-    songs = list(getattr(window.song_list, "_all_songs", []) or [])
-    patter = [s for s in songs if getattr(s, "is_pattern", False)]
-    pool = patter or songs
-    if not pool:
-        return None, ""
-    # bewusst nicht Index 0: irgendwo in der Mitte
-    target = pool[len(pool) // 2] if len(pool) > 1 else pool[0]
-    title = (getattr(target, "title", "") or getattr(target, "filename", "")).strip()
-    # ein markanter Teilstring als Suchbegriff (erstes laengeres Wort)
-    query = next((w for w in title.split() if len(w) >= 4), title[:6])
-    return target, query
+def find_target_song(window, title_sub: str):
+    """Sucht einen Song per Titel-Teilstring (case-insensitive) in der geladenen
+    Liste. Default-Ziel ist "Sounds Of Silence": voll gepflegt (Lyrics, Sync,
+    Sequenzen) und weit genug unten fuer eine realistische Suche. Rueckgabe:
+    Song oder None."""
+    tl = title_sub.lower().strip()
+    for s in getattr(window.song_list, "_all_songs", []) or []:
+        t = (getattr(s, "title", "") or getattr(s, "filename", "") or "")
+        if tl in t.lower():
+            return s
+    return None
+
+
+def row_in_filtered(window, song) -> int:
+    """Position des Songs in der aktuell gefilterten Liste (0-basiert) oder -1."""
+    sid = getattr(song, "id", None)
+    for idx, s in enumerate(getattr(window.song_list, "_filtered", []) or []):
+        if getattr(s, "id", None) == sid:
+            return idx
+    return -1
+
+
+# Feste Referenz-Songs (voll gepflegt, weit genug unten fuer echte Suche):
+#   ("Kurzname", Titel-Teilstring, Suchbegriff)
+# - Patter:  "Tu Es Foutu"       (Suche "tu"    -> ~12 Treffer)
+# - Singing: "Sounds Of Silence" (Suche "sound" -> ~3 Treffer; Lyrics/Sync/Seq)
+TARGETS = [
+    ("patter",  "Tu Es Foutu",       "tu"),
+    ("singing", "Sounds Of Silence", "sound"),
+]
 
 
 def scenario(bench: Bench, timings: dict):
-    """Spielt den Nutzer-Ablauf ab. v1: Schritt 1 (Start) + Schritt 2 (Suche).
+    """Spielt den Nutzer-Ablauf ab. v1: Schritt 1 (Start) + Schritt 2 (Suche
+    je Referenz-Song).
 
     Schritte 3-8 (Song waehlen, Play, Stop, Lokation, Sequenz-Widget, Filter)
     folgen inkrementell — jeder mit der beim Bau festgezurrten CC-Naht. Siehe
@@ -211,27 +228,30 @@ def scenario(bench: Bench, timings: dict):
     bench.wait_until(lambda: getattr(window.song_list, "_all_songs", None)
                      is not None, timeout_ms=3000)
     song_count = len(getattr(window.song_list, "_all_songs", []) or [])
-
-    # --- Schritt 2: Suche in der Songliste -----------------------------------
-    fb = window.song_list._filter_bar
-    # auf Patter filtern (wie ein Klick auf den Radio-Button)
-    t0 = time.perf_counter()
-    fb.set_type_filter(1)   # 1 = Patter
-    bench.pump()
-    bench.add("songlist_filter_patter", (time.perf_counter() - t0) * 1000.0,
-              meta={"songs_total": song_count})
-
-    target, query = pick_pattern_target(window)
-    if not query:
+    if not song_count:
         bench.add("songlist_search", 0.0, ok=False,
                   meta={"grund": "keine Songs in DB"})
         return
-    t0 = time.perf_counter()
-    fb.edit_search.setText(query)     # loest synchron _apply_filter aus
-    bench.pump()
-    hits = len(getattr(window.song_list, "_filtered", []) or [])
-    bench.add("songlist_search", (time.perf_counter() - t0) * 1000.0,
-              meta={"query": query, "treffer": hits})
+
+    # --- Schritt 2: Suche in der Songliste (je Referenz-Song) ----------------
+    # Typ-Filter bleibt auf "Alle" (Default), damit Patter UND Singing sichtbar
+    # sind. Zwischen den Suchen wird das Suchfeld geleert.
+    fb = window.song_list._filter_bar
+    for name, title_sub, query in TARGETS:
+        fb.edit_search.clear()
+        bench.pump()
+        t0 = time.perf_counter()
+        fb.edit_search.setText(query)     # loest synchron _apply_filter aus
+        bench.pump()
+        dt = (time.perf_counter() - t0) * 1000.0
+        hits = len(getattr(window.song_list, "_filtered", []) or [])
+        target = find_target_song(window, title_sub)
+        row = row_in_filtered(window, target) if target else -1
+        bench.add(f"search_{name}", dt, ok=(target is not None), meta={
+            "query": query, "treffer": hits,
+            "ziel": title_sub, "gefunden": target is not None,
+            "zeile_in_treffern": row,
+        })
 
 
 # --- Report ------------------------------------------------------------------

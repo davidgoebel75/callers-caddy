@@ -54,7 +54,7 @@ cwd) kollidiert nicht mit einer echten laufenden Instanz.
 | # | Schritt | Status |
 |---|---------|--------|
 | 1 | App-Start (Teilphasen: QApplication, Import, Window-Init, Show) | ✅ v1 |
-| 2 | Songliste: Patter-Filter + Suche | ✅ v1 |
+| 2 | Songliste: Suche je Referenz-Song | ✅ v1 |
 | 3 | Song auswählen (nicht ganz oben) | ⏳ folgt |
 | 4 | Play (Play-Latenz) | ⏳ folgt |
 | 5 | Stop | ⏳ folgt |
@@ -64,6 +64,19 @@ cwd) kollidiert nicht mit einer echten laufenden Instanz.
 
 Jeder weitere Schritt wird inkrementell ergänzt; die dafür nötige CC-Naht wird
 beim Bau im Issue #72 dokumentiert.
+
+### Referenz-Songs
+
+Feste, voll gepflegte Songs (Lyrics/Sync/Sequenzen), weit genug unten für eine
+realistische Suche — in `TARGETS` (oben in `run_benchmark.py`) definiert:
+
+| Typ | Titel | Suchbegriff | ~Treffer |
+|-----|-------|-------------|----------|
+| Patter | Tu Es Foutu | `tu` | ~12 |
+| Singing | Sounds Of Silence | `sound` | ~3 |
+
+Setzt eine DB voraus, die diese Songs enthält (Davids Bestand). Fehlt ein Song,
+wird der Schritt als `ok:false` markiert und läuft weiter.
 
 ## Hinweis zu den Startup-Zahlen
 
