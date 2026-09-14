@@ -912,6 +912,10 @@ class SongDatabase:
         self._backfill_calls_json()  # Option C: calls_json aus field_1..15 fuellen
         self._ensure_sequence_calls_index()  # enthält-Filter-Index sicherstellen
         self.reseed_reference_data()  # MS50: gebuendelte Referenz einspielen (einmalig)
+        # BL-210: Reste aelterer Versionen (kennen call_text_figures_extra nicht)
+        # bei jedem Start aufraeumen, nicht erst beim naechsten Referenz-Update
+        self._normalize_call_text_figures()
+        self._conn.commit()
         self._backfill_auto_mappings_once()  # heilt ungemappte Massenimporte (einmalig)
         print(f"[SongDB] Datenbank geoeffnet: {db_path}")
 
@@ -3268,7 +3272,11 @@ class SongDatabase:
         - Zusatzzeilen ohne Hauptfigur oder gleich der Hauptfigur fallen weg
         - die hoechste Figur steht (wieder) in call_text_mappings
         Betrifft nur Texte mit Zusatzzeilen; mapped_by bleibt erhalten.
+        Ohne Zusatzzeilen ein billiger No-Op (laeuft bei jedem Start).
         """
+        if self._conn.execute(
+                "SELECT 1 FROM call_text_figures_extra LIMIT 1").fetchone() is None:
+            return
         self._conn.execute(
             "DELETE FROM call_text_figures_extra WHERE NOT EXISTS ("
             "SELECT 1 FROM call_text_mappings m "

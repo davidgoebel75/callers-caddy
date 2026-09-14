@@ -253,3 +253,34 @@ def test_schreiben_weiterer_figuren_erhoeht_cache_zaehler(db):
 
     # Die Zeile in call_text_figures_extra muss den Zaehler zusaetzlich erhoehen
     assert mit_zusatzfigur > einzeln
+
+
+def test_reste_einer_aelteren_version_werden_beim_start_aufgeraeumt(tmp_path):
+    from song_db import SongDatabase
+
+    path = str(tmp_path / "gemischt.db")
+    db = SongDatabase(path)
+    db.set_call_text_figures("Chase Right & Roll", [CHASE_RIGHT, ANYTHING_AND_ROLL])
+    db.set_call_text_figures("Clover and Partner Tag",
+                             [CLOVER_AND_ANYTHING, PARTNER_TAG])
+    # Ausnahme vom Nur-API-Grundsatz: So schreibt eine aeltere Version, die die
+    # Zusatztabelle nicht kennt. Sie loescht nur die Hauptzeile bzw. ordnet sie
+    # auf eine andere Figur um.
+    db._conn.execute(
+        "DELETE FROM call_text_mappings WHERE call_text = 'Chase Right & Roll'")
+    db._conn.execute(
+        "UPDATE call_text_mappings SET entity_id = 'call_swing_thru' "
+        "WHERE call_text = 'Clover and Partner Tag'")
+    db._conn.commit()
+    db.close()
+
+    db = SongDatabase(path)   # kein Referenz-Update, nur ein normaler Start
+    try:
+        # geloescht: die verwaiste weitere Figur ist weg
+        assert db.get_call_text_figures("Chase Right & Roll") == []
+        # umgeordnet: neue Figur bleibt, die hoechste steht wieder vorn
+        assert db.get_entity_for_call_text("Clover and Partner Tag") == PARTNER_TAG
+        assert db.get_call_text_figures("Clover and Partner Tag") == [
+            PARTNER_TAG, "call_swing_thru"]
+    finally:
+        db.close()
