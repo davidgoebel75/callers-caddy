@@ -146,7 +146,9 @@ def register_v1_definitions(engine: RuleEngine):
     reg.add_action("toggle_loop_active", "Toggle Loop Active", {}, group="Audio")
 
     # Layout & Docks
-    reg.add_action("dock_open",  "Open Widget",     {"dock_name": {"type": "dock_choice"}}, group="Layout & Docks")
+    reg.add_action("dock_open",  "Open Widget",     {"dock_name": {"type": "dock_choice"},
+                   "open_position": {"type": "choice", "choices": ["centered", "last"],
+                                     "default": "centered"}}, group="Layout & Docks")
     reg.add_action("dock_close", "Close Widget",    {"dock_name": {"type": "dock_choice"}}, group="Layout & Docks")
     reg.add_action("dock_focus", "Focus Widget",    {"dock_name": {"type": "dock_choice"}}, group="Layout & Docks")
     # BL-176: wie Focus Widget, aber setzt zusaetzlich den Mauszeiger in die Mitte
