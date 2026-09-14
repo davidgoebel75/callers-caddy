@@ -1,0 +1,4 @@
+# Benchmark-Laufdaten sind lokal/maschinenabhaengig — nicht einchecken.
+# (Baselines bei Bedarf bewusst mit -f hinzufuegen.)
+results/
+.sandbox/
