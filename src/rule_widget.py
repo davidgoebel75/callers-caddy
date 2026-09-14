@@ -28,6 +28,7 @@ from wheel_guard import install_wheel_guard
 # {"label": "..."} auch selbst ein Label vorgeben (hat Vorrang).
 PARAM_LABELS = {
     "dock_name":    "Widget",
+    "open_position": "Open position",
     "dock_left":    "Left widget",
     "dock_right":   "Right widget",
     "width_pct":    "Width %",

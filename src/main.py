@@ -2312,10 +2312,13 @@ class P29MainWindow(QMainWindow):
             location = dialog.get_selected_location()
             self._set_current_location(location)
 
-    def _toggle_dock(self, dock):
+    def _toggle_dock(self, dock, open_position="centered"):
         """Echtes Show/Hide-Toggle fuer ein Dock-Widget.
 
-        - Nicht sichtbar: Als loses Fenster zentriert oeffnen.
+        - Nicht sichtbar: Als loses Fenster oeffnen. open_position steuert die
+          Platzierung (#66): "centered" = ueber dem Hauptfenster zentrieren
+          (bisheriges Verhalten); "last" = NICHT zentrieren, sodass die vom
+          floatgeom-System gemerkte letzte Position greift.
         - Sichtbar, aber als hinterer Tab versteckt: In den Vordergrund holen.
         - Sichtbar und im Vordergrund (oder floating): Ausblenden.
 
@@ -2334,13 +2337,15 @@ class P29MainWindow(QMainWindow):
             t = perf_split(f"_toggle_dock({name}): setFloating(True)", t)
             dock.show()
             t = perf_split(f"_toggle_dock({name}): show()", t)
-            # Zentrieren ueber dem Hauptfenster
-            main_geo = self.geometry()
-            dock_size = dock.size()
-            x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
-            y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
-            dock.move(x, y)
-            perf_split(f"_toggle_dock({name}): move()", t)
+            if open_position == "centered":
+                # Zentrieren ueber dem Hauptfenster
+                main_geo = self.geometry()
+                dock_size = dock.size()
+                x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
+                y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
+                dock.move(x, y)
+                perf_split(f"_toggle_dock({name}): move()", t)
+            # "last": kein move() -> floatgeom-System stellt die letzte Position her
             perf_log(f"_toggle_dock({name}): TOTAL open", t0)
         elif not dock.isFloating() and dock.visibleRegion().isEmpty():
             # Sichtbar, aber als hinterer Tab im Stapel — nach vorne holen
@@ -2359,7 +2364,8 @@ class P29MainWindow(QMainWindow):
 
     def _on_manager_button_clicked(self):
         _t0 = perf_start()
-        self._toggle_dock(self.dock_manager)
+        self._toggle_dock(self.dock_manager,
+                          self._button_open_position(self.dock_manager))
         _t = perf_split("_on_manager_button_clicked: _toggle_dock", _t0)
         # Nur wenn der Planner jetzt sichtbar ist: Sortierung vorwaehlen und fokussieren
         if self.dock_manager.isVisible():
@@ -2392,7 +2398,8 @@ class P29MainWindow(QMainWindow):
             t.setCurrentCell(0, 0)
 
     def _on_lyrics_button_clicked(self):
-        self._toggle_dock(self.dock_lyrics)
+        self._toggle_dock(self.dock_lyrics,
+                          self._button_open_position(self.dock_lyrics))
 
     @staticmethod
     def _parse_program_ids(raw) -> list:
@@ -3975,11 +3982,58 @@ class P29MainWindow(QMainWindow):
                 m[name] = dock
         return m
 
+    def _dock_shortname(self, dock) -> str:
+        """Kehrt _dock_map um: QDockWidget -> Kurzname (wie in Regeln benutzt)."""
+        for name, d in self._dock_map().items():
+            if d is dock:
+                return name
+        return ""
+
+    def _button_open_position(self, dock) -> str:
+        """#66: Ein On-Screen-Button (Lyrics/Planner) erbt die Oeffnen-Position
+        aus einer AKTIVEN 'dock_open'-Regel fuer genau dieses Dock. Gibt es keine
+        solche Regel, bleibt es beim bisherigen Verhalten 'centered'. So wirkt der
+        Schalter aus der Regelaktion auch auf den Button, ohne eigenen Speicher.
+        """
+        engine = getattr(self, "rule_engine", None)
+        if engine is None:
+            return "centered"
+        name = self._dock_shortname(dock)
+        if not name:
+            return "centered"
+        for rule in engine.get_merged_rules():
+            if not rule.active:
+                continue
+            for action in rule.actions:
+                if (action.type == "dock_open"
+                        and action.params.get("dock_name") == name):
+                    return action.params.get("open_position", "centered")
+        return "centered"
+
     def _rule_dock_open(self, params: dict):
         dock = self._dock_map().get(params.get("dock_name", ""))
-        if dock:
+        if not dock:
+            return
+        # #66: "centered" -> als loses Fenster ueber dem Hauptfenster zentrieren;
+        # "last" (Default fuer Alt-Regeln ohne Key) -> bisheriges Verhalten, nur
+        # sichtbar machen und nach vorne holen (floatgeom haelt die Position).
+        if params.get("open_position", "last") == "centered":
+            self._toggle_dock_open_centered(dock)
+        else:
             dock.setVisible(True)
             dock.raise_()
+
+    def _toggle_dock_open_centered(self, dock):
+        """Oeffnet ein Dock als zentriertes Floating-Fenster (gemeinsame Logik
+        fuer _toggle_dock 'centered' und die Regelaktion dock_open 'centered')."""
+        dock.setFloating(True)
+        dock.show()
+        main_geo = self.geometry()
+        dock_size = dock.size()
+        x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
+        y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
+        dock.move(x, y)
+        dock.raise_()
 
     def _rule_dock_close(self, params: dict):
         dock = self._dock_map().get(params.get("dock_name", ""))
@@ -6336,6 +6390,7 @@ class P29MainWindow(QMainWindow):
     _FLOAT_TOOL_DOCK_ATTRS = (
         "dock_manager", "dock_loop_finder", "dock_photo", "dock_evening_planner",
         "dock_break", "dock_rules", "dock_reports", "dock_potential", "dock_stats",
+        "dock_lyrics",  # #66: letzte Floating-Position auch ueber Neustart halten
     )
 
     def _floating_tool_docks(self):
