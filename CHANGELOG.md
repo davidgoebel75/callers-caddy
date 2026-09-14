@@ -14,6 +14,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Sync-Marken auf den letzten Zeilen langer Songs werden wieder angezeigt.** Bei Liedern mit vielen Sync-Punkten (z. B. mehrfach getanzten Figuren) fehlten die Zeit-Marken auf den hintersten Textzeilen, obwohl sie gesetzt waren (der Rechtsklick zeigte sie weiterhin). Sie werden jetzt korrekt an allen Zeilen eingeblendet.
+- **Neu angelegte Tasten-Regeln reagieren sofort – ohne Neustart.** Wies man einer Regel eine bisher unbenutzte Taste zu (z. B. „S"), löste sie erst nach einem Neustart der App aus. Der Auslöser wird jetzt direkt beim Speichern aktiv.
 
 ---
 
