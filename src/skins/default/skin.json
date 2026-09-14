@@ -20,6 +20,7 @@
         "input_bg":        "#404040",
         "input_text":      "#f0f0f0",
         "input_border":    "#555555",
+        "focus_border":    "#8f8cc9",
         "selection_bg":    "#615f8b",
         "selection_text":  "#ffffff",
         "warning":         "#ef4444",

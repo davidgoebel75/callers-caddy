@@ -18,6 +18,7 @@
     "input_bg": "#0b2942",
     "input_text": "#d6deeb",
     "input_border": "#1b4b73",
+    "focus_border": "#4db8e8",
     "selection_bg": "#1d3b53",
     "selection_text": "#ffffff",
     "warning": "#ff5874",

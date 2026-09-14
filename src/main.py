@@ -6688,6 +6688,17 @@ class P29MainWindow(QMainWindow):
         if isinstance(obj, QComboBox) and opens_combo_popup(event):
             widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
+            # #70: Escape gibt den Fokus aus einem Textfeld frei -> zurueck in den
+            # Hotkey-Modus. Nur wenn wirklich ein Textfeld Fokus hat und KEIN
+            # modaler Dialog offen ist (dort schliesst Esc weiter den Dialog).
+            if (event.key() == Qt.Key_Escape
+                    and not QApplication.activeModalWidget()
+                    and self._is_text_input_focused()):
+                w = QApplication.focusWidget()
+                if w is not None:
+                    w.clearFocus()
+                    return True
+
             # #68: Buchstaben-Hotkeys sollen unabhaengig von Gross-/Kleinschreibung
             # feuern — Shift zusaetzlich zu NoModifier zulassen (event.text().lower()
             # normalisiert den Trigger-Namen, sodass L wie l wirkt). Ctrl/Alt bleiben
