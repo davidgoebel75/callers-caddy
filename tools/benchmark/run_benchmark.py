@@ -87,10 +87,42 @@ class Bench:
 
 # --- Sandbox / Boot ----------------------------------------------------------
 
-def prepare_sandbox(db_path: str | None, perf_logging: bool) -> Path:
+def _clone_settings_ini(source_ini: Path, sandbox: Path, source_dir: Path,
+                        perf_logging: bool):
+    """Klont die echte INI in die Sandbox — "Erstbevoelkerung" mit GENAU den
+    Einstellungen des Quellordners (z.B. 2_Test), damit die Messung dem
+    entspricht, was der Nutzer im Alltag erlebt (Audio-Geraet, MMCSS,
+    Feed-Ahead, Skin, Layout ...).
+
+    Einzige Anpassung: relative Pfade unter [paths] werden absolut gegen den
+    Quellordner aufgeloest — weil das Arbeitsverzeichnis wechselt und sie sonst
+    ins leere Sandbox-Verzeichnis zeigen wuerden (Musik/Lyrics nicht gefunden).
+    """
+    from PySide6.QtCore import QSettings
+    dst = sandbox / "callers_caddy.ini"
+    shutil.copy2(source_ini, dst)   # verbatim (gleiches QSettings-INI-Format)
+
+    s = QSettings(str(dst), QSettings.IniFormat)
+    s.beginGroup("paths")
+    for key in s.childKeys():
+        raw = s.value(key, "")
+        if isinstance(raw, str) and raw and not os.path.isabs(raw):
+            s.setValue(key, os.path.abspath(os.path.join(str(source_dir), raw)))
+    s.endGroup()
+    # Sprache sicherstellen (kein Erststart-Dialog) + Perf-Logging nach Flag.
+    if not s.contains("display/language"):
+        s.setValue("display/language", "de")
+    s.setValue("debug/performance_logging", "true" if perf_logging else "false")
+    s.sync()
+
+
+def prepare_sandbox(db_path: str | None, settings_ini: str | None,
+                    perf_logging: bool) -> Path:
     """Legt ein frisches Sandbox-Arbeitsverzeichnis an und praepariert DB + INI.
 
-    Rueckgabe: der Sandbox-Pfad (wird zum cwd der App).
+    Die INI wird aus dem echten Quellordner geklont (Default: Geschwister-INI
+    der --db, sonst --settings). Fehlt eine Quelle, wird eine minimale INI
+    geschrieben. Rueckgabe: der Sandbox-Pfad (wird zum cwd der App).
     """
     if SANDBOX_DIR.exists():
         shutil.rmtree(SANDBOX_DIR, ignore_errors=True)
@@ -106,20 +138,29 @@ def prepare_sandbox(db_path: str | None, perf_logging: bool) -> Path:
             raise SystemExit(f"--db nicht gefunden: {src}")
         shutil.copy2(src, SANDBOX_DIR / "callers_caddy.db")
 
-    # Minimale INI: Sprache setzen (unterdrueckt den Erststart-Sprachdialog, der
-    # nur in main() kaeme — wir bauen das Fenster aber direkt), Musikordner,
-    # Perf-Logging optional.
-    ini = SANDBOX_DIR / "callers_caddy.ini"
-    ini.write_text(
-        "[display]\n"
-        "language=de\n"
-        "skin=default\n"
-        "[paths]\n"
-        "music_dir_1=music\n"
-        "[debug]\n"
-        f"performance_logging={'true' if perf_logging else 'false'}\n",
-        encoding="utf-8",
-    )
+    # INI-Quelle bestimmen: explizit via --settings, sonst neben der --db.
+    source_ini = None
+    if settings_ini:
+        source_ini = Path(settings_ini)
+        if not source_ini.is_file():
+            raise SystemExit(f"--settings nicht gefunden: {source_ini}")
+    elif db_path:
+        cand = Path(db_path).resolve().parent / "callers_caddy.ini"
+        if cand.is_file():
+            source_ini = cand
+
+    if source_ini:
+        print(f"  INI geklont aus: {source_ini}")
+        _clone_settings_ini(source_ini, SANDBOX_DIR, source_ini.resolve().parent,
+                            perf_logging)
+    else:
+        # Fallback: minimale INI (kein Quellordner vorhanden).
+        (SANDBOX_DIR / "callers_caddy.ini").write_text(
+            "[display]\nlanguage=de\nskin=default\n"
+            "[paths]\nmusic_dir_1=music\n"
+            f"[debug]\nperformance_logging={'true' if perf_logging else 'false'}\n",
+            encoding="utf-8",
+        )
     return SANDBOX_DIR
 
 
@@ -253,6 +294,48 @@ def scenario(bench: Bench, timings: dict):
             "zeile_in_treffern": row,
         })
 
+    # --- Schritt 3+4: Song auswaehlen + Play (Patter "Tu Es Foutu") ----------
+    # Keine neue CC-Naht: wir rufen die vorhandenen Callbacks und pollen
+    # engine.is_loaded() / engine.is_playing() (beide Zustaende existieren).
+    _select_and_play(bench, TARGETS[0][1])   # ("Tu Es Foutu")
+
+
+def _select_and_play(bench: Bench, title_sub: str):
+    window = bench.window
+    engine = window.player.engine
+    target = find_target_song(window, title_sub)
+    if not target:
+        bench.add("song_select", 0.0, ok=False, meta={"grund": f"{title_sub} nicht gefunden"})
+        return
+
+    # Schritt 3: Auswahl (wie ein Klick in der Liste) -> laedt die Datei.
+    # engine.load() ist synchron (sf.read), is_loaded() flippt danach sofort.
+    engine.stop()  # sicherer Ausgangszustand
+    t0 = time.perf_counter()
+    window._on_song_selected(target.id)      # Songliste-Callback (1:1 wie Klick)
+    loaded = bench.wait_until(engine.is_loaded, timeout_ms=15000)
+    dt = (time.perf_counter() - t0) * 1000.0
+    bench.add("song_select", dt, ok=loaded, meta={
+        "song": getattr(target, "title", "") or getattr(target, "filename", ""),
+        "geladen": loaded,
+    })
+    if not loaded:
+        bench.add("song_play", 0.0, ok=False, meta={"grund": "Datei nicht geladen (MP3 im Musikordner?)"})
+        return
+
+    # Schritt 4: Play-Latenz (Aufruf -> is_playing). Enthaelt den synchronen
+    # play()-Aufwand (Feed + Preprocess + WSOLA-Warmup) — nah an der gefuehlten
+    # Startverzoegerung. Ohne konfigurierte Rules laeuft der Orchestrator direkt.
+    t0 = time.perf_counter()
+    window.player._on_play()                 # Play-Button-Pfad (Orchestrator)
+    playing = bench.wait_until(engine.is_playing, timeout_ms=10000)
+    dt = (time.perf_counter() - t0) * 1000.0
+    bench.add("song_play", dt, ok=playing, meta={"is_playing": playing})
+
+    # Aufraeumen: Stream stoppen (Schritt 5 "Stop" wird spaeter eigens gemessen).
+    engine.stop()
+    bench.pump(50)
+
 
 # --- Report ------------------------------------------------------------------
 
@@ -297,6 +380,8 @@ def write_report(bench: Bench, timings: dict, sandbox: Path, out_dir: Path) -> P
 def main():
     ap = argparse.ArgumentParser(description="Callers-Caddy Performance-Benchmark")
     ap.add_argument("--db", help="Pfad zur zu testenden DB (leer = leere DB)")
+    ap.add_argument("--settings", help="INI, aus der die Einstellungen geklont "
+                    "werden (Default: callers_caddy.ini neben --db)")
     ap.add_argument("--label", default="", help="Label fuer den Lauf (ins JSON)")
     ap.add_argument("--repeat", type=int, default=1,
                     help="Anzahl Durchlaeufe (Median-Auswertung folgt)")
@@ -311,7 +396,7 @@ def main():
     print(f"  DB:    {args.db or '(leer)'}")
     print(f"  Label: {args.label or '(kein)'}\n")
 
-    sandbox = prepare_sandbox(args.db, args.perf_log)
+    sandbox = prepare_sandbox(args.db, args.settings, args.perf_log)
     app, window, timings = boot(sandbox, args.perf_log)
     bench = Bench(app, window, args.label, args.repeat)
 

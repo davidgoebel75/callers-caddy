@@ -49,14 +49,24 @@ Sandbox-cwd (`.sandbox/`) an, kopiert die gewünschte DB dort als
 Damit ist `--db` frei wählbar, und der Single-Instance-Lock (hängt ebenfalls am
 cwd) kollidiert nicht mit einer echten laufenden Instanz.
 
+## „Erstbevölkerung" der Sandbox = echte Einstellungen
+
+Damit die Zahlen dem entsprechen, was im Alltag **gefühlt** erlebt wird, klont
+der Runner die echte INI des Quellordners (Default: `callers_caddy.ini` neben
+`--db`, überschreibbar mit `--settings`) — also Audio-Gerät, MMCSS, Feed-Ahead,
+Skin, Layout usw. Einzige Anpassung: relative `[paths]` (Musik, Lyrics …) werden
+absolut gegen den Quellordner aufgelöst, weil das Arbeitsverzeichnis wechselt.
+
+> Play (Schritt 4) öffnet damit das **echte Audiogerät** und gibt kurz Ton aus.
+
 ## Szenario-Schritte
 
 | # | Schritt | Status |
 |---|---------|--------|
 | 1 | App-Start (Teilphasen: QApplication, Import, Window-Init, Show) | ✅ v1 |
 | 2 | Songliste: Suche je Referenz-Song | ✅ v1 |
-| 3 | Song auswählen (nicht ganz oben) | ⏳ folgt |
-| 4 | Play (Play-Latenz) | ⏳ folgt |
+| 3 | Song auswählen (Tu Es Foutu) → laden | ✅ v1 |
+| 4 | Play (Play-Latenz bis `is_playing`) | ✅ v1 |
 | 5 | Stop | ⏳ folgt |
 | 6 | Lokation wählen | ⏳ folgt |
 | 7 | Sequenz-Widget aufbauen | ⏳ folgt |
