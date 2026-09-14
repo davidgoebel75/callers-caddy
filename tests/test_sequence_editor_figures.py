@@ -40,9 +40,11 @@ def picker_double(monkeypatch):
     antwort = {"ids": [], "ergebnis": QDialog.Accepted}
 
     class _Picker:
-        def __init__(self, entities, selected=(), parent=None, allow_split=False):
+        def __init__(self, entities, selected=(), parent=None, allow_split=False,
+                     unknown_ids=()):
             aufrufe.append({"entities": list(entities), "selected": list(selected),
-                            "allow_split": allow_split})
+                            "allow_split": allow_split,
+                            "unknown_ids": set(unknown_ids)})
 
         def setWindowTitle(self, title):
             pass
@@ -218,3 +220,22 @@ def test_figur_ohne_programm_bleibt_beim_ok_erhalten(editor, db, monkeypatch):
     _doppelklick(edit, 0)
 
     assert db.get_call_text_figures(MENGE) == [CHASE_RIGHT, legacy]
+
+
+def test_verwaiste_figur_ist_markiert_und_stoert_das_speichern_nicht(
+        editor, picker_double, db):
+    aufrufe, antwort = picker_double
+    # Altbestand wie auf der Prod-DB: auto-Zuordnung auf eine ID ohne calls-Zeile
+    db._conn.execute("PRAGMA foreign_keys=OFF")
+    db._conn.execute(
+        "INSERT INTO call_text_mappings (call_text, entity_id, mapped_by) "
+        "VALUES (?, 'action_face_in', 'auto')", (MENGE,))
+    db._conn.commit()
+    db._conn.execute("PRAGMA foreign_keys=ON")
+    antwort["ids"] = ["action_face_in", CHASE_RIGHT]   # Haken bleibt, Figur dazu
+    edit = editor([MENGE])
+
+    _doppelklick(edit, 0)   # frueher: IntegrityError aus dem Qt-Slot
+
+    assert aufrufe[0]["unknown_ids"] == {"action_face_in"}
+    assert db.get_call_text_figures(MENGE) == [CHASE_RIGHT]

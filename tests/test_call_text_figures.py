@@ -131,13 +131,41 @@ def test_fehlgeschlagenes_setzen_laesst_alte_menge_stehen(db):
 
     db.set_call_text_figures("Chase Right & Roll", [CHASE_RIGHT, ANYTHING_AND_ROLL])
 
-    # Unbekannte Figur verletzt den Fremdschluessel auf calls -> ganz oder gar nicht
-    with pytest.raises(sqlite3.IntegrityError):
+    # Ausnahme vom Nur-API-Grundsatz: Schreibfehler mitten in der Menge, per
+    # TEMP-Trigger erzwungen (Hauptzeile ist schon ersetzt) -> ganz oder gar nicht
+    db._conn.execute(
+        "CREATE TEMP TRIGGER test_abbruch BEFORE INSERT ON call_text_figures_extra "
+        "BEGIN SELECT RAISE(ABORT, 'Testabbruch'); END")
+    with pytest.raises(sqlite3.DatabaseError):
         db.set_call_text_figures("Chase Right & Roll",
-                                 [CHASE_RIGHT, "call_gibt_es_nicht"])
+                                 [CHASE_RIGHT, CLOVER_AND_ANYTHING])
 
     assert db.get_call_text_figures("Chase Right & Roll") == [
         CHASE_RIGHT, ANYTHING_AND_ROLL]
+
+
+def _verwaiste_zuordnung(db, call_text, entity_id):
+    """Altbestand wie auf der Prod-DB: auto-Zuordnung auf eine ID ohne
+    calls-Zeile, geschrieben ohne Fremdschluessel. Ausnahme vom
+    Nur-API-Grundsatz, ueber die API entsteht dieser Zustand nicht mehr."""
+    db._conn.execute("PRAGMA foreign_keys=OFF")
+    db._conn.execute(
+        "INSERT INTO call_text_mappings (call_text, entity_id, mapped_by) "
+        "VALUES (?, ?, 'auto')", (call_text, entity_id))
+    db._conn.commit()
+    db._conn.execute("PRAGMA foreign_keys=ON")
+
+
+def test_figur_ohne_calls_zeile_faellt_beim_schreiben_weg(db):
+    _verwaiste_zuordnung(db, "Girls Face In & Chase Right", "action_face_in")
+
+    assert db.unknown_figures(["action_face_in", CHASE_RIGHT]) == {"action_face_in"}
+
+    # Frueher: IntegrityError "FOREIGN KEY constraint failed"
+    db.set_call_text_figures("Girls Face In & Chase Right",
+                             ["action_face_in", CHASE_RIGHT])
+
+    assert db.get_call_text_figures("Girls Face In & Chase Right") == [CHASE_RIGHT]
 
 
 def test_bulk_setzen_und_alle_mengen_lesen(db):

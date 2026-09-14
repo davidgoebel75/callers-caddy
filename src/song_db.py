@@ -3195,15 +3195,33 @@ class SongDatabase:
             for ct, figs in groups.items()
         }
 
+    def unknown_figures(self, entity_ids) -> set[str]:
+        """entity_ids ohne Zeile in calls.
+
+        Solche Zuordnungen stammen aus Altbestaenden, die ohne Fremdschluessel
+        geschrieben wurden (Prod-DB: 65 auto-Zuordnungen, z.B. action_face_in).
+        Neu schreiben laesst die DB sie nicht: set_call_text_figures laesst sie
+        weg, der Picker markiert sie.
+        """
+        ids = list(dict.fromkeys(e for e in entity_ids if e))
+        if not ids:
+            return set()
+        placeholders = ",".join("?" * len(ids))
+        known = {r[0] for r in self._conn.execute(
+            f"SELECT entity_id FROM calls WHERE entity_id IN ({placeholders})", ids)}
+        return set(ids) - known
+
     def _write_call_text_figures(self, call_text: str, entity_ids,
                                  mapped_by: str):
         """Schreibt die Figuren-Menge eines Call-Texts OHNE commit.
 
         Hoechste Figur nach call_text_mappings, Rest nach
         call_text_figures_extra, alte Zusatzzeilen weg. Leere Menge entfernt
-        die Zuordnung.
+        die Zuordnung. Figuren ohne calls-Zeile fallen weg.
         """
-        ranked = self._rank_figures(entity_ids)
+        entity_ids = [e for e in entity_ids if e]
+        unknown = self.unknown_figures(entity_ids)
+        ranked = self._rank_figures(e for e in entity_ids if e not in unknown)
         self._conn.execute(
             "DELETE FROM call_text_figures_extra WHERE call_text = ?",
             (call_text,))
@@ -3226,8 +3244,9 @@ class SongDatabase:
         """Setzt die Figuren-Menge eines Call-Texts (ersetzt die bisherige).
 
         Leere Liste entfernt die Zuordnung (wie delete_call_text_mapping).
-        Eine Transaktion: schlaegt ein Schreibschritt fehl (z.B. unbekannte
-        Figur), bleibt die bisherige Menge vollstaendig stehen.
+        Figuren ohne calls-Zeile fallen weg (siehe unknown_figures). Eine
+        Transaktion: schlaegt ein Schreibschritt fehl, bleibt die bisherige
+        Menge vollstaendig stehen.
         """
         try:
             self._write_call_text_figures(call_text, entity_ids, mapped_by)

@@ -38,11 +38,12 @@ ENTITIES = [
 def make_picker(qapp):
     dialogs = []
 
-    def _make(entities=ENTITIES, selected=(), allow_split=False):
+    def _make(entities=ENTITIES, selected=(), allow_split=False, unknown_ids=()):
         from sequences_widget import CallFiguresPickerDialog
 
         dlg = CallFiguresPickerDialog(entities, selected=selected,
-                                      allow_split=allow_split)
+                                      allow_split=allow_split,
+                                      unknown_ids=unknown_ids)
         dialogs.append(dlg)
         return dlg
 
@@ -160,6 +161,16 @@ def test_zugeordnete_figur_ausserhalb_der_liste_bleibt_angehakt(make_picker):
     assert dlg.selected_entity_ids() == [CHASE_RIGHT]
 
 
+def test_figur_ohne_calls_zeile_ist_als_unbekannt_markiert(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT, "action_face_in"],
+                      unknown_ids={"action_face_in"})
+    lst = dlg.findChild(QListWidget)
+
+    assert lst.item(0).text() == \
+        f"[action_face_in] ({_t('call_mapping_picker_unknown')})"
+    assert dlg.selected_entity_ids() == ["action_face_in", CHASE_RIGHT]
+
+
 # ---------------------------------------------------- Call-Mapping-Dialog ----
 
 MENGE = "Chase Right & Roll"          # beim Oeffnen schon mit zwei Figuren
@@ -240,9 +251,11 @@ def picker_double(monkeypatch):
     antwort = {"ids": [], "split": False}
 
     class _Picker:
-        def __init__(self, entities, selected=(), parent=None, allow_split=False):
+        def __init__(self, entities, selected=(), parent=None, allow_split=False,
+                     unknown_ids=()):
             aufrufe.append({"entities": list(entities), "selected": list(selected),
-                            "allow_split": allow_split})
+                            "allow_split": allow_split,
+                            "unknown_ids": set(unknown_ids)})
 
         def setWindowTitle(self, title):
             pass

@@ -2081,7 +2081,8 @@ class SequenceEditorDialog(QDialog):
         entities = [(f"{cname}  [{prog}]" if prog else cname, eid)
                     for eid, cname, _to, prog in self.db.get_teaching_order_calls()
                     if not cname.startswith("--")]
-        dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self)
+        dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
+                                      unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
         if dlg.exec() != QDialog.Accepted:
             return True
@@ -3094,9 +3095,12 @@ class CallFiguresPickerDialog(QDialog):
         selected: vorab angehakte entity_ids; ids ohne Eintrag in entities
             erscheinen ganz oben als eigener Haken "[entity_id]"
         allow_split: zeigt "An Komma aufteilen" (nur Call-Mapping-Dialog)
+        unknown_ids: ids ohne calls-Zeile (SongDatabase.unknown_figures); ihr
+            Haken zeigt "(unbekannt)", beim Speichern fallen sie weg
     """
 
-    def __init__(self, entities, selected=(), parent=None, allow_split=False):
+    def __init__(self, entities, selected=(), parent=None, allow_split=False,
+                 unknown_ids=()):
         super().__init__(parent)
         self.setWindowTitle(_t("seq_map_picker_title"))
         self.setMinimumSize(440, 520)
@@ -3114,8 +3118,10 @@ class CallFiguresPickerDialog(QDialog):
         # Zeile) als eigene Haken fuehren: sonst loeschte schon ein OK ohne
         # Aenderung sie stillschweigend. Abhaken bleibt moeglich.
         known = {eid for _label, eid in entities}
-        unknown = [(f"[{eid}]", eid) for eid in dict.fromkeys(selected or ())
-                   if eid not in known]
+        unknown_ids = set(unknown_ids)
+        unknown = [(f"[{eid}] ({_t('call_mapping_picker_unknown')})"
+                    if eid in unknown_ids else f"[{eid}]", eid)
+                   for eid in dict.fromkeys(selected or ()) if eid not in known]
         first_checked = None
         # entity_id -> Eintraege in Listen-Reihenfolge. Haken und Anzeige laufen
         # darueber statt ueber alle ~760 Eintraege (Main-Thread, je Klick).
@@ -3758,7 +3764,8 @@ class CallMappingDialog(QDialog):
         if current == (self._SPLIT,):
             current = ()
         dlg = CallFiguresPickerDialog(self._entity_list, selected=current,
-                                      parent=self, allow_split=True)
+                                      parent=self, allow_split=True,
+                                      unknown_ids=self.db.unknown_figures(current))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=item0.data(Qt.UserRole)))
         if dlg.exec() != QDialog.Accepted:
             return

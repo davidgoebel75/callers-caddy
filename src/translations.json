@@ -3210,6 +3210,11 @@
     "en": "Selected: {names}",
     "ja": "Selected: {names}"
   },
+  "call_mapping_picker_unknown": {
+    "de": "unbekannt",
+    "en": "unknown",
+    "ja": "不明"
+  },
   "call_mapping_save": {
     "de": "Speichern",
     "en": "Save",
