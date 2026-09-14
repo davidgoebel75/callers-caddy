@@ -1,0 +1,365 @@
+"""Mehrfach-Picker fuer Figuren-Mengen im Call-Mapping (BL-210.4).
+
+Der Picker wird ausschliesslich ueber seine Seam getestet
+(selected_entity_ids, split_requested, visible_entity_ids, set_search_text)
+und ueber sichtbare Qt-Bausteine (Haken-Liste, Knoepfe) — keine privaten
+Attribute.
+
+Der Call-Mapping-Dialog laeuft gegen eine frische tmp-DB mit echter Referenz
+(reference_calls.json). Dort wird der Picker durch ein Double gegen dieselbe
+Seam ersetzt, weil exec() im Test blockieren wuerde.
+"""
+import time
+
+import pytest
+from PySide6.QtCore import QItemSelectionModel, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import (
+    QApplication, QComboBox, QDialog, QListWidget, QPushButton, QTableWidget,
+)
+
+from i18n import _t
+
+
+CHASE_RIGHT = "call_chase_right"                  # fruehestens 39.0029
+ANYTHING_AND_ROLL = "concept_anything_and_roll"   # fruehestens 39.0012
+ALLEMANDE_RIGHT = "call_allemande_right"          # fruehestens 30.000402
+ALLEMANDE_THAR = "call_allemande_thar"            # fruehestens 29.005301
+
+ENTITIES = [
+    ("Allemande Thar  [Mainstream]", ALLEMANDE_THAR),
+    ("Allemande Right  [Mainstream (2026)]", ALLEMANDE_RIGHT),
+    ("(Anything) & Roll  [Plus]", ANYTHING_AND_ROLL),
+    ("Chase Right  [Plus]", CHASE_RIGHT),
+]
+
+
+@pytest.fixture
+def make_picker(qapp):
+    dialogs = []
+
+    def _make(entities=ENTITIES, selected=(), allow_split=False, unknown_ids=()):
+        from sequences_widget import CallFiguresPickerDialog
+
+        dlg = CallFiguresPickerDialog(entities, selected=selected,
+                                      allow_split=allow_split,
+                                      unknown_ids=unknown_ids)
+        dialogs.append(dlg)
+        return dlg
+
+    yield _make
+    for dlg in dialogs:
+        dlg.close()
+        dlg.deleteLater()
+
+
+def _haken_umschalten(dlg, label):
+    """Wie ein Nutzer: Eintrag in der Haken-Liste waehlen, Leertaste."""
+    lst = dlg.findChild(QListWidget)
+    item = lst.findItems(label, Qt.MatchExactly)[0]
+    lst.setCurrentItem(item)
+    QTest.keyClick(lst, Qt.Key_Space)
+
+
+def _knoepfe(dlg, text):
+    return [b for b in dlg.findChildren(QPushButton) if b.text() == text]
+
+
+# --------------------------------------------------------------- Picker ----
+
+def test_startet_mit_der_bestehenden_menge_angehakt(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT, ALLEMANDE_THAR])
+
+    # Listen-Reihenfolge, nicht die Reihenfolge der Vorauswahl
+    assert dlg.selected_entity_ids() == [ALLEMANDE_THAR, CHASE_RIGHT]
+    assert dlg.split_requested() is False
+
+
+def test_haken_setzen_und_entfernen_liefert_die_menge(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT])
+
+    _haken_umschalten(dlg, "(Anything) & Roll  [Plus]")
+    assert dlg.selected_entity_ids() == [ANYTHING_AND_ROLL, CHASE_RIGHT]
+
+    _haken_umschalten(dlg, "Chase Right  [Plus]")
+    assert dlg.selected_entity_ids() == [ANYTHING_AND_ROLL]
+
+    _haken_umschalten(dlg, "(Anything) & Roll  [Plus]")
+    assert dlg.selected_entity_ids() == []   # leere Menge = keine Zuordnung
+
+
+def test_split_knopf_liefert_den_split_weg_statt_einer_menge(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT], allow_split=True)
+    (split,) = _knoepfe(dlg, _t("call_mapping_split"))
+
+    split.click()
+
+    assert dlg.result() == QDialog.Accepted
+    assert dlg.split_requested() is True
+
+
+def test_split_knopf_gibt_es_nur_mit_allow_split(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT])
+
+    assert _knoepfe(dlg, _t("call_mapping_split")) == []
+
+
+def test_suchfeld_filtert_und_haken_bleiben_erhalten(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT])
+
+    dlg.set_search_text("allemande")   # Gross/klein egal, Teiltreffer
+    assert dlg.visible_entity_ids() == [ALLEMANDE_THAR, ALLEMANDE_RIGHT]
+    lst = dlg.findChild(QListWidget)
+    assert lst.findItems("Chase Right  [Plus]", Qt.MatchExactly)[0].isHidden()
+
+    _haken_umschalten(dlg, "Allemande Right  [Mainstream (2026)]")
+    # Der ausgeblendete Haken bei Chase Right zaehlt weiter
+    assert dlg.selected_entity_ids() == [ALLEMANDE_RIGHT, CHASE_RIGHT]
+
+    dlg.set_search_text("& ROLL")
+    assert dlg.visible_entity_ids() == [ANYTHING_AND_ROLL]
+
+    dlg.set_search_text("")
+    assert dlg.visible_entity_ids() == [
+        ALLEMANDE_THAR, ALLEMANDE_RIGHT, ANYTHING_AND_ROLL, CHASE_RIGHT]
+    assert dlg.selected_entity_ids() == [ALLEMANDE_RIGHT, CHASE_RIGHT]
+
+
+def test_figur_aus_zwei_programmen_zaehlt_einmal(make_picker):
+    # Die Referenz fuehrt eine Figur je Programm (Chase Right: Plus und
+    # Plus (2026)) — beide Eintraege sind dieselbe Figur.
+    entities = ENTITIES + [("Chase Right  [Plus (2026)]", CHASE_RIGHT)]
+    dlg = make_picker(entities=entities)
+    lst = dlg.findChild(QListWidget)
+
+    _haken_umschalten(dlg, "Chase Right  [Plus (2026)]")
+    assert dlg.selected_entity_ids() == [CHASE_RIGHT]
+    assert lst.findItems("Chase Right  [Plus]", Qt.MatchExactly)[0] \
+        .checkState() == Qt.Checked
+
+    dlg.set_search_text("chase")
+    assert dlg.visible_entity_ids() == [CHASE_RIGHT]
+
+    _haken_umschalten(dlg, "Chase Right  [Plus]")
+    assert dlg.selected_entity_ids() == []
+
+
+def test_zugeordnete_figur_ausserhalb_der_liste_bleibt_angehakt(make_picker):
+    # Figur ohne call_programs-Zeile: zugeordnet, aber nicht in der Liste.
+    # Ohne eigenen Eintrag ginge sie beim OK stillschweigend verloren.
+    legacy = "call_legacy_figure"
+    dlg = make_picker(selected=[CHASE_RIGHT, legacy])
+    lst = dlg.findChild(QListWidget)
+
+    assert lst.item(0).text() == f"[{legacy}]"   # ganz oben
+    assert dlg.selected_entity_ids() == [legacy, CHASE_RIGHT]
+
+    dlg.set_search_text("legacy")
+    assert dlg.visible_entity_ids() == [legacy]
+
+    _haken_umschalten(dlg, f"[{legacy}]")   # bewusst abhaken
+    assert dlg.selected_entity_ids() == [CHASE_RIGHT]
+
+
+def test_figur_ohne_calls_zeile_ist_als_unbekannt_markiert(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT, "action_face_in"],
+                      unknown_ids={"action_face_in"})
+    lst = dlg.findChild(QListWidget)
+
+    assert lst.item(0).text() == \
+        f"[action_face_in] ({_t('call_mapping_picker_unknown')})"
+    assert dlg.selected_entity_ids() == ["action_face_in", CHASE_RIGHT]
+
+
+# ---------------------------------------------------- Call-Mapping-Dialog ----
+
+MENGE = "Chase Right & Roll"          # beim Oeffnen schon mit zwei Figuren
+KOMMA = "Allemande Thar, Chase Right"  # Kandidat fuer den Split-Weg
+
+
+@pytest.fixture
+def db(tmp_path):
+    from song_db import SongDatabase
+
+    d = SongDatabase(str(tmp_path / "t.db"))
+    d.insert_sequence([MENGE, "Allemande Thar", "Chase Right"])
+    d.insert_sequence([KOMMA])
+    d.set_call_text_figures(MENGE, [CHASE_RIGHT, ANYTHING_AND_ROLL])
+    yield d
+    d.close()
+
+
+def _warte_bis(bedingung, timeout_s=15.0):
+    ende = time.monotonic() + timeout_s
+    while not bedingung():
+        assert time.monotonic() < ende, "Zeitueberschreitung"
+        QApplication.processEvents()
+        time.sleep(0.01)
+
+
+def _zelle(table, call_text):
+    """Figur-Zelle (Spalte 2) zur Zeile des Call-Texts — ueber das Item, weil
+    die sortierte Tabelle Zeilen verschiebt."""
+    treffer = [it for it in table.findItems(call_text, Qt.MatchExactly)
+               if it.column() == 0]
+    return table.item(treffer[0].row(), 2) if treffer else None
+
+
+def _filter(dlg, wert):
+    combo = dlg.findChild(QComboBox)
+    combo.setCurrentIndex(combo.findData(wert))
+
+
+def _doppelklick(table, item):
+    # Wie beim Nutzer: erster Klick, dann der Doppelklick. Ein nacktes
+    # mouseDClick ohne vorherigen Klick verwirft QAbstractItemView (kein
+    # passender pressedIndex) -> doubleClicked kaeme nie.
+    table.scrollToItem(item)
+    pos = table.visualItemRect(item).center()
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    QTest.mouseDClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+
+
+def _klick(dlg, key):
+    (knopf,) = _knoepfe(dlg, _t(key))
+    knopf.click()
+
+
+@pytest.fixture
+def mapping(qapp, db, monkeypatch):
+    import sequences_widget
+
+    monkeypatch.setattr(sequences_widget.QMessageBox, "information",
+                        lambda *a, **k: None)
+    dlg = sequences_widget.CallMappingDialog(db)
+    dlg.show()
+    table = dlg.findChild(QTableWidget)
+    # Geladen, und der Auto-Vorschlag fuer "Allemande Thar" steht in der Zelle
+    _warte_bis(lambda: _zelle(table, "Allemande Thar") is not None
+               and _zelle(table, "Allemande Thar").text().startswith("Allemande Thar"))
+    yield dlg, table
+    dlg.close()
+    dlg.deleteLater()
+
+
+@pytest.fixture
+def picker_double(monkeypatch):
+    """Ersetzt den Picker; ``antwort`` legt fest, was der Nutzer waehlt."""
+    import sequences_widget
+
+    aufrufe = []
+    antwort = {"ids": [], "split": False}
+
+    class _Picker:
+        def __init__(self, entities, selected=(), parent=None, allow_split=False,
+                     unknown_ids=()):
+            aufrufe.append({"entities": list(entities), "selected": list(selected),
+                            "allow_split": allow_split,
+                            "unknown_ids": set(unknown_ids)})
+
+        def setWindowTitle(self, title):
+            pass
+
+        def exec(self):
+            return QDialog.Accepted
+
+        def selected_entity_ids(self):
+            return list(antwort["ids"])
+
+        def split_requested(self):
+            return antwort["split"]
+
+    monkeypatch.setattr(sequences_widget, "CallFiguresPickerDialog", _Picker)
+    return aufrufe, antwort
+
+
+def test_mapping_zeigt_die_menge_mit_mehrfach_markierung(mapping):
+    dlg, table = mapping
+    _filter(dlg, "all")
+
+    text = _zelle(table, MENGE).text()
+    assert "+1" in text
+    assert "Chase Right" in text
+    assert "(Anything) & Roll" in text
+
+
+def test_mapping_doppelklick_oeffnet_picker_und_speichert_die_menge(
+        mapping, picker_double, db):
+    dlg, table = mapping
+    aufrufe, antwort = picker_double
+    _filter(dlg, "all")
+    antwort["ids"] = [ALLEMANDE_THAR, ANYTHING_AND_ROLL]
+
+    _doppelklick(table, _zelle(table, MENGE))
+
+    (aufruf,) = aufrufe
+    assert aufruf["selected"] == [CHASE_RIGHT, ANYTHING_AND_ROLL]
+    assert aufruf["allow_split"] is True
+    ids = [eid for _label, eid in aufruf["entities"]]
+    assert CHASE_RIGHT in ids
+    assert None not in ids
+    assert "__SPLIT_COMMA__" not in ids
+    text = _zelle(table, MENGE).text()
+    assert "+1" in text
+    assert "Allemande Thar" in text
+
+    _klick(dlg, "call_mapping_save")
+
+    # 39.0012 (Anything & Roll) liegt hoeher als 29.005301 (Allemande Thar)
+    assert db.get_call_text_figures(MENGE) == [ANYTHING_AND_ROLL, ALLEMANDE_THAR]
+
+
+def test_mapping_ohne_haken_entfernt_die_zuordnung(mapping, picker_double, db):
+    dlg, table = mapping
+    _aufrufe, antwort = picker_double
+    _filter(dlg, "all")
+    antwort["ids"] = []
+
+    _doppelklick(table, _zelle(table, MENGE))
+    _klick(dlg, "call_mapping_save")
+
+    assert db.get_call_text_figures(MENGE) == []
+
+
+def test_mapping_split_im_picker_teilt_beim_speichern(mapping, picker_double, db):
+    dlg, table = mapping
+    _aufrufe, antwort = picker_double
+    antwort["split"] = True
+
+    _doppelklick(table, _zelle(table, KOMMA))
+    assert _zelle(table, KOMMA).text() == _t("call_mapping_split")
+    _klick(dlg, "call_mapping_save")
+
+    assert db.get_sequence_ids_with_call_text(KOMMA) == []
+    assert db.get_call_text_figures(KOMMA) == []
+
+
+def test_mapping_auto_vorschlag_gilt_beim_speichern_nicht_als_aenderung(mapping, db):
+    dlg, _table = mapping
+
+    _klick(dlg, "call_mapping_save")
+
+    assert db.get_call_text_figures("Allemande Thar") == []
+    assert db.get_call_text_figures(MENGE) == [CHASE_RIGHT, ANYTHING_AND_ROLL]
+
+
+def test_mapping_bestaetigen_schreibt_die_auswahl_der_zeilen(
+        mapping, picker_double, db):
+    dlg, table = mapping
+    _aufrufe, antwort = picker_double
+    antwort["ids"] = [CHASE_RIGHT, ANYTHING_AND_ROLL]
+    _doppelklick(table, _zelle(table, "Chase Right"))   # Menge statt Vorschlag
+
+    table.clearSelection()
+    for text in ("Allemande Thar", "Chase Right"):
+        table.selectionModel().select(
+            table.model().index(_zelle(table, text).row(), 0),
+            QItemSelectionModel.Select | QItemSelectionModel.Rows)
+    _klick(dlg, "call_mapping_confirm_selected")
+
+    assert db.get_call_text_figures("Allemande Thar") == [ALLEMANDE_THAR]
+    assert db.get_call_text_figures("Chase Right") == [CHASE_RIGHT, ANYTHING_AND_ROLL]
+    # Filter "Nicht gemappt": bestaetigte Zeilen fallen ohne Voll-Reload weg
+    assert _zelle(table, "Allemande Thar") is None
+    assert _zelle(table, "Chase Right") is None
+    assert _zelle(table, KOMMA) is not None

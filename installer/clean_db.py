@@ -149,6 +149,9 @@ def clean_db():
         # MS50-Perf: persistenter Band-Cover-Cache (nur Sequenz-IDs, kein
         # Nutzerinhalt); oben geleert, baut sich beim Start neu auf.
         "_band_cover",
+        # BL-210: weitere Figuren je Call-Text (Figuren-Mengen). Referenzdaten
+        # wie call_text_mappings, bleibt erhalten.
+        "call_text_figures_extra",
     }
     unknown = [t for (t,) in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'") if t not in known]
