@@ -1,0 +1,260 @@
+{
+  "run": {
+    "timestamp": "2026-09-14T21:51:59",
+    "cc_version": "0.158",
+    "label": "baseline",
+    "repeat": 5
+  },
+  "env": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10"
+  },
+  "steps": [
+    {
+      "name": "startup_qapplication",
+      "ms": 17.7,
+      "ok": true
+    },
+    {
+      "name": "startup_import",
+      "ms": 531.2,
+      "ok": true
+    },
+    {
+      "name": "startup_window_init",
+      "ms": 236.3,
+      "ok": true
+    },
+    {
+      "name": "startup_show",
+      "ms": 56.9,
+      "ok": true
+    },
+    {
+      "name": "startup_total",
+      "ms": 842.1,
+      "ok": true
+    },
+    {
+      "name": "search_patter",
+      "ms": 4.7,
+      "ok": true,
+      "meta": {
+        "query": "tu",
+        "treffer": 13,
+        "ziel": "Tu Es Foutu",
+        "gefunden": true,
+        "zeile_in_treffern": 12,
+        "n": 5,
+        "samples_ms": [
+          5.5,
+          4.1,
+          4.7,
+          4.7,
+          4.6
+        ]
+      }
+    },
+    {
+      "name": "search_singing",
+      "ms": 3.4,
+      "ok": true,
+      "meta": {
+        "query": "sound",
+        "treffer": 3,
+        "ziel": "Sounds Of Silence",
+        "gefunden": true,
+        "zeile_in_treffern": 2,
+        "n": 5,
+        "samples_ms": [
+          3.0,
+          3.4,
+          3.4,
+          3.0,
+          3.5
+        ]
+      }
+    },
+    {
+      "name": "song_select",
+      "ms": 232.5,
+      "ok": true,
+      "meta": {
+        "song": "Tu Es Foutu",
+        "geladen": true,
+        "n": 5,
+        "samples_ms": [
+          223.5,
+          228.0,
+          237.4,
+          235.7,
+          232.5
+        ]
+      }
+    },
+    {
+      "name": "song_play",
+      "ms": 18.8,
+      "ok": true,
+      "meta": {
+        "is_playing": true,
+        "n": 5,
+        "samples_ms": [
+          24.5,
+          18.8,
+          16.9,
+          19.4,
+          18.5
+        ]
+      }
+    },
+    {
+      "name": "song_stop",
+      "ms": 0.5,
+      "ok": true,
+      "meta": {
+        "is_playing": false,
+        "n": 5,
+        "samples_ms": [
+          0.5,
+          0.5,
+          0.4,
+          0.6,
+          0.4
+        ]
+      }
+    },
+    {
+      "name": "location_apply",
+      "ms": 16.7,
+      "ok": true,
+      "meta": {
+        "lokation": "A Test",
+        "hat_programme": true,
+        "n": 5,
+        "samples_ms": [
+          35.4,
+          16.5,
+          16.0,
+          16.7,
+          18.1
+        ]
+      }
+    },
+    {
+      "name": "sequences_build",
+      "ms": 5.0,
+      "ok": true,
+      "meta": {
+        "sequenzen": 744,
+        "n": 5,
+        "samples_ms": [
+          5.9,
+          4.8,
+          5.1,
+          5.0,
+          4.4
+        ]
+      }
+    },
+    {
+      "name": "sequences_filter",
+      "ms": 22.6,
+      "ok": true,
+      "meta": {
+        "contains": "Square Thru",
+        "treffer": 412,
+        "n": 5,
+        "samples_ms": [
+          22.6,
+          21.5,
+          22.1,
+          22.7,
+          23.2
+        ]
+      }
+    },
+    {
+      "name": "song_select_singing",
+      "ms": 192.0,
+      "ok": true,
+      "meta": {
+        "song": "Sounds Of Silence",
+        "geladen": true,
+        "n": 5,
+        "samples_ms": [
+          195.7,
+          192.0,
+          188.5,
+          194.6,
+          191.6
+        ]
+      }
+    },
+    {
+      "name": "song_play_singing",
+      "ms": 18.6,
+      "ok": true,
+      "meta": {
+        "is_playing": true,
+        "n": 5,
+        "samples_ms": [
+          19.5,
+          18.7,
+          18.6,
+          18.2,
+          17.4
+        ]
+      }
+    },
+    {
+      "name": "song_stop_singing",
+      "ms": 0.4,
+      "ok": true,
+      "meta": {
+        "is_playing": false,
+        "n": 5,
+        "samples_ms": [
+          0.4,
+          0.4,
+          0.5,
+          0.5,
+          0.4
+        ]
+      }
+    },
+    {
+      "name": "lyrics_dynamic_on",
+      "ms": 20.4,
+      "ok": true,
+      "meta": {
+        "aktiviert": true,
+        "gating": null,
+        "n": 5,
+        "samples_ms": [
+          20.1,
+          20.4,
+          21.2,
+          19.5,
+          843.0
+        ]
+      }
+    },
+    {
+      "name": "lyrics_dynamic_off",
+      "ms": 15.8,
+      "ok": true,
+      "meta": {
+        "aktiviert": false,
+        "n": 5,
+        "samples_ms": [
+          15.7,
+          15.4,
+          16.4,
+          15.8,
+          18.7
+        ]
+      }
+    }
+  ]
+}
