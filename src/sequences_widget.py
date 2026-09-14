@@ -1818,94 +1818,6 @@ class _CallListEdit(QPlainTextEdit):
         super().mouseDoubleClickEvent(event)
 
 
-class CallMapPickerDialog(QDialog):
-    """Schlanker Dialog zum Zuordnen EINES Call-Texts zu einem Teaching-Order-Call.
-
-    Zeigt den Roh-Text und eine durchsuchbare Auswahl aller Calls,
-    vorausgewaehlt mit dem besten Treffer des CallMatcher. Speichern schreibt
-    das Mapping (mapped_by='manual'). Ergebnis in self.entity_id.
-
-    Args:
-        db: SongDatabase
-        call_text: der zuzuordnende Roh-Text (eine Editor-Zeile)
-    """
-
-    def __init__(self, db, call_text: str, parent=None):
-        super().__init__(parent)
-        self.db = db
-        self._call_text = call_text.strip()
-        self.entity_id = None
-        self.setWindowTitle(_t("seq_map_picker_title"))
-        self.setMinimumWidth(440)
-        self.setModal(True)
-        self._build_ui()
-        self._populate()
-
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-
-        lbl_text = QLabel(_t("seq_map_picker_text", text=self._call_text))
-        lbl_text.setWordWrap(True)
-        lbl_text.setStyleSheet("font-weight: bold;")
-        layout.addWidget(lbl_text)
-
-        layout.addWidget(QLabel(_t("seq_map_picker_choose")))
-        self._combo = QComboBox()
-        self._combo.setEditable(True)
-        install_combo_click_to_open(self._combo)
-        self._combo.setInsertPolicy(QComboBox.NoInsert)
-        layout.addWidget(self._combo)
-
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        self._btn_assign = QPushButton(_t("seq_map_picker_assign"))
-        self._btn_assign.setDefault(True)
-        self._btn_assign.setStyleSheet("font-weight: bold;")
-        self._btn_assign.clicked.connect(self._on_assign)
-        btn_row.addWidget(self._btn_assign)
-        btn_cancel = QPushButton(_t("btn_cancel"))
-        btn_cancel.clicked.connect(self.reject)
-        btn_row.addWidget(btn_cancel)
-        layout.addLayout(btn_row)
-
-    def _populate(self):
-        """Fuellt die Auswahl mit allen Calls und waehlt den Matcher-Vorschlag vor."""
-        from sequence_mapper import CallMatcher
-
-        to_calls = self.db.get_teaching_order_calls()   # (eid, cname, to, prog)
-        self._combo.blockSignals(True)
-        self._combo.clear()
-        preselect_idx = -1
-        for eid, cname, _to, prog in to_calls:
-            if cname.startswith("--"):
-                continue   # Programm-Separatoren ueberspringen
-            label = f"{cname}  [{prog}]" if prog else cname
-            self._combo.addItem(label, eid)
-
-        # Bester Treffer via Matcher vorauswaehlen
-        matcher = CallMatcher(to_calls)
-        _score, best_eid = matcher.suggest(self._call_text)
-        if best_eid is not None:
-            for i in range(self._combo.count()):
-                if self._combo.itemData(i) == best_eid:
-                    preselect_idx = i
-                    break
-        if preselect_idx >= 0:
-            self._combo.setCurrentIndex(preselect_idx)
-        self._combo.blockSignals(False)
-
-    def _on_assign(self):
-        eid = self._combo.currentData()
-        if not eid:
-            QMessageBox.warning(self, _t("seq_map_picker_title"),
-                                _t("seq_map_picker_none"))
-            return
-        self.db.set_call_text_mapping(self._call_text, eid, mapped_by="manual")
-        self.entity_id = eid
-        self.accept()
-
-
 class SequenceEditorDialog(QDialog):
     """Editor zum Erstellen und Bearbeiten von Sequenzen (BL-015).
 
@@ -1920,8 +1832,9 @@ class SequenceEditorDialog(QDialog):
     Beim Speichern werden ueberzaehlige Zeilen abgewiesen.
 
     Per-Zeile-Mapping (BL-015 Ausbau): Jede Zeile, deren Call-Text bereits ein
-    Mapping hat, wird gruen markiert. Doppelklick auf eine nicht gemappte Zeile
-    oeffnet den CallMapPickerDialog. Typ ist Pflichtfeld.
+    Mapping hat (oder exakt passt), wird gruen markiert. Doppelklick auf eine
+    Zeile oeffnet den CallFiguresPickerDialog mit ihrer Figuren-Menge
+    (BL-210.5). Typ ist Pflichtfeld.
 
     Args:
         db: SongDB
@@ -2142,22 +2055,45 @@ class SequenceEditorDialog(QDialog):
                 self.db.set_call_text_mapping(key, eid, mapped_by="auto")
 
     def _handle_line_dblclick(self, line: str) -> bool:
-        """Doppelklick auf eine Zeile: bei fehlendem Mapping Picker oeffnen.
+        """Doppelklick auf eine Zeile: Figuren-Picker oeffnen (BL-210.5).
 
-        Returns True, wenn der Picker geoeffnet wurde (normales Wort-Markieren
-        unterdruecken).
+        Immer, auch bei vorhandener Zuordnung: sonst kaeme man an eine fertige
+        (womoeglich unvollstaendige) Menge nicht mehr heran. Vorbelegt mit der
+        aktuellen Menge, ohne Zuordnung mit dem Matcher-Vorschlag. OK schreibt
+        die Menge (mapped_by='manual'), Abbrechen schreibt nichts.
+
+        Returns True, wenn der Doppelklick behandelt wurde (normales
+        Wort-Markieren unterdruecken); False bei leerer Zeile.
         """
-        if self._is_mapped(line):
+        key = line.strip()
+        if not key:
             return False
         if self.db.get_teaching_order_count() == 0:
             QMessageBox.warning(self, _t("seq_map_picker_title"),
                                 _t("call_mapping_no_to_calls"))
             return True
-        dlg = CallMapPickerDialog(self.db, line, self)
-        if dlg.exec() == QDialog.Accepted:
-            # Cache invalidieren und neu hervorheben → Zeile wird gruen
-            self._map_cache.pop(line.strip(), None)
-            self._highlighter.rehighlight()
+        current = self.db.get_call_text_figures(key)
+        selected = current
+        if not current:
+            # Ohne Zuordnung den Matcher-Vorschlag vorab anhaken
+            _score, suggested = self._matcher_obj().suggest(key)
+            selected = [suggested] if suggested is not None else []
+        entities = [(f"{cname}  [{prog}]" if prog else cname, eid)
+                    for eid, cname, _to, prog in self.db.get_teaching_order_calls()
+                    if not cname.startswith("--")]
+        dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self)
+        dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
+        if dlg.exec() != QDialog.Accepted:
+            return True
+        ids = dlg.selected_entity_ids()
+        if set(ids) != set(current):
+            # Nur bei geaenderter Menge schreiben: sonst wuerde aus 'auto' ein
+            # 'manual' und der Cover-Cache verworfen. Leere Auswahl entfernt
+            # eine bestehende Zuordnung (wie im Call-Mapping).
+            self.db.set_call_text_figures(key, ids, mapped_by="manual")
+        # Cache verwerfen und neu hervorheben -> Zeile faerbt neu
+        self._map_cache.pop(key, None)
+        self._highlighter.rehighlight()
         return True
 
     # ---- Aktionen ----
@@ -3155,7 +3091,8 @@ class CallFiguresPickerDialog(QDialog):
 
     Args:
         entities: [(label, entity_id), ...] — nur echte Figuren
-        selected: vorab angehakte entity_ids
+        selected: vorab angehakte entity_ids; ids ohne Eintrag in entities
+            erscheinen ganz oben als eigener Haken "[entity_id]"
         allow_split: zeigt "An Komma aufteilen" (nur Call-Mapping-Dialog)
     """
 
@@ -3171,11 +3108,18 @@ class CallFiguresPickerDialog(QDialog):
         self._search.textChanged.connect(self._apply_filter)
         layout.addWidget(self._search)
 
+        entities = list(entities)
         chosen = set(selected or ())
+        # Zugeordnete Figuren ausserhalb der Liste (z.B. ohne call_programs-
+        # Zeile) als eigene Haken fuehren: sonst loeschte schon ein OK ohne
+        # Aenderung sie stillschweigend. Abhaken bleibt moeglich.
+        known = {eid for _label, eid in entities}
+        unknown = [(f"[{eid}]", eid) for eid in dict.fromkeys(selected or ())
+                   if eid not in known]
         first_checked = None
         self._list = QListWidget()
         self._list.setUpdatesEnabled(False)
-        for label, eid in entities:
+        for label, eid in unknown + entities:
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, eid)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)

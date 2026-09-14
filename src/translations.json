@@ -2881,9 +2881,9 @@
     "ja": "ヘッダー"
   },
   "seq_editor_lines_hint": {
-    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer). Doppelklick auf eine nicht-gruene Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
-    "en": "One call per line. Green lines are recognized (mapped or exact match). Double-click a non-green line to assign it. Maximum 15 calls per sequence.",
-    "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）です。緑でない行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
+    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer). Doppelklick auf eine Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
+    "en": "One call per line. Green lines are recognized (mapped or exact match). Double-click a line to edit its assignment. Maximum 15 calls per sequence.",
+    "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）です。行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
   },
   "seq_editor_type_required": {
     "de": "Bitte einen Sequenz-Typ angeben (Pflichtfeld).",
@@ -2899,21 +2899,6 @@
     "de": "Call-Text: {text}",
     "en": "Call text: {text}",
     "ja": "Call テキスト: {text}"
-  },
-  "seq_map_picker_choose": {
-    "de": "Zugehoerigen Call aus der Teaching Order waehlen:",
-    "en": "Choose the matching call from the teaching order:",
-    "ja": "Teaching Order から対応する Call を選択してください:"
-  },
-  "seq_map_picker_assign": {
-    "de": "Zuordnen",
-    "en": "Assign",
-    "ja": "割り当て"
-  },
-  "seq_map_picker_none": {
-    "de": "Bitte einen Call auswaehlen.",
-    "en": "Please select a call.",
-    "ja": "Call を選択してください。"
   },
   "seq_editor_placeholder": {
     "de": "Heads Square Thru 4\nSwing Thru\nBoys Run\n...",

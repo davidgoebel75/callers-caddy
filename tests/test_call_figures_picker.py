@@ -143,6 +143,23 @@ def test_figur_aus_zwei_programmen_zaehlt_einmal(make_picker):
     assert dlg.selected_entity_ids() == []
 
 
+def test_zugeordnete_figur_ausserhalb_der_liste_bleibt_angehakt(make_picker):
+    # Figur ohne call_programs-Zeile: zugeordnet, aber nicht in der Liste.
+    # Ohne eigenen Eintrag ginge sie beim OK stillschweigend verloren.
+    legacy = "call_legacy_figure"
+    dlg = make_picker(selected=[CHASE_RIGHT, legacy])
+    lst = dlg.findChild(QListWidget)
+
+    assert lst.item(0).text() == f"[{legacy}]"   # ganz oben
+    assert dlg.selected_entity_ids() == [legacy, CHASE_RIGHT]
+
+    dlg.set_search_text("legacy")
+    assert dlg.visible_entity_ids() == [legacy]
+
+    _haken_umschalten(dlg, f"[{legacy}]")   # bewusst abhaken
+    assert dlg.selected_entity_ids() == [CHASE_RIGHT]
+
+
 # ---------------------------------------------------- Call-Mapping-Dialog ----
 
 MENGE = "Chase Right & Roll"          # beim Oeffnen schon mit zwei Figuren
