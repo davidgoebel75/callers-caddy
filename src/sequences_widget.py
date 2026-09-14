@@ -15,12 +15,12 @@ from PySide6.QtWidgets import (
     QFrame, QCheckBox, QLineEdit, QFormLayout,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
     QMessageBox, QDialog, QMenu, QAbstractItemView,
-    QTextBrowser, QTextEdit, QPlainTextEdit, QStyledItemDelegate,
+    QTextBrowser, QTextEdit, QPlainTextEdit, QListWidget, QListWidgetItem,
 )
 from PySide6.QtCore import Qt, QTimer, QSettings, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
-    QFont, QFontMetrics,
+    QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
 from song_db import calls_to_json
@@ -3146,80 +3146,132 @@ class SequenceImportDialog(QDialog):
         return self._inserted_count, self._skipped_dupes
 
 
-class _ComboDelegate(QStyledItemDelegate):
-    """Delegate fuer die Figur-Spalte im Call-Mapping-Dialog.
+class CallFiguresPickerDialog(QDialog):
+    """Mehrfach-Picker: Figuren-Menge eines Call-Texts per Haken-Liste (BL-210.4).
 
-    Erstellt die ComboBox erst beim Klick (kein Voraus-Rendering aller Zeilen).
-    Speichert entity_id als Qt.UserRole im Model-Item.
+    Eigenstaendig (keine DB, keine Interna anderer Dialoge), damit ihn auch der
+    Sequenz-Editor nutzen kann. Ein Haken plus OK ist der Einzelfall, kein
+    Haken plus OK die leere Menge (= Zuordnung entfernen).
+
+    Args:
+        entities: [(label, entity_id), ...] — nur echte Figuren
+        selected: vorab angehakte entity_ids
+        allow_split: zeigt "An Komma aufteilen" (nur Call-Mapping-Dialog)
     """
 
-    def __init__(self, entity_list, parent=None):
+    def __init__(self, entities, selected=(), parent=None, allow_split=False):
         super().__init__(parent)
-        # [(label, entity_id), ...]  entity_id == None → keine Zuordnung
-        self._entity_list = entity_list
+        self.setWindowTitle(_t("seq_map_picker_title"))
+        self.setMinimumSize(440, 520)
+        layout = QVBoxLayout(self)
 
-    def createEditor(self, parent, option, index):
-        from PySide6.QtWidgets import QCompleter
-        combo = QComboBox(parent)
-        combo.setEditable(True)
-        combo.setInsertPolicy(QComboBox.NoInsert)
-        for label, _eid in self._entity_list:
-            combo.addItem(label)
-        cpl = combo.completer()
-        if cpl:
-            # Gleiche Such-UX wie das Sequenzen-Suchfeld (_setup_search_combo):
-            # PopupCompletion statt Inline — Inline + MatchContains ist kaputt
-            # (nimmt an, der Treffer BEGINNE mit dem Getippten, und schreibt bei
-            # "Thru" -> "Pass Thru" Murks wie "Thru thru" ins Feld). Popup zeigt
-            # die Substring-Treffer sauber als Liste, Enter uebernimmt sie.
-            cpl.setCompletionMode(QCompleter.PopupCompletion)
-            cpl.setFilterMode(Qt.MatchContains)
-            cpl.setCaseSensitivity(Qt.CaseInsensitive)
-        # X-Knopf zum Loeschen des eingegebenen Textes (wie im Sequenzen-Suchfeld).
-        le = combo.lineEdit()
-        if le is not None:
-            le.setClearButtonEnabled(True)
-        # Editierbares Combo oeffnet sonst nur ueber den schmalen Pfeil. Beim
-        # Bearbeiten die Auswahlliste direkt aufklappen (ein Klick in die Zelle
-        # -> Liste sichtbar), wie man es von einem Dropdown erwartet.
-        QTimer.singleShot(0, combo.showPopup)
-        return combo
+        self._search = QLineEdit()
+        self._search.setPlaceholderText(_t("call_mapping_search_target"))
+        self._search.setClearButtonEnabled(True)
+        self._search.textChanged.connect(self._apply_filter)
+        layout.addWidget(self._search)
 
-    def setEditorData(self, editor, index):
-        current = index.data(Qt.DisplayRole) or ""
-        for i in range(editor.count()):
-            if editor.itemText(i) == current:
-                editor.setCurrentIndex(i)
-                return
-        editor.setCurrentIndex(0)
+        chosen = set(selected or ())
+        first_checked = None
+        self._list = QListWidget()
+        self._list.setUpdatesEnabled(False)
+        for label, eid in entities:
+            item = QListWidgetItem(label)
+            item.setData(Qt.UserRole, eid)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if eid in chosen else Qt.Unchecked)
+            self._list.addItem(item)
+            if first_checked is None and eid in chosen:
+                first_checked = item
+        self._list.setUpdatesEnabled(True)
+        # Erst nach dem Befuellen verbinden: das Vorab-Anhaken loest nichts aus
+        self._list.itemChanged.connect(self._on_item_changed)
+        layout.addWidget(self._list, 1)
+        if first_checked is not None:
+            self._list.scrollToItem(first_checked, QAbstractItemView.PositionAtCenter)
 
-    def setModelData(self, editor, model, index):
-        # Robust ueber den TEXT aufloesen, nicht ueber currentIndex: bei der
-        # Substring-Suche (Popup) kann der Index stehen bleiben, waehrend im Feld
-        # ein anderer, per Enter uebernommener Label-Text steht. Leeres Feld
-        # (X-Knopf) -> "keine Zuordnung" (Index 0).
-        text = editor.currentText().strip()
-        sel = None
-        if not text:
-            sel = 0
-        else:
-            for i, (label, _eid) in enumerate(self._entity_list):
-                if label == text:
-                    sel = i
-                    break
-            if sel is None:
-                # Kein exakter Label-Treffer -> currentIndex als Rueckfall.
-                ci = editor.currentIndex()
-                if 0 <= ci < len(self._entity_list):
-                    sel = ci
-        if sel is not None:
-            label, entity_id = self._entity_list[sel]
-            model.setData(index, label, Qt.DisplayRole)
-            model.setData(index, entity_id, Qt.UserRole)
-            # Qt.UserRole+1 bleibt unveraendert (Original-Wert fuer Change-Detection)
+        # Die Menge bleibt sichtbar, auch wenn der Suchfilter Haken ausblendet
+        self._lbl_selected = QLabel()
+        self._lbl_selected.setWordWrap(True)
+        self._lbl_selected.setStyleSheet("font-size: 11px; color: #888;")
+        layout.addWidget(self._lbl_selected)
+        self._update_selected_label()
+        self._search.setFocus()
 
-    def updateEditorGeometry(self, editor, option, index):
-        editor.setGeometry(option.rect)
+        self._split = False
+        btn_row = QHBoxLayout()
+        if allow_split:
+            # Davids Split-Weg: statt einer Menge den Call-Text beim Speichern
+            # am Komma aufteilen (split_sequence_call_at_comma)
+            btn_split = QPushButton(_t("call_mapping_split"))
+            btn_split.setAutoDefault(False)
+            btn_split.clicked.connect(self._on_split)
+            btn_row.addWidget(btn_split)
+        btn_row.addStretch()
+        btn_ok = QPushButton(_t("btn_ok"))
+        btn_ok.setDefault(True)
+        btn_ok.clicked.connect(self.accept)
+        btn_row.addWidget(btn_ok)
+        btn_cancel = QPushButton(_t("btn_cancel"))
+        btn_cancel.setAutoDefault(False)
+        btn_cancel.clicked.connect(self.reject)
+        btn_row.addWidget(btn_cancel)
+        layout.addLayout(btn_row)
+
+    def _items(self):
+        return (self._list.item(i) for i in range(self._list.count()))
+
+    def _on_split(self):
+        self._split = True
+        self.accept()
+
+    def _on_item_changed(self, item):
+        """Die Referenz fuehrt eine Figur je Programm (z.B. Plus und Plus (2026))
+        -> alle Eintraege derselben entity_id gleich anhaken."""
+        eid, state = item.data(Qt.UserRole), item.checkState()
+        self._list.blockSignals(True)
+        for it in self._items():
+            if it.data(Qt.UserRole) == eid and it.checkState() != state:
+                it.setCheckState(state)
+        self._list.blockSignals(False)
+        self._update_selected_label()
+
+    def _update_selected_label(self):
+        labels = {}
+        for it in self._items():
+            if it.checkState() == Qt.Checked:
+                labels.setdefault(it.data(Qt.UserRole), it.text())
+        self._lbl_selected.setText(
+            _t("call_mapping_picker_selected", names=" | ".join(labels.values()))
+            if labels else _t("call_mapping_none"))
+
+    def _apply_filter(self, text):
+        """Blendet Eintraege ohne Teiltreffer aus (case-insensitive). Haken
+        ausgeblendeter Eintraege bleiben stehen und zaehlen weiter."""
+        needle = text.strip().lower()
+        self._list.setUpdatesEnabled(False)
+        for it in self._items():
+            it.setHidden(bool(needle) and needle not in it.text().lower())
+        self._list.setUpdatesEnabled(True)
+
+    def set_search_text(self, text: str):
+        """Setzt das Suchfeld; filtert wie beim Tippen."""
+        self._search.setText(text)
+
+    def visible_entity_ids(self) -> list:
+        """entity_ids der nach dem Suchfilter sichtbaren Eintraege."""
+        return list(dict.fromkeys(
+            it.data(Qt.UserRole) for it in self._items() if not it.isHidden()))
+
+    def selected_entity_ids(self) -> list:
+        """Angehakte entity_ids in Listen-Reihenfolge (jede Figur einmal)."""
+        return list(dict.fromkeys(
+            it.data(Qt.UserRole) for it in self._items()
+            if it.checkState() == Qt.Checked))
+
+    def split_requested(self) -> bool:
+        """True, wenn "An Komma aufteilen" gewaehlt wurde (statt einer Menge)."""
+        return self._split
 
 
 class _NumericItem(QTableWidgetItem):
@@ -3246,12 +3298,17 @@ class CallMappingDialog(QDialog):
     _F_MAPPED   = "mapped"
     _F_ALL      = "all"
 
+    # Rollenwert der Figur-Spalte fuer "An Komma aufteilen"
+    _SPLIT = "__SPLIT_COMMA__"
+
     def __init__(self, db, parent=None):
         super().__init__(parent)
         self.db = db
         self._all_data    = []   # [(call_text, count, eid, cname, prog, mapped_by), ...]
-        self._entity_list = []   # [(label, entity_id), ...]
+        self._entity_list = []   # [(label, entity_id), ...] — Figuren fuer den Picker
         self._eid_to_label = {}
+        self._eid_min_to   = {}  # entity_id -> frueheste Teaching-Order (Rangfolge)
+        self._figure_sets  = {}  # call_text -> [entity_id, ...], hoechste zuerst
         self._matcher      = None  # CallMatcher, wird in _prepare_data() gesetzt
         self._alive        = True   # False sobald der Dialog schliesst
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
@@ -3390,6 +3447,14 @@ class CallMappingDialog(QDialog):
         self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
         self._table.verticalHeader().setVisible(False)
         self._table.setSortingEnabled(True)
+        # Keine Zelle direkt editierbar — einmal hier statt setFlags je Figur-Item
+        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        # Figur-Spalte: Doppelklick (oder F2) oeffnet den Mehrfach-Picker
+        self._table.doubleClicked.connect(self._open_figures_picker)
+        f2 = QShortcut(QKeySequence(Qt.Key_F2), self._table)
+        f2.setContext(Qt.WidgetShortcut)
+        f2.activated.connect(
+            lambda: self._open_figures_picker(self._table.currentIndex()))
 
         # Rechtsklick auf die Call-Text-Spalte -> "Beispiel zeigen" (Sequenzen,
         # die diesen Text nutzen, in einem eigenen Betrachter durchblaettern).
@@ -3451,18 +3516,23 @@ class CallMappingDialog(QDialog):
         """Laedt alle Daten einmalig aus der DB (kein Rendering)."""
         self.db.ensure_filler_words_entity()
         self._all_data = self.db.get_all_call_texts_with_mapping()
+        # BL-210.4: alle Figuren-Mengen in EINER Abfrage, keine DB-Abfrage je Zeile
+        self._figure_sets = self.db.get_all_call_text_figures()
 
         to_calls = self.db.get_teaching_order_calls()
 
-        self._entity_list = [
-            (_t("call_mapping_none"),  None),
-            (_t("call_mapping_split"), "__SPLIT_COMMA__"),
-        ]
-        for eid, cname, _to, prog in to_calls:
+        # Picker-Liste nur mit echten Figuren: "keine Zuordnung" = kein Haken,
+        # "An Komma aufteilen" ist ein Knopf im Picker, Programm-Separatoren
+        # ("-- Basic 1 --") sind keine Figuren.
+        self._entity_list = []
+        self._eid_to_label = {}
+        self._eid_min_to = {}
+        for eid, cname, to, prog in to_calls:
             label = f"{cname}  [{prog}]" if prog else cname
-            self._entity_list.append((label, eid))
-
-        self._eid_to_label = {eid: lbl for lbl, eid in self._entity_list if eid}
+            self._eid_to_label[eid] = label
+            self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
+            if not cname.startswith("--"):
+                self._entity_list.append((label, eid))
 
         # CallMatcher: Drei-Stufen-Matching (exakt → Token-Overlap → SequenceMatcher)
         self._matcher = _CallMatcher(to_calls)
@@ -3482,9 +3552,6 @@ class CallMappingDialog(QDialog):
                 parent._call_suggest_sig = sig
         self._suggest_cache = cache
 
-        delegate = _ComboDelegate(self._entity_list, self._table)
-        self._table.setItemDelegateForColumn(2, delegate)
-
     def _load_table(self):
         """Befuellt die Tabelle gemaess aktivem Filter — alle Zeilen auf einmal."""
         fval = self._combo_filter.currentData()
@@ -3503,6 +3570,7 @@ class CallMappingDialog(QDialog):
         self._table.setUpdatesEnabled(False)
         self._table.setRowCount(0)
         self._table.setRowCount(len(rows))
+        none_label = _t("call_mapping_none")   # einmal statt je Zeile
 
         for i, (call_text, count, entity_id, cname, prog, mapped_by) in enumerate(rows):
 
@@ -3519,10 +3587,18 @@ class CallMappingDialog(QDialog):
             item1.setFlags(item1.flags() & ~Qt.ItemIsEditable)
             self._table.setItem(i, 1, item1)
 
-            # Col 2: Figur (editierbar via Delegate)
+            # Col 2: Figuren-Menge (Doppelklick oeffnet den Picker). Rollenwert
+            # und Anzeige fuer den Normalfall (eine Figur) direkt, ohne Helfer-
+            # Aufrufe je Zeile — ~13k Zeilen auf dem Main-Thread.
             if entity_id:
                 # Bereits gemappt — gruen
-                label = self._eid_to_label.get(entity_id, f"[{entity_id}]")
+                figures = self._figure_sets.get(call_text)
+                if figures and len(figures) > 1:
+                    stored = list(figures)
+                    label = self._figures_text(figures)
+                else:
+                    stored = entity_id
+                    label = self._eid_to_label.get(entity_id) or f"[{entity_id}]"
                 item0.setBackground(QColor("#d4edda"))
             else:
                 # Auto-Vorschlag via CallMatcher — aus dem Cache. Ist er noch nicht
@@ -3531,12 +3607,12 @@ class CallMappingDialog(QDialog):
                 cached = self._suggest_cache.get(call_text)
                 if cached is not None:
                     score, suggested = cached
-                    entity_id = suggested
-                    label = self._eid_to_label.get(suggested, _t("call_mapping_none"))
+                    stored = suggested
+                    label = self._eid_to_label.get(suggested, none_label)
                     item0.setBackground(self._bg_for_score(score))
                 else:
-                    entity_id = None
-                    label = _t("call_mapping_none")
+                    stored = None
+                    label = none_label
                     # Helles Grau (nicht Theme-Default): der erzwungene dunkle Text
                     # muss auch im Dark-Theme lesbar bleiben.
                     item0.setBackground(QColor("#e9ecef"))
@@ -3545,8 +3621,8 @@ class CallMappingDialog(QDialog):
             # Gilt themeunabhaengig, weil die Hintergruende fix hell sind.
             item0.setForeground(QColor("#212529"))
             item2 = QTableWidgetItem(label)
-            item2.setData(Qt.UserRole,     entity_id)   # aktuell (Delegate aktualisiert)
-            item2.setData(Qt.UserRole + 1, entity_id)   # original (fuer Change-Detection)
+            item2.setData(Qt.UserRole,     stored)   # aktuell (Picker aktualisiert)
+            item2.setData(Qt.UserRole + 1, stored)   # original (fuer Change-Detection)
             self._table.setItem(i, 2, item2)
 
             # Col 3: Quelle
@@ -3576,20 +3652,19 @@ class CallMappingDialog(QDialog):
         item2 = self._table.item(row, 2)
         if not item0 or not item2:
             return
-        if item2.data(Qt.UserRole + 1) is not None:
+        if self._figures(item2, Qt.UserRole + 1):
             return   # war beim Laden bereits gemappt
         cached = self._suggest_cache.get(item0.data(Qt.UserRole))
         if cached is None:
             return
         score, suggested = cached
-        if item2.data(Qt.UserRole) is None:
+        if not self._figures(item2, Qt.UserRole):
             # Nutzer hat noch nichts gewaehlt -> Vorschlag uebernehmen. Original
             # (UserRole+1) = Vorschlag: so gilt der Auto-Vorschlag wie bisher
             # NICHT als Aenderung beim "Speichern" (nur "Bestaetigen" schreibt ihn).
-            label = self._eid_to_label.get(suggested, _t("call_mapping_none"))
-            item2.setData(Qt.DisplayRole,  label)
-            item2.setData(Qt.UserRole,     suggested)
-            item2.setData(Qt.UserRole + 1, suggested)
+            figures = [suggested] if suggested else []
+            item2.setData(Qt.UserRole + 1, self._stored(figures))
+            self._show_figures(item2, figures)
             item0.setBackground(self._bg_for_score(score))
         else:
             # Nutzer hat schon selbst gewaehlt -> Auswahl behalten, gruen faerben.
@@ -3624,7 +3699,7 @@ class CallMappingDialog(QDialog):
         for row in rows:
             it0 = tbl.item(row, 0)
             it2 = tbl.item(row, 2)
-            if it0 and it2 and it2.data(Qt.UserRole + 1) is None:
+            if it0 and it2 and not self._figures(it2, Qt.UserRole + 1):
                 ct = it0.data(Qt.UserRole)
                 if ct not in self._suggest_cache:
                     self._suggest_cache[ct] = self._matcher.suggest(ct)
@@ -3668,6 +3743,84 @@ class CallMappingDialog(QDialog):
         else:
             self._label_info.setText(
                 _t("call_mapping_info", count=self._table.rowCount()))
+
+    # ---------------------------------------------------- Figuren-Mengen --
+    # Rollen der Figur-Spalte (Spalte 2):
+    #   Qt.UserRole     aktuelle Menge (Picker schreibt)
+    #   Qt.UserRole + 1 Menge beim Laden bzw. Auto-Vorschlag (Change-Detection)
+    # Rollenwert: None fuer die leere Menge; ein String fuer genau eine Figur
+    # (Normalfall, wie vor BL-210 — billiger als eine Liste je Zeile) und fuer
+    # den Split-Marker _SPLIT; eine Liste [entity_id, ...] (hoechste zuerst)
+    # erst ab zwei Figuren. Gelesen wird immer ueber _figures(): PySide6 gibt
+    # Sequenzen als Liste zurueck, und eine leere Liste ist nicht None.
+
+    @staticmethod
+    def _stored(figures):
+        """Menge -> Rollenwert."""
+        if not figures:
+            return None
+        if len(figures) == 1:
+            return figures[0]   # Einzel-Figur oder Split-Marker
+        return list(figures)
+
+    @staticmethod
+    def _figures(item, role) -> tuple:
+        """Rollenwert -> Menge als Tupel: () = keine Zuordnung, (_SPLIT,) = Split."""
+        value = item.data(role)
+        if not value:
+            return ()
+        if isinstance(value, str):
+            return (value,)
+        return tuple(value)
+
+    def _figures_text(self, figures) -> str:
+        """Anzeige: alle Figuren mit Trenner, ab zwei Figuren vorn "+n"."""
+        if not figures:
+            return _t("call_mapping_none")
+        if len(figures) == 1:   # Normalfall ohne join (_load_table: ~13k Zeilen)
+            eid = figures[0]
+            if eid == self._SPLIT:
+                return _t("call_mapping_split")
+            return self._eid_to_label.get(eid) or f"[{eid}]"
+        labels = " | ".join(self._eid_to_label.get(e) or f"[{e}]" for e in figures)
+        return f"+{len(figures) - 1}  {labels}"
+
+    def _rank_figures(self, entity_ids) -> list:
+        """Hoechste Figur zuerst, wie die DB: frueheste Teaching-Order absteigend,
+        Figur ohne Programm zuerst, Gleichstand entity_id aufsteigend."""
+        def key(eid):
+            to = self._eid_min_to.get(eid)
+            return (0, 0.0, eid) if to is None else (1, -to, eid)
+        return sorted(dict.fromkeys(entity_ids), key=key)
+
+    def _show_figures(self, item2, figures):
+        """Setzt aktuelle Menge und Anzeige einer Figur-Zelle. Die Anzeige
+        zuletzt: bei aktiver Sortierung kann die Zeile danach wandern."""
+        item2.setData(Qt.UserRole, self._stored(figures))
+        item2.setData(Qt.DisplayRole, self._figures_text(figures))
+
+    def _open_figures_picker(self, index):
+        """Doppelklick/F2 auf die Figur-Spalte: Mehrfach-Picker (BL-210.4)."""
+        if not index.isValid() or index.column() != 2:
+            return
+        item0 = self._table.item(index.row(), 0)
+        item2 = self._table.item(index.row(), 2)
+        if item0 is None or item2 is None:
+            return
+        current = self._figures(item2, Qt.UserRole)
+        if current == (self._SPLIT,):
+            current = ()
+        dlg = CallFiguresPickerDialog(self._entity_list, selected=current,
+                                      parent=self, allow_split=True)
+        dlg.setWindowTitle(_t("seq_map_picker_text", text=item0.data(Qt.UserRole)))
+        if dlg.exec() != QDialog.Accepted:
+            return
+        # Ueber das gemerkte Item schreiben, nicht ueber den Zeilenindex: waehrend
+        # der Picker offen war, kann die Vorschlags-Einfaerbung umsortiert haben.
+        if dlg.split_requested():
+            self._show_figures(item2, [self._SPLIT])
+        else:
+            self._show_figures(item2, self._rank_figures(dlg.selected_entity_ids()))
 
     # ----------------------------------------------------- Beispiel zeigen --
 
@@ -3748,30 +3901,30 @@ class CallMappingDialog(QDialog):
         _t_start = time.perf_counter()
 
         rows = sorted({idx.row() for idx in self._table.selectedIndexes()})
-        # (raw_text, entity_id) je bestaetigbarer Zeile einsammeln.
+        # (raw_text, [entity_id, ...]) je bestaetigbarer Zeile einsammeln.
         pairs = []
-        confirmed_texts = {}   # call_text -> entity_id
+        confirmed_texts = {}   # call_text -> Figuren-Menge (hoechste zuerst)
         confirmed_rows = []    # View-Zeilenindizes der bestaetigten Zeilen
         for row in rows:
             item0 = self._table.item(row, 0)
             item2 = self._table.item(row, 2)
             if not item0 or not item2:
                 continue
-            raw_text    = item0.data(Qt.UserRole)
-            current_eid = item2.data(Qt.UserRole)
-            # Nur unbestaetigte Vorschlaege mit echter Ziel-Figur bestaetigen.
-            # Split-Marker und "keine Zuordnung" werden uebersprungen.
-            if not current_eid or current_eid == "__SPLIT_COMMA__":
+            raw_text = item0.data(Qt.UserRole)
+            current  = self._figures(item2, Qt.UserRole)
+            # Nur Zeilen mit echter Ziel-Figur bestaetigen (im Normalfall der
+            # Einzel-Vorschlag). Split-Marker und "keine Zuordnung" ueberspringen.
+            if not current or current == (self._SPLIT,):
                 continue
-            pairs.append((raw_text, current_eid))
-            confirmed_texts[raw_text] = current_eid
+            pairs.append((raw_text, list(current)))
+            confirmed_texts[raw_text] = list(current)
             confirmed_rows.append(row)
         _t_collect = time.perf_counter()
 
         confirmed = 0
         if pairs:
             # EIN Batch-Commit statt eines Commits je Zeile (frueher bis ~0,5 s).
-            confirmed = self.db.set_call_text_mappings(pairs, mapped_by="manual")
+            confirmed = self.db.set_call_text_figures_bulk(pairs, mapped_by="manual")
         _t_write = time.perf_counter()
 
         if confirmed > 0:
@@ -3780,15 +3933,17 @@ class CallMappingDialog(QDialog):
             # das In-Memory-Modell fuer die bestaetigten Texte aktualisieren ...
             new_all = []
             for r in self._all_data:
-                eid = confirmed_texts.get(r[0])
-                if eid is not None:
+                figures = confirmed_texts.get(r[0])
+                if figures is not None:
                     # (call_text, count, entity_id, cname, prog, mapped_by)
+                    # entity_id = hoechste Figur (wie call_text_mappings).
                     # cname/prog werden in _load_table nicht gelesen (Label kommt
                     # aus _eid_to_label) -> None ist unschaedlich.
-                    new_all.append((r[0], r[1], eid, None, None, "manual"))
+                    new_all.append((r[0], r[1], figures[0], None, None, "manual"))
                 else:
                     new_all.append(r)
             self._all_data = new_all
+            self._figure_sets.update(confirmed_texts)
 
             if self._combo_filter.currentData() == self._F_UNMAPPED:
                 # Im "Nicht gemappt"-Filter fallen die bestaetigten Zeilen nur weg
@@ -3837,19 +3992,19 @@ class CallMappingDialog(QDialog):
             if not item0 or not item2:
                 continue
 
-            raw_text     = item0.data(Qt.UserRole)
-            current_eid  = item2.data(Qt.UserRole)
-            original_eid = item2.data(Qt.UserRole + 1)
+            raw_text = item0.data(Qt.UserRole)
+            current  = self._figures(item2, Qt.UserRole)
+            original = self._figures(item2, Qt.UserRole + 1)
 
-            if current_eid == original_eid:
-                continue  # unveraendert
+            if set(current) == set(original):
+                continue  # unveraendert (Menge, Reihenfolge egal)
 
-            if current_eid == "__SPLIT_COMMA__":
+            if current == (self._SPLIT,):
                 s, o = self.db.split_sequence_call_at_comma(raw_text)
                 split_seqs += s
                 split_occ  += o
-            elif current_eid is not None:
-                self.db.set_call_text_mapping(raw_text, current_eid, mapped_by="manual")
+            elif current:
+                self.db.set_call_text_figures(raw_text, list(current), mapped_by="manual")
                 saved += 1
             else:
                 # Mapping entfernen (User hat auf "keine Zuordnung" geaendert)

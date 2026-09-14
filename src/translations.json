@@ -3220,6 +3220,11 @@
     "en": "→ Split at comma",
     "ja": "→ カンマで分割"
   },
+  "call_mapping_picker_selected": {
+    "de": "Ausgewählt: {names}",
+    "en": "Selected: {names}",
+    "ja": "Selected: {names}"
+  },
   "call_mapping_save": {
     "de": "Speichern",
     "en": "Save",
