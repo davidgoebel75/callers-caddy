@@ -30,6 +30,12 @@ Danach vergleichen:
 python tools/benchmark/compare.py results/vorher.json results/nachher.json
 ```
 
+Gegen die **eingecheckte Baseline** vergleichen (in `baselines/`, env-bereinigt):
+
+```bash
+python tools/benchmark/compare.py baselines/baseline_v0.158.json results/<dein-lauf>.json
+```
+
 ### Parameter
 
 | Flag | Bedeutung |
