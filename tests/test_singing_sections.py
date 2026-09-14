@@ -151,3 +151,79 @@ def test_indexbereich_mitten_in_groesserer_zeilenliste():
         "song b",                # 7  (end_line)
     ]
     assert ss.figure_call_end_line(lines, 4, 7) == 5
+
+
+# ---------------------------------------------------------------------------
+# parse_sections: Figur-Zuordnung (#67 Medley-Regel)
+# ---------------------------------------------------------------------------
+
+def _fig_starts(text):
+    """Char-Offsets aller nackten 'FIGURE'-Kopfzeilen in Reihenfolge."""
+    outs, pos = [], 0
+    for raw in text.split("\n"):
+        if raw.strip().upper() == "FIGURE":
+            outs.append(pos)
+        pos += len(raw) + 1
+    return outs
+
+
+def test_medley_vier_figure_bloecke_je_eigene_zuordnung():
+    # #67: Genau vier nackte FIGURE-Bloecke -> 1:1 auf die Teile 2/3/5/6.
+    text = "\n".join([
+        "OPENER", "opener line",
+        "FIGURE", "fig one and promenade",
+        "FIGURE", "fig two and promenade",
+        "BREAK", "break line",
+        "FIGURE", "fig three and promenade",
+        "FIGURE", "fig four and promenade",
+        "CLOSER", "closer line",
+    ])
+    res = ss.parse_sections(text)
+    assert res.ok
+    starts = _fig_starts(text)
+    assert len(starts) == 4
+    # Jeder Block bekommt genau seinen eigenen Teil (Reihenfolge 2,3,5,6).
+    assert res.parts[2][0] == starts[0]
+    assert res.parts[3][0] == starts[1]
+    assert res.parts[5][0] == starts[2]
+    assert res.parts[6][0] == starts[3]
+    # Vier verschiedene Bloecke — keiner geht verloren.
+    assert len({res.parts[p][0] for p in (2, 3, 5, 6)}) == 4
+    for p in (2, 3, 5, 6):
+        assert p in res.detected
+        assert p not in res.filled
+
+
+def test_zwei_figure_bloecke_erster_deckt_alle():
+    # #67 bewusst so gewollt: bei 1/2 Bloecken deckt der ERSTE alle vier Slots.
+    text = "\n".join([
+        "OPENER", "opener line",
+        "FIGURE", "fig A and promenade",
+        "BREAK", "break line",
+        "FIGURE", "fig B and promenade",
+        "CLOSER", "closer line",
+    ])
+    res = ss.parse_sections(text)
+    assert res.ok
+    starts = _fig_starts(text)
+    assert len(starts) == 2
+    for p in (2, 3, 5, 6):
+        assert res.parts[p][0] == starts[0]
+
+
+def test_drei_figure_bloecke_fallback_erster_deckt_alle():
+    # #67: 3 Bloecke sind KEIN Sonderfall -> Fallback wie 1/2 (erster deckt alle).
+    text = "\n".join([
+        "OPENER", "opener line",
+        "FIGURE", "fig A and promenade",
+        "FIGURE", "fig B and promenade",
+        "BREAK", "break line",
+        "FIGURE", "fig C and promenade",
+        "CLOSER", "closer line",
+    ])
+    res = ss.parse_sections(text)
+    assert res.ok
+    starts = _fig_starts(text)
+    assert len(starts) == 3
+    for p in (2, 3, 5, 6):
+        assert res.parts[p][0] == starts[0]

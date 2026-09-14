@@ -316,6 +316,7 @@ def parse_sections(plain_text: str, sections: Optional[dict] = None) -> SectionR
     part_blocks = {}
     detected = set()
     figure_blocks = []
+    naked_figure_blocks = []  # #67: nackte "FIGURE"-Bloecke, Zuordnung nach Schleife
     extras = {}
 
     for gi, (m_parts, m_fig, hstart, hend, m_extra) in enumerate(groups):
@@ -338,15 +339,35 @@ def parse_sections(plain_text: str, sections: Optional[dict] = None) -> SectionR
         if m_fig is not None:
             figure_blocks.append(blk)
             if m_fig == "all":
-                for p in (2, 3, 5, 6):
-                    part_blocks.setdefault(p, blk)
-                    detected.add(p)
+                # Nackte "FIGURE"-Ueberschrift (ohne Ordinal): Zuordnung erst NACH
+                # der Schleife, wenn die Gesamtzahl der Bloecke bekannt ist (#67).
+                naked_figure_blocks.append(blk)
             else:
                 for o in m_fig:
                     p = FIGURE_ORDINAL_TO_PART.get(o)
                     if p:
                         part_blocks[p] = blk
                         detected.add(p)
+
+    # --- Nackte FIGURE-Bloecke zuordnen (#67) ---
+    # Ein zweiter nackter "FIGURE"-Block blieb bisher unzugeordnet (der erste
+    # deckte via setdefault alle vier Slots). Neue Regel:
+    #  - GENAU 4 Figure-Bloecke, alle nackt -> Medley: 1:1 auf die Teile 2/3/5/6
+    #    (Block 1->2, 2->3, 3->5, 4->6). Jeder Block behaelt seinen eigenen
+    #    Extent, sodass die Tail-Erkennung (BL-200) je Block greift.
+    #  - sonst (1/2/3 nackte Bloecke) -> wie bisher: der erste deckt alle vier.
+    # Explizit nummerierte Figuren ("FIGURE 1, 4") sind oben schon gesetzt und
+    # bleiben unangetastet; nackte Bloecke fuellen per setdefault nur Luecken.
+    if naked_figure_blocks:
+        if len(figure_blocks) == 4 and len(naked_figure_blocks) == 4:
+            for blk_f, p in zip(naked_figure_blocks, (2, 3, 5, 6)):
+                part_blocks[p] = blk_f
+                detected.add(p)
+        else:
+            first_fig = naked_figure_blocks[0]
+            for p in (2, 3, 5, 6):
+                part_blocks.setdefault(p, first_fig)
+                detected.add(p)
 
     # --- Auffuellen NUR innerhalb der Figuren ---
     # Eine erkannte Figur wird im Singing Call 4x getanzt. Sind nicht alle vier
