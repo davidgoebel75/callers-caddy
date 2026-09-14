@@ -23,7 +23,7 @@ from PySide6.QtGui import (
     QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
-from song_db import calls_to_json
+from song_db import SongDatabase, calls_to_json
 from i18n import _t
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
@@ -3730,12 +3730,10 @@ class CallMappingDialog(QDialog):
         return f"+{len(figures) - 1}  {labels}"
 
     def _rank_figures(self, entity_ids) -> list:
-        """Hoechste Figur zuerst, wie die DB: frueheste Teaching-Order absteigend,
-        Figur ohne Programm zuerst, Gleichstand entity_id aufsteigend."""
-        def key(eid):
-            to = self._eid_min_to.get(eid)
-            return (0, 0.0, eid) if to is None else (1, -to, eid)
-        return sorted(dict.fromkeys(entity_ids), key=key)
+        """Hoechste Figur zuerst, mit demselben Schluessel wie die DB."""
+        key = SongDatabase._figure_rank_key
+        return sorted(dict.fromkeys(entity_ids),
+                      key=lambda eid: key(eid, self._eid_min_to.get(eid)))
 
     def _show_figures(self, item2, figures):
         """Setzt aktuelle Menge und Anzeige einer Figur-Zelle. Die Anzeige

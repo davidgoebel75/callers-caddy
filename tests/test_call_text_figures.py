@@ -58,19 +58,21 @@ def test_gleichstand_entscheidet_entity_id_aufsteigend(db):
         "call_left_hand_trade", "call_right_hand_trade"]
 
 
-def test_figur_ohne_programm_zaehlt_als_hoechste(db):
+def test_figur_ohne_programm_kommt_zuletzt(db):
     # Altbestand: eine Figur, die eine fruehere Referenz noch kannte. Nach dem
     # Referenz-Update steht sie weiter in calls, hat aber keine call_programs-
-    # Zeile mehr -> restriktivste Annahme, sie gilt als hoechste.
+    # Zeile mehr. Sie kommt zuletzt: Eine aeltere Version sieht nur die
+    # Hauptfigur und muss dort eine Figur mit Programm pruefen koennen.
     db.bulk_insert_teaching_order_calls(
         [("call_legacy_figure", "Legacy Figure", 10.5, "")])
     db.reseed_reference_data(force=True)
 
     db.set_call_text_figures("Legacy & Chase Right",
-                             [CHASE_RIGHT, "call_legacy_figure"])
+                             ["call_legacy_figure", CHASE_RIGHT])
 
     assert db.get_call_text_figures("Legacy & Chase Right") == [
-        "call_legacy_figure", CHASE_RIGHT]
+        CHASE_RIGHT, "call_legacy_figure"]
+    assert db.get_entity_for_call_text("Legacy & Chase Right") == CHASE_RIGHT
 
 
 def test_menge_auf_eine_figur_reduzieren(db):
@@ -171,24 +173,24 @@ def test_merge_beim_referenz_update_zieht_weitere_figur_mit(db):
 
 def test_merge_bestimmt_hoechste_figur_neu(db):
     # Altbestand nach einem frueheren Referenz-Update: "Walk Around the Corner"
-    # steht noch in calls, hat aber keine call_programs-Zeile mehr und gilt
-    # damit als hoechste Figur der Menge.
+    # steht noch in calls, hat aber keine call_programs-Zeile mehr und kommt
+    # damit hinter Circle Left (10.0001).
     db.bulk_insert_teaching_order_calls(
         [("call_walk_around_the_corner", "Walk Around the Corner", 10.0029, "")])
     db.reseed_reference_data(force=True)
-    db.set_call_text_figures("Chase Right & Walk Around the Corner",
-                             [CHASE_RIGHT, "call_walk_around_the_corner"])
+    db.set_call_text_figures("Circle Left & Walk Around the Corner",
+                             ["call_walk_around_the_corner", "call_circle_left"])
     assert db.get_entity_for_call_text(
-        "Chase Right & Walk Around the Corner") == "call_walk_around_the_corner"
+        "Circle Left & Walk Around the Corner") == "call_circle_left"
 
-    # Der echte Merge macht daraus Walk Around (10.0028) — jetzt ist Chase Right
-    # (39.0029) die hoechste Figur und muss die Hauptzuordnung werden.
+    # Der echte Merge macht daraus Walk Around (10.0028) — die liegt ueber
+    # Circle Left und muss die Hauptzuordnung werden.
     db.reseed_reference_data(force=True)
 
     assert db.get_entity_for_call_text(
-        "Chase Right & Walk Around the Corner") == CHASE_RIGHT
-    assert db.get_call_text_figures("Chase Right & Walk Around the Corner") == [
-        CHASE_RIGHT, "call_walk_around"]
+        "Circle Left & Walk Around the Corner") == "call_walk_around"
+    assert db.get_call_text_figures("Circle Left & Walk Around the Corner") == [
+        "call_walk_around", "call_circle_left"]
 
 
 def test_export_eine_zeile_je_figur_hoechste_zuerst(db):

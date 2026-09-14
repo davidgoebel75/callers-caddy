@@ -217,4 +217,4 @@ def test_figur_ohne_programm_bleibt_beim_ok_erhalten(editor, db, monkeypatch):
 
     _doppelklick(edit, 0)
 
-    assert db.get_call_text_figures(MENGE) == [legacy, CHASE_RIGHT]
+    assert db.get_call_text_figures(MENGE) == [CHASE_RIGHT, legacy]

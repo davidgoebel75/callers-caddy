@@ -3158,12 +3158,16 @@ class SongDatabase:
         Hoechste Figur = Figur, deren FRUEHESTE Teaching-Order am hoechsten ist
         (der Band-Filter wertet eine Figur als abgedeckt, sobald eine ihrer
         Programm-Zugehoerigkeiten erlaubt ist). Figur ohne call_programs-Zeile
-        (min_to None) gilt als hoechste — restriktivste, sichere Seite.
+        (min_to None) kommt zuletzt. Fuer die Filter dieser Version ist ihr
+        Platz egal (Band-Filter uebergeht sie, Limit wertet den Text als
+        ungemappt). Eine aeltere Version sieht aber nur die Hauptfigur und
+        muss dort eine Figur MIT Programm finden, sonst uebergeht ihr
+        Band-Filter den ganzen Call-Text.
         Gleichstand: entity_id aufsteigend.
         """
         if min_to is None:
-            return (0, 0.0, entity_id)
-        return (1, -min_to, entity_id)
+            return (1, 0.0, entity_id)
+        return (0, -min_to, entity_id)
 
     def _rank_figures(self, entity_ids) -> list[str]:
         """Entfernt Duplikate/Leere und sortiert hoechste Figur zuerst."""
