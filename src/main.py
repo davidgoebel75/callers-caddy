@@ -6646,14 +6646,20 @@ class P29MainWindow(QMainWindow):
         space.activated.connect(self._on_key_space)
 
     def _is_text_input_focused(self) -> bool:
-        """Prueft ob aktuell ein Widget den Fokus hat, das Tasteneingaben braucht.
+        """Prueft, ob ein Widget Fokus hat, in das gerade TEXT getippt wird.
 
-        Neben Texteingabe-Widgets auch QTableWidget/QListWidget (Type-to-Search).
+        Nur echte Texteingabe sperrt Buchstaben-Hotkeys (C-1, #68): QLineEdit,
+        QPlainTextEdit, QTextEdit, Spinboxen und EDITIERBARE Comboboxen. Tabellen,
+        Listen und das read-only Lyrics-Fenster (QTextBrowser) sperren NICHT mehr —
+        dort soll eine belegte Taste die Regel ausloesen statt Type-to-Search.
+        Nicht belegte Tasten fallen weiterhin durch: der eventFilter feuert nur,
+        wenn der Trigger registriert ist, sonst bekommt das Widget die Taste.
         """
         w = QApplication.focusWidget()
+        if isinstance(w, QComboBox):
+            return w.isEditable()
         return isinstance(w, (
-            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextBrowser,
-            QPlainTextEdit, QTextEdit, QTableWidget, QListWidget,
+            QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit,
         ))
 
     def _on_key_space(self):
