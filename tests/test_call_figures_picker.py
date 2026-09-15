@@ -343,6 +343,28 @@ def test_mapping_auto_vorschlag_gilt_beim_speichern_nicht_als_aenderung(mapping,
     assert db.get_call_text_figures(MENGE) == [CHASE_RIGHT, ANYTHING_AND_ROLL]
 
 
+def test_mapping_f2_auf_call_text_spalte_oeffnet_trotzdem_den_picker(
+        mapping, picker_double):
+    # Regression intern#73: Zeile per Klick auf Spalte 0 (Call-Text)
+    # markieren, dann F2 -> currentIndex() behaelt Spalte 0, der Picker
+    # muss trotzdem aufgehen (wie beim Doppelklick auf die Figur-Zelle).
+    dlg, table = mapping
+    aufrufe, antwort = picker_double
+    _filter(dlg, "all")
+    antwort["ids"] = [ALLEMANDE_THAR, ANYTHING_AND_ROLL]
+    zelle0 = [it for it in table.findItems(MENGE, Qt.MatchExactly)
+              if it.column() == 0][0]
+
+    table.scrollToItem(zelle0)
+    pos = table.visualItemRect(zelle0).center()
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    table.setFocus()
+    QTest.keyClick(table, Qt.Key_F2)
+
+    (aufruf,) = aufrufe
+    assert aufruf["selected"] == [CHASE_RIGHT, ANYTHING_AND_ROLL]
+
+
 def test_mapping_bestaetigen_schreibt_die_auswahl_der_zeilen(
         mapping, picker_double, db):
     dlg, table = mapping
