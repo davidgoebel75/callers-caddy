@@ -6980,10 +6980,17 @@ class P29MainWindow(QMainWindow):
             return
         fixed = dock.objectName() in self._FIXED_FREE_DOCKS
         free = dock.allowedAreas() == Qt.NoDockWidgetArea
-        key = "text_dim" if free else "text"
-        color = "#cccccc"
+        # Angedockt = aktiv/"haftet" -> Theme-Akzentfarbe (auffaellig, passend zum
+        # Skin). Frei = inaktiv -> dezenter, kontrastarmer Ton.
         if getattr(self, "skin_mgr", None) is not None:
-            color = self.skin_mgr.color(key, color)
+            if free:
+                color = self.skin_mgr.color(
+                    "muted_text", self.skin_mgr.color("text_dim", "#999999"))
+            else:
+                color = self.skin_mgr.color(
+                    "selection_bg", self.skin_mgr.color("text", "#0067c0"))
+        else:
+            color = "#999999" if free else "#0067c0"
         magnet.setIcon(_make_icon(_SVG_MAGNET, color))
         magnet.setEnabled(not fixed)
         magnet.setToolTip(
