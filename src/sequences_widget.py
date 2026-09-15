@@ -3083,6 +3083,20 @@ class SequenceImportDialog(QDialog):
         return self._inserted_count, self._skipped_dupes
 
 
+class _CheckableSortItem(QListWidgetItem):
+    """Sortiert angehakte Eintraege in einen Block oben (intern#74). Verwaiste
+    Figuren (tier 0) bleiben IMMER ueber den regulaeren (tier 1) — unabhaengig
+    vom Haken, wie bisher."""
+    def __init__(self, text, tier, orig_index):
+        super().__init__(text)
+        self._tier = tier
+        self._orig_index = orig_index
+
+    def __lt__(self, other):
+        return (self._tier, self.checkState() != Qt.Checked, self._orig_index) < \
+               (other._tier, other.checkState() != Qt.Checked, other._orig_index)
+
+
 class CallFiguresPickerDialog(QDialog):
     """Mehrfach-Picker: Figuren-Menge eines Call-Texts per Haken-Liste (BL-210.4).
 
@@ -3122,28 +3136,27 @@ class CallFiguresPickerDialog(QDialog):
         unknown = [(f"[{eid}] ({_t('call_mapping_picker_unknown')})"
                     if eid in unknown_ids else f"[{eid}]", eid)
                    for eid in dict.fromkeys(selected or ()) if eid not in known]
-        first_checked = None
         # entity_id -> Eintraege in Listen-Reihenfolge. Haken und Anzeige laufen
         # darueber statt ueber alle ~760 Eintraege (Main-Thread, je Klick).
         self._items_by_eid = {}
         self._list = QListWidget()
         self._list.setUpdatesEnabled(False)
-        for label, eid in unknown + entities:
-            item = QListWidgetItem(label)
+        combined = unknown + entities
+        n_unknown = len(unknown)
+        for idx, (label, eid) in enumerate(combined):
+            tier = 0 if idx < n_unknown else 1
+            item = _CheckableSortItem(label, tier, idx)
             item.setData(Qt.UserRole, eid)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if eid in chosen else Qt.Unchecked)
             self._list.addItem(item)
             self._items_by_eid.setdefault(eid, []).append(item)
-            if first_checked is None and eid in chosen:
-                first_checked = item
+        self._list.sortItems()
         self._list.setUpdatesEnabled(True)
         self._checked = chosen & self._items_by_eid.keys()
         # Erst nach dem Befuellen verbinden: das Vorab-Anhaken loest nichts aus
         self._list.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._list, 1)
-        if first_checked is not None:
-            self._list.scrollToItem(first_checked, QAbstractItemView.PositionAtCenter)
 
         # Die Menge bleibt sichtbar, auch wenn der Suchfilter Haken ausblendet
         self._lbl_selected = QLabel()
@@ -3182,7 +3195,8 @@ class CallFiguresPickerDialog(QDialog):
 
     def _on_item_changed(self, item):
         """Die Referenz fuehrt eine Figur je Programm (z.B. Plus und Plus (2026))
-        -> alle Eintraege derselben entity_id gleich anhaken."""
+        -> alle Eintraege derselben entity_id gleich anhaken. Danach wandert der
+        angehakte Block sofort nach oben (intern#74)."""
         eid, state = item.data(Qt.UserRole), item.checkState()
         if state == Qt.Checked:
             self._checked.add(eid)
@@ -3193,6 +3207,10 @@ class CallFiguresPickerDialog(QDialog):
             if it.checkState() != state:
                 it.setCheckState(state)
         self._list.blockSignals(False)
+        self._list.setUpdatesEnabled(False)
+        self._list.sortItems()
+        self._list.setUpdatesEnabled(True)
+        self._list.scrollToItem(item)
         self._update_selected_label()
 
     def _update_selected_label(self):
@@ -3221,7 +3239,10 @@ class CallFiguresPickerDialog(QDialog):
             it.data(Qt.UserRole) for it in self._items() if not it.isHidden()))
 
     def selected_entity_ids(self) -> list:
-        """Angehakte entity_ids in Listen-Reihenfolge (jede Figur einmal)."""
+        """Angehakte entity_ids in urspruenglicher Listen-/Teaching-Reihenfolge —
+        bewusst NICHT die aktuelle (dynamisch sortierte) Sichtbar-Reihenfolge.
+        CallMappingDialog verlaesst sich beim Speichern auf diese stabile
+        Rangfolge (hoechste Teaching-Order zuerst)."""
         return [eid for eid in self._items_by_eid if eid in self._checked]
 
     def split_requested(self) -> bool:
