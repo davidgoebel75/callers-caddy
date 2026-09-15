@@ -9,10 +9,24 @@
 - Neue/verbesserte Features und relevante Bugfixes/Perf als Bullet Points **direkt nach dem Merge** dort eintragen. **Noch KEINE Versionsnummer, KEIN Datum** — das bleibt dem Build vorbehalten (eine Sammelversion pro Build, keine neue Nummer pro Feature).
 - Endnutzer-orientiert formulieren, Sprache: **Deutsch**.
 
-**2. Beim Build (Sammelversion + Versions-Bump):**
+**2. Beim Release (Sammelversion + Versions-Bump) — auf `develop`, VOR dem Release-PR:**
 - Aus `(Unreleased)` wird die fertige Version: Ueberschrift auf `## 0.XX — <Kurztitel> (YYYY-MM-DD)` setzen (neueste Version zuerst).
 - Versionsnummer: `0.XX` (XX = Prototyp-Nummer, zweistellig). Ab offiziellem Launch: `2.0+` (1.x war die alte Version).
-- Siehe „Versions-Bump — PFLICHT-DOPPELPACK".
+- Siehe „Versions-Bump — PFLICHT-DOPPELPACK" und „Branches und Release".
+
+## Branches und Release
+
+`develop` ist Default-Branch und Sammelstelle fuer alles Fertige. `main` enthaelt nur veroeffentlichte Staende.
+
+- **Neue Arbeit:** Branch immer frisch von `develop` abzweigen, Pull Request nach `develop`.
+- **Auf `main` wird nie direkt committet.** Aenderungen kommen dort nur ueber den Release-PR an.
+- **Release — Reihenfolge IMMER:**
+  1. Auf `develop`: Versions-Bump + Changelog (siehe PFLICHT-DOPPELPACK), committen, pushen.
+  2. Pull Request `develop` → `main` anlegen: `gh pr create --base main --head develop --title "Release 0.XX"`. Tests abwarten.
+  3. Mergen mit **„Create a merge commit"** — NIE „Squash and merge", NIE „Rebase and merge". Sonst verliert Git die Verbindung zwischen `develop` und `main`, und der naechste Release-PR bringt alte Commits doppelt plus Konflikte.
+  4. `main` holen (`git switch main && git pull`), bauen (siehe Build-Regel), Tag setzen: `git tag -a 0.XX -m "Release 0.XX"` und `git push origin 0.XX` (Format wie `0.151`, ohne `v`).
+- **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
+- Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
 
 ## Versions-Bump — PFLICHT-DOPPELPACK
 
