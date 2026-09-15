@@ -3087,6 +3087,9 @@ class _CheckableSortItem(QListWidgetItem):
     """Sortiert angehakte Eintraege in einen Block oben (intern#74). Verwaiste
     Figuren (tier 0) bleiben IMMER ueber den regulaeren (tier 1) — unabhaengig
     vom Haken, wie bisher."""
+    TIER_UNKNOWN = 0
+    TIER_REGULAR = 1
+
     def __init__(self, text, tier, orig_index):
         super().__init__(text)
         self._tier = tier
@@ -3144,15 +3147,15 @@ class CallFiguresPickerDialog(QDialog):
         combined = unknown + entities
         n_unknown = len(unknown)
         for idx, (label, eid) in enumerate(combined):
-            tier = 0 if idx < n_unknown else 1
+            tier = (_CheckableSortItem.TIER_UNKNOWN if idx < n_unknown
+                    else _CheckableSortItem.TIER_REGULAR)
             item = _CheckableSortItem(label, tier, idx)
             item.setData(Qt.UserRole, eid)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if eid in chosen else Qt.Unchecked)
             self._list.addItem(item)
             self._items_by_eid.setdefault(eid, []).append(item)
-        self._list.sortItems()
-        self._list.setUpdatesEnabled(True)
+        self._resort()
         self._checked = chosen & self._items_by_eid.keys()
         # Erst nach dem Befuellen verbinden: das Vorab-Anhaken loest nichts aus
         self._list.itemChanged.connect(self._on_item_changed)
@@ -3193,10 +3196,25 @@ class CallFiguresPickerDialog(QDialog):
         self._split = True
         self.accept()
 
+    def _resort(self, scroll_to=None):
+        """Sortiert den Haken-Block neu (intern#74). scroll_to: Item, zu dem
+        danach gescrollt wird — haelt den zuletzt geklickten Eintrag sichtbar,
+        auch wenn er ins obere Drittel der Liste springt."""
+        self._list.setUpdatesEnabled(False)
+        self._list.sortItems()
+        self._list.setUpdatesEnabled(True)
+        if scroll_to is not None:
+            self._list.scrollToItem(scroll_to)
+
     def _on_item_changed(self, item):
         """Die Referenz fuehrt eine Figur je Programm (z.B. Plus und Plus (2026))
-        -> alle Eintraege derselben entity_id gleich anhaken. Danach wandert der
-        angehakte Block sofort nach oben (intern#74)."""
+        -> alle Eintraege derselben entity_id gleich anhaken. Das Umsortieren
+        (intern#74) laeuft ueber QTimer.singleShot deferred statt synchron hier:
+        sortItems() ueber bis zu ~760 Eintraege kann laut Messwerten auf
+        langsamerer Hardware >5ms kosten — auf dem Main-Thread synchron im
+        Klick-Handler waere das ein Verstoss gegen die Audio-Prioritaet-Regel
+        (CLAUDE.md, TIC-0025). Der Haken selbst wird weiterhin sofort sichtbar,
+        nur die Positions-Aenderung im naechsten Event-Loop-Tick."""
         eid, state = item.data(Qt.UserRole), item.checkState()
         if state == Qt.Checked:
             self._checked.add(eid)
@@ -3207,10 +3225,7 @@ class CallFiguresPickerDialog(QDialog):
             if it.checkState() != state:
                 it.setCheckState(state)
         self._list.blockSignals(False)
-        self._list.setUpdatesEnabled(False)
-        self._list.sortItems()
-        self._list.setUpdatesEnabled(True)
-        self._list.scrollToItem(item)
+        QTimer.singleShot(0, lambda: self._resort(scroll_to=item))
         self._update_selected_label()
 
     def _update_selected_label(self):
@@ -3241,8 +3256,10 @@ class CallFiguresPickerDialog(QDialog):
     def selected_entity_ids(self) -> list:
         """Angehakte entity_ids in urspruenglicher Listen-/Teaching-Reihenfolge —
         bewusst NICHT die aktuelle (dynamisch sortierte) Sichtbar-Reihenfolge.
-        CallMappingDialog verlaesst sich beim Speichern auf diese stabile
-        Rangfolge (hoechste Teaching-Order zuerst)."""
+        SequencesWidget._handle_line_dblclick verlaesst sich beim Speichern
+        direkt auf diese stabile Rangfolge (hoechste Teaching-Order zuerst).
+        CallMappingDialog dagegen sortiert das Ergebnis selbst per
+        _rank_figures() neu."""
         return [eid for eid in self._items_by_eid if eid in self._checked]
 
     def split_requested(self) -> bool:

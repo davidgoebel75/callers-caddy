@@ -54,11 +54,14 @@ def make_picker(qapp):
 
 
 def _haken_umschalten(dlg, label):
-    """Wie ein Nutzer: Eintrag in der Haken-Liste waehlen, Leertaste."""
+    """Wie ein Nutzer: Eintrag in der Haken-Liste waehlen, Leertaste. Das
+    Umsortieren laeuft deferred (QTimer.singleShot, intern#74) — einmal
+    processEvents(), damit es vor der naechsten Assertion durchgelaufen ist."""
     lst = dlg.findChild(QListWidget)
     item = lst.findItems(label, Qt.MatchExactly)[0]
     lst.setCurrentItem(item)
     QTest.keyClick(lst, Qt.Key_Space)
+    QApplication.processEvents()
 
 
 def _knoepfe(dlg, text):
