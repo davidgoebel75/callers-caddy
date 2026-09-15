@@ -1,5 +1,15 @@
 {
   "_comment": "Callers Caddy Translations - de (Deutsch), en (English US), ja (Japanese)",
+  "dock_ctx_free_move": {
+    "de": "Frei bewegen",
+    "en": "Move freely",
+    "ja": "自由に移動"
+  },
+  "dock_undock_tooltip": {
+    "de": "Wieder andocken",
+    "en": "Dock again",
+    "ja": "再ドッキング"
+  },
   "update_available_title": {
     "de": "Update verfügbar",
     "en": "Update available",

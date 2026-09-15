@@ -6,6 +6,16 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## 0.159 — Fenster andocken oder frei bewegen (2026-09-15)
+
+### Verbesserungen
+- **Jedes Fenster (Widget) lässt sich jetzt wahlweise andocken oder frei wie ein normales Fenster bewegen.** Bisher richteten sich die Fenster immer am Dock-Raster aus. Jetzt schaltet ein Rechtsklick auf die Titelzeile eines angedockten Fensters über „Frei bewegen" das Andocken ab – das Fenster schwebt dann frei und rastet nicht mehr ein. Zusätzlich hat im Ansicht-Menü jede Fensterzeile rechts ein Magnet-Symbol, das zwischen „angedockt" und „frei" umschaltet; darüber holt man ein frei schwebendes Fenster auch wieder zurück ins Raster. Die Farbe des Magneten zeigt den Zustand an: angedockt in der Akzentfarbe des Designs, frei dezent ausgegraut. Fenster, die bewusst immer frei sind (z. B. Abendplaner, Regeln, Pausen-Uhr), bleiben unverändert. Der gewählte Zustand wird je Fenster gemerkt und übersteht einen Neustart.
+
+### Bugfixes
+- **Im Call-Mapping öffnet die Taste F2 den Figuren-Auswahldialog jetzt unabhängig von der zuvor angeklickten Spalte.** Hatte man zuerst in die Call-Text-Spalte geklickt und danach F2 gedrückt, blieb der Tastendruck wirkungslos (nur der Doppelklick auf die Figur-Zelle funktionierte). F2 wirkt jetzt in jeder Spalte der Zeile.
+
+---
+
 ## 0.158 — Fokus-Rahmen, Medley-Auto-Sync & Fenster-Positionen (2026-09-14)
 
 ### Verbesserungen
