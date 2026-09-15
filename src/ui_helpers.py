@@ -417,6 +417,22 @@ _SVG_PENCIL = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" vi
 _SVG_CLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="{c}" stroke-width="2"/><path d="M12 7v5.5l3.5 2" fill="none" stroke="{c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 
 
+# BL-204: Hufeisen-Magnet fuer den "Wieder andocken"-Button (dezent, oben rechts
+# im Widget, sichtbar nur wenn ein Dock frei schwebt). Gefuelltes SVG, Oeffnung
+# nach rechts, mit zwei Pol-Flaechen. Farbe kommt aus dem Skin ({c}); die Pole
+# sind transparente Aussparungen (fill-rule evenodd) -> sie zeigen den Widget-
+# Hintergrund und kontrastieren so in hellem wie dunklem Theme automatisch.
+_SVG_MAGNET = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
+    'viewBox="0 0 24 24">'
+    '<path fill="{c}" fill-rule="evenodd" d="'
+    'M21 3 L12 3 A9 9 0 0 0 12 21 L21 21 L21 15 L12 15 A3 3 0 0 1 12 9 L21 9 Z'
+    'M16 4.5 h4 v3.2 h-4 Z'
+    'M16 16.3 h4 v3.2 h-4 Z'
+    '"/></svg>'
+)
+
+
 def _make_icon(svg_template: str, color: str) -> QIcon:
     """Erzeugt ein QIcon aus einem SVG-Template mit eingefuegter Farbe."""
     from PySide6.QtGui import QPixmap

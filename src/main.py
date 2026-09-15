@@ -211,6 +211,7 @@ from ui_helpers import (
     parse_time_offset,
     show_loop_count_dialog,
     _make_icon,
+    _SVG_MAGNET,
     _make_dock,
     _PlayBarrier,
     _WrapButtonBar,
@@ -1245,9 +1246,7 @@ class P29MainWindow(QMainWindow):
         self.dock_streamdeck.setObjectName("dock_streamdeck")
         # Default versteckt; restoreState() stellt den echten Zustand her.
         self.dock_streamdeck.hide()
-        sd_action = self.dock_streamdeck.toggleViewAction()
-        sd_action.setText(_t("dock_streamdeck"))
-        self._view_menu.addAction(sd_action)
+        self._add_view_menu_entry(self.dock_streamdeck, _t("dock_streamdeck"))
 
         # --- Dock: Break (Pausen-Uhr) ---
         # Ebenfalls vor _restore_layout(), damit Position/Groesse/Sichtbarkeit
@@ -1274,9 +1273,7 @@ class P29MainWindow(QMainWindow):
         self.dock_break.hide()  # Default; restoreState() stellt echten Zustand her
         # Beim Oeffnen die Standard-Pausendauer der aktuellen Lokation uebernehmen
         self.dock_break.visibilityChanged.connect(self._on_break_visibility)
-        break_action = self.dock_break.toggleViewAction()
-        break_action.setText(_t("dock_break"))
-        self._view_menu.addAction(break_action)
+        self._add_view_menu_entry(self.dock_break, _t("dock_break"))
         perf_log("    Break dock", _tbreak)
 
         # --- Dock: Rules ---
@@ -1310,9 +1307,7 @@ class P29MainWindow(QMainWindow):
         self.dock_rules.setFloating(True)
         self.dock_rules.resize(900, 500)
         self.dock_rules.hide()
-        rules_action = self.dock_rules.toggleViewAction()
-        rules_action.setText(_t("dock_rules"))
-        self._view_menu.addAction(rules_action)
+        self._add_view_menu_entry(self.dock_rules, _t("dock_rules"))
         self.tutorial_engine.register_widget("rules", self.rules_widget)
 
         # --- Dock: Jump Markers (BL-185, Teil 2) — vollwertig andockbar ---
@@ -1336,9 +1331,7 @@ class P29MainWindow(QMainWindow):
         # Beim Sichtbarwerden neu aufbauen (Signatur invalidieren)
         self.dock_jump_markers.visibilityChanged.connect(
             lambda vis: setattr(self, '_jm_sig', None))
-        jm_action = self.dock_jump_markers.toggleViewAction()
-        jm_action.setText(_t("dock_jump_markers"))
-        self._view_menu.addAction(jm_action)
+        self._add_view_menu_entry(self.dock_jump_markers, _t("dock_jump_markers"))
         perf_log("    JumpMarkers dock", _tjm)
 
         # --- Dock: To Call (BL-199) — vollwertig andockbar ---
@@ -1355,9 +1348,7 @@ class P29MainWindow(QMainWindow):
         )
         self.dock_to_call.setObjectName("dock_to_call")
         self.dock_to_call.hide()
-        tc_action = self.dock_to_call.toggleViewAction()
-        tc_action.setText(_t("dock_to_call"))
-        self._view_menu.addAction(tc_action)
+        self._add_view_menu_entry(self.dock_to_call, _t("dock_to_call"))
         perf_log("    ToCall dock", _ttc)
 
         # --- Dock: Pilot Square (BL-207) — vollwertig andockbar ---
@@ -1375,10 +1366,11 @@ class P29MainWindow(QMainWindow):
         )
         self.dock_pilot_square.setObjectName("dock_pilot_square")
         self.dock_pilot_square.hide()
-        sq_action = self.dock_pilot_square.toggleViewAction()
-        sq_action.setText(_t("dock_pilot_square"))
-        self._view_menu.addAction(sq_action)
+        self._add_view_menu_entry(self.dock_pilot_square, _t("dock_pilot_square"))
         perf_log("    PilotSquare dock", _tsq)
+
+        # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
+        self._wire_dock_context_menus()
 
         # Layout wiederherstellen
         self._restore_layout()
@@ -5551,6 +5543,9 @@ class P29MainWindow(QMainWindow):
 
         # Ansicht-Menu
         view_menu = menu_bar.addMenu(_t("menu_view"))
+        self._view_menu = view_menu
+        # dock -> Magnet-Button (Andock-Umschalter je Menuezeile, BL-204)
+        self._view_magnets = {}
         for dock, text in [
             (self.dock_player, _t("dock_player")),
             (self.dock_loop, _t("dock_loop")),
@@ -5568,12 +5563,7 @@ class P29MainWindow(QMainWindow):
             (self.dock_notes, _t("dock_notes")),
             (self.dock_evening_planner, _t("dock_evening_planner")),
         ]:
-            action = dock.toggleViewAction()
-            action.setText(text)
-            view_menu.addAction(action)
-
-        # Rules-Dock (wird spaeter in __init__ erstellt, hier nachtraeglich)
-        self._view_menu = view_menu
+            self._add_view_menu_entry(dock, text)
 
         # Einstellungen-Menu (ehemals Design)
         settings_menu = menu_bar.addMenu(_t("menu_design"))
@@ -6843,9 +6833,165 @@ class P29MainWindow(QMainWindow):
         # Layout-Zustand ihn angedockt restauriert hat: Floating erzwingen
         if not self.dock_evening_planner.isFloating():
             self.dock_evening_planner.setFloating(True)
+        # BL-204: gespeicherten "Frei bewegen"-Zustand erneut anwenden
+        # (allowedAreas ist nicht Teil von saveState/restoreState).
+        self._apply_saved_dock_free()
         # Mindesthoehen nach restoreState() erneut erzwingen
         self.player.setMinimumHeight(380)
         self.loop_widget.setMinimumHeight(190)
+
+    # BL-204: Docks, die bewusst NICHT andockbar sind (immer frei schwebend).
+    # Fuer sie ist der "Frei bewegen"-Umschalter fix an (angehakt + deaktiviert),
+    # damit die Titelleisten-Menues einheitlich bleiben, ohne diese bewusst
+    # nicht-dockbaren Fenster zu brechen.
+    _FIXED_FREE_DOCKS = frozenset({
+        "dock_manager", "dock_loop_finder", "dock_photo",
+        "dock_evening_planner", "dock_break", "dock_rules", "dock_reports",
+    })
+
+    @staticmethod
+    def _all_dock_areas():
+        return (Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea
+                | Qt.TopDockWidgetArea | Qt.BottomDockWidgetArea)
+
+    def _wire_dock_context_menus(self):
+        """Haengt an jede Dock-Titelleiste ein Kontextmenue 'Frei bewegen'.
+
+        Standardkonform ueber Qt.CustomContextMenu — KEINE eigene Titelleiste.
+        customContextMenuRequested feuert bei Rechtsklick auf die (native)
+        Titelleiste; ein y-Guard im Handler haelt das Menue vom Dock-Inhalt fern.
+        Uniform fuer ALLE Docks (auch kuenftige), da ueber findChildren gesetzt.
+
+        Der Rueckweg (aus 'frei' wieder andocken) laeuft ueber das Magnet-Icon in
+        der jeweiligen Zeile des Ansicht-Menues (siehe _add_view_menu_entry) — ein
+        frei schwebendes Dock ist ein natives Fenster mit Windows-Leiste, dort
+        greift Qt's Titelleisten-Rechtsklick nicht.
+        """
+        for dock in self.findChildren(QDockWidget):
+            dock.setContextMenuPolicy(Qt.CustomContextMenu)
+            dock.customContextMenuRequested.connect(
+                lambda pos, d=dock: self._on_dock_context_menu(d, pos))
+
+    def _on_dock_context_menu(self, dock, pos):
+        """Zeigt bei Rechtsklick auf die Dock-Titelleiste das 'Frei bewegen'-Menue."""
+        # y-Guard: nur oberhalb des Inhalts-Widgets (= Titelleiste/Rahmen),
+        # damit der Rechtsklick im Inhalt weiterhin dessen eigenes Menue erhaelt.
+        content = dock.widget()
+        if content is not None and pos.y() > content.geometry().top():
+            return
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu(dock)
+        act = menu.addAction(_t("dock_ctx_free_move"))
+        act.setCheckable(True)
+        act.setChecked(dock.allowedAreas() == Qt.NoDockWidgetArea)
+        if dock.objectName() in self._FIXED_FREE_DOCKS:
+            # Bewusst nicht-dockbares Fenster: Zustand fix, nur zur Anzeige.
+            act.setEnabled(False)
+        else:
+            act.toggled.connect(lambda free, d=dock: self._set_dock_free(d, free))
+        menu.exec(dock.mapToGlobal(pos))
+
+    def _set_dock_free(self, dock, free):
+        """Schaltet einen Dock zwischen 'frei schwebend' und 'andockbar' um.
+
+        free=True : kein Andocken (NoDockWidgetArea), sofort schwebend.
+        free=False: alle vier Andockbereiche wieder erlaubt UND zurueck angedockt
+                    (setFloating(False)) — sonst bliebe es eine Einbahnstrasse.
+        Zustand pro Dock in der INI gemerkt und Layout gesichert.
+        """
+        if free:
+            dock.setAllowedAreas(Qt.NoDockWidgetArea)
+            if not dock.isFloating():
+                dock.setFloating(True)
+        else:
+            dock.setAllowedAreas(self._all_dock_areas())
+            if dock.isFloating():
+                dock.setFloating(False)
+        name = dock.objectName()
+        if name:
+            self._settings.setValue(f"dockfree/{name}", free)
+        self._refresh_view_magnet(dock)
+        # Position/Floating gleich mitsichern (nicht erst beim 60s-Autosave).
+        if hasattr(self, "_layout_save_timer"):
+            self._save_layout()
+
+    def _apply_saved_dock_free(self):
+        """Wendet den gespeicherten 'Frei bewegen'-Zustand auf die dockbaren
+        Docks an. Fix-freie Docks bleiben unberuehrt (ihr Zustand wird an anderer
+        Stelle erzwungen)."""
+        for dock in self.findChildren(QDockWidget):
+            name = dock.objectName()
+            if not name or name in self._FIXED_FREE_DOCKS:
+                continue
+            free = self._settings.value(f"dockfree/{name}", False, type=bool)
+            dock.setAllowedAreas(
+                Qt.NoDockWidgetArea if free else self._all_dock_areas())
+            self._refresh_view_magnet(dock)
+
+    # ---- BL-204: Andock-Umschalter (Magnet) je Zeile im Ansicht-Menue ----
+
+    def _add_view_menu_entry(self, dock, text):
+        """Fuegt dem Ansicht-Menue eine Zeile fuer einen Dock hinzu: links die
+        (unveraenderte) Sichtbarkeits-Umschaltung, rechtsbuendig ein Magnet-Icon
+        zum Umschalten angedockt <-> frei. Der Magnet zeigt den Snap-Zustand:
+        angedockt = kraeftige Textfarbe, frei = dezent."""
+        from PySide6.QtWidgets import (
+            QWidget, QHBoxLayout, QCheckBox, QToolButton, QWidgetAction)
+        from PySide6.QtCore import QSize
+        row = QWidget(self._view_menu)
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(8, 2, 8, 2)
+        lay.setSpacing(14)
+        # Sichtbarkeit: dieselbe toggleViewAction wie bisher, nur als Checkbox
+        # gespiegelt (Haekchen bleibt via _sync_dock_view_actions in Takt).
+        act = dock.toggleViewAction()
+        act.setText(text)
+        chk = QCheckBox(text, row)
+        chk.setChecked(act.isChecked())
+        chk.clicked.connect(lambda checked, d=dock: d.setVisible(checked))
+        act.toggled.connect(chk.setChecked)
+        magnet = QToolButton(row)
+        magnet.setAutoRaise(True)
+        magnet.setFocusPolicy(Qt.NoFocus)
+        magnet.setCursor(Qt.PointingHandCursor)
+        magnet.setIconSize(QSize(16, 16))
+        magnet.clicked.connect(lambda _=False, d=dock: self._toggle_dock_snap(d))
+        lay.addWidget(chk)
+        lay.addStretch(1)
+        lay.addWidget(magnet)
+        wa = QWidgetAction(self._view_menu)
+        wa.setDefaultWidget(row)
+        self._view_menu.addAction(wa)
+        self._view_magnets[dock] = magnet
+        self._refresh_view_magnet(dock)
+
+    def _toggle_dock_snap(self, dock):
+        """Magnet-Klick: angedockt -> frei, frei -> wieder angedockt."""
+        if dock.objectName() in self._FIXED_FREE_DOCKS:
+            return
+        free_now = dock.allowedAreas() == Qt.NoDockWidgetArea
+        self._set_dock_free(dock, not free_now)
+
+    def _refresh_view_magnet(self, dock):
+        """Aktualisiert Farbe/Tooltip/Aktivierung des Magneten je nach Snap-Zustand.
+        Angedockt/gesnappt -> kontrastreiche Textfarbe (haftet); frei -> dezent."""
+        magnet = getattr(self, "_view_magnets", {}).get(dock)
+        if magnet is None:
+            return
+        fixed = dock.objectName() in self._FIXED_FREE_DOCKS
+        free = dock.allowedAreas() == Qt.NoDockWidgetArea
+        key = "text_dim" if free else "text"
+        color = "#cccccc"
+        if getattr(self, "skin_mgr", None) is not None:
+            color = self.skin_mgr.color(key, color)
+        magnet.setIcon(_make_icon(_SVG_MAGNET, color))
+        magnet.setEnabled(not fixed)
+        magnet.setToolTip(
+            _t("dock_undock_tooltip") if free else _t("dock_ctx_free_move"))
+
+    def _refresh_all_view_magnets(self):
+        for dock in getattr(self, "_view_magnets", {}):
+            self._refresh_view_magnet(dock)
 
     def _sync_dock_view_actions(self):
         """Gleicht die View-Menue-Haekchen mit der echten Dock-Sichtbarkeit ab.
@@ -6985,6 +7131,8 @@ class P29MainWindow(QMainWindow):
             self._sb_player_bar.update()
             # Tutorial-Overlay mit neuen Farben neu zeichnen
             self.tutorial_engine.refresh_overlay()
+            # BL-204: Magnet-Icons im Ansicht-Menue neu einfaerben (Snap-Zustand)
+            self._refresh_all_view_magnets()
             print(f"[Skin] Gewechselt auf '{skin_name}'")
             return True
         return False
