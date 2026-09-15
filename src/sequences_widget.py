@@ -3409,7 +3409,8 @@ class CallMappingDialog(QDialog):
         f2 = QShortcut(QKeySequence(Qt.Key_F2), self._table)
         f2.setContext(Qt.WidgetShortcut)
         f2.activated.connect(
-            lambda: self._open_figures_picker(self._table.currentIndex()))
+            lambda: self._open_figures_picker(
+                self._table.model().index(self._table.currentIndex().row(), 2)))
 
         # Rechtsklick auf die Call-Text-Spalte -> "Beispiel zeigen" (Sequenzen,
         # die diesen Text nutzen, in einem eigenen Betrachter durchblaettern).
