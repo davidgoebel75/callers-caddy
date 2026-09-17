@@ -327,3 +327,32 @@ def test_split_ohne_duplikate_und_ohne_scheinmenge():
     assert suggest_figure_set(
         "Pass Thru, Trade By, Pass Thru", exact_lookup) == (
         ["call_pass_thru", "call_trade_by"], "split")
+
+
+def test_all8_rest_ist_volltreffer_kein_split():
+    # 'Swing and Mix' ist eine eigene Figur. Der Rest hinter dem All-8-Praefix
+    # muss sie als Ganzes treffen -- NICHT als [Swing, Mix] zerlegt werden.
+    exact_lookup = {
+        "all 8 concept": "concept_all_8",
+        "swing and mix": "call_swing_and_mix",
+        "swing": "call_swing",
+        "mix": "call_mix",
+    }
+
+    assert suggest_figure_set("All 8 Swing & Mix", exact_lookup) == (
+        ["concept_all_8", "call_swing_and_mix"], "all8")
+
+
+def test_all4couples_rest_mit_and_im_figurennamen():
+    # Gegenstueck zum vorigen Fall auf der All-4-Couples-Seite: das 'And' im
+    # Figurennamen darf den Rest nicht am Split zerreissen.
+    exact_lookup = {
+        "all 4 couples concept": "concept_all_4_couples",
+        "right and left thru": "call_right_and_left_thru",
+        "right": "call_right",
+        "left thru": "call_left_thru",
+    }
+
+    assert suggest_figure_set(
+        "All 4 Couples Right And Left Thru", exact_lookup) == (
+        ["concept_all_4_couples", "call_right_and_left_thru"], "all8")
