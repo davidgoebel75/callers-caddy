@@ -272,3 +272,58 @@ def test_ohne_rest_lookup_bleibt_konservatives_verhalten():
 
     assert suggest_figure_set("All 4 Couples Touch 1/4", exact_lookup) == (
         None, None)
+
+
+def test_rest_lookup_unterdrueckt_keinen_vorschlag():
+    # Kern von F1: rest_lookup darf die Volltreffer-Pruefung des GESAMTEN
+    # Textes nicht speisen. Sonst faellt jeder bereits zugeordnete Call-Text
+    # in den Volltreffer und bekommt nie wieder einen Vorschlag -- also genau
+    # die Alt-Zuordnungen, die BL-210.8 finden soll, waeren unsichtbar.
+    exact_lookup = {
+        "all 8 concept": "concept_all_8",
+        "fan the top": "call_fan_the_top",
+    }
+    # Der ganze Text ist hier bereits zugeordnet (wie in call_text_mappings).
+    rest_lookup = {
+        "all 8 fan the top": "call_fan_the_top",
+        "fan the top": "call_fan_the_top",
+    }
+
+    assert suggest_figure_set(
+        "All 8 Fan The Top", exact_lookup, rest_lookup) == (
+        ["concept_all_8", "call_fan_the_top"], "all8")
+
+
+def test_split_ignoriert_rest_lookup():
+    # Split loest ausschliesslich ueber rohe kanonische Namen auf (BL-210.7,
+    # Baustein 4): mit bestehenden Zuordnungen wuerde sich die Split-Klasse
+    # durch Bruchstuecke verdoppeln.
+    exact_lookup = {
+        "circulate": "call_circulate",
+    }
+    rest_lookup = {
+        "frobnicate": "call_frobnicate",
+    }
+
+    assert suggest_figure_set(
+        "Circulate, Frobnicate", exact_lookup, rest_lookup) == (None, None)
+
+
+def test_split_ohne_duplikate_und_ohne_scheinmenge():
+    # Das Ergebnis ist eine Menge, keine Aufzaehlung der Tanzschritte.
+    exact_lookup = {
+        "trade": "call_trade",
+        "pass thru": "call_pass_thru",
+        "trade by": "call_trade_by",
+    }
+
+    # Mehrfach dieselbe Figur -> nach dem Entdoppeln bleibt EINE Figur uebrig,
+    # also kein Mehrfachfall und kein Mengenvorschlag.
+    assert suggest_figure_set("Boys Trade, Girls Trade", exact_lookup) == (
+        None, None)
+
+    # Wiederholung innerhalb einer echten Mehrfachmenge: Duplikat faellt weg,
+    # die Reihenfolge des ersten Auftretens bleibt.
+    assert suggest_figure_set(
+        "Pass Thru, Trade By, Pass Thru", exact_lookup) == (
+        ["call_pass_thru", "call_trade_by"], "split")

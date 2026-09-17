@@ -552,6 +552,12 @@ _SPLIT_DELIM_RE = re.compile(r'\s*(?:,|&|\band\b)\s*', re.IGNORECASE)
 def suggest_split_figures(raw_text: str, exact_lookup: dict) -> Optional[list]:
     """Trennt an Komma/'&'/'and'. Nur ein Treffer, wenn JEDER Teil eindeutig
     exakt einer Figur entspricht.
+
+    Das Ergebnis ist eine MENGE: Reihenfolge wie im Text, aber ohne Duplikate.
+    Loesen mehrere Teile auf dieselbe Figur auf ('Boys Trade, Girls Trade' —
+    beides 'Trade', 'Swing Thru, Swing Thru Again'), bleibt danach nur eine
+    Figur uebrig. Dann ist es kein Mehrfachfall und es gibt keinen Vorschlag:
+    die Figur ist ueber den normalen Einzel-Vorschlag schon abgedeckt.
     """
     parts = [p for p in _SPLIT_DELIM_RE.split(raw_text) if p.strip()]
     if len(parts) < 2:
@@ -564,7 +570,8 @@ def suggest_split_figures(raw_text: str, exact_lookup: dict) -> Optional[list]:
             return None
         entity_ids.append(eid)
 
-    return entity_ids
+    unique = list(dict.fromkeys(entity_ids))
+    return unique if len(unique) > 1 else None
 
 
 # Programm-Grenzen: (program_id, label)
