@@ -54,11 +54,14 @@ def make_picker(qapp):
 
 
 def _haken_umschalten(dlg, label):
-    """Wie ein Nutzer: Eintrag in der Haken-Liste waehlen, Leertaste."""
+    """Wie ein Nutzer: Eintrag in der Haken-Liste waehlen, Leertaste. Das
+    Umsortieren laeuft deferred (QTimer.singleShot, intern#74) — einmal
+    processEvents(), damit es vor der naechsten Assertion durchgelaufen ist."""
     lst = dlg.findChild(QListWidget)
     item = lst.findItems(label, Qt.MatchExactly)[0]
     lst.setCurrentItem(item)
     QTest.keyClick(lst, Qt.Key_Space)
+    QApplication.processEvents()
 
 
 def _knoepfe(dlg, text):
@@ -121,7 +124,7 @@ def test_suchfeld_filtert_und_haken_bleiben_erhalten(make_picker):
 
     dlg.set_search_text("")
     assert dlg.visible_entity_ids() == [
-        ALLEMANDE_THAR, ALLEMANDE_RIGHT, ANYTHING_AND_ROLL, CHASE_RIGHT]
+        ALLEMANDE_RIGHT, CHASE_RIGHT, ALLEMANDE_THAR, ANYTHING_AND_ROLL]
     assert dlg.selected_entity_ids() == [ALLEMANDE_RIGHT, CHASE_RIGHT]
 
 
@@ -169,6 +172,62 @@ def test_figur_ohne_calls_zeile_ist_als_unbekannt_markiert(make_picker):
     assert lst.item(0).text() == \
         f"[action_face_in] ({_t('call_mapping_picker_unknown')})"
     assert dlg.selected_entity_ids() == ["action_face_in", CHASE_RIGHT]
+
+
+def test_verwaiste_figur_bleibt_immer_ganz_oben(make_picker):
+    legacy = "call_legacy_figure"
+    dlg = make_picker(selected=[legacy])
+    lst = dlg.findChild(QListWidget)
+
+    assert lst.item(0).text() == f"[{legacy}]"
+
+    _haken_umschalten(dlg, "Chase Right  [Plus]")   # regulaer anhaken
+    assert lst.item(0).text() == f"[{legacy}]"       # verwaiste bleibt oben
+
+    _haken_umschalten(dlg, f"[{legacy}]")             # verwaiste abhaken
+    assert lst.item(0).text() == f"[{legacy}]"        # bleibt trotzdem ganz oben (tier 0)
+    assert dlg.selected_entity_ids() == [CHASE_RIGHT]
+
+
+def test_resort_waehrend_suchfilter_aktiv_behaelt_ausgeblendete(make_picker):
+    dlg = make_picker(selected=[CHASE_RIGHT])
+    lst = dlg.findChild(QListWidget)
+
+    dlg.set_search_text("allemande")
+    _haken_umschalten(dlg, "Allemande Thar  [Mainstream]")
+
+    # Chase Right bleibt ausgeblendet, obwohl sich die Reihenfolge geaendert hat
+    assert lst.findItems("Chase Right  [Plus]", Qt.MatchExactly)[0].isHidden()
+    assert lst.findItems("(Anything) & Roll  [Plus]", Qt.MatchExactly)[0].isHidden()
+    assert dlg.visible_entity_ids() == [ALLEMANDE_THAR, ALLEMANDE_RIGHT]
+
+    dlg.set_search_text("")
+    assert dlg.visible_entity_ids() == [
+        ALLEMANDE_THAR, CHASE_RIGHT, ALLEMANDE_RIGHT, ANYTHING_AND_ROLL]
+
+
+def test_mehrere_haken_folgen_teaching_order_nicht_klick_reihenfolge(make_picker):
+    dlg = make_picker()   # nichts vorausgewaehlt
+    lst = dlg.findChild(QListWidget)
+
+    # Absichtlich in "falscher" Reihenfolge anklicken: zuerst Chase Right,
+    # dann Allemande Thar -> Block soll trotzdem Listen-/Teaching-Order zeigen
+    _haken_umschalten(dlg, "Chase Right  [Plus]")
+    _haken_umschalten(dlg, "Allemande Thar  [Mainstream]")
+
+    assert [lst.item(i).text() for i in range(2)] == [
+        "Allemande Thar  [Mainstream]", "Chase Right  [Plus]"]
+
+
+def test_duplikat_ueber_zwei_programme_bleibt_beim_sortieren_benachbart(make_picker):
+    entities = ENTITIES + [("Chase Right  [Plus (2026)]", CHASE_RIGHT)]
+    dlg = make_picker(entities=entities)
+    lst = dlg.findChild(QListWidget)
+
+    _haken_umschalten(dlg, "Chase Right  [Plus (2026)]")
+
+    assert [lst.item(i).text() for i in range(2)] == [
+        "Chase Right  [Plus]", "Chase Right  [Plus (2026)]"]
 
 
 # ---------------------------------------------------- Call-Mapping-Dialog ----
