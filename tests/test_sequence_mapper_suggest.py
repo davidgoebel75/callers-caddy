@@ -2,13 +2,18 @@
 
 Geprueft werden ausschliesslich zwei oeffentliche Schnittstellen:
 
-  - suggest_figure_set(raw_text, exact_lookup) -> (figure_set | None, pattern | None)
+  - suggest_figure_set(raw_text, exact_lookup, rest_lookup=None)
+        -> (figure_set | None, pattern | None)
   - CallMatcher.exact_by_canonical(name) -> Optional[str]
 
-``exact_lookup`` ist ein handgeschriebenes Dict (KEINE SongDatabase, kein Qt):
-Schluessel ist der kanonische Name, vereinheitlicht wie es suggest_figure_set
-intern auch mit dem Eingabetext macht (Kleinschreibung, '&' -> 'and',
-Zahlwoerter 'eight'/'four' -> '8'/'4', Mehrfach-Leerzeichen zusammengezogen).
+``exact_lookup``/``rest_lookup`` sind handgeschriebene Dicts (KEINE
+SongDatabase, kein Qt): Schluessel ist canon_key(Text) -- Kleinschreibung,
+'&' -> 'and', Zahlwoerter 'eight'/'four' -> '8'/'4', Mehrfach-Leerzeichen
+zusammengezogen (dieselbe Funktion, mit der auch CallMatcher.exact_by_-
+canonical() seinen Schluessel bildet). ``exact_lookup`` enthaelt NUR rohe
+kanonische Namen/Vorlagen/Konzepte, ``rest_lookup`` (optional) zusaetzlich
+bereits bestehende Call-Text-Zuordnungen (z. B. aus call_text_mappings) --
+siehe suggest_figure_set()-Docstring fuer die genaue Reihenfolge.
 Die erwarteten Entity-IDs sind frei erfundene, aber realistische Namen -- sie
 stammen unabhaengig von der Implementierung aus dieser Testdatei selbst.
 """
@@ -202,3 +207,68 @@ def test_exact_by_canonical_deterministisch_bei_mehrfachnamen():
     # case-insensitiv
     assert vorwaerts.exact_by_canonical("explode & (anything)") == (
         "concept_explode_and_anything_plus")
+
+
+def test_exact_by_canonical_ampersand_und_and_gleichwertig():
+    # F2: exact_by_canonical() muss denselben Schluessel benutzen wie
+    # canon_key() -- sonst findet ein per exact_by_canonical() gebautes
+    # exact_lookup Vorlagen mit '&' nicht wieder, wenn suggest_figure_set()
+    # sie ueber canon_key() (mit '&' -> 'and') nachschlaegt.
+    canonicals = [
+        ("concept_anything_and_roll", "(Anything) & Roll", 39.0012, "Plus"),
+    ]
+    matcher = CallMatcher(canonicals)
+
+    assert matcher.exact_by_canonical("(Anything) & Roll") == "concept_anything_and_roll"
+    assert matcher.exact_by_canonical("(Anything) and Roll") == "concept_anything_and_roll"
+
+
+def test_rollenpraefix_volltreffer_kein_vorschlag():
+    # F3: 'Heads Right & Left Thru' ist nach Abzug des Rollen-Praefixes ein
+    # Volltreffer auf 'Right and Left Thru' -- kein Vorschlag, obwohl der
+    # rohe Text ein '&' enthaelt und damit auch splittbar aussaehe.
+    exact_lookup = {
+        "right and left thru": "call_right_and_left_thru",
+    }
+
+    assert suggest_figure_set("Heads Right & Left Thru", exact_lookup) == (None, None)
+
+
+def test_rollenpraefix_bei_anything_ziel():
+    # F3: Die Zielfigur einer (Anything)-Vorlage kann selbst einen
+    # gewoehnlichen Rollen-Praefix tragen ('Boys Trade & Roll' -> Ziel
+    # 'Trade' unter dem Praefix 'Boys').
+    exact_lookup = {
+        "trade": "call_trade",
+        "(anything) and roll": "concept_anything_and_roll",
+    }
+
+    assert suggest_figure_set("Boys Trade & Roll", exact_lookup) == (
+        ["call_trade", "concept_anything_and_roll"], "anything")
+
+
+def test_rest_lookup_loest_all8_rest_ueber_bestehende_zuordnung_auf():
+    # F1: 'Touch 1/4' ist keine kanonische Figur (die heisst 'Touch A
+    # Quarter'), aber laengst per call_text_mappings korrekt zugeordnet.
+    # Mit rest_lookup wird daraus ein K2-Vorschlag.
+    exact_lookup = {
+        "all 4 couples concept": "concept_all_4_couples",
+    }
+    rest_lookup = {
+        "touch 1/4": "call_touch_a_quarter",
+    }
+
+    assert suggest_figure_set(
+        "All 4 Couples Touch 1/4", exact_lookup, rest_lookup) == (
+        ["concept_all_4_couples", "call_touch_a_quarter"], "all8")
+
+
+def test_ohne_rest_lookup_bleibt_konservatives_verhalten():
+    # F1, Gegenprobe: derselbe Text ohne rest_lookup bleibt K3 (kein
+    # Vorschlag) -- das heutige, konservative Verhalten aendert sich nicht.
+    exact_lookup = {
+        "all 4 couples concept": "concept_all_4_couples",
+    }
+
+    assert suggest_figure_set("All 4 Couples Touch 1/4", exact_lookup) == (
+        None, None)
