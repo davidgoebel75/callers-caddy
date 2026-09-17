@@ -6,13 +6,6 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
-## (Unreleased — seit 0.159)
-
-### Technik
-- **Grundlage für die automatische Call-Erkennung gelegt (BL-210.7).** Call-Texte, die erkennbar mehrere Figuren enthalten, lassen sich jetzt maschinell in ihre Figuren zerlegen: die sieben „(Anything)"-Vorlagen (z. B. „Chase Right & Roll"), die Konzepte „All 8" und „All 4 Couples" sowie Aufzählungen mit Komma, `&` oder „and". Die Erkennung ist bewusst vorsichtig: Ist ein Call-Text selbst schon eine eigene Figur — „All Eight Circulate" etwa ist eine ganz normale Mainstream-Figur und kein „All 8"-Konzept —, oder lässt sich ein Teil nicht eindeutig zuordnen, gibt es gar keinen Vorschlag statt eines geratenen. Sichtbar wird das im Call-Mapping-Fenster erst mit dem nächsten Schritt (BL-210.8); an bestehenden Zuordnungen ändert sich nichts.
-
----
-
 ## 0.159 — Fenster andocken oder frei bewegen (2026-09-15)
 
 ### Verbesserungen
