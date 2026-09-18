@@ -3195,6 +3195,11 @@
     "en": "All",
     "ja": "すべて"
   },
+  "call_mapping_f_mismatch": {
+    "de": "Vorschlag weicht ab",
+    "en": "Suggestion differs",
+    "ja": "提案相違"
+  },
   "call_mapping_col_raw": {
     "de": "Call-Text",
     "en": "Call Text",
