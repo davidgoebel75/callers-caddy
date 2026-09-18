@@ -88,3 +88,18 @@ def test_detailansicht_bleibt_eine_zeile_je_call_text(db):
     assert [(c[1], c[2]) for c in db.get_sequence_calls(sid)] == [(TEXT, RIGHT)]
     rows = [r for r in db.get_all_call_texts_with_mapping() if r[0] == TEXT]
     assert [(r[1], r[2]) for r in rows] == [(1, RIGHT)]
+
+
+def test_sequenz_anzeige_zeigt_deterministisch_das_niedrigste_band(db):
+    # intern#87: Allemande Thar steht in zwei Baendern (Mainstream 29.005301 und
+    # Plus 2026 40.002601). get_sequence_calls joint auf die Mehrfach-View; ohne
+    # ORDER BY waere das Programm-Badge willkuerlich. Erwartet: immer das
+    # niedrigste Band -> teaching_order 29.005301, Programm "Mainstream".
+    db.set_call_text_mappings([(TEXT, THAR)])
+    [sid] = db.get_filtered_sequence_ids()
+
+    (row,) = db.get_sequence_calls(sid)
+    # (position, call_text, entity_id, teaching_order, canonical_name, program)
+    assert row[2] == THAR
+    assert row[3] == 29.005301
+    assert row[5] == "Mainstream"

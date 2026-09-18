@@ -3518,15 +3518,21 @@ class CallMappingDialog(QDialog):
         # Picker-Liste nur mit echten Figuren: "keine Zuordnung" = kein Haken,
         # "An Komma aufteilen" ist ein Knopf im Picker, Programm-Separatoren
         # ("-- Basic 1 --") sind keine Figuren.
+        # intern#87: Zuordnung haengt an der entity_id, nicht am Tanzband. Eine
+        # entity_id steht in teaching_order_calls je Programm einmal (Recycle in
+        # Mainstream UND Mainstream 2026) -> pro entity_id nur EIN Picker-Eintrag,
+        # Label ohne Programm-Suffix. to_calls ist aufsteigend nach teaching_order,
+        # das erste Vorkommen ist das niedrigste Band.
         self._entity_list = []
         self._eid_to_label = {}
         self._eid_min_to = {}
         for eid, cname, to, prog in to_calls:
-            label = f"{cname}  [{prog}]" if prog else cname
-            self._eid_to_label[eid] = label
-            self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
+            if eid in self._eid_to_label:
+                continue   # entity_id schon gesehen (weiteres Band) -> ueberspringen
+            self._eid_to_label[eid] = cname
+            self._eid_min_to[eid] = to   # to_calls aufsteigend sortiert
             if not cname.startswith("--"):
-                self._entity_list.append((label, eid))
+                self._entity_list.append((cname, eid))
 
         # CallMatcher: Drei-Stufen-Matching (exakt → Token-Overlap → SequenceMatcher)
         self._matcher = _CallMatcher(to_calls)

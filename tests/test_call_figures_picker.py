@@ -444,3 +444,20 @@ def test_mapping_bestaetigen_schreibt_die_auswahl_der_zeilen(
     assert _zelle(table, "Allemande Thar") is None
     assert _zelle(table, "Chase Right") is None
     assert _zelle(table, KOMMA) is not None
+
+
+def test_mapping_entity_liste_hat_jede_figur_nur_einmal(mapping, picker_double):
+    # intern#87: teaching_order_calls fuehrt eine entity_id je Band (Chase Right
+    # in Plus UND Plus (2026)). Die an den Picker uebergebene Figuren-Liste muss
+    # jede entity_id trotzdem nur EINMAL enthalten, Label ohne [Programm]-Suffix.
+    dlg, table = mapping
+    aufrufe, _antwort = picker_double
+    _filter(dlg, "all")   # MENGE ist gemappt -> nur unter "Alle" sichtbar
+    _doppelklick(table, _zelle(table, MENGE))
+
+    (aufruf,) = aufrufe
+    eids = [eid for _label, eid in aufruf["entities"]]
+    assert eids.count(CHASE_RIGHT) == 1
+    assert len(eids) == len(set(eids))                 # keine Dubletten
+    labels = [label for label, _eid in aufruf["entities"]]
+    assert all("[" not in label for label in labels)   # kein [Programm]-Label

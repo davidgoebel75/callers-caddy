@@ -2912,11 +2912,16 @@ class SongDatabase:
 
         results = []
         for i, text in enumerate(calls):
+            # intern#87: teaching_order_calls ist eine View mit einer Zeile je
+            # (entity_id x Programm). Ohne ORDER BY greift fetchone() willkuerlich
+            # ein Band heraus -> das Programm-Badge der Sequenz-Anzeige wackelt.
+            # Deterministisch das niedrigste Band waehlen (passt zu _eid_min_to).
             cur2 = self._conn.execute(
                 "SELECT m.entity_id, t.teaching_order, t.canonical_name, t.program "
                 "FROM call_text_mappings m "
                 "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
-                "WHERE m.call_text = ?",
+                "WHERE m.call_text = ? "
+                "ORDER BY t.teaching_order LIMIT 1",
                 (text,)
             )
             mapping = cur2.fetchone()
