@@ -395,6 +395,27 @@ def test_all8_rest_ist_volltreffer_kein_split():
         ["concept_all_8", "call_swing_and_mix"], "all8")
 
 
+def test_all8_k1_figur_mit_anything_vorlage():
+    # 'All 8 Spin the Top' ist eine eigene Figur (K1). Mit '& Spread'
+    # dahinter ist der Text die Vorlage mit der K1-Figur als Ziel -- NICHT
+    # das All-8-Konzept (A2) plus 'Spin the Top'. Realer Fall aus der
+    # Stichprobe (BL-210.11), dort kam der Rest ueber eine bestehende
+    # Zuordnung ('Spin The Top & Spread' -> Spin the Top) zustande.
+    exact_lookup = {
+        "all 8 spin the top": "call_all_8_spin_the_top",
+        "all 8 concept": "concept_all_8",
+        "spin the top": "call_spin_the_top",
+        "(anything) and spread": "concept_anything_and_spread",
+    }
+    rest_lookup = {"spin the top and spread": "call_spin_the_top"}
+    expected = (["call_all_8_spin_the_top", "concept_anything_and_spread"],
+                "anything")
+
+    assert suggest_figure_set("All 8 Spin The Top & Spread", exact_lookup) == expected
+    assert suggest_figure_set(
+        "All 8 Spin The Top & Spread", exact_lookup, rest_lookup) == expected
+
+
 def test_all4couples_rest_mit_and_im_figurennamen():
     # Gegenstueck zum vorigen Fall auf der All-4-Couples-Seite: das 'And' im
     # Figurennamen darf den Rest nicht am Split zerreissen.

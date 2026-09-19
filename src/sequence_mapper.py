@@ -364,7 +364,9 @@ def suggest_figure_set(raw_text: str, exact_lookup: dict,
            unten), kein Grund zur Unterdrueckung.
         2. All-8/All-4-Couples-Praefix (terminal: greift es, wird hier
            IMMER geantwortet -- K2 mit Vorschlag oder K3 ohne, nie ein
-           Durchfallen zu Anything/Split).
+           Durchfallen zu Split). Einzige Ausnahme davor: der ganze Text
+           ist eine (Anything)-Vorlage mit einer K1-Figur als Ziel
+           ('All 8 Spin The Top & Spread') -> Vorlage statt Konzept.
         3. (Anything)-Vorlagen.
         4. Trennung an Komma/'&'/'and' (Split) -- zuletzt, sonst zerschneidet
            sie z. B. '(Anything) & Roll' am '&'.
@@ -399,6 +401,13 @@ def suggest_figure_set(raw_text: str, exact_lookup: dict,
         return (None, None)
 
     if _ALL8_PREFIX_RE.match(text) or _ALL4_COUPLES_PREFIX_RE.match(text):
+        # K1-Figur mit (Anything)-Vorlage ('All 8 Spin The Top & Spread'):
+        # die Vorlage mit der K1-Figur als Ziel gewinnt, sonst kaeme das
+        # Konzept dazu. Nur exact_lookup -- das Ziel muss selbst eine Figur
+        # mit All-8-Namen sein (BL-210.11, Stichprobe).
+        figures = suggest_anything_figures(text, exact_lookup)
+        if figures is not None:
+            return (figures, "anything")
         figures = suggest_all8_figures(text, exact_lookup, rest_lookup)
         return (figures, "all8") if figures is not None else (None, None)
 
