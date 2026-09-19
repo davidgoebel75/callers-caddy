@@ -28,7 +28,8 @@ from i18n import _t
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
-from sequence_mapper import CallMatcher as _CallMatcher, canon_key, suggest_figure_set
+from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
+                             suggest_figure_set)
 
 
 class _ComboClickToOpen(QObject):
@@ -1779,22 +1780,28 @@ class SequencesWidget(QWidget):
 
 
 class _MappingHighlighter(QSyntaxHighlighter):
-    """Faerbt jede Zeile (Block) gruen, deren Call-Text bereits gemappt ist.
+    """Faerbt jede Zeile (Block) nach ihrem Mapping-Zustand: gruen = gemappt,
+    gelb = die Mustererkennung schlaegt noch fehlende Figuren vor (BL-210.12).
 
-    Die Mapping-Pruefung kommt ueber den Callback is_mapped(text) -> bool,
+    Den Zustand liefert der Callback line_state(text) -> 'gruen'|'gelb'|None,
     den der Editor mit einem Cache versorgt.
     """
 
-    def __init__(self, document, is_mapped):
+    def __init__(self, document, line_state):
         super().__init__(document)
-        self._is_mapped = is_mapped
-        self._fmt = QTextCharFormat()
-        self._fmt.setBackground(QColor(46, 94, 46))   # dezentes Gruen
-        self._fmt.setForeground(QColor(220, 255, 220))
+        self._line_state = line_state
+        gruen = QTextCharFormat()
+        gruen.setBackground(QColor(46, 94, 46))   # dezentes Gruen
+        gruen.setForeground(QColor(220, 255, 220))
+        gelb = QTextCharFormat()
+        gelb.setBackground(QColor(110, 90, 20))   # dezentes Gelb, gleich dunkel
+        gelb.setForeground(QColor(255, 245, 205))
+        self._fmts = {"gruen": gruen, "gelb": gelb}
 
     def highlightBlock(self, text: str):
-        if text.strip() and self._is_mapped(text):
-            self.setFormat(0, len(text), self._fmt)
+        fmt = self._fmts.get(self._line_state(text)) if text.strip() else None
+        if fmt is not None:
+            self.setFormat(0, len(text), fmt)
 
 
 class _CallListEdit(QPlainTextEdit):
@@ -1832,8 +1839,9 @@ class SequenceEditorDialog(QDialog):
     Beim Speichern werden ueberzaehlige Zeilen abgewiesen.
 
     Per-Zeile-Mapping (BL-015 Ausbau): Jede Zeile, deren Call-Text bereits ein
-    Mapping hat (oder exakt passt), wird gruen markiert. Doppelklick auf eine
-    Zeile oeffnet den CallFiguresPickerDialog mit ihrer Figuren-Menge
+    Mapping hat (oder exakt passt), wird gruen markiert, gelb, wenn die
+    Mustererkennung noch fehlende Figuren vorschlaegt (BL-210.12). Doppelklick
+    auf eine Zeile oeffnet den CallFiguresPickerDialog mit ihrer Figuren-Menge
     (BL-210.5). Typ ist Pflichtfeld.
 
     Args:
@@ -1850,8 +1858,9 @@ class SequenceEditorDialog(QDialog):
         self.db = db
         self._seq_id = seq_id              # None = Neuanlage
         self._on_saved = on_saved
-        self._map_cache = {}               # call_text -> bool (gemappt?)
+        self._map_cache = {}               # call_text -> 'gruen'|'gelb'|None
         self._matcher = None               # CallMatcher (lazy)
+        self._lookups = None               # (exact_lookup, rest_lookup), lazy
         self.setWindowTitle(_t("seq_editor_title"))
         self.setMinimumSize(440, 480)
         self.setModal(True)
@@ -1917,7 +1926,7 @@ class SequenceEditorDialog(QDialog):
 
         # Highlighter: gemappte Zeilen gruen
         self._highlighter = _MappingHighlighter(
-            self._edit_calls.document(), self._is_mapped
+            self._edit_calls.document(), self._line_state
         )
         # Debounce-Timer fuer das Neu-Hervorheben beim Tippen
         self._rehl_timer = QTimer(self)
@@ -2021,21 +2030,40 @@ class SequenceEditorDialog(QDialog):
             return eid
         return None
 
-    def _is_mapped(self, text: str) -> bool:
-        """Prueft (gecacht), ob ein Call-Text gemappt ODER ein exakter Treffer ist.
+    def _suggest_set(self, key: str) -> list:
+        """Mengen-Vorschlag der Mustererkennung (BL-210.12), [] ohne Vorschlag.
 
-        Gruen also auch fuer Calls, die zwar noch keine Mapping-Zeile haben, aber
-        exakt zu einem bekannten Call passen — diese werden beim Speichern als
-        'auto'-Mapping persistiert.
+        Die Lookups entstehen beim ersten Aufruf (~7 ms auf der Prod-DB, einmal
+        je Editor), also erst beim ersten Faerben, nicht schon im Konstruktor.
+        """
+        if self._lookups is None:
+            self._lookups = figure_set_lookups(
+                self.db.get_teaching_order_calls(),
+                self.db.get_all_call_text_figures())
+        return suggest_figure_set(key, *self._lookups)[0] or []
+
+    def _line_state(self, text: str):
+        """Zustand einer Zeile fuer den Highlighter (gecacht).
+
+        'gelb': die Mustererkennung schlaegt Figuren vor, die noch nicht
+        zugeordnet sind -- auch bei halber Zuordnung (BL-210.12). Doppelklick
+        hakt sie im Picker mit an.
+        'gruen': gemappt ODER exakter Treffer -- letzterer wird beim Speichern
+        als 'auto'-Mapping persistiert.
+        None: nichts erkannt.
         """
         key = text.strip()
         if not key:
-            return False
+            return None
         if key not in self._map_cache:
-            mapped = self.db.get_entity_for_call_text(key) is not None
-            if not mapped:
-                mapped = self._exact_entity(key) is not None
-            self._map_cache[key] = mapped
+            current = self.db.get_call_text_figures(key)
+            if not set(self._suggest_set(key)) <= set(current):
+                state = "gelb"
+            elif current or self._exact_entity(key) is not None:
+                state = "gruen"
+            else:
+                state = None
+            self._map_cache[key] = state
         return self._map_cache[key]
 
     def _persist_auto_mappings(self, calls: list):
@@ -2059,8 +2087,9 @@ class SequenceEditorDialog(QDialog):
 
         Immer, auch bei vorhandener Zuordnung: sonst kaeme man an eine fertige
         (womoeglich unvollstaendige) Menge nicht mehr heran. Vorbelegt mit der
-        aktuellen Menge, ohne Zuordnung mit dem Matcher-Vorschlag. OK schreibt
-        die Menge (mapped_by='manual'), Abbrechen schreibt nichts.
+        aktuellen Menge plus dem Mengen-Vorschlag der Mustererkennung
+        (BL-210.12); ohne beides mit dem Matcher-Vorschlag. OK schreibt die
+        Menge (mapped_by='manual'), Abbrechen schreibt nichts.
 
         Returns True, wenn der Doppelklick behandelt wurde (normales
         Wort-Markieren unterdruecken); False bei leerer Zeile.
@@ -2073,9 +2102,12 @@ class SequenceEditorDialog(QDialog):
                                 _t("call_mapping_no_to_calls"))
             return True
         current = self.db.get_call_text_figures(key)
-        selected = current
-        if not current:
-            # Ohne Zuordnung den Matcher-Vorschlag vorab anhaken
+        # Vereinigung statt "Vorschlag nur ohne Zuordnung": eine halbe
+        # Alt-Zuordnung darf den Mengen-Vorschlag nicht blockieren. Der Nutzer
+        # sieht im Picker, was dazukommt, und bestaetigt oder nicht.
+        selected = list(dict.fromkeys(current + self._suggest_set(key)))
+        if not selected:
+            # Ohne Zuordnung und ohne Muster den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
             selected = [suggested] if suggested is not None else []
         entities = [(f"{cname}  [{prog}]" if prog else cname, eid)
@@ -2092,6 +2124,10 @@ class SequenceEditorDialog(QDialog):
             # 'manual' und der Cover-Cache verworfen. Leere Auswahl entfernt
             # eine bestehende Zuordnung (wie im Call-Mapping).
             self.db.set_call_text_figures(key, ids, mapped_by="manual")
+            # Die neue Menge kann ueber rest_lookup auch andere Zeilen aendern
+            # ('Touch 1/4' zugeordnet -> 'Heads Touch 1/4 & Roll' wird gelb)
+            self._lookups = None
+            self._map_cache.clear()
         # Cache verwerfen und neu hervorheben -> Zeile faerbt neu
         self._map_cache.pop(key, None)
         self._highlighter.rehighlight()
@@ -3531,26 +3567,17 @@ class CallMappingDialog(QDialog):
         self._entity_list = []
         self._eid_to_label = {}
         self._eid_min_to = {}
-        # BL-210.8: nur kanonische Namen (to_calls aufsteigend -> setdefault =
-        # niedrigste Variante), fuer suggest_figure_set() unten -- dieselbe
-        # Schleife wie _eid_min_to, kein zweiter Durchlauf ueber to_calls.
-        # Kostet hier < 1 ms (paar hundert Eintraege) und faellt darum nicht
-        # unter die Zeitmessung unten.
-        exact_lookup = {}
         for eid, cname, to, prog in to_calls:
             label = f"{cname}  [{prog}]" if prog else cname
             self._eid_to_label[eid] = label
             self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
-            exact_lookup.setdefault(canon_key(cname), eid)
             if not cname.startswith("--"):
                 self._entity_list.append((label, eid))
 
         # BL-210.8: Mengen-Vorschlag (suggest_figure_set) einmalig je Call-Text.
-        # bestehende EINDEUTIGE Zuordnungen -- NIE in exact_lookup mischen
-        # (sonst ist jeder gemappte Text ein Volltreffer und der Filter findet nichts)
+        # Lookups wie im Sequenz-Editor ueber figure_set_lookups (BL-210.12).
         t0 = time.perf_counter()
-        rest_lookup = {canon_key(t): f[0]
-                       for t, f in self._figure_sets.items() if len(f) == 1}
+        exact_lookup, rest_lookup = figure_set_lookups(to_calls, self._figure_sets)
         # call_text -> [entity_id, ...]; eigenes Dict, _suggest_cache bleibt
         # unberuehrt. Nur die Figurenliste; pattern liest niemand -- bei
         # Bedarf (Massen-Uebernahme, intern#81) ergaenzen.
