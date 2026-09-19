@@ -21,8 +21,12 @@ from sequence_mapper import CallMatcher, suggest_figure_set
 
 
 def test_volltreffer_unterdrueckt_vorschlag():
+    # 'Right' und 'Left Thru' waeren je einzeln aufloesbar -- ohne Vorrang
+    # des Volltreffers wuerde der Text am 'and' zerschnitten.
     exact_lookup = {
         "right and left thru": "call_right_and_left_thru",
+        "right": "call_right",
+        "left thru": "call_left_thru",
     }
 
     result = suggest_figure_set("Right and Left Thru", exact_lookup)
@@ -33,11 +37,17 @@ def test_volltreffer_unterdrueckt_vorschlag():
 def test_ziffer_wort_vereinheitlichung_trifft_namenstraeger_k1():
     # 'All 8 Circulate' trifft trotz Ziffer/Wort-Unterschied den Namenstraeger
     # 'All Eight Circulate' -- kein Vorschlag (K1, siehe BL-210.7 Nachtrag).
+    # Konzept und 'Circulate' stehen mit drin: liefe die Volltreffer-Pruefung
+    # ueber den normalisierten Lookup (normalize_call_text('All Eight
+    # Circulate') == 'circulate'), kaeme hier K2 [Konzept, Circulate] heraus.
     exact_lookup = {
         "all 8 circulate": "call_all_eight_circulate",
+        "all 8 concept": "concept_all_8",
+        "circulate": "call_circulate",
     }
 
     assert suggest_figure_set("All 8 Circulate", exact_lookup) == (None, None)
+    assert suggest_figure_set("All Eight Circulate", exact_lookup) == (None, None)
 
 
 def test_all8_konzept_faellt_k2():
@@ -62,6 +72,7 @@ def test_kaufmanns_und_und_sind_gleichwertig_kein_split():
     }
 
     assert suggest_figure_set("Swing & Mix", exact_lookup) == (None, None)
+    assert suggest_figure_set("Swing and Mix", exact_lookup) == (None, None)
 
 
 def test_wiederholungssuffixe_bleiben_k1():
@@ -133,6 +144,20 @@ def test_anything_vorlagen_alle_sieben():
         ["call_circulate", "concept_transfer_and_anything"], "anything")
 
 
+def test_anything_vorlage_mit_unbekanntem_rest_kein_vorschlag():
+    # Vorlage erkannt, aber die Zielfigur ist unbekannt -> kein Vorschlag,
+    # weder bei Suffix- ('(Anything) & Roll') noch bei Praefix-Vorlage
+    # ('Explode & (Anything)').
+    exact_lookup = {
+        "(anything) and roll": "concept_anything_and_roll",
+        "explode and (anything)": "concept_explode_and_anything",
+        "circulate": "call_circulate",
+    }
+
+    assert suggest_figure_set("Frobnicate & Roll", exact_lookup) == (None, None)
+    assert suggest_figure_set("Explode & Frobnicate", exact_lookup) == (None, None)
+
+
 def test_all4couples_konzept_plus_rest():
     exact_lookup = {
         "all 4 couples concept": "concept_all_4_couples",
@@ -163,9 +188,11 @@ def test_split_eindeutig_und_mehrdeutig():
         "trade": "call_trade",
     }
 
-    # Eindeutig: jeder Teil ist fuer sich genau eine Figur.
-    assert suggest_figure_set("Circulate, Trade", exact_lookup) == (
-        ["call_circulate", "call_trade"], "split")
+    # Eindeutig: jeder Teil ist fuer sich genau eine Figur -- fuer alle drei
+    # Trenner (Komma, '&', 'and').
+    for text in ("Circulate, Trade", "Circulate & Trade", "Circulate and Trade"):
+        assert suggest_figure_set(text, exact_lookup) == (
+            ["call_circulate", "call_trade"], "split")
 
     # Mehrdeutig: 'Frobnicate' ist keine bekannte Figur -> kein Vorschlag.
     assert suggest_figure_set("Circulate, Frobnicate", exact_lookup) == (None, None)
