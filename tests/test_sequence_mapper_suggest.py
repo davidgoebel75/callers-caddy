@@ -17,7 +17,7 @@ siehe suggest_figure_set()-Docstring fuer die genaue Reihenfolge.
 Die erwarteten Entity-IDs sind frei erfundene, aber realistische Namen -- sie
 stammen unabhaengig von der Implementierung aus dieser Testdatei selbst.
 """
-from sequence_mapper import CallMatcher, suggest_figure_set
+from sequence_mapper import CallMatcher, canon_key, suggest_figure_set
 
 
 def test_volltreffer_unterdrueckt_vorschlag():
@@ -77,14 +77,27 @@ def test_kaufmanns_und_und_sind_gleichwertig_kein_split():
 
 def test_wiederholungssuffixe_bleiben_k1():
     # Wiederholungsangaben duerfen den Volltreffer nicht verhindern -- sonst
-    # bekommen diese Texte faelschlich einen Konzept-Vorschlag (K2).
+    # bekommen diese Texte faelschlich einen Konzept-Vorschlag (K2). Je eine
+    # Endung pro Alternative von _REPEAT_SUFFIX_RE (BL-210.11: faengt auch
+    # eine Vorpruefung ab, die eine Endung vergisst). Der Rest samt Endung ist
+    # bereits zugeordnet (rest_lookup), sonst liefe ein Fehler nur in K3 und
+    # ergaebe ebenfalls (None, None).
+    texts = ("All 8 Circulate Double", "All 8 Circulate 1 & 1/2",
+             "All Eight Circulate Twice", "All 8 Circulate (again)",
+             "All 8 Circulate 1/2", "All 8 Circulate 3",
+             "All 8 Circulate Again", "All 8 Circulate, Go Double",
+             "All 8 Circulate Two Times", "All 8 Circulate 2 Times",
+             "All 8 Circulate Once And Half", "All 8 Circulate &",
+             "All 8 Circulate And")
     exact_lookup = {
         "all 8 circulate": "call_all_eight_circulate",
+        "all 8 concept": "concept_all_8",
     }
+    rest_lookup = {canon_key(t.split(" ", 2)[2]): "call_circulate" for t in texts}
 
-    assert suggest_figure_set("All 8 Circulate Double", exact_lookup) == (None, None)
-    assert suggest_figure_set("All 8 Circulate 1 & 1/2", exact_lookup) == (None, None)
-    assert suggest_figure_set("All Eight Circulate Twice", exact_lookup) == (None, None)
+    for text in texts:
+        assert suggest_figure_set(text, exact_lookup, rest_lookup) == (
+            None, None), text
 
 
 def test_all8_zweig_ist_terminal_kein_split():
@@ -248,6 +261,18 @@ def test_exact_by_canonical_ampersand_und_and_gleichwertig():
 
     assert matcher.exact_by_canonical("(Anything) & Roll") == "concept_anything_and_roll"
     assert matcher.exact_by_canonical("(Anything) and Roll") == "concept_anything_and_roll"
+
+
+def test_exact_by_canonical_zahlwort_und_leerzeichen():
+    # canon_key: 'Four'/'Eight' -> Ziffer, Mehrfach-Leerzeichen zusammengezogen.
+    matcher = CallMatcher([
+        ("concept_all_4_couples", "All 4 Couples Concept", 60.0035, "A2"),
+        ("concept_all_8", "All 8 Concept", 60.0035, "A2"),
+    ])
+
+    assert matcher.exact_by_canonical("All  Four Couples Concept") == (
+        "concept_all_4_couples")
+    assert matcher.exact_by_canonical("all eight\tconcept") == "concept_all_8"
 
 
 def test_rollenpraefix_volltreffer_kein_vorschlag():

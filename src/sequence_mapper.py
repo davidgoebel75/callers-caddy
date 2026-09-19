@@ -254,12 +254,12 @@ def canon_key(text: str) -> str:
     ueber viele Call-Texte oft mit denselben Namen (kanonische Namen,
     Vorlagen) aufgerufen wird.
     """
-    t = text.strip().lower()
-    t = t.replace('&', ' and ')
-    for pat, digit in _DIGIT_WORD_RE:
-        t = pat.sub(digit, t)
-    t = re.sub(r'\s+', ' ', t)
-    return t.strip()
+    t = text.lower().replace('&', ' and ')
+    # Vorpruefung spart die beiden Regex-Laeufe fuer fast alle Texte.
+    if 'eight' in t or 'four' in t:
+        for pat, digit in _DIGIT_WORD_RE:
+            t = pat.sub(digit, t)
+    return ' '.join(t.split())
 
 
 # Zusaetzliche Endungen, die vor der Volltreffer-Pruefung abgeschnitten werden
@@ -288,9 +288,18 @@ _REPEAT_SUFFIX_RE = re.compile(
 )
 
 
+# Jede Alternative von _REPEAT_SUFFIX_RE endet auf ')', '&', eine Ziffer oder
+# eines dieser Woerter. Der Regex selbst probiert jede Textposition durch
+# (fuehrendes \s*) -- die Vorpruefung erspart ihn den meisten Texten.
+_REPEAT_SUFFIX_ENDINGS = ('again', 'double', 'twice', 'times', 'half', 'and')
+
+
 def _strip_repeat_suffixes(text: str) -> str:
     t = text.strip()
     for _ in range(6):
+        if not t or not (t[-1] in ')&' or t[-1].isdigit()
+                         or t.casefold().endswith(_REPEAT_SUFFIX_ENDINGS)):
+            break
         new = _REPEAT_SUFFIX_RE.sub('', t).strip()
         if new == t:
             break
@@ -480,6 +489,12 @@ _ANYTHING_TEMPLATES = (
     ("Transfer and (Anything)", "prefix"),
 )
 
+# (canon_key der Vorlage, canon_key des festen Teils, Position) -- einmal beim
+# Laden statt fuer jeden Call-Text neu (BL-210.11, Laufzeit beim Oeffnen).
+_ANYTHING_KEYS = tuple(
+    (canon_key(t), canon_key(t.replace("(Anything)", "")), pos)
+    for t, pos in _ANYTHING_TEMPLATES)
+
 
 def _lookup_target(rest_canon: str, lookup: Optional[dict]) -> Optional[str]:
     """entity_id fuer einen canon_key-Rest in ``lookup``, mit einem zweiten
@@ -510,13 +525,9 @@ def suggest_anything_figures(raw_text: str, exact_lookup: dict,
     if not full_canon:
         return None
 
-    for template, position in _ANYTHING_TEMPLATES:
-        concept_id = exact_lookup.get(canon_key(template))
+    for template_key, fixed, position in _ANYTHING_KEYS:
+        concept_id = exact_lookup.get(template_key)
         if concept_id is None:
-            continue
-
-        fixed = canon_key(template.replace("(Anything)", "").strip())
-        if not fixed:
             continue
 
         if position == "suffix":
