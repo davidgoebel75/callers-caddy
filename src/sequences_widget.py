@@ -28,7 +28,7 @@ from i18n import _t
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
-from sequence_mapper import CallMatcher as _CallMatcher
+from sequence_mapper import CallMatcher as _CallMatcher, canon_key, suggest_figure_set
 
 
 class _ComboClickToOpen(QObject):
@@ -3281,15 +3281,19 @@ class CallMappingDialog(QDialog):
     """Dialog zum Verwalten des Call-Text-Mappings.
 
     Zeigt alle Call-Texte aus den Sequenzen mit Haeufigkeit und aktuellem Mapping.
-    Filter-Toggle: Nicht gemappt / Gemappt / Alle.
+    Filter-Toggle: Nicht gemappt / Gemappt / Alle / Vorschlag weicht ab.
     Tabelle ist nach allen Spalten sortierbar.
     Auto-Vorschlag: normalisierter Textvergleich (Prefixe/Suffixe abschneiden).
+    Mengen-Vorschlag (BL-210.8): suggest_figure_set() erkennt Call-Texte mit
+    mehreren Figuren (All-8/Anything/Split) und schlaegt die Menge gelb vor,
+    mit Vorrang vor dem Einzel-Fuzzy-Vorschlag.
     """
 
     # Filter-Werte
     _F_UNMAPPED = "unmapped"
     _F_MAPPED   = "mapped"
     _F_ALL      = "all"
+    _F_MISMATCH = "mismatch"
 
     # Rollenwert der Figur-Spalte fuer "An Komma aufteilen"
     _SPLIT = "__SPLIT_COMMA__"
@@ -3302,6 +3306,8 @@ class CallMappingDialog(QDialog):
         self._eid_to_label = {}
         self._eid_min_to   = {}  # entity_id -> frueheste Teaching-Order (Rangfolge)
         self._figure_sets  = {}  # call_text -> [entity_id, ...], hoechste zuerst
+        self._set_cache    = {}  # call_text -> [entity_id, ...], BL-210.8
+        self._set_cache_ms = 0.0
         self._matcher      = None  # CallMatcher, wird in _prepare_data() gesetzt
         self._alive        = True   # False sobald der Dialog schliesst
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
@@ -3349,7 +3355,8 @@ class CallMappingDialog(QDialog):
         self._color_visible_rows_now()
         QApplication.processEvents()
         _t3 = time.perf_counter()
-        print(f"[Call-Mapping] Open: prepare {(_t1-_t0)*1000:.0f}ms, "
+        print(f"[Call-Mapping] Open: prepare {(_t1-_t0)*1000:.0f}ms "
+              f"(davon mengen {self._set_cache_ms:.0f}ms), "
               f"load_table {(_t2-_t1)*1000:.0f}ms, sichtbar-faerben {(_t3-_t2)*1000:.0f}ms, "
               f"gesamt {(_t3-_t0)*1000:.0f}ms ({self._table.rowCount()} Zeilen)")
         self._start_progressive_suggestions()
@@ -3410,6 +3417,7 @@ class CallMappingDialog(QDialog):
         self._combo_filter.addItem(_t("call_mapping_f_unmapped"), self._F_UNMAPPED)
         self._combo_filter.addItem(_t("call_mapping_f_mapped"),   self._F_MAPPED)
         self._combo_filter.addItem(_t("call_mapping_f_all"),      self._F_ALL)
+        self._combo_filter.addItem(_t("call_mapping_f_mismatch"), self._F_MISMATCH)
         self._combo_filter.currentIndexChanged.connect(self._load_table)
         filter_row.addWidget(self._combo_filter)
         filter_row.addStretch()
@@ -3515,18 +3523,43 @@ class CallMappingDialog(QDialog):
 
         to_calls = self.db.get_teaching_order_calls()
 
+        import time
+
         # Picker-Liste nur mit echten Figuren: "keine Zuordnung" = kein Haken,
         # "An Komma aufteilen" ist ein Knopf im Picker, Programm-Separatoren
         # ("-- Basic 1 --") sind keine Figuren.
         self._entity_list = []
         self._eid_to_label = {}
         self._eid_min_to = {}
+        # BL-210.8: nur kanonische Namen (to_calls aufsteigend -> setdefault =
+        # niedrigste Variante), fuer suggest_figure_set() unten -- dieselbe
+        # Schleife wie _eid_min_to, kein zweiter Durchlauf ueber to_calls.
+        # Kostet hier < 1 ms (paar hundert Eintraege) und faellt darum nicht
+        # unter die Zeitmessung unten.
+        exact_lookup = {}
         for eid, cname, to, prog in to_calls:
             label = f"{cname}  [{prog}]" if prog else cname
             self._eid_to_label[eid] = label
             self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
+            exact_lookup.setdefault(canon_key(cname), eid)
             if not cname.startswith("--"):
                 self._entity_list.append((label, eid))
+
+        # BL-210.8: Mengen-Vorschlag (suggest_figure_set) einmalig je Call-Text.
+        # bestehende EINDEUTIGE Zuordnungen -- NIE in exact_lookup mischen
+        # (sonst ist jeder gemappte Text ein Volltreffer und der Filter findet nichts)
+        t0 = time.perf_counter()
+        rest_lookup = {canon_key(t): f[0]
+                       for t, f in self._figure_sets.items() if len(f) == 1}
+        # call_text -> [entity_id, ...]; eigenes Dict, _suggest_cache bleibt
+        # unberuehrt. Nur die Figurenliste; pattern liest niemand -- bei
+        # Bedarf (Massen-Uebernahme, intern#81) ergaenzen.
+        self._set_cache = {}
+        for ct in dict.fromkeys(r[0] for r in self._all_data):
+            figs = suggest_figure_set(ct, exact_lookup, rest_lookup)[0]
+            if figs:
+                self._set_cache[ct] = figs
+        self._set_cache_ms = (time.perf_counter() - t0) * 1000
 
         # CallMatcher: Drei-Stufen-Matching (exakt → Token-Overlap → SequenceMatcher)
         self._matcher = _CallMatcher(to_calls)
@@ -3553,6 +3586,11 @@ class CallMappingDialog(QDialog):
             rows = [r for r in self._all_data if r[2] is None]
         elif fval == self._F_MAPPED:
             rows = [r for r in self._all_data if r[2] is not None]
+        elif fval == self._F_MISMATCH:
+            rows = [r for r in self._all_data
+                    if r[0] in self._set_cache
+                    and set(self._figure_sets.get(r[0]) or ())
+                        != set(self._set_cache[r[0]])]
         else:
             rows = self._all_data
 
@@ -3595,11 +3633,18 @@ class CallMappingDialog(QDialog):
                     label = self._eid_to_label.get(entity_id) or f"[{entity_id}]"
                 item0.setBackground(QColor("#d4edda"))
             else:
-                # Auto-Vorschlag via CallMatcher — aus dem Cache. Ist er noch nicht
-                # berechnet (erster Aufbau, Worker laeuft noch), bleibt die Zeile
-                # neutral-hellgrau und wird von _apply_cached_suggestions nachgefaerbt.
-                cached = self._suggest_cache.get(call_text)
-                if cached is not None:
+                # Mengen-Vorschlag (suggest_figure_set) hat Vorrang vor dem
+                # Fuzzy-Einzel-Vorschlag — gelb wie ein unsicherer Fuzzy-Treffer.
+                sug = self._set_cache.get(call_text)
+                if sug is not None:
+                    figures = self._rank_figures(sug)
+                    stored = self._stored(figures)
+                    label = self._figures_text(figures)
+                    item0.setBackground(self._bg_for_score(_CallMatcher.UNCERTAIN))   # gelb
+                elif (cached := self._suggest_cache.get(call_text)) is not None:
+                    # Auto-Vorschlag via CallMatcher — aus dem Cache. Ist er noch nicht
+                    # berechnet (erster Aufbau, Worker laeuft noch), bleibt die Zeile
+                    # neutral-hellgrau und wird von _apply_cached_suggestions nachgefaerbt.
                     score, suggested = cached
                     stored = suggested
                     label = self._eid_to_label.get(suggested, none_label)
@@ -3647,7 +3692,12 @@ class CallMappingDialog(QDialog):
         if not item0 or not item2:
             return
         if self._figures(item2, Qt.UserRole + 1):
-            return   # war beim Laden bereits gemappt
+            return   # beim Laden gemappt oder mit Mengen-Vorschlag belegt
+        # Absicherung fuer Mengen-Vorschlaege: im heutigen synchronen Ablauf
+        # durch die Pruefung oben bereits abgedeckt (UserRole+1 ist dann
+        # schon belegt) und darum hier nicht erreichbar.
+        if item0.data(Qt.UserRole) in self._set_cache:
+            return
         cached = self._suggest_cache.get(item0.data(Qt.UserRole))
         if cached is None:
             return
@@ -3802,6 +3852,9 @@ class CallMappingDialog(QDialog):
         current = self._figures(item2, Qt.UserRole)
         if current == (self._SPLIT,):
             current = ()
+        sug = self._set_cache.get(item0.data(Qt.UserRole))
+        if sug and set(current) == set(self._figures(item2, Qt.UserRole + 1)):
+            current = tuple(sug)   # Nutzer hat noch nichts gewaehlt -> Vorschlag anhaken
         dlg = CallFiguresPickerDialog(self._entity_list, selected=current,
                                       parent=self, allow_split=True,
                                       unknown_ids=self.db.unknown_figures(current))

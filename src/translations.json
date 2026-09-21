@@ -3171,9 +3171,9 @@
     "ja": "ソース …"
   },
   "call_mapping_hint": {
-    "de": "Gelb hinterlegte Zeilen haben keinen automatischen Vorschlag. Rechte Spalte: Figur aus der Teaching-Order-Liste auswaehlen. Leere Auswahl = nicht zuordnen.",
-    "en": "Yellow rows have no automatic suggestion. Right column: select the figure from the teaching order list. Empty selection = skip.",
-    "ja": "黄色の行には自動提案がありません。右の列: Teaching Order リストから図形を選択してください。空の選択 = 割り当てない。"
+    "de": "Rot = kein Vorschlag, gelb = unsicherer Vorschlag oder Vorschlag mit mehreren Figuren (bitte pruefen), gruen = sicherer Vorschlag. Figur-Spalte: Doppelklick oder F2 oeffnet die Auswahl, Figuren anhaken. Leere Auswahl = nicht zuordnen. \"Vorschlag weicht ab\" zeigt auch gemappte Zeilen, deren Figuren vom Vorschlag abweichen.",
+    "en": "Red = no suggestion, yellow = uncertain suggestion or suggestion with several figures (please check), green = confident suggestion. Figure column: double-click or F2 opens the picker, check the figures. Empty selection = skip. \"Suggestion differs\" also shows mapped rows whose figures differ from the suggestion.",
+    "ja": "赤色の行には自動提案がありません。黄色の行は不確実な提案または複数の図形の提案です（確認してください）。緑色の行は確実な提案です。図形の列: ダブルクリックまたは F2 で図形にチェックを入れてください。空の選択 = 割り当てない。「提案相違」はマッピング済みの行も表示します（図形が提案と相違する場合）。"
   },
   "call_mapping_filter_label": {
     "de": "Anzeige:",
@@ -3194,6 +3194,11 @@
     "de": "Alle",
     "en": "All",
     "ja": "すべて"
+  },
+  "call_mapping_f_mismatch": {
+    "de": "Vorschlag weicht ab",
+    "en": "Suggestion differs",
+    "ja": "提案相違"
   },
   "call_mapping_col_raw": {
     "de": "Call-Text",
