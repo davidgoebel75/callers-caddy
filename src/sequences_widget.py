@@ -2078,9 +2078,10 @@ class SequenceEditorDialog(QDialog):
             # Ohne Zuordnung den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
             selected = [suggested] if suggested is not None else []
-        entities = [(f"{cname}  [{prog}]" if prog else cname, eid)
-                    for eid, cname, _to, prog in self.db.get_teaching_order_calls()
-                    if not cname.startswith("--")]
+        # intern#87: pro entity_id nur ein Eintrag, Label ohne [Programm] -
+        # dieselbe Dedup wie im Call-Mapping-Dialog.
+        entities, _labels, _min_to = picker_entities_from_to_calls(
+            self.db.get_teaching_order_calls())
         dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
                                       unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
@@ -3100,6 +3101,38 @@ class _CheckableSortItem(QListWidgetItem):
                (other._tier, other.checkState() != Qt.Checked, other._orig_index)
 
 
+def picker_entities_from_to_calls(to_calls):
+    """Baut die deduplizierte Figuren-Liste fuer den CallFiguresPickerDialog.
+
+    intern#87: teaching_order_calls ist eine View mit einer Zeile je
+    (entity_id x Programm). Eine entity_id steht damit je Band einmal drin
+    (Recycle in Mainstream UND Mainstream 2026). Fuers Mapping zaehlt nur die
+    entity_id, nicht das Band -> pro entity_id EIN Eintrag, Label ohne
+    [Programm]-Suffix. to_calls ist aufsteigend nach teaching_order, das erste
+    Vorkommen ist das niedrigste Band. Programm-Separatoren ("-- Basic 1 --")
+    sind keine Figuren und fliegen aus der Liste.
+
+    Beide Picker-Einstiege (Call-Mapping-Dialog und Sequenz-Editor) rufen dies,
+    damit die Dedup-Regel nur einmal im Code steht.
+
+    Returns: (entity_list, eid_to_label, eid_min_to)
+      entity_list : [(label, entity_id), ...] ohne Separatoren, fuer den Picker
+      eid_to_label: {entity_id: label} inkl. Separatoren
+      eid_min_to  : {entity_id: teaching_order} des niedrigsten Bandes
+    """
+    entity_list = []
+    eid_to_label = {}
+    eid_min_to = {}
+    for eid, cname, to, _prog in to_calls:
+        if eid in eid_to_label:
+            continue   # entity_id schon gesehen (weiteres Band) -> ueberspringen
+        eid_to_label[eid] = cname
+        eid_min_to[eid] = to   # to_calls aufsteigend sortiert -> niedrigstes Band
+        if not cname.startswith("--"):
+            entity_list.append((cname, eid))
+    return entity_list, eid_to_label, eid_min_to
+
+
 class CallFiguresPickerDialog(QDialog):
     """Mehrfach-Picker: Figuren-Menge eines Call-Texts per Haken-Liste (BL-210.4).
 
@@ -3523,27 +3556,23 @@ class CallMappingDialog(QDialog):
 
         to_calls = self.db.get_teaching_order_calls()
 
+        # Picker-Liste nur mit echten Figuren, pro entity_id einmal, Label ohne
+        # [Programm]-Suffix (intern#87). Dieselbe Dedup nutzt der Sequenz-Editor
+        # -> gemeinsame Helferfunktion.
+        (self._entity_list,
+         self._eid_to_label,
+         self._eid_min_to) = picker_entities_from_to_calls(to_calls)
+
         import time
 
-        # Picker-Liste nur mit echten Figuren: "keine Zuordnung" = kein Haken,
-        # "An Komma aufteilen" ist ein Knopf im Picker, Programm-Separatoren
-        # ("-- Basic 1 --") sind keine Figuren.
-        self._entity_list = []
-        self._eid_to_label = {}
-        self._eid_min_to = {}
-        # BL-210.8: nur kanonische Namen (to_calls aufsteigend -> setdefault =
-        # niedrigste Variante), fuer suggest_figure_set() unten -- dieselbe
-        # Schleife wie _eid_min_to, kein zweiter Durchlauf ueber to_calls.
-        # Kostet hier < 1 ms (paar hundert Eintraege) und faellt darum nicht
-        # unter die Zeitmessung unten.
+        # BL-210.8: exact_lookup (kanonischer Name -> entity_id) fuer
+        # suggest_figure_set() unten. to_calls ist aufsteigend sortiert ->
+        # setdefault nimmt die niedrigste Variante. Eigener kurzer Durchlauf
+        # (< 1 ms, paar hundert Eintraege), faellt darum nicht unter die
+        # Zeitmessung unten.
         exact_lookup = {}
-        for eid, cname, to, prog in to_calls:
-            label = f"{cname}  [{prog}]" if prog else cname
-            self._eid_to_label[eid] = label
-            self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
+        for eid, cname, _to, _prog in to_calls:
             exact_lookup.setdefault(canon_key(cname), eid)
-            if not cname.startswith("--"):
-                self._entity_list.append((label, eid))
 
         # BL-210.8: Mengen-Vorschlag (suggest_figure_set) einmalig je Call-Text.
         # bestehende EINDEUTIGE Zuordnungen -- NIE in exact_lookup mischen

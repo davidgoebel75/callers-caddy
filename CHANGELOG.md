@@ -13,6 +13,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Im Call-Mapping öffnet die Taste F2 den Figuren-Auswahldialog jetzt unabhängig von der zuvor angeklickten Spalte.** Hatte man zuerst in die Call-Text-Spalte geklickt und danach F2 gedrückt, blieb der Tastendruck wirkungslos (nur der Doppelklick auf die Figur-Zelle funktionierte). F2 wirkt jetzt in jeder Spalte der Zeile.
+- **Im Figuren-Auswahldialog erscheint jede Figur jetzt nur noch einmal.** Seit der Programm-Umstrukturierung stand ein Call, der zu mehreren Tanzprogrammen gehört (z. B. „Recycle" in Mainstream und Mainstream 2026), mehrfach in der Auswahlliste – je einmal pro Programm und mit angehängtem Programm-Namen. Für die Zuordnung ist das Programm unerheblich; die Liste zeigt jede Figur nun genau einmal, ohne Programm-Zusatz. Das galt sowohl im Call-Mapping als auch beim Doppelklick im Sequenz-Editor. Außerdem zeigt die Sequenz-Anzeige das Programm-Kürzel einer Figur jetzt stabil (immer das niedrigste Programm) statt wechselnd.
 
 ---
 
