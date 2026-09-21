@@ -253,13 +253,13 @@ class PlaylistWidget(QWidget):
         self._btn_save.setToolTip(_t("tooltip_save_playlist"))
         self._btn_save.clicked.connect(self._on_save_playlist)
         _pl_btn_bar.add(self._btn_save)
-        layout.addWidget(_pl_btn_bar)
-
-        # Summen-Zeile
+        # Summe rechtsbuendig in DERSELBEN Zeile wie die Buttons — spart die zweite
+        # Zeile. Bei zu schmalem Dock bricht sie automatisch darunter um.
         self._label_total = QLabel("")
-        self._label_total.setAlignment(Qt.AlignRight)
-        self._label_total.setStyleSheet("font-size: 12px; font-weight: bold; margin-top: 2px;")
-        layout.addWidget(self._label_total)
+        self._label_total.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._label_total.setStyleSheet("font-size: 12px; font-weight: bold;")
+        _pl_btn_bar.add_trailing(self._label_total)
+        layout.addWidget(_pl_btn_bar)
 
         # Entf-Taste: Shortcut auf Widget-Ebene, feuert bei jedem Kind-Fokus
         from PySide6.QtGui import QShortcut, QKeySequence
