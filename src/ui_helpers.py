@@ -663,6 +663,12 @@ class _WrapButtonBar(QWidget):
         total_h = (y - sp) if rows else 0
         self.setMinimumHeight(max(total_h, 0))
 
+    def relayout(self):
+        """Oeffentlicher Neuaufbau — z. B. wenn sich der Text eines Trailing-
+        Widgets (und damit dessen Breite) nachtraeglich aendert. Ein setText()
+        loest von sich aus kein Resize/Show-Event aus, deshalb explizit."""
+        self._relayout(self.width())
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._relayout(self.width())

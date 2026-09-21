@@ -259,6 +259,7 @@ class PlaylistWidget(QWidget):
         self._label_total.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self._label_total.setStyleSheet("font-size: 12px; font-weight: bold;")
         _pl_btn_bar.add_trailing(self._label_total)
+        self._pl_btn_bar = _pl_btn_bar
         layout.addWidget(_pl_btn_bar)
 
         # Entf-Taste: Shortcut auf Widget-Ebene, feuert bei jedem Kind-Fokus
@@ -390,6 +391,10 @@ class PlaylistWidget(QWidget):
             self._label_total.setText(_t("playlist_total", total=total_str))
         else:
             self._label_total.setText("")
+        # Breite der Summe hat sich geaendert → Button-Leiste neu umbrechen, sonst
+        # bleibt das rechtsbuendige Label auf seiner alten (leeren) Breite haengen.
+        if hasattr(self, "_pl_btn_bar"):
+            self._pl_btn_bar.relayout()
         perf_log(f"PlaylistWidget.refresh_display ({len(self._playlist)} entries)", _t0)
 
     # ---- Oeffentliche API (fuer Manager und MainWindow) ----
