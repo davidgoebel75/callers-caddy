@@ -7229,9 +7229,19 @@
     "ja": "+メモ"
   },
   "btn_to_notes_tooltip_song": {
-    "de": "Aktuelles Lied als Shortcode in Notizen einfügen",
-    "en": "Add current song as shortcode to notes",
-    "ja": "現在の曲をショートコードとしてメモに挿入"
+    "de": "Markierte Lieder als Shortcode in Notizen einfügen (ohne Auswahl: ganze Playlist auf Nachfrage)",
+    "en": "Add selected songs as shortcode to notes (no selection: whole playlist on confirmation)",
+    "ja": "選択した曲をショートコードとしてメモに挿入（未選択時は確認のうえプレイリスト全体）"
+  },
+  "pl_notes_export_title": {
+    "de": "Playlist → Notizen",
+    "en": "Playlist → Notes",
+    "ja": "プレイリスト → メモ"
+  },
+  "pl_notes_all_question": {
+    "de": "Kein Lied markiert. Die gesamte Playlist zu den Notizen hinzufügen?",
+    "en": "No song selected. Add the entire playlist to the notes?",
+    "ja": "曲が選択されていません。プレイリスト全体をメモに追加しますか？"
   },
   "btn_to_notes_tooltip_seq": {
     "de": "Aktuelle Sequenz als Shortcode in Notizen einfügen",

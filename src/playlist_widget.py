@@ -14,7 +14,9 @@ from PySide6.QtWidgets import (
     QSpinBox, QFormLayout, QTableWidget, QTableWidgetItem, QHeaderView,
     QComboBox, QMessageBox, QDialog, QMenu, QAbstractItemView, QSplitter,
 )
-from PySide6.QtCore import Qt, QMimeData, QSize
+from PySide6.QtCore import (
+    Qt, QMimeData, QSize, QItemSelection, QItemSelectionModel,
+)
 from PySide6.QtGui import QBrush, QPalette
 
 from song_db import SongDatabase, Song
@@ -176,8 +178,10 @@ class PlaylistWidget(QWidget):
         self.on_playlist_song_selected = None
         # Callback: Playlist wurde geaendert -> Manager soll refreshen
         self.on_playlist_changed = None
-        # Callback: Song aus Playlist in Notizen einfuegen
+        # Callback: Song aus Playlist in Notizen einfuegen (einzeln, Kontextmenue)
         self.on_add_to_notes = None  # callback(song_title)
+        # Callback: mehrere Songs als Batch in Notizen einfuegen (+Notiz-Button)
+        self.on_add_entries_to_notes = None  # callback(list[(title, mode)])
         # Callback: Quality/ERR via Kontextmenue geaendert
         self.on_song_rating_changed = None  # callback(song_id)
 
@@ -201,7 +205,10 @@ class PlaylistWidget(QWidget):
         self._pl_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
         self._pl_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self._pl_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._pl_table.setSelectionMode(QTableWidget.SingleSelection)
+        # Mehrfachauswahl (Ctrl/Shift/Ziehen) — der +Notiz-Button uebertraegt
+        # alle markierten Zeilen; ohne Markierung wird nach der ganzen Liste
+        # gefragt (Issue #93).
+        self._pl_table.setSelectionMode(QTableWidget.ExtendedSelection)
         self._pl_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._pl_table.verticalHeader().setVisible(False)
         self._pl_table.setDragEnabled(True)
@@ -309,6 +316,13 @@ class PlaylistWidget(QWidget):
     def refresh_display(self):
         """Aktualisiert die Tabelle aus den internen Daten."""
         _t0 = perf_start()
+        # Selektion ueber den Neuaufbau retten: setRowCount(0) loescht sonst die
+        # Qt-Auswahl UND die Current-Cell, wodurch currentRow()/selectedRows()
+        # danach leer sind — genau der Bug hinter Issue #93 (der +Notiz-Button
+        # bricht still ab). Wir merken die markierten Zeilen und stellen sie
+        # nach dem Aufbau wieder her.
+        _sm = self._pl_table.selectionModel()
+        _sel_rows = {ix.row() for ix in _sm.selectedRows()} if _sm else set()
         self._pl_table.setUpdatesEnabled(False)
         self._pl_table.setRowCount(0)
         self._pl_table.setRowCount(len(self._playlist))
@@ -370,6 +384,22 @@ class PlaylistWidget(QWidget):
                 brush = QBrush(hl)
                 for col in range(5):
                     self._pl_table.item(idx, col).setBackground(brush)
+
+        # Selektion + Current-Cell wiederherstellen (Issue #93). Ohne dies liefert
+        # currentRow()/selectedRows() nach jedem refresh -1 bzw. leer.
+        _sm = self._pl_table.selectionModel()
+        if _sm is not None:
+            model = self._pl_table.model()
+            last_col = self._pl_table.columnCount() - 1
+            valid_rows = sorted(r for r in _sel_rows if 0 <= r < self._pl_table.rowCount())
+            if valid_rows:
+                sel = QItemSelection()
+                for r in valid_rows:
+                    sel.select(model.index(r, 0), model.index(r, last_col))
+                _sm.select(sel, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
+            if 0 <= self._current_index < self._pl_table.rowCount():
+                _sm.setCurrentIndex(model.index(self._current_index, 0),
+                                    QItemSelectionModel.NoUpdate)
 
         self._pl_table.setUpdatesEnabled(True)
         self._label_count.setText(_t("playlist_count", count=len(self._playlist)))
@@ -492,11 +522,29 @@ class PlaylistWidget(QWidget):
         self.remove_at(row)
 
     def _on_to_notes_clicked(self):
-        row = self._pl_table.currentRow()
-        if row < 0 or row >= len(self._playlist):
+        """+Notiz-Button: markierte Lieder in die Notizen uebernehmen. Ohne
+        Markierung wird nachgefragt, ob die ganze Playlist uebernommen werden
+        soll (Issue #93)."""
+        if not self._playlist:
             return
-        if self.on_add_to_notes:
-            self.on_add_to_notes(self._playlist[row].song.title)
+        sm = self._pl_table.selectionModel()
+        sel_rows = sorted({ix.row() for ix in sm.selectedRows()}) if sm else []
+        sel_rows = [r for r in sel_rows if 0 <= r < len(self._playlist)]
+        if not sel_rows:
+            resp = QMessageBox.question(
+                self,
+                _t("pl_notes_export_title"),
+                _t("pl_notes_all_question"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if resp != QMessageBox.Yes:
+                return
+            sel_rows = list(range(len(self._playlist)))
+        entries = [(self._playlist[r].song.title, self._playlist[r].mode)
+                   for r in sel_rows]
+        if self.on_add_entries_to_notes:
+            self.on_add_entries_to_notes(entries)
 
     def _on_pl_context_menu(self, pos):
         item = self._pl_table.itemAt(pos)

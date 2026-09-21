@@ -899,6 +899,7 @@ class P29MainWindow(QMainWindow):
         self.playlist_widget.on_playlist_changed = self._on_playlist_data_changed
         self.playlist_widget.on_loop_count_edit = self._on_playlist_loop_count_edit
         self.playlist_widget.on_add_to_notes = self._notes_insert_song_shortcode
+        self.playlist_widget.on_add_entries_to_notes = self._on_pl_export_to_notes
         self.playlist_widget.on_song_rating_changed = self._on_song_rating_changed
         self.dock_playlist = _make_dock(
             self, _t("dock_playlist"), self.playlist_widget, Qt.RightDockWidgetArea
@@ -3496,6 +3497,27 @@ class P29MainWindow(QMainWindow):
             self,
             _t("ep_export_title"),
             _t("ep_export_notes_ok").format(n=n),
+        )
+
+    def _on_pl_export_to_notes(self, entries: list):
+        """Playlist → Notizen: markierte (oder alle) Songs als [load_song]-
+        Shortcodes eintragen. entries: Liste von (title, mode)-Tupeln ('P'/'S').
+        Lokation EINMAL vorab pruefen — sonst zeigt der Loop den 'keine
+        Lokation'-Dialog einmal pro Song (Issue #93)."""
+        if not entries:
+            return
+        if not self._notes_require_location():
+            return
+        for item in entries:
+            if isinstance(item, tuple):
+                title, mode = item
+                self._notes_insert_song_shortcode(title, mode=mode)
+            else:
+                self._notes_insert_song_shortcode(item)
+        QMessageBox.information(
+            self,
+            _t("pl_notes_export_title"),
+            _t("ep_export_notes_ok").format(n=len(entries)),
         )
 
     def _on_song_delete_requested(self, song_id):
