@@ -7243,6 +7243,16 @@
     "en": "No song selected. Add the entire playlist to the notes?",
     "ja": "曲が選択されていません。プレイリスト全体をメモに追加しますか？"
   },
+  "pl_notes_empty_hint": {
+    "de": "Die Playlist ist leer – es gibt nichts zu übertragen.",
+    "en": "The playlist is empty – there is nothing to add.",
+    "ja": "プレイリストが空です。追加するものがありません。"
+  },
+  "pl_notes_export_ok": {
+    "de": "{n} Song(s) zu den Notizen übertragen.",
+    "en": "{n} song(s) added to notes.",
+    "ja": "{n} 曲をメモに追加しました。"
+  },
   "btn_to_notes_tooltip_seq": {
     "de": "Aktuelle Sequenz als Shortcode in Notizen einfügen",
     "en": "Add current sequence as shortcode to notes",

@@ -13,8 +13,11 @@ from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QFileDialog,
     QSpinBox, QFormLayout, QTableWidget, QTableWidgetItem, QHeaderView,
     QComboBox, QMessageBox, QDialog, QMenu, QAbstractItemView, QSplitter,
+    QApplication,
 )
-from PySide6.QtCore import Qt, QMimeData, QSize
+from PySide6.QtCore import (
+    Qt, QMimeData, QSize, QItemSelection, QItemSelectionModel,
+)
 from PySide6.QtGui import QBrush, QPalette
 
 from song_db import SongDatabase, Song
@@ -27,6 +30,97 @@ from ui_helpers import (
     _make_icon, _reco_score, _style_date_cell, _WrapButtonBar,
     _SVG_AUTOFILL, calc_auto_loop, show_loop_count_dialog,
 )
+
+
+def _selected_playlist_rows(table, n):
+    """Markierte Zeilen einer Playlist-Tabelle, aufsteigend, auf [0, n) begrenzt.
+    Faellt auf currentRow() zurueck, wenn nichts markiert ist — so wirken die
+    Block-Aktionen bei genau einer markierten Zeile wie frueher."""
+    sm = table.selectionModel()
+    rows = sorted({ix.row() for ix in sm.selectedRows()}) if sm else []
+    rows = [r for r in rows if 0 <= r < n]
+    if not rows:
+        r = table.currentRow()
+        if 0 <= r < n:
+            rows = [r]
+    return rows
+
+
+def _select_playlist_rows(table, rows):
+    """Setzt die (Mehrfach-)Zeilenauswahl einer Tabelle robust (ExtendedSelection).
+    selectRow() alleine wuerde die vorige Auswahl verwerfen — hier bauen wir die
+    komplette Selektion in EINEM select()-Aufruf auf."""
+    sm = table.selectionModel()
+    if sm is None:
+        return
+    model = table.model()
+    ncol = table.columnCount()
+    selection = QItemSelection()
+    for r in rows:
+        if 0 <= r < table.rowCount():
+            selection.merge(
+                QItemSelection(model.index(r, 0), model.index(r, ncol - 1)),
+                QItemSelectionModel.Select)
+    sm.select(selection,
+              QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
+    if rows and 0 <= rows[0] < table.rowCount():
+        # Fokuszelle auf die erste verschobene Zeile — ohne die Selektion zu aendern
+        sm.setCurrentIndex(model.index(rows[0], 0), QItemSelectionModel.NoUpdate)
+
+
+def _reselect_entries(table, entries, playlist):
+    """Markiert genau die (nach einer Umsortierung verschobenen) Eintraege wieder,
+    unabhaengig von ihren neuen Positionen (Zuordnung per Objekt-Identitaet)."""
+    id_to_row = {id(e): i for i, e in enumerate(playlist)}
+    rows = [id_to_row[id(e)] for e in entries if id(e) in id_to_row]
+    _select_playlist_rows(table, rows)
+
+
+def apply_block_move(items, rows, delta):
+    """Reine Umsetzung von 'markierten Block um delta schieben' (-1 hoch/+1 runter).
+    Gibt eine NEUE Liste zurueck (Original bleibt unberuehrt). Randstau: der Block
+    laeuft nicht ineinander und nicht ueber den Rand; die relative Reihenfolge der
+    markierten wie der unmarkierten Eintraege bleibt erhalten. Ohne Qt/DB — daher
+    direkt unit-testbar."""
+    items = list(items)
+    n = len(items)
+    rows = sorted({r for r in rows if 0 <= r < n})
+    if not rows or delta not in (-1, 1):
+        return items
+    # hoch: von oben nach unten, runter: umgekehrt — so prueft jede Zeile ihre
+    # Zielposition, bevor die naechste nachrueckt.
+    order = rows if delta < 0 else list(reversed(rows))
+    occupied = set()   # Zielpositionen, die ein markierter Eintrag schon belegt
+    for r in order:
+        dest = r + delta
+        if dest < 0 or dest >= n or dest in occupied:
+            occupied.add(r)          # Randstau: bleibt stehen
+            continue
+        items[r], items[dest] = items[dest], items[r]
+        occupied.add(dest)
+    return items
+
+
+def apply_block_move_to(items, from_rows, to_row):
+    """Reine Umsetzung von 'markierten Block VOR die Zielzeile ziehen' (D&D).
+    Gibt eine NEUE Liste zurueck. Drop auf die eigene Auswahl = keine Aenderung.
+    Zuordnung des Ziels per Objekt-Identitaet, damit gleiche Eintraege nicht
+    verwechselt werden."""
+    items = list(items)
+    n = len(items)
+    rows = sorted({r for r in from_rows if 0 <= r < n})
+    if not rows:
+        return items
+    moved = [items[r] for r in rows]
+    target = items[to_row] if 0 <= to_row < n else None
+    if target is not None and any(target is m for m in moved):
+        return items
+    remaining = [e for e in items if not any(e is m for m in moved)]
+    if target is None:
+        insert_at = len(remaining)
+    else:
+        insert_at = next(i for i, e in enumerate(remaining) if e is target)
+    return remaining[:insert_at] + moved + remaining[insert_at:]
 
 
 @dataclass
@@ -126,9 +220,10 @@ class _PlaylistTable(QTableWidget):
                 event.ignore()
         elif text.startswith("playlist:"):
             try:
-                from_row = int(text.split(":", 1)[1])
-                if from_row != target_row and self.on_reorder:
-                    self.on_reorder(from_row, target_row)
+                payload = text.split(":", 1)[1]
+                from_rows = [int(x) for x in payload.split(",") if x != ""]
+                if from_rows and self.on_reorder:
+                    self.on_reorder(from_rows, target_row)
                 event.acceptProposedAction()
             except (ValueError, IndexError):
                 event.ignore()
@@ -146,9 +241,14 @@ class _PlaylistTable(QTableWidget):
 
     def mimeData(self, items):
         md = QMimeData()
-        row = self.currentRow()
-        if row >= 0:
-            md.setText(f"playlist:{row}")
+        sm = self.selectionModel()
+        rows = sorted({ix.row() for ix in sm.selectedRows()}) if sm else []
+        if not rows:
+            r = self.currentRow()
+            if r >= 0:
+                rows = [r]
+        if rows:
+            md.setText("playlist:" + ",".join(str(r) for r in rows))
         return md
 
 
@@ -215,7 +315,7 @@ class PlaylistWidget(QWidget):
         self._pl_table.setDragDropMode(QAbstractItemView.DragDrop)
         self._pl_table.on_reorder = self._on_dnd_reorder
         self._pl_table.on_col_double_click = self._on_pl_double_click
-        self._pl_table.on_delete_pressed = self.remove_at
+        self._pl_table.on_delete_pressed = self._on_remove_clicked
         self._pl_table.cellClicked.connect(self._on_pl_click)
         self._pl_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._pl_table.customContextMenuRequested.connect(self._on_pl_context_menu)
@@ -360,22 +460,11 @@ class PlaylistWidget(QWidget):
                 for col in range(5):
                     self._pl_table.item(idx, col).setForeground(Qt.gray)
 
-            # Aktueller Song hervorheben (fett)
-            if idx == self._current_index:
-                font = item_title.font()
-                font.setBold(True)
-                for col in range(5):
-                    self._pl_table.item(idx, col).setFont(font)
-
-            # Aktuell SPIELENDER Song: Hintergrund-Highlight (folgt dem real
-            # laufenden Song ueber die song_id — auch wenn er nicht per Klick
-            # in der Playlist, sondern aus der Songliste gestartet wurde).
-            if self._playing_id is not None and entry.song.id == self._playing_id:
-                hl = self._pl_table.palette().color(QPalette.Highlight)
-                hl.setAlpha(70)
-                brush = QBrush(hl)
-                for col in range(5):
-                    self._pl_table.item(idx, col).setBackground(brush)
+        # Fett-Markierung (aktueller Song) und Hintergrund-Highlight (spielender
+        # Song) NICHT inline doppeln — dieselben Helfer nutzen wie beim
+        # inkrementellen Update, damit die Regeln nur EINMAL im Code stehen.
+        self._apply_current_highlight()
+        self._apply_playing_highlight()
 
         self._pl_table.setUpdatesEnabled(True)
         self._label_count.setText(_t("playlist_count", count=len(self._playlist)))
@@ -393,8 +482,8 @@ class PlaylistWidget(QWidget):
             self._label_total.setText("")
         # Breite der Summe hat sich geaendert → Button-Leiste neu umbrechen, sonst
         # bleibt das rechtsbuendige Label auf seiner alten (leeren) Breite haengen.
-        if hasattr(self, "_pl_btn_bar"):
-            self._pl_btn_bar.relayout()
+        # (_pl_btn_bar wird in _build_ui bedingungslos gesetzt.)
+        self._pl_btn_bar.relayout()
         perf_log(f"PlaylistWidget.refresh_display ({len(self._playlist)} entries)", _t0)
 
     # ---- Oeffentliche API (fuer Manager und MainWindow) ----
@@ -430,6 +519,73 @@ class PlaylistWidget(QWidget):
         self._playlist.pop(index)
         self.refresh_display()
         self._notify_changed()
+
+    # ---- Block-Operationen (Mehrfachauswahl) — Datenmodell-Kern -----------
+    # PlaylistWidget besitzt _playlist; sowohl die eigene Ansicht als auch der
+    # Planner delegieren hierher, damit die Logik nur EINMAL existiert. Die
+    # Methoden veraendern die Daten, verankern _current_index per Identitaet neu
+    # und loesen genau EIN refresh_display()/_notify_changed() aus.
+
+    def _reanchor_current(self, entry):
+        """Setzt _current_index auf die (neue) Position von entry — per Identitaet,
+        damit Umsortierungen den 'aktuellen' Song nicht verlieren."""
+        if entry is None:
+            self._current_index = -1
+        else:
+            self._current_index = next(
+                (i for i, e in enumerate(self._playlist) if e is entry), -1)
+
+    def remove_rows(self, rows):
+        """Entfernt mehrere Eintraege (Block) in EINEM Refresh/Notify.
+        _current_index bleibt am selben Eintrag (oder -1, wenn er mit weg ist)."""
+        n = len(self._playlist)
+        rows = sorted({r for r in rows if 0 <= r < n}, reverse=True)
+        if not rows:
+            return
+        cur = self._playlist[self._current_index] if 0 <= self._current_index < n else None
+        if cur is not None and any(self._playlist[r] is cur for r in rows):
+            cur = None   # aktueller Song wird mitgeloescht
+        for r in rows:
+            self._playlist.pop(r)
+        self._reanchor_current(cur)
+        self.refresh_display()
+        self._notify_changed()
+
+    def move_block(self, rows, delta):
+        """Verschiebt die markierten Zeilen um delta (-1 hoch / +1 runter).
+        Randstau (der Block laeuft nicht ineinander), relative Reihenfolge bleibt.
+        Gibt die verschobenen Eintraege zurueck (fuer das Reselect beim Aufrufer)."""
+        pl = self._playlist
+        n = len(pl)
+        rows = sorted({r for r in rows if 0 <= r < n})
+        if not rows or delta not in (-1, 1):
+            return []
+        moved = [pl[r] for r in rows]
+        cur = pl[self._current_index] if 0 <= self._current_index < n else None
+        pl[:] = apply_block_move(pl, rows, delta)
+        self._reanchor_current(cur)
+        self.refresh_display()
+        self._notify_changed()
+        return moved
+
+    def move_block_to(self, from_rows, to_row):
+        """Verschiebt den markierten Block VOR die Zielzeile (Drag&Drop).
+        Gibt die verschobenen Eintraege zurueck (fuer das Reselect)."""
+        pl = self._playlist
+        n = len(pl)
+        rows = sorted({r for r in from_rows if 0 <= r < n})
+        if not rows:
+            return []
+        moved = [pl[r] for r in rows]
+        target = pl[to_row] if 0 <= to_row < n else None
+        if target is not None and any(target is m for m in moved):
+            return []   # Drop auf die eigene Auswahl -> keine Aenderung
+        cur = pl[self._current_index] if 0 <= self._current_index < n else None
+        pl[:] = apply_block_move_to(pl, from_rows, to_row)
+        self._reanchor_current(cur)
+        self.refresh_display()
+        self._notify_changed()
+        return moved
 
     def get_playlist(self) -> list:
         return self._playlist
@@ -498,11 +654,17 @@ class PlaylistWidget(QWidget):
     def _on_pl_click(self, row, column):
         if row < 0 or row >= len(self._playlist):
             return
+        # Ctrl/Shift-Klick baut nur die (Mehrfach-)Auswahl auf — dann NICHT laden,
+        # sonst zieht jeder Auswahl-Klick eine Audiodatei nach (intern#93). Qt hat
+        # die Selektion zu diesem Zeitpunkt schon gesetzt.
+        if QApplication.keyboardModifiers() & (Qt.ControlModifier | Qt.ShiftModifier):
+            return
         entry = self._playlist[row]
-        # Klick auf P/S-Spalte: Mode umschalten
+        # Klick auf P/S-Spalte: Mode umschalten — nur die betroffenen Zellen
+        # aktualisieren, KEIN refresh_display() (das wuerde die Selektion loeschen).
         if column == 1:
             entry.mode = 'S' if entry.mode == 'P' else 'P'
-            self.refresh_display()
+            self._update_mode_cell(row)
             self._notify_changed()
             return
         self._current_index = row
@@ -514,17 +676,40 @@ class PlaylistWidget(QWidget):
         if self.on_playlist_song_selected:
             self.on_playlist_song_selected(entry)
 
-    def _on_remove_clicked(self):
-        row = self._pl_table.currentRow()
-        if row < 0 or row >= len(self._playlist):
+    def _update_mode_cell(self, row):
+        """Aktualisiert P/S- und Loops-Zelle EINER Zeile ohne Tabellen-Neuaufbau
+        (die Loops-Anzeige haengt vom Mode ab: 'S' -> '1', 'P' -> Count/'∞')."""
+        if not (0 <= row < len(self._playlist)):
             return
-        self.remove_at(row)
+        entry = self._playlist[row]
+        it_mode = self._pl_table.item(row, 1)
+        if it_mode is not None:
+            it_mode.setText(entry.mode)
+        it_loops = self._pl_table.item(row, 3)
+        if it_loops is not None:
+            if entry.loop_count > 0:
+                lc = str(entry.loop_count)
+                if getattr(entry, 'loop_cut_beats', 0) > 0:
+                    lc += " ✂"
+            elif entry.mode == 'S':
+                lc = "1"
+            else:
+                lc = "∞"
+            it_loops.setText(lc)
+
+    def _on_remove_clicked(self, *_):
+        """✕-Button / Entf-Taste: alle markierten Zeilen als Block loeschen."""
+        rows = _selected_playlist_rows(self._pl_table, len(self._playlist))
+        if rows:
+            self.remove_rows(rows)
 
     def _on_to_notes_clicked(self):
         """+Notiz-Button: markierte Lieder in die Notizen uebernehmen. Ohne
         Markierung wird nachgefragt, ob die ganze Playlist uebernommen werden
         soll (Issue #93)."""
         if not self._playlist:
+            QMessageBox.information(
+                self, _t("pl_notes_export_title"), _t("pl_notes_empty_hint"))
             return
         sm = self._pl_table.selectionModel()
         sel_rows = sorted({ix.row() for ix in sm.selectedRows()}) if sm else []
@@ -558,9 +743,10 @@ class PlaylistWidget(QWidget):
         act_remove = menu.addAction(_t("ctx_remove_from_playlist"))
         act_remove.triggered.connect(lambda: self.remove_at(row))
         menu.addSeparator()
+        song_mode = self._playlist[row].mode
         act_notes = menu.addAction(_t("ctx_add_to_notes"))
         act_notes.triggered.connect(
-            lambda: self.on_add_to_notes(title) if self.on_add_to_notes else None)
+            lambda: self.on_add_to_notes(title, song_mode) if self.on_add_to_notes else None)
         def _after_rating():
             self.refresh_display()
             if self.on_song_rating_changed:
@@ -571,60 +757,28 @@ class PlaylistWidget(QWidget):
     # ---- Reihenfolge ----
 
     def _on_move_up(self):
-        row = self._pl_table.currentRow()
-        if row <= 0 or row >= len(self._playlist):
-            return
-        self._playlist[row], self._playlist[row - 1] = (
-            self._playlist[row - 1], self._playlist[row]
-        )
-        if self._current_index == row:
-            self._current_index = row - 1
-        elif self._current_index == row - 1:
-            self._current_index = row
-        self.refresh_display()
-        self._pl_table.selectRow(row - 1)
-        self._notify_changed()
+        self._move_selected(-1)
 
     def _on_move_down(self):
-        row = self._pl_table.currentRow()
-        if row < 0 or row >= len(self._playlist) - 1:
-            return
-        self._playlist[row], self._playlist[row + 1] = (
-            self._playlist[row + 1], self._playlist[row]
-        )
-        if self._current_index == row:
-            self._current_index = row + 1
-        elif self._current_index == row + 1:
-            self._current_index = row
-        self.refresh_display()
-        self._pl_table.selectRow(row + 1)
-        self._notify_changed()
+        self._move_selected(1)
+
+    def _move_selected(self, delta):
+        """Verschiebt den markierten Block (oder die aktuelle Zeile) um delta und
+        haelt die Selektion auf den verschobenen Eintraegen."""
+        rows = _selected_playlist_rows(self._pl_table, len(self._playlist))
+        moved = self.move_block(rows, delta)
+        if moved:
+            _reselect_entries(self._pl_table, moved, self._playlist)
+            self._apply_current_highlight()
 
     # ---- Drag & Drop Reorder ----
 
-    def _on_dnd_reorder(self, from_row, to_row):
-        """Wird aufgerufen wenn ein Playlist-Eintrag per D&D verschoben wird."""
-        if from_row < 0 or from_row >= len(self._playlist):
-            return
-        if to_row < 0:
-            to_row = 0
-        if to_row >= len(self._playlist):
-            to_row = len(self._playlist) - 1
-        if from_row == to_row:
-            return
-        entry = self._playlist.pop(from_row)
-        self._playlist.insert(to_row, entry)
-        # Current-Index anpassen
-        ci = self._current_index
-        if ci == from_row:
-            self._current_index = to_row
-        elif from_row < ci <= to_row:
-            self._current_index = ci - 1
-        elif to_row <= ci < from_row:
-            self._current_index = ci + 1
-        self.refresh_display()
-        self._pl_table.selectRow(to_row)
-        self._notify_changed()
+    def _on_dnd_reorder(self, from_rows, to_row):
+        """Verschiebt den per D&D gezogenen (Mehrfach-)Block vor die Zielzeile."""
+        moved = self.move_block_to(from_rows, to_row)
+        if moved:
+            _reselect_entries(self._pl_table, moved, self._playlist)
+            self._apply_current_highlight()
 
     # ---- Speichern / Laden ----
 
@@ -881,7 +1035,8 @@ class PlaylistManagerWidget(QWidget):
         self._pl_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
         self._pl_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self._pl_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._pl_table.setSelectionMode(QTableWidget.SingleSelection)
+        # Mehrfachauswahl wie in der Haupt-Playlist: Block verschieben/loeschen.
+        self._pl_table.setSelectionMode(QTableWidget.ExtendedSelection)
         self._pl_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._pl_table.verticalHeader().setVisible(False)
         self._pl_table.setDragEnabled(True)
@@ -891,6 +1046,7 @@ class PlaylistManagerWidget(QWidget):
         self._pl_table.on_drop_song_id = self._on_drop_from_pool
         self._pl_table.on_reorder = self._on_dnd_reorder
         self._pl_table.on_col_double_click = self._on_pl_double_click
+        self._pl_table.on_delete_pressed = self._on_remove_from_playlist
         self._pl_table.cellClicked.connect(self._on_pl_cell_click)
         self._pl_table.on_enter_pressed = self._on_pl_enter
         right.addWidget(self._pl_table)
@@ -1224,12 +1380,12 @@ class PlaylistManagerWidget(QWidget):
             self._pw.add_entry(self._make_entry(song, mode))
             self._refresh_playlist_mirror()
 
-    def _on_remove_from_playlist(self):
-        row = self._pl_table.currentRow()
-        if row < 0:
-            return
-        self._pw.remove_at(row)
-        self._refresh_playlist_mirror()
+    def _on_remove_from_playlist(self, *_):
+        """◀-Button / Entf-Taste: markierten Block aus der Playlist entfernen."""
+        rows = _selected_playlist_rows(self._pl_table, len(self._pw.get_playlist()))
+        if rows:
+            self._pw.remove_rows(rows)
+            self._refresh_playlist_mirror()
 
     def _on_pool_double_click(self, row, column):
         self._add_pool_song(row)
@@ -1250,7 +1406,10 @@ class PlaylistManagerWidget(QWidget):
             self._refresh_playlist_mirror()
 
     def _on_pl_cell_click(self, row, column):
-        """Klick auf P/S-Spalte in der Planner-Playlist: Mode umschalten."""
+        """Klick auf P/S-Spalte in der Planner-Playlist: Mode umschalten.
+        Ctrl/Shift-Klick baut nur die Auswahl auf (kein Umschalten)."""
+        if QApplication.keyboardModifiers() & (Qt.ControlModifier | Qt.ShiftModifier):
+            return
         if column != 1:
             return
         playlist = self._pw.get_playlist()
@@ -1317,62 +1476,29 @@ class PlaylistManagerWidget(QWidget):
                 self._pw._notify_changed()
             self._refresh_playlist_mirror()
 
-    def _on_dnd_reorder(self, from_row, to_row):
-        """Playlist-Eintrag per D&D umsortiert."""
-        playlist = self._pw.get_playlist()
-        if from_row < 0 or from_row >= len(playlist):
-            return
-        if to_row < 0:
-            to_row = 0
-        if to_row >= len(playlist):
-            to_row = len(playlist) - 1
-        if from_row == to_row:
-            return
-        entry = playlist.pop(from_row)
-        playlist.insert(to_row, entry)
-        ci = self._pw.get_current_index()
-        if ci == from_row:
-            self._pw._current_index = to_row
-        elif from_row < ci <= to_row:
-            self._pw._current_index = ci - 1
-        elif to_row <= ci < from_row:
-            self._pw._current_index = ci + 1
-        self._pw.refresh_display()
-        self._pw._notify_changed()
-        self._refresh_playlist_mirror()
-        self._pl_table.selectRow(to_row)
+    def _on_dnd_reorder(self, from_rows, to_row):
+        """(Mehrfach-)Block per D&D vor die Zielzeile umsortiert."""
+        moved = self._pw.move_block_to(from_rows, to_row)
+        if moved:
+            self._refresh_playlist_mirror()
+            _reselect_entries(self._pl_table, moved, self._pw.get_playlist())
 
     # ---- Reihenfolge (im Manager) ----
 
     def _on_move_up(self):
-        row = self._pl_table.currentRow()
-        playlist = self._pw.get_playlist()
-        if row <= 0 or row >= len(playlist):
-            return
-        playlist[row], playlist[row - 1] = playlist[row - 1], playlist[row]
-        ci = self._pw.get_current_index()
-        if ci == row:
-            self._pw._current_index = row - 1
-        elif ci == row - 1:
-            self._pw._current_index = row
-        self._pw.refresh_display()
-        self._refresh_playlist_mirror()
-        self._pl_table.selectRow(row - 1)
+        self._move_selected(-1)
 
     def _on_move_down(self):
-        row = self._pl_table.currentRow()
-        playlist = self._pw.get_playlist()
-        if row < 0 or row >= len(playlist) - 1:
-            return
-        playlist[row], playlist[row + 1] = playlist[row + 1], playlist[row]
-        ci = self._pw.get_current_index()
-        if ci == row:
-            self._pw._current_index = row + 1
-        elif ci == row + 1:
-            self._pw._current_index = row
-        self._pw.refresh_display()
-        self._refresh_playlist_mirror()
-        self._pl_table.selectRow(row + 1)
+        self._move_selected(1)
+
+    def _move_selected(self, delta):
+        """Verschiebt den markierten Block (oder die aktuelle Zeile) um delta und
+        markiert die verschobenen Eintraege in der Spiegel-Tabelle wieder."""
+        rows = _selected_playlist_rows(self._pl_table, len(self._pw.get_playlist()))
+        moved = self._pw.move_block(rows, delta)
+        if moved:
+            self._refresh_playlist_mirror()
+            _reselect_entries(self._pl_table, moved, self._pw.get_playlist())
 
     # ---- Laden/Speichern (delegiert an PlaylistWidget) ----
 

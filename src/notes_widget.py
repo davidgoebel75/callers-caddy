@@ -952,10 +952,10 @@ class NotesWidget(QWidget):
         self._save_order()
         self._refresh_first_highlight()
 
-    def add_note(self, text: str):
-        """Fuegt eine Notiz oben in die offene Liste ein (API fuer externe Aufrufer)."""
-        if not text or self._location_id is None:
-            return
+    def _append_note_top(self, text: str):
+        """Legt EINE Notiz oben an (DB-INSERT + Zeile), OHNE _save_order/Highlight.
+        Gemeinsamer Kern von add_note()/add_notes() — so laeuft die teure
+        Reihenfolge-Speicherung bei Mehrfach-Anlage nur EINMAL (statt je Song)."""
         note_id = self._db.add_note(text, self._location_id, note_type="normal", sort_order=0)
         row = self._make_row(note_id, text, "normal", False)
         row.apply_skin(self._colors)
@@ -963,6 +963,12 @@ class NotesWidget(QWidget):
         if hasattr(row, "set_font_size"):
             row.set_font_size(px)
         self._open_list.add_row(row, index=0)
+
+    def add_note(self, text: str):
+        """Fuegt eine Notiz oben in die offene Liste ein (API fuer externe Aufrufer)."""
+        if not text or self._location_id is None:
+            return
+        self._append_note_top(text)
         self._save_order()
         self._refresh_first_highlight()
 
@@ -972,11 +978,20 @@ class NotesWidget(QWidget):
         intern einordnet. Aufrufer uebergeben immer die gewuenschte End-Reihenfolge;
         die Einfuege-Richtung ist hier an EINER Stelle gekapselt.
 
-        add_note() fuegt jeweils OBEN ein (index=0); rueckwaerts eingefuegt ergibt
-        das oben->unten die gewuenschte Reihenfolge. Aendert sich der Anlege-
-        prozess, wird nur diese Methode angepasst — nicht die Aufrufer."""
+        _append_note_top() fuegt jeweils OBEN ein; rueckwaerts eingefuegt ergibt
+        das oben->unten die gewuenschte Reihenfolge. _save_order() und
+        _refresh_first_highlight() laufen EINMAL am Ende — nicht je Song (sonst
+        O(N^2) Voll-Reorder + Commit je Notiz, direkt im Trigger)."""
+        if self._location_id is None:
+            return
+        added = False
         for text in reversed(texts):
-            self.add_note(text)
+            if text:
+                self._append_note_top(text)
+                added = True
+        if added:
+            self._save_order()
+            self._refresh_first_highlight()
 
     # ── JSON Laden/Speichern ──────────────────────────────────────────────────
 

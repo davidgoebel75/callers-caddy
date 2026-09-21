@@ -6,6 +6,18 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## Unreleased — Playlist-Mehrfachauswahl & Notiz-Übernahme (seit 0.159)
+
+### Verbesserungen
+- **In der Playlist lassen sich jetzt mehrere Lieder auf einmal markieren und gemeinsam verschieben oder löschen.** Mit Strg- bzw. Umschalt-Klick (oder durch Ziehen) wählt man einen Block aus; die Pfeil-Tasten ▲/▼ schieben die ganze Auswahl nach oben oder unten (auch nicht zusammenhängende Zeilen, die relative Reihenfolge bleibt erhalten), ✕ bzw. die Entf-Taste entfernen alle markierten Lieder in einem Rutsch, und per Ziehen lässt sich der Block an eine neue Stelle setzen. Ein Auswahl-Klick lädt dabei nicht mehr versehentlich jedes angetippte Lied als Audio. Das gilt gleichermaßen für die Playlist im Planner.
+- **Der Button „+Notiz" überträgt jetzt alle markierten Lieder in der richtigen Reihenfolge.** Ohne Markierung wird wie bisher nachgefragt, ob die ganze Playlist übernommen werden soll; ist die Playlist leer, gibt es jetzt einen kurzen Hinweis statt eines stillen Abbruchs.
+- **Das Umschalten zwischen Pattern (P) und Singing (S) in der Playlist behält die aktuelle Auswahl bei.** Bisher wurde beim Klick auf die P/S-Spalte die Markierung zurückgesetzt.
+
+### Bugfixes
+- **Beim Übertragen mehrerer Lieder in die Notizen stimmt die Reihenfolge jetzt – auch aus dem Abendplaner.** Aus dem Abendplaner kamen die Notizen bisher in umgekehrter Reihenfolge heraus; beide Wege (Playlist und Abendplaner) legen die Einträge nun von oben nach unten in der erwarteten Reihenfolge an. Das Übernehmen einer ganzen Liste ist zudem spürbar schneller, weil die Reihenfolge nur noch einmal am Ende gespeichert wird statt nach jedem einzelnen Lied.
+
+---
+
 ## 0.159 — Fenster andocken oder frei bewegen (2026-09-15)
 
 ### Verbesserungen
