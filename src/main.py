@@ -3501,23 +3501,30 @@ class P29MainWindow(QMainWindow):
 
     def _on_pl_export_to_notes(self, entries: list):
         """Playlist → Notizen: markierte (oder alle) Songs als [load_song]-
-        Shortcodes eintragen. entries: Liste von (title, mode)-Tupeln ('P'/'S').
-        Lokation EINMAL vorab pruefen — sonst zeigt der Loop den 'keine
-        Lokation'-Dialog einmal pro Song (Issue #93)."""
+        Shortcodes eintragen. entries: Liste von (title, mode)-Tupeln ('P'/'S')
+        in Playlist-Reihenfolge.
+
+        Die Reihenfolge in den Notizen entspricht GENAU der Playlist-Reihenfolge —
+        unabhaengig davon, wie der Notes-Anlegeprozess intern einordnet: Wir bauen
+        die Shortcode-Texte in Playlist-Reihenfolge und uebergeben sie an
+        notes_widget.add_notes(), das die End-Reihenfolge garantiert. Lokation
+        EINMAL vorab pruefen (sonst 'keine Lokation'-Dialog pro Song) — Issue #93."""
         if not entries:
             return
         if not self._notes_require_location():
             return
+        self._notes_ensure_init()
+        self.dock_notes.setVisible(True)
+        self.dock_notes.raise_()
+        texts = []
         for item in entries:
-            if isinstance(item, tuple):
-                title, mode = item
-                self._notes_insert_song_shortcode(title, mode=mode)
-            else:
-                self._notes_insert_song_shortcode(item)
+            title, mode = item if isinstance(item, tuple) else (item, "")
+            texts.append(self._song_shortcode_text(title, mode))
+        self.notes_widget.add_notes(texts)
         QMessageBox.information(
             self,
             _t("pl_notes_export_title"),
-            _t("ep_export_notes_ok").format(n=len(entries)),
+            _t("ep_export_notes_ok").format(n=len(texts)),
         )
 
     def _on_song_delete_requested(self, song_id):
@@ -4747,23 +4754,26 @@ class P29MainWindow(QMainWindow):
         if self.notes_widget is None:
             self._init_notes()
 
-    def _notes_insert_song_shortcode(self, song_title: str, mode: str = ""):
-        """Fuegt [load_song]-Shortcode in die Notizen ein.
-        mode='P' oder 'S' wird als named param geschrieben:
-        [load_song title="..." mode="P"] — verhindert Parser-Kollision mit positionalem Wert.
-        Ohne mode: klassisches Format [load_song "..."] fuer Abwaertskompatibilitaet."""
-        if not self._notes_require_location():
-            return
-        self._notes_ensure_init()
-        self.dock_notes.setVisible(True)
-        self.dock_notes.raise_()
+    def _song_shortcode_text(self, song_title: str, mode: str = "") -> str:
+        """Baut den [load_song]-Shortcode-Text.
+        mode='P'/'S' wird als named param geschrieben: [load_song title="..." mode="P"]
+        (verhindert Parser-Kollision mit positionalem Wert). Ohne mode: klassisches
+        Format [load_song "..."] fuer Abwaertskompatibilitaet."""
         from shortcode_parser import shortcode_text
         if mode:
             params = {"title": song_title, "mode": mode}
         else:
             params = {"_value": song_title}
-        text = shortcode_text("load_song", params)
-        self.notes_widget.add_note(text)
+        return shortcode_text("load_song", params)
+
+    def _notes_insert_song_shortcode(self, song_title: str, mode: str = ""):
+        """Fuegt einen [load_song]-Shortcode in die Notizen ein."""
+        if not self._notes_require_location():
+            return
+        self._notes_ensure_init()
+        self.dock_notes.setVisible(True)
+        self.dock_notes.raise_()
+        self.notes_widget.add_note(self._song_shortcode_text(song_title, mode))
 
     def _notes_insert_sequence_shortcode(self, seq_id: int):
         if not self._notes_require_location():

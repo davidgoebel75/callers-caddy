@@ -966,6 +966,18 @@ class NotesWidget(QWidget):
         self._save_order()
         self._refresh_first_highlight()
 
+    def add_notes(self, texts: list):
+        """Fuegt mehrere Notizen so ein, dass texts[0..n-1] von OBEN nach UNTEN
+        in genau dieser Reihenfolge erscheinen — unabhaengig davon, wie add_note
+        intern einordnet. Aufrufer uebergeben immer die gewuenschte End-Reihenfolge;
+        die Einfuege-Richtung ist hier an EINER Stelle gekapselt.
+
+        add_note() fuegt jeweils OBEN ein (index=0); rueckwaerts eingefuegt ergibt
+        das oben->unten die gewuenschte Reihenfolge. Aendert sich der Anlege-
+        prozess, wird nur diese Methode angepasst — nicht die Aufrufer."""
+        for text in reversed(texts):
+            self.add_note(text)
+
     # ── JSON Laden/Speichern ──────────────────────────────────────────────────
 
     def _get_notes_dir(self) -> str:
