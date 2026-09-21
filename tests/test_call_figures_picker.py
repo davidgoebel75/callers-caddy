@@ -461,3 +461,24 @@ def test_mapping_entity_liste_hat_jede_figur_nur_einmal(mapping, picker_double):
     assert len(eids) == len(set(eids))                 # keine Dubletten
     labels = [label for label, _eid in aufruf["entities"]]
     assert all("[" not in label for label in labels)   # kein [Programm]-Label
+
+
+def test_picker_entities_helper_dedupliziert_und_nimmt_niedrigstes_band():
+    # intern#87: gemeinsame Dedup-Funktion beider Picker-Einstiege (Call-Mapping
+    # UND Sequenz-Editor). to_calls kommt aufsteigend nach teaching_order; eine
+    # entity_id in mehreren Baendern darf nur einmal erscheinen (niedrigstes Band),
+    # Separatoren ("-- .. --") gehoeren nicht in die Figuren-Liste.
+    from sequences_widget import picker_entities_from_to_calls
+
+    to_calls = [
+        ("call_recycle", "Recycle", 29.01, "Mainstream"),
+        ("call_recycle", "Recycle", 30.01, "Mainstream (2026)"),  # weiteres Band
+        ("--basic1", "-- Basic 1 --", 10.0, None),                # Separator
+        ("call_chase_right", "Chase Right", 39.03, "Plus"),
+    ]
+    entity_list, eid_to_label, eid_min_to = picker_entities_from_to_calls(to_calls)
+
+    assert entity_list == [("Recycle", "call_recycle"),
+                           ("Chase Right", "call_chase_right")]   # Separator raus, dedup
+    assert eid_min_to["call_recycle"] == 29.01                    # niedrigstes Band
+    assert eid_to_label["--basic1"] == "-- Basic 1 --"           # Label inkl. Separator

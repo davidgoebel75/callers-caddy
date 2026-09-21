@@ -1,7 +1,9 @@
 """Tests fuer die Filter auf Figuren-Mengen (BL-210.3).
 
-Geprueft wird ausschliesslich die oeffentliche ``SongDatabase``-API gegen eine
-frische temporaere DB mit der gebuendelten Referenz. Figuren bewusst gewaehlt
+Geprueft wird im Kern die oeffentliche ``SongDatabase``-API gegen eine frische
+temporaere DB mit der gebuendelten Referenz. Ausnahme: der Determinismus-Test
+zum Programm-Badge greift bewusst per ``_conn`` in ``call_programs`` ein, um die
+Band-Reihenfolge zu kontrollieren (dort begruendet). Figuren bewusst gewaehlt
 (Teaching-Orders aus der Referenz):
 
   Allemande Right  call_allemande_right  30.000402              (nur MS 2026)
@@ -95,6 +97,21 @@ def test_sequenz_anzeige_zeigt_deterministisch_das_niedrigste_band(db):
     # Plus 2026 40.002601). get_sequence_calls joint auf die Mehrfach-View; ohne
     # ORDER BY waere das Programm-Badge willkuerlich. Erwartet: immer das
     # niedrigste Band -> teaching_order 29.005301, Programm "Mainstream".
+    #
+    # Ohne Vorkehrung liefert schon der ALTE Code (fetchone ohne ORDER BY)
+    # "Mainstream", weil die View die Baender in Einfuege-Reihenfolge (call_programs.id
+    # aufsteigend) ausgibt und Mainstream zuerst eingefuegt wurde. Damit der Test
+    # den Fix wirklich absichert, wird die Mainstream-Zeile ans Ende geschoben
+    # (neue, hoehere id) -> alter Code liefert dann Plus (2026), neuer weiter Mainstream.
+    # Bewusst ueber _conn (privat), wie in anderen Tests; die reine-API-Zusage im
+    # Modul-Docstring gilt fuer die uebrigen Tests.
+    db._conn.execute(
+        "DELETE FROM call_programs WHERE entity_id = ? AND teaching_order = ?",
+        (THAR, 29.005301))
+    db._conn.execute(
+        "INSERT INTO call_programs (entity_id, teaching_order, program) "
+        "VALUES (?, ?, ?)", (THAR, 29.005301, "Mainstream"))
+
     db.set_call_text_mappings([(TEXT, THAR)])
     [sid] = db.get_filtered_sequence_ids()
 
