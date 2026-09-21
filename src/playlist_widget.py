@@ -14,9 +14,7 @@ from PySide6.QtWidgets import (
     QSpinBox, QFormLayout, QTableWidget, QTableWidgetItem, QHeaderView,
     QComboBox, QMessageBox, QDialog, QMenu, QAbstractItemView, QSplitter,
 )
-from PySide6.QtCore import (
-    Qt, QMimeData, QSize, QItemSelection, QItemSelectionModel,
-)
+from PySide6.QtCore import Qt, QMimeData, QSize
 from PySide6.QtGui import QBrush, QPalette
 
 from song_db import SongDatabase, Song
@@ -316,13 +314,6 @@ class PlaylistWidget(QWidget):
     def refresh_display(self):
         """Aktualisiert die Tabelle aus den internen Daten."""
         _t0 = perf_start()
-        # Selektion ueber den Neuaufbau retten: setRowCount(0) loescht sonst die
-        # Qt-Auswahl UND die Current-Cell, wodurch currentRow()/selectedRows()
-        # danach leer sind — genau der Bug hinter Issue #93 (der +Notiz-Button
-        # bricht still ab). Wir merken die markierten Zeilen und stellen sie
-        # nach dem Aufbau wieder her.
-        _sm = self._pl_table.selectionModel()
-        _sel_rows = {ix.row() for ix in _sm.selectedRows()} if _sm else set()
         self._pl_table.setUpdatesEnabled(False)
         self._pl_table.setRowCount(0)
         self._pl_table.setRowCount(len(self._playlist))
@@ -384,22 +375,6 @@ class PlaylistWidget(QWidget):
                 brush = QBrush(hl)
                 for col in range(5):
                     self._pl_table.item(idx, col).setBackground(brush)
-
-        # Selektion + Current-Cell wiederherstellen (Issue #93). Ohne dies liefert
-        # currentRow()/selectedRows() nach jedem refresh -1 bzw. leer.
-        _sm = self._pl_table.selectionModel()
-        if _sm is not None:
-            model = self._pl_table.model()
-            last_col = self._pl_table.columnCount() - 1
-            valid_rows = sorted(r for r in _sel_rows if 0 <= r < self._pl_table.rowCount())
-            if valid_rows:
-                sel = QItemSelection()
-                for r in valid_rows:
-                    sel.select(model.index(r, 0), model.index(r, last_col))
-                _sm.select(sel, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
-            if 0 <= self._current_index < self._pl_table.rowCount():
-                _sm.setCurrentIndex(model.index(self._current_index, 0),
-                                    QItemSelectionModel.NoUpdate)
 
         self._pl_table.setUpdatesEnabled(True)
         self._label_count.setText(_t("playlist_count", count=len(self._playlist)))
@@ -483,6 +458,21 @@ class PlaylistWidget(QWidget):
                 if it is not None:
                     it.setBackground(brush)
 
+    def _apply_current_highlight(self):
+        """Setzt die Fett-Markierung des aktuellen Songs, ohne die Tabelle neu
+        aufzubauen (analog _apply_playing_highlight). So bleiben Selektion und
+        Fokus erhalten — kein setRowCount(0)/Item-Neuaufbau."""
+        for idx in range(self._pl_table.rowCount()):
+            it0 = self._pl_table.item(idx, 0)
+            if it0 is None:
+                continue
+            font = it0.font()
+            font.setBold(idx == self._current_index)
+            for col in range(self._pl_table.columnCount()):
+                it = self._pl_table.item(idx, col)
+                if it is not None:
+                    it.setFont(font)
+
     def get_current_entry(self):
         """Gibt den aktuell selektierten PlaylistEntry zurueck (oder None)."""
         if 0 <= self._current_index < len(self._playlist):
@@ -511,7 +501,11 @@ class PlaylistWidget(QWidget):
             self._notify_changed()
             return
         self._current_index = row
-        self.refresh_display()
+        # Nur die Fett-Markierung inkrementell umsetzen — KEIN Tabellen-Neuaufbau,
+        # damit die (Mehrfach-)Selektion und der Fokus erhalten bleiben. Ein voller
+        # refresh_display() an dieser Stelle zerstoerte sonst die Auswahl und
+        # lieferte currentRow() == -1 (Wurzel von Issue #93).
+        self._apply_current_highlight()
         if self.on_playlist_song_selected:
             self.on_playlist_song_selected(entry)
 
