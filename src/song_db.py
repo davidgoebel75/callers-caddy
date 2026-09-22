@@ -917,6 +917,7 @@ class SongDatabase:
         self._normalize_call_text_figures()
         self._conn.commit()
         self._backfill_auto_mappings_once()  # heilt ungemappte Massenimporte (einmalig)
+        self._recompute_max_to_once()  # intern#95: Band-Regel geaendert (einmalig)
         print(f"[SongDB] Datenbank geoeffnet: {db_path}")
 
     def _backfill_calls_json(self):
@@ -2912,11 +2913,16 @@ class SongDatabase:
 
         results = []
         for i, text in enumerate(calls):
+            # intern#87: teaching_order_calls ist eine View mit einer Zeile je
+            # (entity_id x Programm). Ohne ORDER BY greift fetchone() willkuerlich
+            # ein Band heraus -> das Programm-Badge der Sequenz-Anzeige wackelt.
+            # Deterministisch das niedrigste Band waehlen (passt zu _eid_min_to).
             cur2 = self._conn.execute(
                 "SELECT m.entity_id, t.teaching_order, t.canonical_name, t.program "
                 "FROM call_text_mappings m "
                 "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
-                "WHERE m.call_text = ?",
+                "WHERE m.call_text = ? "
+                "ORDER BY t.teaching_order LIMIT 1",
                 (text,)
             )
             mapping = cur2.fetchone()
@@ -3452,21 +3458,26 @@ class SongDatabase:
         """Gibt alle Call-Texte aus Sequenzen mit Haeufigkeit und aktuellem Mapping.
 
         Returns:
-            [(call_text, count, entity_id, canonical_name, program, mapped_by), ...]
-            entity_id/canonical_name/program/mapped_by sind None wenn kein Mapping.
+            [(call_text, count, entity_id, mapped_by), ...]
+            entity_id/mapped_by sind None wenn kein Mapping.
             Sortiert: count DESC, call_text ASC.
+
+        intern#95: Frueher lieferte die Abfrage zusaetzlich canonical_name und
+        program aus der Mehrfach-View teaching_order_calls (eine Zeile je
+        entity_id x Programm). Das Band war willkuerlich gewaehlt UND der Join
+        vervielfachte die Zeilen, sodass COUNT(*) die Haeufigkeit einer Figur in
+        zwei Programmen verdoppelte. Gelesen hat die beiden Spalten niemand — der
+        Call-Mapping-Dialog nimmt seine Beschriftung aus _eid_to_label. Darum
+        ganz raus statt ein Band zu bestimmen.
         """
         cur = self._conn.execute("""
             SELECT
                 je.value AS val,
                 COUNT(*) AS cnt,
                 m.entity_id,
-                t.canonical_name,
-                t.program,
                 m.mapped_by
             FROM sequences, json_each(sequences.calls_json) je
             LEFT JOIN call_text_mappings m ON m.call_text = je.value
-            LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id
             GROUP BY val
             ORDER BY cnt DESC, val ASC
         """)
@@ -3703,11 +3714,39 @@ class SongDatabase:
             "VALUES ('auto_mappings_backfilled', '1')")
         self._conn.commit()
 
+    def _recompute_max_to_once(self):
+        """Startup-Heilung (einmalig, per Flag in app_meta): rechnet
+        max_teaching_order mit der neuen Band-Regel nach.
+
+        intern#95: Bis dahin bestimmte recompute_sequence_max_to() bei Figuren in
+        mehreren Programmen ein beliebiges (faktisch das hoechste) Band; jetzt
+        gilt das niedrigste. Gespeicherte Werte aus Bestands-DBs sind damit zu
+        hoch — ohne diese Nachrechnung blieben betroffene Sequenzen bis zum
+        naechsten Import/Remapping aus dem Limit-Filter.
+        """
+        done = self._conn.execute(
+            "SELECT value FROM app_meta WHERE key='max_to_min_band'"
+        ).fetchone()
+        if done:
+            return
+        try:
+            self.recompute_sequence_max_to()
+        except Exception as e:
+            # Darf den Start nie verhindern — Flag NICHT setzen, damit es beim
+            # naechsten Start erneut versucht wird.
+            print(f"[SongDB] max_teaching_order-Nachrechnung uebersprungen: {e}")
+            return
+        self._conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) "
+            "VALUES ('max_to_min_band', '1')")
+        self._conn.commit()
+
     def recompute_sequence_max_to(self):
         """Berechnet max_teaching_order fuer alle Sequenzen neu.
 
-        Basiert auf call_text_mappings + call_text_figures_extra + teaching_order_calls.
-        Konservativ: NULL wenn mindestens ein Feld unmapped ist.
+        Basiert auf call_text_figures (Mapping + Zusatzfiguren) und der fruehesten
+        Teaching-Order je Figur. Konservativ: NULL wenn mindestens ein Feld
+        unmapped ist.
         """
         cur = self._conn.execute(
             "SELECT id, calls_json, field_1, field_2, field_3, field_4, field_5, "
@@ -3717,21 +3756,27 @@ class SongDatabase:
         )
         sequences = cur.fetchall()
 
-        # Mapping-Cache laden
-        cur2 = self._conn.execute(
-            "SELECT m.call_text, t.teaching_order "
-            "FROM call_text_mappings m "
-            "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id"
-        )
-        text_to_to = {row[0]: row[1] for row in cur2.fetchall()}
-        # BL-210: weitere Figuren eines Textes -> hoechste Teaching-Order zaehlt.
-        # Ohne Zusatzzeilen bleibt text_to_to bitgleich; fehlt einer Figur die
+        # Mapping-Cache laden. EIN Durchlauf ueber call_text_figures (Haupt-
+        # mapping + Zusatzfiguren) mit der fruehesten Teaching-Order je Figur —
+        # genau die Zeilen, die auch die Figuren-Rangfolge nutzt.
+        #
+        # intern#95: Vorher joint(e) diese Stelle auf die Mehrfach-View
+        # teaching_order_calls (eine Zeile je entity_id x Programm) und behielt
+        # per Dict-Comprehension die LETZTE Zeile -> ein beliebiges (faktisch das
+        # hoechste) Band. Eine Figur ist aber schon ab ihrem NIEDRIGSTEN Band
+        # tanzbar; sonst faellt eine Sequenz aus dem Limit-Filter, obwohl sie ins
+        # Programm passt. min_to ist dieselbe Regel, nach der auch der Band-Filter
+        # (_cover_ids) und der Figuren-Picker gehen.
+        #
+        # BL-210: mehrere Figuren eines Textes -> hoechste Teaching-Order zaehlt
+        # (alle Figuren muessen tanzbar sein). Fehlt einer Figur die
         # Teaching-Order, gilt der Text wie bisher als ungemappt.
-        for text, to in self._conn.execute(
-                "SELECT e.call_text, t.teaching_order "
-                "FROM call_text_figures_extra e "
-                "LEFT JOIN teaching_order_calls t ON t.entity_id = e.entity_id"):
-            prev = text_to_to.get(text)
+        text_to_to = {}
+        for text, _eid, to in self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED):
+            if text not in text_to_to:
+                text_to_to[text] = to
+                continue
+            prev = text_to_to[text]
             text_to_to[text] = None if prev is None or to is None else max(prev, to)
 
         updates = []
