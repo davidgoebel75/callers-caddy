@@ -8,11 +8,17 @@ Band-Reihenfolge zu kontrollieren (dort begruendet). Figuren bewusst gewaehlt
 
   Allemande Right  call_allemande_right  30.000402              (nur MS 2026)
   Allemande Thar   call_allemande_thar   29.005301, 40.002601   (MS alt, Plus 2026)
+  Motivate         call_motivate         60.000900              (nur A2)
 
 Hoechste Figur der Menge ist Allemande Right (frueheste 30.0004 > 29.0053),
 Allemande Thar steht in der Zusatztabelle. In der 2026er-Linie braucht eine
 Sequenz mit beiden damit Plus (2026): bei Mainstream 2026 faellt sie heraus.
 Jeder Test prueft zuerst den Stand mit nur einer Figur (wie vor den Mengen).
+
+Auf der Teaching-Order-Skala (max_teaching_order, Legacy-Limit-Filter) zaehlt je
+Figur das NIEDRIGSTE Band (intern#95) — Allemande Thar liegt dort ab Mainstream
+(29.0053) und hebt eine Menge mit Allemande Right nicht an. Die 2026er-Linie
+prueft der Band-Filter, die Mengen-Regel "hoechste Figur zaehlt" darum Motivate.
 """
 import pytest
 
@@ -20,6 +26,7 @@ import pytest
 TEXT = "Allemande Right & Allemande Thar"
 RIGHT = "call_allemande_right"
 THAR = "call_allemande_thar"
+MOTIVATE = "call_motivate"
 MS2026 = {10, 20, 30}
 PL2026 = {10, 20, 30, 40}
 
@@ -74,13 +81,13 @@ def test_max_teaching_order_nimmt_hoechste_figur_der_menge(db):
     db.recompute_sequence_max_to()
     assert db.get_filtered_count(max_to_filter=31.0) == 1   # 30.000402
 
-    db.set_call_text_figures(TEXT, [RIGHT, THAR])
+    db.set_call_text_figures(TEXT, [RIGHT, MOTIVATE])
     db.recompute_sequence_max_to()
 
-    # Allemande Thar hebt die Sequenz auf 40.002601 (Plus 2026)
+    # Motivate hebt die Sequenz auf 60.0009 (A2)
     assert db.get_filtered_count(max_to_filter=31.0) == 0
-    assert db.get_filtered_count(max_to_filter=41.0) == 1
-    assert db.get_filtered_count(min_to_filter=40.0) == 1
+    assert db.get_filtered_count(max_to_filter=61.0) == 1
+    assert db.get_filtered_count(min_to_filter=60.0) == 1
 
 
 def test_detailansicht_bleibt_eine_zeile_je_call_text(db):
@@ -89,6 +96,7 @@ def test_detailansicht_bleibt_eine_zeile_je_call_text(db):
     [sid] = db.get_filtered_sequence_ids()
     assert [(c[1], c[2]) for c in db.get_sequence_calls(sid)] == [(TEXT, RIGHT)]
     rows = [r for r in db.get_all_call_texts_with_mapping() if r[0] == TEXT]
+    # (call_text, count, entity_id, mapped_by)
     assert [(r[1], r[2]) for r in rows] == [(1, RIGHT)]
 
 
@@ -120,3 +128,27 @@ def test_sequenz_anzeige_zeigt_deterministisch_das_niedrigste_band(db):
     assert row[2] == THAR
     assert row[3] == 29.005301
     assert row[5] == "Mainstream"
+
+
+def test_haeufigkeit_zaehlt_vorkommen_nicht_baender(db):
+    # intern#95: get_all_call_texts_with_mapping joint(e) auf die Mehrfach-View
+    # teaching_order_calls (eine Zeile je entity_id x Programm). COUNT(*) zaehlte
+    # damit Join-Zeilen -> die Haeufigkeit einer Figur in zwei Baendern war
+    # verdoppelt. Allemande Thar steht in Mainstream UND Plus (2026); der Text
+    # kommt genau einmal vor.
+    db.set_call_text_mappings([(TEXT, THAR)])
+
+    rows = [r for r in db.get_all_call_texts_with_mapping() if r[0] == TEXT]
+    assert [(r[1], r[2]) for r in rows] == [(1, THAR)]
+
+
+def test_max_to_nimmt_niedrigstes_band_der_figur(db):
+    # intern#95: recompute_sequence_max_to nahm ueber eine Dict-Comprehension die
+    # LETZTE Zeile der Mehrfach-View -> faktisch das hoechste Band. Allemande Thar
+    # ist ab Mainstream (29.005301) tanzbar; dass er auch in Plus (2026)
+    # (40.002601) steht, darf die Sequenz nicht dorthin heben.
+    db.set_call_text_mappings([(TEXT, THAR)])
+    db.recompute_sequence_max_to()
+
+    assert db.get_filtered_count(max_to_filter=31.0) == 1
+    assert db.get_filtered_count(min_to_filter=40.0) == 0

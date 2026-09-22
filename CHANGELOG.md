@@ -6,6 +6,14 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.159)
+
+### Bugfixes
+- **Der Limit-Filter in den Sequenzen stuft Sequenzen wieder richtig ein.** Gehört ein Call zu mehreren Tanzprogrammen (z. B. „Dosado" in Basic und Mainstream 2026), zählte bisher ein zufällig herausgegriffenes – in der Praxis fast immer das höchste – Programm. Dadurch galt selbst eine reine Basic-Sequenz aus Dosado und Promenade als Mainstream-2026-Sequenz und verschwand aus dem Filter „bis Basic". Jetzt zählt immer das niedrigste Programm, in dem der Call gelehrt wird – dieselbe Regel, nach der auch die Programm-Auswahl und der Figuren-Dialog gehen. Beim ersten Start nach dem Update rechnet die App die Einstufung aller Sequenzen einmalig nach (bei 11.000 Sequenzen etwa eine Fünftelsekunde).
+- **Im Call-Mapping stimmt die Spalte „Anzahl" wieder.** Ein Call-Text, dessen Figur zu mehreren Tanzprogrammen gehört, wurde je Programm einmal gezählt – die Häufigkeit war also verdoppelt (oder verdreifacht) und die Sortierung nach Häufigkeit entsprechend verschoben.
+
+---
+
 ## 0.159 — Fenster andocken oder frei bewegen (2026-09-15)
 
 ### Verbesserungen

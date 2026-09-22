@@ -3334,7 +3334,7 @@ class CallMappingDialog(QDialog):
     def __init__(self, db, parent=None):
         super().__init__(parent)
         self.db = db
-        self._all_data    = []   # [(call_text, count, eid, cname, prog, mapped_by), ...]
+        self._all_data    = []   # [(call_text, count, eid, mapped_by), ...]
         self._entity_list = []   # [(label, entity_id), ...] — Figuren fuer den Picker
         self._eid_to_label = {}
         self._eid_min_to   = {}  # entity_id -> frueheste Teaching-Order (Rangfolge)
@@ -3633,7 +3633,7 @@ class CallMappingDialog(QDialog):
         self._table.setRowCount(len(rows))
         none_label = _t("call_mapping_none")   # einmal statt je Zeile
 
-        for i, (call_text, count, entity_id, cname, prog, mapped_by) in enumerate(rows):
+        for i, (call_text, count, entity_id, mapped_by) in enumerate(rows):
 
             # Col 0: Call-Text — Hintergrundfarbe je nach Match-Qualitaet
             item0 = QTableWidgetItem(call_text)
@@ -4010,11 +4010,9 @@ class CallMappingDialog(QDialog):
             for r in self._all_data:
                 figures = confirmed_texts.get(r[0])
                 if figures is not None:
-                    # (call_text, count, entity_id, cname, prog, mapped_by)
+                    # (call_text, count, entity_id, mapped_by)
                     # entity_id = hoechste Figur (wie call_text_mappings).
-                    # cname/prog werden in _load_table nicht gelesen (Label kommt
-                    # aus _eid_to_label) -> None ist unschaedlich.
-                    new_all.append((r[0], r[1], figures[0], None, None, "manual"))
+                    new_all.append((r[0], r[1], figures[0], "manual"))
                 else:
                     new_all.append(r)
             self._all_data = new_all
