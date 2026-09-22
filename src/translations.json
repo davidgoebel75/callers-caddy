@@ -7223,6 +7223,26 @@
     "en": "Add note (Enter)",
     "ja": "メモを追加 (Enter)"
   },
+  "note.btn_pos_top": {
+    "de": "Oben",
+    "en": "Top",
+    "ja": "上"
+  },
+  "note.btn_pos_top_tooltip": {
+    "de": "Neue Notizen werden oben eingefügt (klicken für Unten)",
+    "en": "New notes are inserted at the top (click for Bottom)",
+    "ja": "新しいメモは上部に挿入されます（クリックで「下」に切り替え）"
+  },
+  "note.btn_pos_bottom": {
+    "de": "Unten",
+    "en": "Bottom",
+    "ja": "下"
+  },
+  "note.btn_pos_bottom_tooltip": {
+    "de": "Neue Notizen werden unten eingefügt (klicken für Oben)",
+    "en": "New notes are inserted at the bottom (click for Top)",
+    "ja": "新しいメモは下部に挿入されます（クリックで「上」に切り替え）"
+  },
   "btn_to_notes": {
     "de": "+Notiz",
     "en": "+Note",
@@ -7247,11 +7267,6 @@
     "de": "Die Playlist ist leer – es gibt nichts zu übertragen.",
     "en": "The playlist is empty – there is nothing to add.",
     "ja": "プレイリストが空です。追加するものがありません。"
-  },
-  "pl_notes_export_ok": {
-    "de": "{n} Song(s) zu den Notizen übertragen.",
-    "en": "{n} song(s) added to notes.",
-    "ja": "{n} 曲をメモに追加しました。"
   },
   "btn_to_notes_tooltip_seq": {
     "de": "Aktuelle Sequenz als Shortcode in Notizen einfügen",
@@ -8812,11 +8827,6 @@
     "de": "{n} Song(s) zur Playliste übertragen.",
     "en": "{n} song(s) added to playlist.",
     "ja": "{n} 曲をプレイリストに追加しました。"
-  },
-  "ep_export_notes_ok": {
-    "de": "{n} Song(s) zu den Notizen übertragen.",
-    "en": "{n} song(s) added to notes.",
-    "ja": "{n} 曲をメモに追加しました。"
   },
   "audio_device_default": {
     "de": "System-Standard",

@@ -2851,6 +2851,10 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
+        # der UI aendert das nur fuer die laufende Session, nicht die INI.
+        saved_insert_pos = str(self._settings.value("notes/insert_position", "top"))
+        self.notes_widget.set_insert_position(saved_insert_pos)
         self.dock_notes.setWidget(self.notes_widget)
         # Aktuelle Lokation nachliefern, falls bereits gewaehlt
         if self._notes_location_id is not None:
@@ -3472,15 +3476,21 @@ class P29MainWindow(QMainWindow):
             _t("ep_export_playlist_ok").format(n=n),
         )
 
-    def _on_ep_export_to_notes(self, entries: list):
-        """Evening Planner → Notizen: bestätigte Songs als [load_song]-Shortcodes eintragen.
-        entries: Liste von (title, mode) Tupeln ('P'/'S') oder plain str (Rueckwaertskompatibilitaet)."""
+    def _export_entries_to_notes(self, entries: list, title_key: str,
+                                  empty_key: str = None):
+        """Gemeinsamer Kern fuer 'Songs zu Notizen uebernehmen' (Playlist UND
+        Evening Planner): baut Shortcode-Texte in GENAU der uebergebenen
+        Reihenfolge und reicht sie an notes_widget.add_notes() weiter, das
+        die End-Reihenfolge sowie die Toggle-Position (Oben/Unten) anwendet.
+        entries: Liste von (title, mode)-Tupeln ('P'/'S') oder plain str, in
+        der gewuenschten Anzeige-Reihenfolge oben->unten — der Aufrufer darf
+        NICHT selbst umkehren, sonst kollidiert das mit add_notes().
+        Keine Vollzugsmeldung: Caller sollen bei der Uebergabe nicht extra
+        die Maus fuer einen Bestaetigungsdialog brauchen, die Notiz ist
+        ohnehin sofort sichtbar."""
         if not entries:
-            QMessageBox.information(
-                self,
-                _t("ep_export_title"),
-                _t("ep_export_none_hint"),
-            )
+            if empty_key:
+                QMessageBox.information(self, _t(title_key), _t(empty_key))
             return
         # Location EINMAL vorab prüfen — sonst zeigt der Loop den
         # "keine Lokation"-Dialog einmal pro Song (wirkt wie Endlosschleife).
@@ -3489,47 +3499,22 @@ class P29MainWindow(QMainWindow):
         self._notes_ensure_init()
         self.dock_notes.setVisible(True)
         self.dock_notes.raise_()
-        # Reihenfolge wie in der Auswahl: add_notes() garantiert die End-
-        # Reihenfolge (frueher lief hier add_note(index=0) je Song -> Notizen
-        # kamen verkehrt herum raus). Ein Pfad fuer EP UND Playlist.
         texts = []
         for item in entries:
             title, mode = item if isinstance(item, tuple) else (item, "")
             texts.append(self._song_shortcode_text(title, mode))
         self.notes_widget.add_notes(texts)
-        QMessageBox.information(
-            self,
-            _t("ep_export_title"),
-            _t("ep_export_notes_ok", n=len(texts)),
-        )
+
+    def _on_ep_export_to_notes(self, entries: list):
+        """Evening Planner → Notizen: bestätigte Songs als [load_song]-Shortcodes eintragen.
+        entries: Liste von (title, mode) Tupeln ('P'/'S') oder plain str (Rueckwaertskompatibilitaet)."""
+        self._export_entries_to_notes(entries, "ep_export_title", "ep_export_none_hint")
 
     def _on_pl_export_to_notes(self, entries: list):
         """Playlist → Notizen: markierte (oder alle) Songs als [load_song]-
         Shortcodes eintragen. entries: Liste von (title, mode)-Tupeln ('P'/'S')
-        in Playlist-Reihenfolge.
-
-        Die Reihenfolge in den Notizen entspricht GENAU der Playlist-Reihenfolge —
-        unabhaengig davon, wie der Notes-Anlegeprozess intern einordnet: Wir bauen
-        die Shortcode-Texte in Playlist-Reihenfolge und uebergeben sie an
-        notes_widget.add_notes(), das die End-Reihenfolge garantiert. Lokation
-        EINMAL vorab pruefen (sonst 'keine Lokation'-Dialog pro Song) — Issue #93."""
-        if not entries:
-            return
-        if not self._notes_require_location():
-            return
-        self._notes_ensure_init()
-        self.dock_notes.setVisible(True)
-        self.dock_notes.raise_()
-        texts = []
-        for item in entries:
-            title, mode = item if isinstance(item, tuple) else (item, "")
-            texts.append(self._song_shortcode_text(title, mode))
-        self.notes_widget.add_notes(texts)
-        QMessageBox.information(
-            self,
-            _t("pl_notes_export_title"),
-            _t("pl_notes_export_ok", n=len(texts)),
-        )
+        in Playlist-Reihenfolge."""
+        self._export_entries_to_notes(entries, "pl_notes_export_title")
 
     def _on_song_delete_requested(self, song_id):
         """Entf-Taste in der Songliste: Loeschen ueber SongDataWidget."""
