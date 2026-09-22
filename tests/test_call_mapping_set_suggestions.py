@@ -36,13 +36,13 @@ ALL_8 = "concept_all_8"                                  # 60.003502
 # beide einzeln exakt auf -> suggest_split_figures().
 SPLIT_TEXT = "Heads Pass The Ocean & Swing Thru"
 # Bereits (falsch/veraltet) auf eine einzelne Figur gemappt -- der
-# (Anything)-Vorlagen-Vorschlag weicht davon ab (Abnahmefall aus dem Issue).
+# (Anything)-Figuren-Vorschlag weicht davon ab (Abnahmefall aus dem Issue).
 MISMATCH_TEXT = "Heads Touch 1/4 & Spread"
 # Fuellt NUR rest_lookup (eindeutige Zuordnung, len(figures) == 1); loest
-# selbst keinen Mengen-Vorschlag aus (kein Trennzeichen, keine Vorlage).
+# selbst keinen Mengen-Vorschlag aus (kein Trennzeichen, keine (Anything)-Figur).
 TOUCH_QUARTER_TEXT = "Touch 1/4"
 # Kontrolle fuer den Mengen- statt Listenvergleich im Mismatch-Filter: die
-# (Anything)-Vorlage liefert [Zielfigur, Vorlagen-Konzept]
+# (Anything)-Figur liefert [Zielfigur, (Anything)-Figur]
 # (suggest_anything_figures), _figure_sets speichert dagegen rang-sortiert
 # (hoechste teaching_order zuerst) -- concept_anything_and_spread (39.001)
 # liegt hoeher als call_touch_a_quarter (20.0047), die gespeicherte
