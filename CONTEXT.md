@@ -1,14 +1,15 @@
 # Callers Caddy
 
-Werkzeug fuer Square-Dance-Caller: Songs, Sequenzen und Tanzabende verwalten und
-live abspielen.
+Werkzeug fuer Square-Dance-Caller: Songs, Sequenzen und Tanzveranstaltungen
+verwalten und live abspielen.
 
 ## Language
 
-### Rollen und Abend
+### Rollen und Veranstaltung
 
 **Caller**:
-Der Nutzer des Programms. Waehlt die Musik, ruft die Figuren und plant den Abend.
+Der Nutzer des Programms. Waehlt die Musik, ruft die Figuren und plant die
+Veranstaltung.
 _Avoid_: Anwender, User
 
 **Lokation**:
@@ -19,12 +20,14 @@ _Avoid_: Club, Verein, Kontext
 **Special**:
 Einzelveranstaltung mit eigenem Termin, im Gegensatz zum regelmaessigen Clubabend.
 
-**Tanzabend**:
-Ein Auftritt an einer Lokation, von der ersten bis zur letzten Musik.
-_Avoid_: Clubabend, Session, Gig
+**Tanzveranstaltung**:
+Ein Auftritt an einer Lokation, von der ersten bis zur letzten Musik. Allgemeiner
+Oberbegriff — eine Veranstaltung ist nicht zwingend abends.
+_EN_: Dance-Event
+_Avoid_: Tanzabend, Clubabend, Session, Gig
 
 **Tip**:
-Tanzeinheit aus einem Pattern und einem Singing Call, typisch rund 15 Minuten.
+Tanzeinheit aus einem Patter und einem Singing Call, typisch rund 15 Minuten.
 _Avoid_: Runde, Tanzblock
 
 **Block**:
@@ -43,13 +46,14 @@ Die acht Taenzer eines Sets, aufgestellt als vier Paare (Couple 1 bis 4).
 
 ### Songs und Wiedergabe
 
-**Pattern**:
+**Patter**:
 Song ohne gesungene Choreografie, zu dem der Caller frei ruft. Laeuft per Loop,
-bis der Tip endet.
-_Avoid_: Patter, Hoedown, Rhythmus-Song
+bis der Tip endet. "to patter" heisst plappern — daher ohne "-n" am Ende.
+_Avoid_: Pattern (englisch "Muster", fachlich falsch; bleibt nur als interner
+Code-Bezeichner und als Programmierbegriff stehen), Hoedown, Rhythmus-Song
 
 **Singing Call**:
-Song mit fest gesungener Choreografie. Jeder Song kann beides sein — Pattern oder
+Song mit fest gesungener Choreografie. Jeder Song kann beides sein — Patter oder
 Singing Call —, die Nutzungsart ergibt sich aus dem Playlist-Eintrag.
 _Avoid_: Singer
 
@@ -75,12 +79,12 @@ Die dem Song zugeordnete Textdatei im Programm, egal woher sie stammt.
 _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 
 **Loop**:
-Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Pattern beliebig oft
+Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
 
 **Heutiges Tempo**:
-Tempo-Faktor fuer den laufenden Tanzabend. Wirkt zusaetzlich auf jeden Song und
-wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
+Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
+Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
 _Avoid_: Session-Tempo, Global-Tempo
 
 ### Figuren und Programme
@@ -153,7 +157,7 @@ _Avoid_: Automapping
 **Teilung**:
 Zerlegen eines zusammengesetzten Call-Texts in zwei eigenstaendige Call-Texte.
 Alternative zur Figuren-Menge, der Caller entscheidet je Call-Text.
-_Avoid_: Split
+_EN_: Split
 
 **Limit**:
 Figur in der Teaching-Order, bis zu der eine Sequenz tanzbar sein muss, um angezeigt
