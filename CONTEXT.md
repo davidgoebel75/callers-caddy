@@ -15,6 +15,7 @@ _Avoid_: Anwender, User
 **Lokation**:
 Dauerhafter Kontext, in dem der Caller auftritt — ein Club oder ein wiederkehrender
 Veranstaltungsort. Bestimmt Historie, Empfehlungen, Notizen und Tanzprogramm-Wahl.
+_EN_: Location
 _Avoid_: Club, Verein, Kontext
 
 **Special**:
@@ -63,7 +64,8 @@ Outro liegen davor und danach.
 
 **Abschnitt**:
 Einer der sieben Teile eines Body — Opener, vier Figures, Middle Break, Closer.
-_Avoid_: Section, Teil, Siebtel
+_EN_: Section
+_Avoid_: Teil, Siebtel
 
 **Label**:
 Plattenlabel eines Square-Dance-Songs (z. B. ESP, Global). Zusammen mit der
@@ -85,73 +87,88 @@ wiederholt, damit der Song so lange laeuft wie der Tip.
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
 Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
+_EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
 
 ### Figuren und Programme
 
 **Programm**:
 Offizielle Stufe des Square-Dance-Figurenkatalogs (Basic, Mainstream, Plus, A1, A2, C1 …).
+_EN_: Program
 _Avoid_: Level, Stufe
 
 **Programm-Reihe**:
 Satz aufeinander aufbauender Programme, der als Einheit gewaehlt wird — die alte
 Reihe (Basic, Mainstream, Plus, A1) und die 2026er-Reihe. Waehlt man ein hoeheres
 Programm, gehoeren die tieferen derselben Reihe dazu.
+_EN_: Program Line
 _Avoid_: Band (nur die interne Nummer), Familie
 
 **Tanzprogramm-Wahl**:
 Die Programme, die eine Lokation tatsaechlich tanzt. Begrenzt zusammen mit dem
 Limit, welche Sequenzen angezeigt werden.
+_EN_: Dance Program Selection
 _Avoid_: Programmfilter
 
 **Figur**:
 Eine im offiziellen Katalog definierte Tanzbewegung mit festem Namen, z. B. "Swing Thru".
 Gehoert zu mindestens einem Programm.
+_EN_: Figure
 _Avoid_: Call (mehrdeutig: meint mal die Figur, mal den Call-Text), Entity
 
 **Konzept**:
 Eintrag des Katalogs, der eine andere Figur abwandelt statt selbst getanzt zu werden,
 z. B. "All 8 Concept" in "All 8 Right & Left Thru". Zaehlt beim Limit wie eine Figur.
+_EN_: Concept
 
 **Teaching-Order**:
 Offizielle Reihenfolge, in der die Figuren eines Programms beigebracht werden.
+_EN_: Teaching Order
 
 **Programm-Grenze**:
 Uebergang zwischen zwei Programmen in der Teaching-Order, z. B. nach der letzten
 Plus-Figur und vor der ersten A1-Figur.
+_EN_: Program Boundary
 
 **(Anything)-Figur**:
 Figur mit dem Platzhalter "(Anything)", in den eine beliebige andere Figur eingesetzt
 wird, z. B. "(Anything) & Roll". Gibt es ab Plus.
+_EN_: (Anything) Figure
 _Avoid_: (Anything)-Vorlage, Vorlage
 
 ### Sequenzen
 
 **Sequenz**:
 Geordnete Folge von Call-Texten, die zusammen eine Choreografie ergeben.
+_EN_: Sequence
 
 **Call-Text**:
 Eine Zeile einer Sequenz, so wie der Caller sie ruft, z. B. "Heads Chase Right and Roll".
 Kann mehrere Figuren enthalten.
+_EN_: Call Text
 _Avoid_: Call, Feld
 
 **Zusammengesetzter Call-Text**:
 Call-Text, der erkennbar mehrere Figuren enthaelt, z. B. "All 8 Right & Left Thru"
 oder "Tag The Line, Face In".
+_EN_: Composite Call Text
 
 **Zuordnung**:
 Verknuepfung eines Call-Texts mit einer Menge gleichrangiger Figuren (eine oder
 mehrere), z. B. "Chase Right and Roll" mit {Chase Right, (Anything) & Roll}.
+_EN_: Assignment
 _Avoid_: Mapping
 
 **Figuren-Menge**:
 Die Figuren einer Zuordnung. Alle sind gleichrangig: jede muss unter dem Limit
 liegen, damit die Sequenz erscheint.
+_EN_: Figure Set
 _Avoid_: Tags, Figurenliste
 
 **Mengen-Vorschlag**:
 Automatisch erkannte Figuren-Menge fuer einen zusammengesetzten Call-Text. Ist nur
 ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zuordnung.
+_EN_: Figure Set Suggestion
 _Avoid_: Automapping
 
 **Teilung**:
