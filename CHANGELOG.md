@@ -6,7 +6,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
-## Unreleased — Playlist-Mehrfachauswahl & Notiz-Übernahme (seit 0.159)
+## (Unreleased — seit 0.159)
 
 ### Verbesserungen
 - **In der Playlist lassen sich jetzt mehrere Lieder auf einmal markieren und gemeinsam verschieben oder löschen.** Mit Strg- bzw. Umschalt-Klick (oder durch Ziehen) wählt man einen Block aus; die Pfeil-Tasten ▲/▼ schieben die ganze Auswahl nach oben oder unten (auch nicht zusammenhängende Zeilen, die relative Reihenfolge bleibt erhalten), ✕ bzw. die Entf-Taste entfernen alle markierten Lieder in einem Rutsch, und per Ziehen lässt sich der Block an eine neue Stelle setzen. Ein Auswahl-Klick lädt dabei nicht mehr versehentlich jedes angetippte Lied als Audio. Das gilt gleichermaßen für die Playlist im Planner.

@@ -277,7 +277,7 @@ class PlaylistWidget(QWidget):
         # Callback: Playlist wurde geaendert -> Manager soll refreshen
         self.on_playlist_changed = None
         # Callback: Song aus Playlist in Notizen einfuegen (einzeln, Kontextmenue)
-        self.on_add_to_notes = None  # callback(song_title)
+        self.on_add_to_notes = None  # callback(title, song_mode)
         # Callback: mehrere Songs als Batch in Notizen einfuegen (+Notiz-Button)
         self.on_add_entries_to_notes = None  # callback(list[(title, mode)])
         # Callback: Quality/ERR via Kontextmenue geaendert
