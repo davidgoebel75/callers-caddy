@@ -8,7 +8,13 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ## (Unreleased — seit 0.159)
 
+### Verbesserungen
+- **In der Playlist lassen sich jetzt mehrere Lieder auf einmal markieren und gemeinsam verschieben oder löschen.** Mit Strg- bzw. Umschalt-Klick (oder durch Ziehen) wählt man einen Block aus; die Pfeil-Tasten ▲/▼ schieben die ganze Auswahl nach oben oder unten (auch nicht zusammenhängende Zeilen, die relative Reihenfolge bleibt erhalten), ✕ bzw. die Entf-Taste entfernen alle markierten Lieder in einem Rutsch, und per Ziehen lässt sich der Block an eine neue Stelle setzen. Ein Auswahl-Klick lädt dabei nicht mehr versehentlich jedes angetippte Lied als Audio. Das gilt gleichermaßen für die Playlist im Planner.
+- **Der Button „+Notiz" überträgt jetzt alle markierten Lieder in der richtigen Reihenfolge.** Ohne Markierung wird wie bisher nachgefragt, ob die ganze Playlist übernommen werden soll; ist die Playlist leer, gibt es jetzt einen kurzen Hinweis statt eines stillen Abbruchs.
+- **Das Umschalten zwischen Pattern (P) und Singing (S) in der Playlist behält die aktuelle Auswahl bei.** Bisher wurde beim Klick auf die P/S-Spalte die Markierung zurückgesetzt.
+
 ### Bugfixes
+- **Beim Übertragen mehrerer Lieder in die Notizen stimmt die Reihenfolge jetzt – auch aus dem Abendplaner.** Aus dem Abendplaner kamen die Notizen bisher in umgekehrter Reihenfolge heraus; beide Wege (Playlist und Abendplaner) legen die Einträge nun von oben nach unten in der erwarteten Reihenfolge an. Das Übernehmen einer ganzen Liste ist zudem spürbar schneller, weil die Reihenfolge nur noch einmal am Ende gespeichert wird statt nach jedem einzelnen Lied.
 - **Der Limit-Filter in den Sequenzen stuft Sequenzen wieder richtig ein.** Gehört ein Call zu mehreren Tanzprogrammen (z. B. „Dosado" in Basic und Mainstream 2026), zählte bisher ein zufällig herausgegriffenes – in der Praxis fast immer das höchste – Programm. Dadurch galt selbst eine reine Basic-Sequenz aus Dosado und Promenade als Mainstream-2026-Sequenz und verschwand aus dem Filter „bis Basic". Jetzt zählt immer das niedrigste Programm, in dem der Call gelehrt wird – dieselbe Regel, nach der auch die Programm-Auswahl und der Figuren-Dialog gehen. Beim ersten Start nach dem Update rechnet die App die Einstufung aller Sequenzen einmalig nach (bei 11.000 Sequenzen etwa eine Fünftelsekunde).
 - **Im Call-Mapping stimmt die Spalte „Anzahl" wieder.** Ein Call-Text, dessen Figur zu mehreren Tanzprogrammen gehört, wurde je Programm einmal gezählt – die Häufigkeit war also verdoppelt (oder verdreifacht) und die Sortierung nach Häufigkeit entsprechend verschoben.
 

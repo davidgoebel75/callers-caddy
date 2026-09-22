@@ -74,3 +74,17 @@ def shortcode_text(action_id: str, params: dict) -> str:
         else:
             parts.append(f'{k}="{v}"')
     return f"[{action_id} {' '.join(parts)}]"
+
+
+def song_shortcode_text(song_title: str, mode: str = "") -> str:
+    """Baut den [load_song]-Shortcode-Text fuer einen Song.
+
+    mode='P'/'S' wird als benannter Parameter geschrieben:
+    [load_song title="..." mode="P"] (verhindert Parser-Kollision mit einem
+    positionalen Wert). Ohne mode: klassisches Format [load_song "..."]
+    (Abwaertskompatibilitaet)."""
+    if mode:
+        params = {"title": song_title, "mode": mode}
+    else:
+        params = {"_value": song_title}
+    return shortcode_text("load_song", params)
