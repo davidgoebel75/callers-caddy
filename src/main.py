@@ -2853,6 +2853,7 @@ class P29MainWindow(QMainWindow):
             pass
         # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
         # der UI aendert das nur fuer die laufende Session, nicht die INI.
+        # Der Default wird in _write_ini_defaults() gesaet.
         saved_insert_pos = str(self._settings.value("notes/insert_position", "top"))
         self.notes_widget.set_insert_position(saved_insert_pos)
         self.dock_notes.setWidget(self.notes_widget)
@@ -3477,7 +3478,7 @@ class P29MainWindow(QMainWindow):
         )
 
     def _export_entries_to_notes(self, entries: list, title_key: str,
-                                  empty_key: str = None):
+                                 empty_key: str = ""):
         """Gemeinsamer Kern fuer 'Songs zu Notizen uebernehmen' (Playlist UND
         Evening Planner): baut Shortcode-Texte in GENAU der uebergebenen
         Reihenfolge und reicht sie an notes_widget.add_notes() weiter, das
@@ -6570,6 +6571,8 @@ class P29MainWindow(QMainWindow):
             "audio/secondary_volume": "80",
             # BL-119: Feedback-Dialog nach Songende (true/false)
             "feedback/enabled": "false",
+            # intern#96: Einfuegeposition neuer Notizen (top/bottom)
+            "notes/insert_position": "top",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:

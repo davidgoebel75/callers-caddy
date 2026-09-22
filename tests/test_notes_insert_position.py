@@ -120,3 +120,22 @@ def test_toggle_updates_button_label(notes):
     top_label = notes._btn_insert_pos.text()
     notes._on_toggle_insert_position()
     assert notes._btn_insert_pos.text() != top_label
+
+
+# ---- Kopplung Einstellungen <-> Widget -----------------------------------
+
+def test_settings_dialog_offers_exactly_the_accepted_values(notes):
+    """Der Dialog darf nur Werte anbieten, die set_insert_position auch annimmt.
+
+    Der Dialog listet ausserdem nur INI-Keys (childKeys) — main.py saet den
+    Default deshalb einmalig, sonst waere die Zeile unsichtbar.
+    """
+    from settings_dialog import SETTINGS_META
+
+    meta = SETTINGS_META["notes/insert_position"]
+    offered = [value for value, _label in meta["choices"]]
+    assert meta["default"] in offered
+
+    for value in offered:
+        notes.set_insert_position(value)
+        assert notes._insert_position == value
