@@ -167,6 +167,14 @@ def test_toggle_cycles_top_middle_bottom(notes):
     assert notes._insert_position == "top"
 
 
+def test_toggle_gives_focus_to_input(notes):
+    notes.show()
+    notes.activateWindow()
+    notes._btn_insert_pos.setFocus()
+    notes._btn_insert_pos.click()
+    assert notes.focusWidget() is notes._input
+
+
 def test_toggle_updates_button_label(notes):
     notes.set_insert_position("top")
     top_label = notes._btn_insert_pos.text()

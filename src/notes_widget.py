@@ -1199,6 +1199,8 @@ class NotesWidget(QWidget):
         idx = self._INSERT_POSITIONS.index(self._insert_position)
         self._insert_position = self._INSERT_POSITIONS[(idx + 1) % len(self._INSERT_POSITIONS)]
         self._update_insert_position_button()
+        # Direkt weitertippen koennen, ohne erst ins Eingabefeld zu klicken
+        self._input.setFocus()
 
     def _update_insert_position_button(self):
         pos = self._insert_position
