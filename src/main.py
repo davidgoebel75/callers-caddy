@@ -741,6 +741,12 @@ class P29MainWindow(QMainWindow):
         # Song-Datenbank (Pfad aus PathManager)
         self.db = SongDatabase(self.paths.db_path)
         self.db.seed_default_genres()
+        # intern#106: Doppelgaenger von Unterordner-Songs (Bug bis v0.158)
+        # in ihr Original zurueckfuehren. Laeuft bei jedem Start (eine Abfrage),
+        # damit auch Songs auf beim ersten Start nicht erreichbaren Laufwerken
+        # spaeter noch repariert werden.
+        from subfolder_duplicate_repair import repair_subfolder_duplicates
+        repair_subfolder_duplicates(self.db, self.paths.find_song_file)
         # Mindest-Live-Volume aus INI laden
         min_vol = float(self._settings.value("audio/min_volume", 0.0))
         self.engine.set_min_volume(min_vol)
@@ -3166,8 +3172,13 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs noch sichern.
             # _current_song ist hier noch der ALTE Song — der Flush trifft den richtigen.
             self._flush_player_values()
-            filename = os.path.basename(filepath)
-            song = self.db.get_or_create(filename)
+            # intern#106: erst ueber den relativen Pfad suchen. Liegt die Datei
+            # in einem Unterordner eines Musik-Slots, steht sie so in der DB
+            # ('Sub/song.mp3'); nur per Basename wuerde get_or_create sonst
+            # einen Doppelgaenger mit Default-Werten anlegen.
+            song = self.db.get_by_filename(self.paths.to_relative_filename(filepath))
+            if song is None:
+                song = self.db.get_or_create(os.path.basename(filepath))
 
         self._current_song = song
         self._current_music_filename = os.path.basename(filepath)
