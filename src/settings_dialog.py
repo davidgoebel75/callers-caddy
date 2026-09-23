@@ -288,9 +288,9 @@ SETTINGS_META: dict[str, dict] = {
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
-        "choices": [("top", "Oben"), ("bottom", "Unten")],
+        "choices": [("top", "Oben"), ("middle", "Mitte"), ("bottom", "Unten")],
         "default": "top",
-        "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
+        "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
     },
     # --- lyrics ---
     "lyrics/zoom_pct": {
