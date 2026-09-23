@@ -285,6 +285,13 @@ SETTINGS_META: dict[str, dict] = {
         "min": 1.0, "max": 10.0, "step": 0.5,
         "tooltip": "Schriftgrössen-Faktor für die erste (oberste) offene Notiz.",
     },
+    "notes/insert_position": {
+        "label": "Neue Notizen einfügen",
+        "widget": "combobox",
+        "choices": [("top", "Oben"), ("bottom", "Unten")],
+        "default": "top",
+        "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
+    },
     # --- lyrics ---
     "lyrics/zoom_pct": {
         "label": "Zoom",

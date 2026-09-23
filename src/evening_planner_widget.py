@@ -1908,8 +1908,11 @@ class EveningPlannerWidget(QWidget):
     def _transfer_to_notes(self):
         """Button 'Übernehmen zu Notizen': Song-Titel in Tip-Reihenfolge emittieren.
         Enthält nicht bestätigte Songs → Sicherheitsabfrage.
-        Reihenfolge wird umgekehrt, da add_note() bei index=0 (oben) einfügt —
-        so erscheint Tip 1 oben, Tip N unten.
+        Reihenfolge wird UNVERAENDERT (Tip 1 zuerst) emittiert — main.py baut die
+        Shortcode-Texte in genau dieser Reihenfolge und uebergibt sie an
+        notes_widget.add_notes(), das die End-Reihenfolge samt Toggle-Position
+        (Oben/Unten) garantiert. Ein zusaetzliches reversed() hier wuerde das
+        wieder umdrehen (war ein Ueberbleibsel aus der Zeit vor Issue #93).
         Jeder Eintrag ist ein Tupel (title, mode) mit mode='P' oder 'S',
         damit der Shortcode die Rolle des Songs dokumentiert."""
         # Tupel (title, mode_char) — 'P' fuer Patter, 'S' fuer Singing
@@ -1934,8 +1937,7 @@ class EveningPlannerWidget(QWidget):
         else:
             entries = confirmed_entries
 
-        # Umkehren: add_note() fuegt bei index=0 ein, letzter Aufruf landet oben
-        self.sig_export_to_notes.emit(list(reversed(entries)))
+        self.sig_export_to_notes.emit(entries)
 
     # ── Zoom ───────────────────────────────────────────────────────────────────
 
