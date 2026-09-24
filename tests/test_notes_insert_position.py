@@ -96,6 +96,56 @@ def test_add_note_bottom_appends(notes):
     assert _open_texts(notes) == ["erste", "zweite"]
 
 
+# ---- Mitte: ueber der obersten Trennzeile --------------------------------
+
+def _type(widget, text):
+    """Tippt einen Eintrag ins Eingabefeld (so entstehen auch Trennzeilen)."""
+    widget._input.setText(text)
+    widget._on_add_note()
+
+
+def _open_layout(widget) -> list:
+    """Offene Liste mit Trennzeilen als '---Text', oben -> unten."""
+    return [("---" + r._label_text) if r.note_type == "separator" else r._text
+            for r in widget._open_list.rows()]
+
+
+def test_middle_inserts_above_topmost_separator(notes):
+    notes.set_insert_position("bottom")
+    for t in ("heute 1", "---Tag 2", "gestern", "---Tag 1", "vorgestern"):
+        _type(notes, t)
+    notes.set_insert_position("middle")
+    notes.add_note("neu")
+    assert _open_layout(notes) == [
+        "heute 1", "neu", "---Tag 2", "gestern", "---Tag 1", "vorgestern"]
+
+
+def test_middle_add_notes_keeps_order(notes):
+    notes.set_insert_position("bottom")
+    for t in ("oben", "---Linie", "unten"):
+        _type(notes, t)
+    notes.set_insert_position("middle")
+    notes.add_notes(["Tip 1", "Tip 2", "Tip 3"])
+    assert _open_layout(notes) == [
+        "oben", "Tip 1", "Tip 2", "Tip 3", "---Linie", "unten"]
+
+
+def test_middle_with_separator_on_top_inserts_at_top(notes):
+    notes.set_insert_position("bottom")
+    for t in ("---Linie", "unten"):
+        _type(notes, t)
+    notes.set_insert_position("middle")
+    notes.add_note("neu")
+    assert _open_layout(notes) == ["neu", "---Linie", "unten"]
+
+
+def test_middle_without_separator_appends(notes):
+    notes.set_insert_position("middle")
+    notes.add_notes(["a", "b"])
+    notes.add_note("c")
+    assert _open_texts(notes) == ["a", "b", "c"]
+
+
 # ---- Toggle-Zustand ------------------------------------------------------
 
 def test_default_position_is_top(notes):
@@ -107,12 +157,22 @@ def test_unknown_position_falls_back_to_default(notes):
     assert notes._insert_position == "top"
 
 
-def test_toggle_switches_back_and_forth(notes):
+def test_toggle_cycles_top_middle_bottom(notes):
     notes.set_insert_position("top")
+    notes._on_toggle_insert_position()
+    assert notes._insert_position == "middle"
     notes._on_toggle_insert_position()
     assert notes._insert_position == "bottom"
     notes._on_toggle_insert_position()
     assert notes._insert_position == "top"
+
+
+def test_toggle_gives_focus_to_input(notes):
+    notes.show()
+    notes.activateWindow()
+    notes._btn_insert_pos.setFocus()
+    notes._btn_insert_pos.click()
+    assert notes.focusWidget() is notes._input
 
 
 def test_toggle_updates_button_label(notes):

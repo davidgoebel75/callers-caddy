@@ -141,6 +141,22 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 
 - **StyleSheet haengt `setFont()` aus — Schriftgroesse IMMER per `font-size` im StyleSheet setzen**: Hat ein Widget ein StyleSheet gesetzt (schon ein blosses `color: …` reicht), ignoriert Qt spaetere `setFont()`/`setPixelSize()`-Aufrufe stillschweigend — die Schrift bleibt auf Standardgroesse. Das kostet jedes Mal eine Debug-Schleife. **Regel:** Wenn ein Widget ein StyleSheet hat und die Schriftgroesse dynamisch/berechnet ist, die Groesse ins selbe StyleSheet schreiben (`f"color: {c}; font-size: {px}px;"`), NICHT ueber `setFont()`. `QFontMetrics` zum Ausmessen ist ok — nur das Anwenden muss ueber das StyleSheet laufen. Trat u.a. bei BL-189 auf (dynamischer Header im `SequenceViewWidget`).
 
+## Projektsprache — CONTEXT.md
+
+`CONTEXT.md` liegt im Projektstamm und ist das Glossar der Projektsprache:
+Figuren, Programme, Sequenzen, Songs, Abend-Begriffe — je mit dem gewaehlten
+Begriff und den Varianten, die bewusst vermieden werden (`_Avoid_`).
+
+- **Vor dem Benennen lesen.** Klassen, DB-Felder, UI-Texte, Commit-, Issue- und
+  PR-Titel benutzen den Begriff aus `CONTEXT.md`, nicht eine Variante aus dessen
+  Avoid-Liste. Steht ein Begriff noch nicht drin, ist das ein Signal: entweder
+  gibt es ihn im Projekt gar nicht, oder er fehlt im Glossar.
+- **Neuer oder geschaerfter Begriff → sofort eintragen**, wie beim Changelog:
+  solange er frisch ist, nicht erst vorm Release.
+- **Glossar, kein Pflichtenheft.** Eine bis zwei Saetze je Begriff, keine
+  Implementierungsdetails (keine Tabellen, keine Funktionsnamen, keine Ablaeufe).
+- Die Datei bleibt im Projektstamm — dort suchen die Agenten-Werkzeuge sie.
+
 ## Subdokumente — wann was lesen
 
 Die Details stehen in `1_Source/docs/`. **Vor jeder Arbeit den passenden Abschnitt lesen:**

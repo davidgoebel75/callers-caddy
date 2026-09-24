@@ -107,8 +107,8 @@ class CallMatcher:
         # findet z. B. "(Anything) & Roll" seinen Eintrag nicht, wenn er
         # ueber diese Methode gebaut wurde ('&' vs. 'and'). Bei mehrfach
         # vorkommenden Namen gewinnt deterministisch die niedrigste
-        # teaching_order, sonst wandert die Vorlagen-entity_id zwischen
-        # Laeufen.
+        # teaching_order, sonst wandert die entity_id der (Anything)-Figur
+        # zwischen Laeufen.
         self._by_canonical: dict[str, tuple] = {}
 
         for eid, cname, *rest in canonicals:
@@ -206,9 +206,9 @@ class CallMatcher:
         Normalisierung von normalize_call_text (kein Abschneiden von
         'All 8'/Rollen-Praefixen o.ae.) -- sonst None.
 
-        Fuer die Vorlagen-Aufloesung (BL-210.7): der Aufrufer kennt den
-        exakten kanonischen Namen (z. B. eine (Anything)-Vorlage oder ein
-        Konzept) und will dessen entity_id -- egal ob er ihn mit '&' oder
+        Fuer die Aufloesung der (Anything)-Figuren (BL-210.7): der Aufrufer
+        kennt den exakten kanonischen Namen (z. B. eine (Anything)-Figur oder
+        ein Konzept) und will dessen entity_id -- egal ob er ihn mit '&' oder
         'and' schreibt. Existiert der Name mehrfach (z. B.
         'Explode & (Anything)' einmal je Programm), liefert diese Methode
         stabil die Variante mit der niedrigsten teaching_order.
@@ -223,7 +223,7 @@ class CallMatcher:
 # Figuren-Mengen-Vorschlag (BL-210.7)
 # ---------------------------------------------------------------------------
 # ``exact_lookup`` ist ein Dict canon_key(kanonischer Name) -> entity_id, das
-# ALLE bekannten Figuren/Konzepte enthaelt (auch die 7 (Anything)-Vorlagen und
+# ALLE bekannten Figuren/Konzepte enthaelt (auch die 7 (Anything)-Figuren und
 # die beiden All-8/All-4-Couples-Konzepte). ``rest_lookup`` (optional) ist
 # zusaetzlich ein Dict canon_key(bereits gemappter Call-Text) -> entity_id,
 # z. B. aus den bestehenden ``call_text_mappings`` -- fuer Restaufloesungen,
@@ -252,7 +252,7 @@ def canon_key(text: str) -> str:
     ``rest_lookup`` fuer suggest_figure_set() MIT dieser Funktion, sonst
     passen die Schluessel nicht zusammen. lru_cache, weil sie beim Durchlauf
     ueber viele Call-Texte oft mit denselben Namen (kanonische Namen,
-    Vorlagen) aufgerufen wird.
+    (Anything)-Figuren) aufgerufen wird.
     """
     t = text.lower().replace('&', ' and ')
     # Vorpruefung spart die beiden Regex-Laeufe fuer fast alle Texte.
@@ -365,19 +365,19 @@ def suggest_figure_set(raw_text: str, exact_lookup: dict,
         2. All-8/All-4-Couples-Praefix (terminal: greift es, wird hier
            IMMER geantwortet -- K2 mit Vorschlag oder K3 ohne, nie ein
            Durchfallen zu Split). Einzige Ausnahme davor: der ganze Text
-           ist eine (Anything)-Vorlage mit einer K1-Figur als Ziel
-           ('All 8 Spin The Top & Spread') -> Vorlage statt Konzept.
-        3. (Anything)-Vorlagen.
+           ist eine (Anything)-Figur mit einer K1-Figur als Ziel
+           ('All 8 Spin The Top & Spread') -> (Anything)-Figur statt Konzept.
+        3. (Anything)-Figuren.
         4. Trennung an Komma/'&'/'and' (Split) -- zuletzt, sonst zerschneidet
            sie z. B. '(Anything) & Roll' am '&'.
 
     Args:
         exact_lookup: Pflicht. Dict canon_key(kanonischer Name) -> entity_id
-            fuer ALLE bekannten Figuren/Konzepte/Vorlagen (siehe canon_key).
+            fuer ALLE bekannten Figuren und Konzepte (siehe canon_key).
         rest_lookup: Optional. Dict canon_key(bereits gemappter Call-Text)
             -> entity_id, z. B. aus bestehenden call_text_mappings. Wird NUR
             fuer die Restaufloesung hinter dem All-8/All-4-Couples-Praefix
-            und fuer die Zielfigur der (Anything)-Vorlagen benutzt, IMMER
+            und fuer die Zielfigur der (Anything)-Figuren benutzt, IMMER
             nachrangig zu exact_lookup ('erst exact_lookup, dann
             rest_lookup'). OHNE rest_lookup bleibt das Verhalten exakt wie
             vorher. Split greift NIE auf rest_lookup zu -- es loest
@@ -390,7 +390,7 @@ def suggest_figure_set(raw_text: str, exact_lookup: dict,
         oder None (kein Vorschlag). pattern ist 'all8' / 'anything' / 'split'
         oder None. Reihenfolge INNERHALB von figure_set ist kein einheitlicher
         Vertrag: suggest_all8_figures() liefert [Konzept, ...Rest],
-        suggest_anything_figures() liefert [Zielfigur, Vorlagen-Konzept].
+        suggest_anything_figures() liefert [Zielfigur, (Anything)-Figur].
         BL-210.8 sollte figure_set als Menge vergleichen, nicht als Sequenz.
     """
     text = (raw_text or "").strip()
@@ -401,10 +401,10 @@ def suggest_figure_set(raw_text: str, exact_lookup: dict,
         return (None, None)
 
     if _ALL8_PREFIX_RE.match(text) or _ALL4_COUPLES_PREFIX_RE.match(text):
-        # K1-Figur mit (Anything)-Vorlage ('All 8 Spin The Top & Spread'):
-        # die Vorlage mit der K1-Figur als Ziel gewinnt, sonst kaeme das
-        # Konzept dazu. Nur exact_lookup -- das Ziel muss selbst eine Figur
-        # mit All-8-Namen sein (BL-210.11, Stichprobe).
+        # K1-Figur mit (Anything)-Figur ('All 8 Spin The Top & Spread'):
+        # die (Anything)-Figur mit der K1-Figur als Ziel gewinnt, sonst
+        # kaeme das Konzept dazu. Nur exact_lookup -- das Ziel muss selbst
+        # eine Figur mit All-8-Namen sein (BL-210.11, Stichprobe).
         figures = suggest_anything_figures(text, exact_lookup)
         if figures is not None:
             return (figures, "anything")
@@ -483,11 +483,11 @@ def suggest_all8_figures(raw_text: str, exact_lookup: dict,
     return [concept_id] + rest_figures
 
 
-# --- (Anything)-Vorlagen ----------------------------------------------------
+# --- (Anything)-Figuren ----------------------------------------------------
 
-# (canonical_name der Vorlage, Platzhalter-Position). 'suffix' = "(Anything)"
-# steht am Anfang, der Rest steht im Text VOR dem festen Teil. 'prefix' =
-# "(Anything)" steht am Ende, der Rest steht im Text DANACH.
+# (canonical_name der (Anything)-Figur, Platzhalter-Position). 'suffix' =
+# "(Anything)" steht am Anfang, der Rest steht im Text VOR dem festen Teil.
+# 'prefix' = "(Anything)" steht am Ende, der Rest steht im Text DANACH.
 _ANYTHING_TEMPLATES = (
     ("(Anything) & Roll", "suffix"),
     ("(Anything) & Spread", "suffix"),
@@ -498,8 +498,9 @@ _ANYTHING_TEMPLATES = (
     ("Transfer and (Anything)", "prefix"),
 )
 
-# (canon_key der Vorlage, canon_key des festen Teils, Position) -- einmal beim
-# Laden statt fuer jeden Call-Text neu (BL-210.11, Laufzeit beim Oeffnen).
+# (canon_key der (Anything)-Figur, canon_key des festen Teils, Position) --
+# einmal beim Laden statt fuer jeden Call-Text neu (BL-210.11, Laufzeit beim
+# Oeffnen).
 _ANYTHING_KEYS = tuple(
     (canon_key(t), canon_key(t.replace("(Anything)", "")), pos)
     for t, pos in _ANYTHING_TEMPLATES)
@@ -524,8 +525,9 @@ def _lookup_target(rest_canon: str, lookup: Optional[dict]) -> Optional[str]:
 
 def suggest_anything_figures(raw_text: str, exact_lookup: dict,
                               rest_lookup: Optional[dict] = None) -> Optional[list]:
-    """Prueft die 7 (Anything)-Vorlagen. Der Text-Rest neben dem festen Teil
-    muss exakt einer Figur entsprechen, sonst kein Treffer fuer diese Vorlage.
+    """Prueft die 7 (Anything)-Figuren. Der Text-Rest neben dem festen Teil
+    muss exakt einer Figur entsprechen, sonst kein Treffer fuer diese
+    (Anything)-Figur.
 
     Ziel-Aufloesung erst ueber exact_lookup, dann -- falls gegeben -- ueber
     rest_lookup (siehe suggest_figure_set()).

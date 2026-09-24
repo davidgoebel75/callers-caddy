@@ -666,7 +666,8 @@ class NotesWidget(QWidget):
     _ZOOM_STEP = 10
     _FONT_BASE = 12  # px bei 100 %
     _FIRST_FACTOR_DEFAULT = 4.0  # Oberste offene Notiz: 4x Schriftgroesse
-    _INSERT_POS_DEFAULT = "top"  # Einfuegeposition neuer Notizen: "top" | "bottom"
+    _INSERT_POS_DEFAULT = "top"  # Einfuegeposition neuer Notizen: "top" | "middle" | "bottom"
+    _INSERT_POSITIONS = ("top", "middle", "bottom")  # zugleich Reihenfolge des Umschalters
 
     def __init__(self, db, app_dir: str = "", parent=None):
         super().__init__(parent)
@@ -961,11 +962,19 @@ class NotesWidget(QWidget):
         self._refresh_first_highlight()
 
     def _insert_row(self, row: QWidget):
-        """Fuegt eine Zeile gemaess Toggle (Oben/Unten) in die offene Liste ein."""
-        if self._insert_position == "bottom":
-            self._open_list.add_row(row)
-        else:
+        """Fuegt eine Zeile gemaess Toggle (Oben/Mitte/Unten) in die offene Liste ein.
+
+        Mitte = ueber der obersten Trennzeile, also ans Ende des obersten
+        Abschnitts; ohne Trennzeile ganz unten."""
+        if self._insert_position == "top":
             self._open_list.add_row(row, index=0)
+        elif self._insert_position == "middle":
+            rows = self._open_list.rows()
+            sep_idx = next((i for i, r in enumerate(rows)
+                            if getattr(r, "note_type", "") == "separator"), None)
+            self._open_list.add_row(row, index=sep_idx)
+        else:
+            self._open_list.add_row(row)
 
     def _append_note(self, text: str):
         """Legt EINE Notiz an (DB-INSERT + Zeile) an der Toggle-Position,
@@ -992,18 +1001,19 @@ class NotesWidget(QWidget):
     def add_notes(self, texts: list):
         """Fuegt mehrere Notizen so ein, dass texts[0..n-1] von OBEN nach UNTEN
         in genau dieser Reihenfolge erscheinen — unabhaengig von der Toggle-Position
-        (Oben/Unten). Aufrufer uebergeben immer die gewuenschte End-Reihenfolge;
+        (Oben/Mitte/Unten). Aufrufer uebergeben immer die gewuenschte End-Reihenfolge;
         die Einfuege-Richtung ist hier an EINER Stelle gekapselt.
 
         Bei "top" fuegt _append_note() jeweils OBEN ein; rueckwaerts eingefuegt
-        ergibt das oben->unten die gewuenschte Reihenfolge. Bei "bottom" fuegt
-        _append_note() jeweils UNTEN an; in Original-Reihenfolge eingefuegt ergibt
-        das direkt oben->unten. _save_order() und _refresh_first_highlight() laufen
+        ergibt das oben->unten die gewuenschte Reihenfolge. Bei "bottom" und
+        "middle" haengt _append_note() jeweils ans Ende (der Liste bzw. des
+        obersten Abschnitts) an; in Original-Reihenfolge eingefuegt ergibt das
+        direkt oben->unten. _save_order() und _refresh_first_highlight() laufen
         EINMAL am Ende — nicht je Song (sonst O(N^2) Voll-Reorder + Commit je
         Notiz, direkt im Trigger)."""
         if self._location_id is None:
             return
-        ordered = texts if self._insert_position == "bottom" else list(reversed(texts))
+        ordered = list(reversed(texts)) if self._insert_position == "top" else texts
         added = False
         for text in ordered:
             if text:
@@ -1174,26 +1184,28 @@ class NotesWidget(QWidget):
         self._first_note_factor = max(1.0, min(10.0, f))
         self._refresh_first_highlight()
 
-    # ── Einfuegeposition (Oben/Unten) ────────────────────────────────────────
+    # ── Einfuegeposition (Oben/Mitte/Unten) ──────────────────────────────────
 
     def set_insert_position(self, position: str):
         """Setzt die Default-Einfuegeposition neuer Notizen (aus INI, nur beim
         Start). Der Toggle-Button in der UI kann sie danach fuer die laufende
         Session aendern, ohne dass das in die INI zurueckgeschrieben wird."""
-        self._insert_position = position if position in ("top", "bottom") else self._INSERT_POS_DEFAULT
+        self._insert_position = (position if position in self._INSERT_POSITIONS
+                                 else self._INSERT_POS_DEFAULT)
         self._update_insert_position_button()
 
     def _on_toggle_insert_position(self):
-        self._insert_position = "bottom" if self._insert_position == "top" else "top"
+        """Schaltet reihum: Oben -> Mitte -> Unten -> Oben."""
+        idx = self._INSERT_POSITIONS.index(self._insert_position)
+        self._insert_position = self._INSERT_POSITIONS[(idx + 1) % len(self._INSERT_POSITIONS)]
         self._update_insert_position_button()
+        # Direkt weitertippen koennen, ohne erst ins Eingabefeld zu klicken
+        self._input.setFocus()
 
     def _update_insert_position_button(self):
-        if self._insert_position == "bottom":
-            self._btn_insert_pos.setText(_t("note.btn_pos_bottom"))
-            self._btn_insert_pos.setToolTip(_t("note.btn_pos_bottom_tooltip"))
-        else:
-            self._btn_insert_pos.setText(_t("note.btn_pos_top"))
-            self._btn_insert_pos.setToolTip(_t("note.btn_pos_top_tooltip"))
+        pos = self._insert_position
+        self._btn_insert_pos.setText(_t(f"note.btn_pos_{pos}"))
+        self._btn_insert_pos.setToolTip(_t(f"note.btn_pos_{pos}_tooltip"))
 
     def tick_top_open_note(self) -> bool:
         """Markiert die oberste offene Notiz als erledigt.

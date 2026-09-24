@@ -1,0 +1,68 @@
+name: Release
+
+# Der Release-Knopf: Actions -> Release -> Run workflow.
+# Die gewaehlte Branch ist die Quelle (normal develop, im Notfall main).
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Kurztitel fuer den Changelog-Abschnitt"
+        required: false
+        default: ""
+      version:
+        description: "Versionsnummer erzwingen (leer = hochzaehlen)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Nur pruefen — nichts committen, kein Pull Request"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Versionsnummer setzen
+        id: bump
+        # Eingaben per env, nicht per ${{ }} in die Shell: sonst kann ein
+        # Titel mit Anfuehrungszeichen Befehle einschmuggeln.
+        env:
+          TITLE: ${{ inputs.title }}
+          VERSION: ${{ inputs.version }}
+          CHECK: ${{ inputs.dry_run && '--check' || '' }}
+        run: python tools/bump_version.py --title "$TITLE" ${VERSION:+--version "$VERSION"} $CHECK
+
+      - name: Commit und Push
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release $VERSION: Version-Bump + Changelog-Abschnitt"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Pull Request nach main anlegen
+        if: ${{ !inputs.dry_run && github.ref_name != 'main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          SOURCE: ${{ github.ref_name }}
+        run: |
+          gh pr create --base main --head "$SOURCE" \
+            --title "Release $VERSION" \
+            --body "Version-Bump und Changelog-Abschnitt fuer $VERSION, angelegt vom Release-Workflow.
+
+          Mergen mit **Create a merge commit** — nie Squash (sonst verliert Git die Verbindung develop/main).
+          Danach auf main: bauen und Tag \`$VERSION\` setzen." \
+          || gh pr list --base main --head "$SOURCE" --json url -q '.[0].url'
