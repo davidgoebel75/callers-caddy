@@ -27,7 +27,9 @@ Ein Paar gilt nur als Doppelgaenger, wenn eindeutig: B hat keinen Ordnerpfad,
 genau EIN Eintrag A hat einen relativen Pfad mit gleichem Basename (Gross-/
 Kleinschreibung egal, wie unter Windows), A's Datei ist auffindbar und B's
 Datei NICHT (sonst waere B ein legitimer Song im Slot-Stamm, oder das
-Laufwerk ist gerade nicht erreichbar).
+Laufwerk ist gerade nicht erreichbar). Sind mehrere Originale in Folge nicht
+auffindbar, fehlt vermutlich das Laufwerk: dann bricht die Pruefung ab und
+laeuft beim naechsten Start erneut.
 """
 import copy
 import os
@@ -40,6 +42,11 @@ from song_db import Song, SongDatabase
 _MERGE_FIELDS = ("artist", "label", "quality", "base_bpm", "standard_tempo",
                  "pitch", "volume", "lyrics_file", "err")
 _LOOP_FIELDS = ("loop_in", "loop_out", "loop_offset_ms")
+
+# So viele Originale hintereinander nicht auffindbar -> Laufwerk fehlt
+# vermutlich (Netz/USB). Abbrechen statt bei jedem Start hunderte
+# Dateipruefungen auf ein totes Laufwerk; der naechste Start versucht es neu.
+_MAX_MISSES_IN_ROW = 5
 
 _VARIANT_KEY_RE = re.compile(r"^music_(\d+)_")
 _PLAYLIST_COUNT_RE = re.compile(r"\d+(:\d+)?")
@@ -61,6 +68,7 @@ def find_pairs(db: SongDatabase, find_song_file) -> list:
         if _has_folder(s.filename):
             by_base.setdefault(_base_key(s.filename), []).append(s)
     pairs = []
+    misses = 0
     for b in songs:
         if _has_folder(b.filename):
             continue
@@ -71,7 +79,15 @@ def find_pairs(db: SongDatabase, find_song_file) -> list:
         if len(candidates) != 1:
             continue
         a = candidates[0]
-        if find_song_file(a.filename) and not find_song_file(b.filename):
+        if not find_song_file(a.filename):
+            misses += 1
+            if misses >= _MAX_MISSES_IN_ROW:
+                print(f"[Repair#106] {misses} Originale in Folge nicht auffindbar "
+                      f"- Laufwerk fehlt vermutlich, Pruefung abgebrochen")
+                return []
+            continue
+        misses = 0
+        if not find_song_file(b.filename):
             pairs.append((a, b))
     return pairs
 

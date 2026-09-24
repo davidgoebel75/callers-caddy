@@ -215,6 +215,30 @@ def test_zusammenfuehren_ist_atomar(db):
     assert db.get_by_id(b.id) is not None
 
 
+def _many_pairs(db, n):
+    for i in range(n):
+        db.insert(Song(filename=f"Patter/S{i}.mp3", title=f"S{i}",
+                       is_pattern=1, is_singing=0))
+        db.get_or_create(f"S{i}.mp3")
+
+
+def test_fehlendes_laufwerk_bricht_pruefung_ab(db):
+    """Keins der Originale auffindbar: nach 5 Versuchen Schluss, statt bei
+    jedem Start alle Dateien auf einem toten Laufwerk zu pruefen."""
+    _many_pairs(db, 20)
+    calls = []
+    finder = lambda name: calls.append(name)   # findet nie etwas
+    assert find_pairs(db, finder) == []
+    assert len(calls) == 5
+
+
+def test_einzelne_fehlende_originale_brechen_nicht_ab(db):
+    _many_pairs(db, 10)
+    missing = {"Patter/S2.mp3", "Patter/S5.mp3"}
+    finder = lambda name: name if "/" in name and name not in missing else None
+    assert len(find_pairs(db, finder)) == 8
+
+
 # ---- Laden: kein neuer Doppelgaenger -------------------------------------
 
 def test_laden_aus_unterordner_legt_keinen_doppelgaenger_an(db):
