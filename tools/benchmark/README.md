@@ -124,6 +124,19 @@ Die Startup-Teilphasen misst der Runner selbst um den echten
 zu vermeiden). Die in-App `perf.py`-Session-Marken bleiben die Referenz für den
 ausgelieferten Startpfad und lassen sich mit `--perf-log` zusätzlich mitschreiben.
 
+### Doppelgänger-Prüfung beim Start (intern#106)
+
+Teil von `startup_window_init`, zusätzlich einzeln ausgewiesen:
+
+| Schritt | misst |
+|---|---|
+| `startup_repair106_check` | `find_pairs` — die Prüfung, die bei **jedem** Start läuft |
+| `startup_repair106_total` | kompletter Aufruf inkl. Sicherung, Zusammenführen und Playlist-Umschreiben |
+
+`meta` enthält Songs, Dateiprüfungen (Anzahl + Zeit) und gefundene Paare. Gemessen
+wird ohne CC-Naht: der Runner umwickelt die Modul-Funktionen vor dem Fenster-Init.
+Fehlt das Modul (älterer Stand), entfallen beide Schritte.
+
 ## JSON-Format
 
 ```json

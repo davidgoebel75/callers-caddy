@@ -1762,12 +1762,67 @@ class SongDatabase:
         if existing:
             print(f"[SongDB] Song gefunden: #{existing.id} '{filename}'")
             return existing
+        return self.insert(self.new_song(filename))
 
-        # Neuer Song: Titel = Dateiname ohne Endung, beide Typen aktiv
-        title = os.path.splitext(filename)[0]
-        song = Song(filename=filename, title=title,
+    @staticmethod
+    def new_song(filename: str) -> Song:
+        """Anlage-Defaults eines neuen Songs: Titel = Dateiname ohne Endung,
+        beide Typen aktiv. Einzige Quelle dafuer — auch die Doppelgaenger-
+        Reparatur (intern#106) vergleicht dagegen."""
+        return Song(filename=filename, title=os.path.splitext(filename)[0],
                     is_pattern=1, is_singing=1)
-        return self.insert(song)
+
+    def get_or_create_for_file(self, rel_filename: str) -> Song:
+        """Song zu einer geladenen Datei finden oder anlegen (intern#106).
+
+        rel_filename ist der Pfad relativ zum Musik-Slot ('Sub/song.mp3' bzw.
+        'song.mp3' im Slot-Stamm). Erst exakt danach suchen, dann ueber den
+        Basename — nur so findet ein Song aus einem Unterordner seinen
+        Eintrag, statt einen Doppelgaenger mit Defaults anzulegen."""
+        song = self.get_by_filename(rel_filename)
+        if song is None:
+            song = self.get_or_create(os.path.basename(rel_filename))
+        return song
+
+    def merge_songs(self, keep: Song, drop_id: int, properties: dict,
+                    skip_genre_id: int = -1):
+        """Fuehrt Song drop_id in keep zusammen — in EINER Transaktion (intern#106).
+
+        keep:        bereits fertig zusammengefuehrte Song-Felder (wird 1:1
+                     geschrieben, ohne Loop-Guard: der Aufrufer hat entschieden)
+        properties:  vollstaendige song_properties fuer keep (ersetzt die alten)
+        skip_genre_id: Genre, das von drop NICHT uebernommen wird (z.B. "NEW")
+        play_history wird umgehaengt, song_location_stats addiert, danach wird
+        drop samt Abhaengigkeiten geloescht. Bricht etwas ab, bleibt alles
+        wie vorher (Rollback)."""
+        from dataclasses import asdict
+        with self._conn:
+            self._conn.execute(_UPDATE, asdict(keep))
+            self._conn.execute("DELETE FROM song_properties WHERE song_id IN (?, ?)",
+                               (keep.id, drop_id))
+            self._conn.executemany(
+                "INSERT INTO song_properties (song_id, key, value) VALUES (?, ?, ?)",
+                [(keep.id, k, v) for k, v in properties.items()])
+            self._conn.execute(
+                "INSERT OR IGNORE INTO song_genres (song_id, genre_id) "
+                "SELECT ?, genre_id FROM song_genres WHERE song_id = ? AND genre_id != ?",
+                (keep.id, drop_id, skip_genre_id))
+            self._conn.execute("UPDATE play_history SET song_id = ? WHERE song_id = ?",
+                               (keep.id, drop_id))
+            self._conn.execute(
+                "INSERT INTO song_location_stats (song_id, location_id, last_played, play_count) "
+                "SELECT ?, location_id, last_played, play_count "
+                "FROM song_location_stats WHERE song_id = ? "
+                "ON CONFLICT(song_id, location_id) DO UPDATE SET "
+                "  last_played = MAX(last_played, excluded.last_played), "
+                "  play_count = play_count + excluded.play_count",
+                (keep.id, drop_id))
+            for sql in ("DELETE FROM song_genres WHERE song_id = ?",
+                        "DELETE FROM song_location_stats WHERE song_id = ?",
+                        "DELETE FROM potential_ignored WHERE entity_id = ?",
+                        "DELETE FROM songs WHERE id = ?"):
+                self._conn.execute(sql, (drop_id,))
+        print(f"[SongDB] Song #{drop_id} in #{keep.id} '{keep.filename}' zusammengefuehrt")
 
     def clear_loop(self, song_id: int):
         """Loescht Loop-Marker fuer einen Song (umgeht Safety-Guard)."""
@@ -4334,19 +4389,27 @@ class SongDatabase:
 
     # ---- MS50-Reseed: gebuendelte Referenzdaten an Bestandsnutzer verteilen ----
 
-    def _backup_before_reseed(self):
-        """Pflicht-Backup der DB vor dem Reseed (Wiederherstellungspunkt)."""
+    def backup_copy(self, tag: str) -> str:
+        """Kopie der DB-Datei als Wiederherstellungspunkt vor einem riskanten
+        Eingriff: '<db>.bak_<tag>_<Zeitstempel>'. Gibt den Pfad zurueck,
+        '' wenn keine Datei da ist oder das Kopieren scheitert."""
         import shutil, datetime
         if not self.db_path or not os.path.exists(self.db_path):
-            return
+            return ""
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        dst = f"{self.db_path}.bak_pre_ms50_{ts}"
+        dst = f"{self.db_path}.bak_{tag}_{ts}"
         try:
             self._conn.execute("PRAGMA wal_checkpoint(FULL);")
             shutil.copy(self.db_path, dst)
-            print(f"[SongDB] Pflicht-Backup vor Reseed: {os.path.basename(dst)}")
+            print(f"[SongDB] Backup: {os.path.basename(dst)}")
+            return dst
         except Exception as e:
-            print(f"[SongDB] WARNUNG: Backup vor Reseed fehlgeschlagen: {e}")
+            print(f"[SongDB] WARNUNG: Backup '{tag}' fehlgeschlagen: {e}")
+            return ""
+
+    def _backup_before_reseed(self):
+        """Pflicht-Backup der DB vor dem Reseed (Wiederherstellungspunkt)."""
+        self.backup_copy("pre_ms50")
 
     def reseed_reference_data(self, force: bool = False):
         """MS50-Umbau: verteilt die gebuendelte Referenz (reference_calls.json).

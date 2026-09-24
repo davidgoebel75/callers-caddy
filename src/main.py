@@ -738,6 +738,13 @@ class P29MainWindow(QMainWindow):
         # Song-Datenbank (Pfad aus PathManager)
         self.db = SongDatabase(self.paths.db_path)
         self.db.seed_default_genres()
+        # intern#106: Doppelgaenger von Unterordner-Songs (Bug bis v0.158)
+        # in ihr Original zurueckfuehren. Laeuft bei jedem Start (eine Abfrage),
+        # damit auch Songs auf beim ersten Start nicht erreichbaren Laufwerken
+        # spaeter noch repariert werden.
+        from subfolder_duplicate_repair import repair_subfolder_duplicates
+        repair_subfolder_duplicates(self.db, self.paths.find_song_file,
+                                    self.paths.playlist_dir)
         # Mindest-Live-Volume aus INI laden
         min_vol = float(self._settings.value("audio/min_volume", 0.0))
         self.engine.set_min_volume(min_vol)
@@ -1129,6 +1136,7 @@ class P29MainWindow(QMainWindow):
         # Variante C: Snapshot-Mechanismus entfernt — Live-Aenderungen werden
         # direkt persistiert (kein Sammel-Save mehr beim Song-Wechsel).
         self._file_change_song_id = None  # Guard: Datei-Wechsel per Browse-Button
+        self._pending_load = None  # (song_id, filepath): Laden eines bekannten Songs (intern#106)
         self._lyric_variant_filename = None  # aktive Lyric-Variante (None = Standard)
 
         # start_date (Fallback fuer "Tage seit letztem Abspielen")
@@ -2806,7 +2814,7 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs sichern.
             # _current_song wird erst in _on_file_loaded umgesetzt — daher hier flushen.
             self._flush_player_values()
-            self.player.load_from_list(filepath)
+            self._load_known_song(entry.song.id, filepath)
         else:
             QMessageBox.warning(
                 self, _t("file_not_found_title"),
@@ -3120,7 +3128,7 @@ class P29MainWindow(QMainWindow):
         if entry:
             filepath = self.paths.find_song_file(entry.song.filename)
             if filepath:
-                self.player.load_from_list(filepath)
+                self._load_known_song(entry.song.id, filepath)
                 print(f"[P21] Auto-Advance: #{next_idx + 1} '{entry.song.title}' vorgeladen")
             else:
                 print(f"[P21] Auto-Advance: Datei nicht gefunden: {entry.song.filename}")
@@ -3152,6 +3160,8 @@ class P29MainWindow(QMainWindow):
         # Datei-Wechsel (Browse-Button): Song per ID laden, nicht per basename
         file_change_id = getattr(self, '_file_change_song_id', None)
         self._file_change_song_id = None
+        pending = self._pending_load
+        self._pending_load = None
 
         if file_change_id:
             # Datei-Wechsel oder Musik-Variante fuer denselben Song — Lyric-Variante beibehalten
@@ -3164,8 +3174,16 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs noch sichern.
             # _current_song ist hier noch der ALTE Song — der Flush trifft den richtigen.
             self._flush_player_values()
-            filename = os.path.basename(filepath)
-            song = self.db.get_or_create(filename)
+            # intern#106: Aus Songliste/Playlist ist der Song bekannt -> per ID.
+            # Sonst (Drag&Drop, Oeffnen) erst ueber den relativen Pfad suchen:
+            # nur per Basename wuerde fuer Songs aus Unterordnern ein
+            # Doppelgaenger mit Default-Werten angelegt.
+            song = None
+            if pending and pending[1] == filepath:
+                song = self.db.get_by_id(pending[0])
+            if song is None:
+                song = self.db.get_or_create_for_file(
+                    self.paths.to_relative_filename(filepath))
 
         self._current_song = song
         self._current_music_filename = os.path.basename(filepath)
@@ -3229,6 +3247,12 @@ class P29MainWindow(QMainWindow):
         self._file_change_song_id = self._current_song.id
         self.player.load_from_list(filepath)
 
+    def _load_known_song(self, song_id: int, filepath: str):
+        """Laedt die Datei eines bekannten Songs; _on_file_loaded uebernimmt
+        ihn dann per ID statt ihn ueber den Dateinamen zu suchen (intern#106)."""
+        self._pending_load = (song_id, filepath)
+        self.player.load_from_list(filepath)
+
     def _on_song_selected(self, song_id, offer_copy=True):
         """Song aus der Songliste laden — ueber PathManager suchen.
 
@@ -3264,7 +3288,7 @@ class P29MainWindow(QMainWindow):
         self.player.set_label_info(song.label)
 
         if filepath:
-            self.player.load_from_list(filepath)
+            self._load_known_song(song.id, filepath)
         else:
             self.statusBar().showMessage(
                 _t("file_not_found_msg", filename=song.filename,
@@ -3571,7 +3595,7 @@ class P29MainWindow(QMainWindow):
         # Variante C+: dirty Tempo/Pitch des ALTEN Songs vor dem Wechsel sichern.
         self._flush_player_values()
         self._current_song = song
-        self.player.load_from_list(filepath)
+        self._load_known_song(song.id, filepath)
         self._ensure_primary_channel()  # Primaerkanal sicherstellen vor QE-Preview
         QTimer.singleShot(150, lambda: self.player.engine.play()
                           if not self.player.engine.is_playing() else None)
@@ -3610,7 +3634,7 @@ class P29MainWindow(QMainWindow):
         _t1 = perf_split("_on_break_play_last: lookup+find_file", _t0)
         self._flush_player_values()
         self._current_song = song
-        self.player.load_from_list(filepath)
+        self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
         self._ensure_primary_channel()
         perf_split("_on_break_play_last: ensure_primary_channel", _t2)

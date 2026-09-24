@@ -184,6 +184,53 @@ def prepare_sandbox(db_path: str | None, settings_ini: str | None,
     return SANDBOX_DIR
 
 
+def _instrument_repair106(timings: dict):
+    """Misst die Doppelgaenger-Pruefung beim Start (intern#106) ohne CC-Naht:
+    die Modul-Funktionen werden vor dem Fenster-Init umwickelt. main.py
+    importiert repair_subfolder_duplicates erst beim Aufruf, und die Reparatur
+    ruft find_pairs ueber den Modul-Namen -> beide Wrapper greifen.
+
+    timings bekommt:
+      startup_repair106_check  find_pairs (laeuft bei JEDEM Start)
+      startup_repair106_total  kompletter Aufruf inkl. Sicherung + Zusammenfuehren
+      repair106_meta           Songs, Kandidaten, Dateipruefungen, Paare
+    Fehlt das Modul (aelterer Stand), wird nichts gemessen."""
+    try:
+        import subfolder_duplicate_repair as sdr
+    except ImportError:
+        return
+    orig_find, orig_repair = sdr.find_pairs, sdr.repair_subfolder_duplicates
+    meta = timings.setdefault("repair106_meta", {})
+
+    def find_pairs(db, find_song_file):
+        calls = {"n": 0, "ms": 0.0}
+
+        def counted(name):
+            t = time.perf_counter()
+            try:
+                return find_song_file(name)
+            finally:
+                calls["n"] += 1
+                calls["ms"] += (time.perf_counter() - t) * 1000.0
+
+        t0 = time.perf_counter()
+        pairs = orig_find(db, counted)
+        timings["startup_repair106_check"] = (time.perf_counter() - t0) * 1000.0
+        meta.update(songs=db.count(), datei_pruefungen=calls["n"],
+                    datei_pruefungen_ms=round(calls["ms"], 1), paare=len(pairs))
+        return pairs
+
+    def repair(*args, **kwargs):
+        t0 = time.perf_counter()
+        try:
+            return orig_repair(*args, **kwargs)
+        finally:
+            timings["startup_repair106_total"] = (time.perf_counter() - t0) * 1000.0
+
+    sdr.find_pairs = find_pairs
+    sdr.repair_subfolder_duplicates = repair
+
+
 def boot(sandbox: Path, perf_logging: bool):
     """Faehrt QApplication + P29MainWindow hoch. Gibt (app, window, timings).
 
@@ -228,6 +275,8 @@ def boot(sandbox: Path, perf_logging: bool):
     perf.configure(perf_logging, version=cc_main.__version__)
     if perf_logging:
         perf.open_perf_file()
+
+    _instrument_repair106(timings)
 
     t0 = time.perf_counter()
     window = cc_main.P29MainWindow()
@@ -452,6 +501,13 @@ def scenario(bench: Bench, timings: dict):
     bench.add("startup_total", sum(timings.get(p, 0.0) for p in
               ("startup_qapplication", "startup_import",
                "startup_window_init", "startup_show")))
+    # Doppelgaenger-Pruefung (intern#106) — Teil von startup_window_init
+    if "startup_repair106_total" in timings:
+        meta = timings.get("repair106_meta", {})
+        bench.add("startup_repair106_check",
+                  timings.get("startup_repair106_check", 0.0), meta=meta)
+        bench.add("startup_repair106_total",
+                  timings["startup_repair106_total"], meta=meta)
 
     bench.wait_until(lambda: getattr(window.song_list, "_all_songs", None)
                      is not None, timeout_ms=3000)
