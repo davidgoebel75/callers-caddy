@@ -181,3 +181,9 @@ Figur in der Teaching-Order, bis zu der eine Sequenz tanzbar sein muss, um angez
 zu werden. Eine Sequenz liegt darunter, wenn jede Figur jeder ihrer Zuordnungen darunter liegt.
 _Synonym_: Figuren-Grenze
 _Avoid_: Grenze (allein), Programm-Grenze (ist etwas anderes)
+
+**Nur-Filter**:
+Zeigt nur Sequenzen, die das oberste gewaehlte Programm wirklich brauchen, also mit
+den tieferen Programmen der Tanzprogramm-Wahl allein nicht tanzbar sind. Ohne
+Tanzprogramm-Wahl gilt das Programm des Limits.
+_EN_: Only Filter
