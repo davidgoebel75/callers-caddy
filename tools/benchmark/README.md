@@ -83,6 +83,7 @@ schließt. Ein Watchdog dumpt zudem den Stack, falls ein Schritt >60 s hängt.
 | 6 | Lokation wählen (`_set_current_location`, Dialog umgangen) | ✅ v1 |
 | 7 | Sequenz-Widget aufbauen (`load_sequences`) | ✅ v1 |
 | 8 | Sequenzen filtern (Contains) | ✅ v1 |
+| 9 | Programm wechseln (`sequences_program_switch`) und Limit wechseln (`sequences_limit_switch`), je Durchlauf andere Auswahl → kein Cache-Treffer (intern#111). Bei einer Lokation mit nur 2 Bändern gibt es 2 Teilmengen — ab dem 3. Durchlauf misst `program_switch` dann den Cache, die neuen Werte stehen in `samples_ms` vorn | ✅ v1 |
 
 **Singing-Block** (nach Schritt 8) mit dem voll gepflegten „Sounds Of Silence":
 
