@@ -6,6 +6,13 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.159)
+
+### Bugfixes
+- **Der Sequenz-Filter reagiert beim Wechsel von Programm, Limit oder „Nur“ wieder ohne Stocken.** Seit 0.159 dauerte die Trefferzählung nach einem Filterwechsel oft rund 140 ms, und beim Programmwechsel während laufender Musik stockte die Oberfläche kurz (die Musik selbst lief weiter). Jetzt kostet ein Wechsel nur noch wenige Millisekunden; einmalig nach dem Start oder nach einer Änderung an den Zuordnungen dauert der erste neue Filter etwas länger. Die gefundenen Sequenzen sind dieselben wie vorher.
+
+---
+
 ## 0.159 — Playlist-Mehrfachauswahl, Call-Texte mit mehreren Figuren & frei bewegliche Fenster (2026-09-24)
 
 ### Verbesserungen
