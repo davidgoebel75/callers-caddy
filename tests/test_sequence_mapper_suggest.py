@@ -11,7 +11,7 @@ SongDatabase, kein Qt): Schluessel ist canon_key(Text) -- Kleinschreibung,
 '&' -> 'and', Zahlwoerter 'eight'/'four' -> '8'/'4', Mehrfach-Leerzeichen
 zusammengezogen (dieselbe Funktion, mit der auch CallMatcher.exact_by_-
 canonical() seinen Schluessel bildet). ``exact_lookup`` enthaelt NUR rohe
-kanonische Namen/Vorlagen/Konzepte, ``rest_lookup`` (optional) zusaetzlich
+kanonische Namen und Konzepte, ``rest_lookup`` (optional) zusaetzlich
 bereits bestehende Call-Text-Zuordnungen (z. B. aus call_text_mappings) --
 siehe suggest_figure_set()-Docstring fuer die genaue Reihenfolge.
 Die erwarteten Entity-IDs sind frei erfundene, aber realistische Namen -- sie
@@ -117,7 +117,7 @@ def test_all8_zweig_ist_terminal_kein_split():
 
 def test_all8_zweifelsfall_k3_kein_vorschlag():
     # 'Any Hand Remake' loest weder als Volltreffer noch als (Anything)-
-    # Vorlage auf -- K3: kein Vorschlag, kein Rateversuch.
+    # Figur auf -- K3: kein Vorschlag, kein Rateversuch.
     exact_lookup = {
         "all 8 concept": "concept_all_8",
     }
@@ -125,10 +125,10 @@ def test_all8_zweifelsfall_k3_kein_vorschlag():
     assert suggest_figure_set("All 8 Any Hand Remake", exact_lookup) == (None, None)
 
 
-def test_anything_vorlagen_alle_sieben():
-    # Alle 7 bestaetigten (Anything)-Vorlagen (siehe BL-210.7), je einmal mit
+def test_anything_figuren_alle_sieben():
+    # Alle 7 bestaetigten (Anything)-Figuren (siehe BL-210.7), je einmal mit
     # einer passenden Zielfigur durchgespielt. Reihenfolge im Ergebnis:
-    # [Zielfigur, Vorlagen-Konzept] (siehe Nachtrag-Beispiel 'Alter The Wave').
+    # [Zielfigur, (Anything)-Figur] (siehe Nachtrag-Beispiel 'Alter The Wave').
     exact_lookup = {
         "chase right": "call_chase_right",
         "(anything) and roll": "concept_anything_and_roll",
@@ -158,10 +158,10 @@ def test_anything_vorlagen_alle_sieben():
         ["call_circulate", "concept_transfer_and_anything"], "anything")
 
 
-def test_anything_vorlage_mit_unbekanntem_rest_kein_vorschlag():
-    # Vorlage erkannt, aber die Zielfigur ist unbekannt -> kein Vorschlag,
-    # weder bei Suffix- ('(Anything) & Roll') noch bei Praefix-Vorlage
-    # ('Explode & (Anything)').
+def test_anything_figur_mit_unbekanntem_rest_kein_vorschlag():
+    # (Anything)-Figur erkannt, aber die Zielfigur ist unbekannt -> kein
+    # Vorschlag, weder bei Suffix- ('(Anything) & Roll') noch bei
+    # Praefix-Form ('Explode & (Anything)').
     exact_lookup = {
         "(anything) and roll": "concept_anything_and_roll",
         "explode and (anything)": "concept_explode_and_anything",
@@ -213,7 +213,7 @@ def test_split_eindeutig_und_mehrdeutig():
 
 
 def test_reihenfolge_anything_gewinnt_vor_split():
-    # 'Explode & Circulate' passt sowohl auf die Anything-Vorlage
+    # 'Explode & Circulate' passt sowohl auf die (Anything)-Figur
     # 'Explode & (Anything)' als auch -- waere 'Explode' selbst eine Figur --
     # auf einen Split ['Explode', 'Circulate']. Anything muss gewinnen.
     exact_lookup = {
@@ -230,7 +230,8 @@ def test_exact_by_canonical_deterministisch_bei_mehrfachnamen():
     # Realer Fall: 'Explode & (Anything)' existiert 3x in der Referenz (je
     # Programm). Bei Mehrdeutigkeit muss IMMER die niedrigste teaching_order
     # gewinnen -- unabhaengig von der Reihenfolge, in der die Zeilen
-    # hereinkommen (sonst wandert die Vorlagen-entity_id zwischen Laeufen).
+    # hereinkommen (sonst wandert die entity_id der (Anything)-Figur
+    # zwischen Laeufen).
     canonicals_vorwaerts = [
         ("concept_explode_and_anything_plus", "Explode & (Anything)", 39.0018, "Plus"),
         ("concept_explode_and_anything_a1", "Explode & (Anything)", 49.0042, "A1"),
@@ -253,7 +254,7 @@ def test_exact_by_canonical_deterministisch_bei_mehrfachnamen():
 def test_exact_by_canonical_ampersand_und_and_gleichwertig():
     # F2: exact_by_canonical() muss denselben Schluessel benutzen wie
     # canon_key() -- sonst findet ein per exact_by_canonical() gebautes
-    # exact_lookup Vorlagen mit '&' nicht wieder, wenn suggest_figure_set()
+    # exact_lookup (Anything)-Figuren mit '&' nicht wieder, wenn suggest_figure_set()
     # sie ueber canon_key() (mit '&' -> 'and') nachschlaegt.
     canonicals = [
         ("concept_anything_and_roll", "(Anything) & Roll", 39.0012, "Plus"),
@@ -288,7 +289,7 @@ def test_rollenpraefix_volltreffer_kein_vorschlag():
 
 
 def test_rollenpraefix_bei_anything_ziel():
-    # F3: Die Zielfigur einer (Anything)-Vorlage kann selbst einen
+    # F3: Die Zielfigur einer (Anything)-Figur kann selbst einen
     # gewoehnlichen Rollen-Praefix tragen ('Boys Trade & Roll' -> Ziel
     # 'Trade' unter dem Praefix 'Boys').
     exact_lookup = {
@@ -396,9 +397,10 @@ def test_all8_rest_ist_volltreffer_kein_split():
         ["concept_all_8", "call_swing_and_mix"], "all8")
 
 
-def test_all8_k1_figur_mit_anything_vorlage():
+def test_all8_k1_figur_mit_anything_figur():
     # 'All 8 Spin the Top' ist eine eigene Figur (K1). Mit '& Spread'
-    # dahinter ist der Text die Vorlage mit der K1-Figur als Ziel -- NICHT
+    # dahinter ist der Text die (Anything)-Figur mit der K1-Figur als Ziel
+    # -- NICHT
     # das All-8-Konzept (A2) plus 'Spin the Top'. Realer Fall aus der
     # Stichprobe (BL-210.11), dort kam der Rest ueber eine bestehende
     # Zuordnung ('Spin The Top & Spread' -> Spin the Top) zustande.

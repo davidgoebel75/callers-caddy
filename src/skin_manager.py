@@ -27,6 +27,7 @@ Spaetere Erweiterungen (Backlog):
 
 import os
 import json
+import re
 import tempfile
 
 
@@ -109,8 +110,18 @@ class SkinManager:
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            self._colors = data.get("colors", {})
-            self._font_size = data.get("font_size", "13px")
+            # Basis = default-Skin: eigene Skins mit aelterer skin.json bekommen
+            # neu eingefuehrte Schluessel von dort, statt dass {{key}} woertlich
+            # im QSS stehen bleibt und Qt die Regel verwirft.
+            base = self._load_default_data() if skin_name != "default" else {}
+            skin_colors = data.get("colors", {})
+            self._colors = {**base.get("colors", {}), **skin_colors}
+            filled = sorted(set(self._colors) - set(skin_colors))
+            if filled:
+                print(f"[SkinManager] '{skin_name}': {len(filled)} Schluessel "
+                      f"aus default ergaenzt: {', '.join(filled)}")
+            self._font_size = data.get("font_size",
+                                       base.get("font_size", "13px"))
             self._skin_dir = skin_dir
             print(f"[SkinManager] {len(self._colors)} Farbvariablen geladen "
                   f"aus '{skin_name}', font_size={self._font_size}")
@@ -129,6 +140,11 @@ class SkinManager:
                 with open(qss_path, "r", encoding="utf-8") as f:
                     template = f.read()
                 self._stylesheet = self._resolve_placeholders(template)
+                unresolved = sorted(set(re.findall(r"\{\{(\w+)\}\}",
+                                                   self._stylesheet)))
+                if unresolved:
+                    print(f"[SkinManager] Unbekannte Platzhalter in skin.qss: "
+                          f"{', '.join(unresolved)}")
                 print(f"[SkinManager] StyleSheet geladen: "
                       f"{len(self._stylesheet)} Zeichen")
             except OSError as e:
@@ -141,6 +157,17 @@ class SkinManager:
 
         self._current_skin = skin_name
         return True
+
+    def _load_default_data(self) -> dict:
+        """Liest skins/default/skin.json als Fallback-Basis (leer bei Fehler)."""
+        path = os.path.join(self._skins_dir, "default", "skin.json")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"[SkinManager] default/skin.json als Fallback nicht "
+                  f"lesbar: {e}")
+            return {}
 
     def _build_icon_cache(self):
         """Faerbt die zentralen Template-SVGs aus images/ mit den Theme-Farben ein.

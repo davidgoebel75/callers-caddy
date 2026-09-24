@@ -27,6 +27,7 @@
         "warning_hover":   "#dc2626",
         "success":         "#22c55e",
         "success_hover":   "#16a34a",
+        "success_text":    "#ffffff",
         "border":          "#4a4438",
         "scrollbar_bg":    "#1a1a1a",
         "scrollbar_handle":"#4a4438",

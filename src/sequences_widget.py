@@ -2110,9 +2110,10 @@ class SequenceEditorDialog(QDialog):
             # Ohne Zuordnung und ohne Muster den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
             selected = [suggested] if suggested is not None else []
-        entities = [(f"{cname}  [{prog}]" if prog else cname, eid)
-                    for eid, cname, _to, prog in self.db.get_teaching_order_calls()
-                    if not cname.startswith("--")]
+        # intern#87: pro entity_id nur ein Eintrag, Label ohne [Programm] -
+        # dieselbe Dedup wie im Call-Mapping-Dialog.
+        entities, _labels, _min_to = picker_entities_from_to_calls(
+            self.db.get_teaching_order_calls())
         dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
                                       unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
@@ -3136,6 +3137,38 @@ class _CheckableSortItem(QListWidgetItem):
                (other._tier, other.checkState() != Qt.Checked, other._orig_index)
 
 
+def picker_entities_from_to_calls(to_calls):
+    """Baut die deduplizierte Figuren-Liste fuer den CallFiguresPickerDialog.
+
+    intern#87: teaching_order_calls ist eine View mit einer Zeile je
+    (entity_id x Programm). Eine entity_id steht damit je Band einmal drin
+    (Recycle in Mainstream UND Mainstream 2026). Fuers Mapping zaehlt nur die
+    entity_id, nicht das Band -> pro entity_id EIN Eintrag, Label ohne
+    [Programm]-Suffix. to_calls ist aufsteigend nach teaching_order, das erste
+    Vorkommen ist das niedrigste Band. Programm-Separatoren ("-- Basic 1 --")
+    sind keine Figuren und fliegen aus der Liste.
+
+    Beide Picker-Einstiege (Call-Mapping-Dialog und Sequenz-Editor) rufen dies,
+    damit die Dedup-Regel nur einmal im Code steht.
+
+    Returns: (entity_list, eid_to_label, eid_min_to)
+      entity_list : [(label, entity_id), ...] ohne Separatoren, fuer den Picker
+      eid_to_label: {entity_id: label} inkl. Separatoren
+      eid_min_to  : {entity_id: teaching_order} des niedrigsten Bandes
+    """
+    entity_list = []
+    eid_to_label = {}
+    eid_min_to = {}
+    for eid, cname, to, _prog in to_calls:
+        if eid in eid_to_label:
+            continue   # entity_id schon gesehen (weiteres Band) -> ueberspringen
+        eid_to_label[eid] = cname
+        eid_min_to[eid] = to   # to_calls aufsteigend sortiert -> niedrigstes Band
+        if not cname.startswith("--"):
+            entity_list.append((cname, eid))
+    return entity_list, eid_to_label, eid_min_to
+
+
 class CallFiguresPickerDialog(QDialog):
     """Mehrfach-Picker: Figuren-Menge eines Call-Texts per Haken-Liste (BL-210.4).
 
@@ -3337,7 +3370,7 @@ class CallMappingDialog(QDialog):
     def __init__(self, db, parent=None):
         super().__init__(parent)
         self.db = db
-        self._all_data    = []   # [(call_text, count, eid, cname, prog, mapped_by), ...]
+        self._all_data    = []   # [(call_text, count, eid, mapped_by), ...]
         self._entity_list = []   # [(label, entity_id), ...] — Figuren fuer den Picker
         self._eid_to_label = {}
         self._eid_min_to   = {}  # entity_id -> frueheste Teaching-Order (Rangfolge)
@@ -3559,20 +3592,14 @@ class CallMappingDialog(QDialog):
 
         to_calls = self.db.get_teaching_order_calls()
 
-        import time
+        # Picker-Liste nur mit echten Figuren, pro entity_id einmal, Label ohne
+        # [Programm]-Suffix (intern#87). Dieselbe Dedup nutzt der Sequenz-Editor
+        # -> gemeinsame Helferfunktion.
+        (self._entity_list,
+         self._eid_to_label,
+         self._eid_min_to) = picker_entities_from_to_calls(to_calls)
 
-        # Picker-Liste nur mit echten Figuren: "keine Zuordnung" = kein Haken,
-        # "An Komma aufteilen" ist ein Knopf im Picker, Programm-Separatoren
-        # ("-- Basic 1 --") sind keine Figuren.
-        self._entity_list = []
-        self._eid_to_label = {}
-        self._eid_min_to = {}
-        for eid, cname, to, prog in to_calls:
-            label = f"{cname}  [{prog}]" if prog else cname
-            self._eid_to_label[eid] = label
-            self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
-            if not cname.startswith("--"):
-                self._entity_list.append((label, eid))
+        import time
 
         # BL-210.8: Mengen-Vorschlag (suggest_figure_set) einmalig je Call-Text.
         # Lookups wie im Sequenz-Editor ueber figure_set_lookups (BL-210.12).
@@ -3631,7 +3658,7 @@ class CallMappingDialog(QDialog):
         self._table.setRowCount(len(rows))
         none_label = _t("call_mapping_none")   # einmal statt je Zeile
 
-        for i, (call_text, count, entity_id, cname, prog, mapped_by) in enumerate(rows):
+        for i, (call_text, count, entity_id, mapped_by) in enumerate(rows):
 
             # Col 0: Call-Text — Hintergrundfarbe je nach Match-Qualitaet
             item0 = QTableWidgetItem(call_text)
@@ -4008,11 +4035,9 @@ class CallMappingDialog(QDialog):
             for r in self._all_data:
                 figures = confirmed_texts.get(r[0])
                 if figures is not None:
-                    # (call_text, count, entity_id, cname, prog, mapped_by)
+                    # (call_text, count, entity_id, mapped_by)
                     # entity_id = hoechste Figur (wie call_text_mappings).
-                    # cname/prog werden in _load_table nicht gelesen (Label kommt
-                    # aus _eid_to_label) -> None ist unschaedlich.
-                    new_all.append((r[0], r[1], figures[0], None, None, "manual"))
+                    new_all.append((r[0], r[1], figures[0], "manual"))
                 else:
                     new_all.append(r)
             self._all_data = new_all

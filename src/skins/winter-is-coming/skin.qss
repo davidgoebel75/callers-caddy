@@ -530,7 +530,7 @@ QPushButton#fileBtn {
    Spezifischer als die generische QPushButton:checked-Regel, gewinnt daher. */
 QPushButton[activeState="true"]:checked {
     background-color: {{success}};
-    color: #ffffff;
+    color: {{success_text}};
 }
 QPushButton[activeState="true"]:checked:hover {
     background-color: {{success_hover}};

@@ -592,6 +592,7 @@ class _WrapButtonBar(QWidget):
     def __init__(self, spacing=4, parent=None):
         super().__init__(parent)
         self._widgets = []
+        self._trailing = set()
         self._sp = spacing
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
@@ -601,6 +602,13 @@ class _WrapButtonBar(QWidget):
         # Sichtbarkeitswechsel (z. B. Sync-Buttons im Auto-Sync-Modus) muss die
         # Leiste neu umbrechen — sonst bleiben Luecken/Ueberlappungen stehen.
         widget.installEventFilter(self)
+
+    def add_trailing(self, widget):
+        """Wie add(), aber das Widget wird in seiner Zeile rechtsbuendig ans Ende
+        gesetzt (nutzt den freien Platz rechts, statt links an das vorige Widget
+        anzuschliessen). Bricht wie alle anderen bei Platzmangel um."""
+        self.add(widget)
+        self._trailing.add(widget)
 
     def eventFilter(self, obj, event):
         if event.type() in (QEvent.Show, QEvent.Hide):
@@ -646,10 +654,20 @@ class _WrapButtonBar(QWidget):
         y = 0
         for row_items, rh in rows:
             for w, rx, bw in row_items:
+                # Trailing-Widgets rechtsbuendig ans Zeilenende (nur wenn rechts
+                # noch Platz ist — max() verhindert Ueberlappung nach links).
+                if w in self._trailing:
+                    rx = max(rx, avail_w - bw)
                 w.setGeometry(rx, y, bw, rh)
             y += rh + sp
         total_h = (y - sp) if rows else 0
         self.setMinimumHeight(max(total_h, 0))
+
+    def relayout(self):
+        """Oeffentlicher Neuaufbau — z. B. wenn sich der Text eines Trailing-
+        Widgets (und damit dessen Breite) nachtraeglich aendert. Ein setText()
+        loest von sich aus kein Resize/Show-Event aus, deshalb explizit."""
+        self._relayout(self.width())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

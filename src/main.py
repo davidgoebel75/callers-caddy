@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.158"
+__version__ = "0.159"
 
 import sys
 import os
@@ -25,6 +25,7 @@ import math
 import shutil
 import threading
 import random
+from time import monotonic
 from datetime import date, datetime
 from PySide6.QtWidgets import (
     QApplication,
@@ -37,9 +38,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QDockWidget,
     QCheckBox,
-    QLineEdit,
-    QSpinBox,
-    QDoubleSpinBox,
     QListWidget,
     QTableWidget,
     QComboBox,
@@ -49,8 +47,6 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QAbstractItemView,
     QTextBrowser,
-    QPlainTextEdit,
-    QTextEdit,
     QSizePolicy,
     QProgressDialog,
 )
@@ -205,6 +201,7 @@ class _ZipAnalyzeWorker(QThread):
 # --- Hilfsfunktionen ---
 
 # --- Hilfsfunktionen + UI-Helfer: ausgelagert nach ui_helpers.py (BL-201) ---
+from shortcut_policy import is_text_input, space_should_fire
 from ui_helpers import (
     fmt_time,
     fmt_precise,
@@ -741,6 +738,13 @@ class P29MainWindow(QMainWindow):
         # Song-Datenbank (Pfad aus PathManager)
         self.db = SongDatabase(self.paths.db_path)
         self.db.seed_default_genres()
+        # intern#106: Doppelgaenger von Unterordner-Songs (Bug bis v0.158)
+        # in ihr Original zurueckfuehren. Laeuft bei jedem Start (eine Abfrage),
+        # damit auch Songs auf beim ersten Start nicht erreichbaren Laufwerken
+        # spaeter noch repariert werden.
+        from subfolder_duplicate_repair import repair_subfolder_duplicates
+        repair_subfolder_duplicates(self.db, self.paths.find_song_file,
+                                    self.paths.playlist_dir)
         # Mindest-Live-Volume aus INI laden
         min_vol = float(self._settings.value("audio/min_volume", 0.0))
         self.engine.set_min_volume(min_vol)
@@ -899,6 +903,7 @@ class P29MainWindow(QMainWindow):
         self.playlist_widget.on_playlist_changed = self._on_playlist_data_changed
         self.playlist_widget.on_loop_count_edit = self._on_playlist_loop_count_edit
         self.playlist_widget.on_add_to_notes = self._notes_insert_song_shortcode
+        self.playlist_widget.on_add_entries_to_notes = self._on_pl_export_to_notes
         self.playlist_widget.on_song_rating_changed = self._on_song_rating_changed
         self.dock_playlist = _make_dock(
             self, _t("dock_playlist"), self.playlist_widget, Qt.RightDockWidgetArea
@@ -1131,6 +1136,7 @@ class P29MainWindow(QMainWindow):
         # Variante C: Snapshot-Mechanismus entfernt — Live-Aenderungen werden
         # direkt persistiert (kein Sammel-Save mehr beim Song-Wechsel).
         self._file_change_song_id = None  # Guard: Datei-Wechsel per Browse-Button
+        self._pending_load = None  # (song_id, filepath): Laden eines bekannten Songs (intern#106)
         self._lyric_variant_filename = None  # aktive Lyric-Variante (None = Standard)
 
         # start_date (Fallback fuer "Tage seit letztem Abspielen")
@@ -1187,6 +1193,7 @@ class P29MainWindow(QMainWindow):
         # Einzelbuchstaben-Shortcuts (L, P) via Event-Filter
         # QShortcut wird von QTableWidget/QListWidget geschluckt,
         # daher App-weiter Event-Filter der VOR den Widgets greift
+        self._last_typing_ts = 0.0  # letzter Tastendruck in ein Textfeld (intern#101)
         QApplication.instance().installEventFilter(self)
 
         # Songliste + Playlist initial fuellen
@@ -2807,7 +2814,7 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs sichern.
             # _current_song wird erst in _on_file_loaded umgesetzt — daher hier flushen.
             self._flush_player_values()
-            self.player.load_from_list(filepath)
+            self._load_known_song(entry.song.id, filepath)
         else:
             QMessageBox.warning(
                 self, _t("file_not_found_title"),
@@ -2850,6 +2857,11 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
+        # der UI aendert das nur fuer die laufende Session, nicht die INI.
+        # Der Default wird in _write_ini_defaults() gesaet.
+        saved_insert_pos = str(self._settings.value("notes/insert_position", "top"))
+        self.notes_widget.set_insert_position(saved_insert_pos)
         self.dock_notes.setWidget(self.notes_widget)
         # Aktuelle Lokation nachliefern, falls bereits gewaehlt
         if self._notes_location_id is not None:
@@ -3116,7 +3128,7 @@ class P29MainWindow(QMainWindow):
         if entry:
             filepath = self.paths.find_song_file(entry.song.filename)
             if filepath:
-                self.player.load_from_list(filepath)
+                self._load_known_song(entry.song.id, filepath)
                 print(f"[P21] Auto-Advance: #{next_idx + 1} '{entry.song.title}' vorgeladen")
             else:
                 print(f"[P21] Auto-Advance: Datei nicht gefunden: {entry.song.filename}")
@@ -3148,6 +3160,8 @@ class P29MainWindow(QMainWindow):
         # Datei-Wechsel (Browse-Button): Song per ID laden, nicht per basename
         file_change_id = getattr(self, '_file_change_song_id', None)
         self._file_change_song_id = None
+        pending = self._pending_load
+        self._pending_load = None
 
         if file_change_id:
             # Datei-Wechsel oder Musik-Variante fuer denselben Song — Lyric-Variante beibehalten
@@ -3160,8 +3174,16 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs noch sichern.
             # _current_song ist hier noch der ALTE Song — der Flush trifft den richtigen.
             self._flush_player_values()
-            filename = os.path.basename(filepath)
-            song = self.db.get_or_create(filename)
+            # intern#106: Aus Songliste/Playlist ist der Song bekannt -> per ID.
+            # Sonst (Drag&Drop, Oeffnen) erst ueber den relativen Pfad suchen:
+            # nur per Basename wuerde fuer Songs aus Unterordnern ein
+            # Doppelgaenger mit Default-Werten angelegt.
+            song = None
+            if pending and pending[1] == filepath:
+                song = self.db.get_by_id(pending[0])
+            if song is None:
+                song = self.db.get_or_create_for_file(
+                    self.paths.to_relative_filename(filepath))
 
         self._current_song = song
         self._current_music_filename = os.path.basename(filepath)
@@ -3225,6 +3247,12 @@ class P29MainWindow(QMainWindow):
         self._file_change_song_id = self._current_song.id
         self.player.load_from_list(filepath)
 
+    def _load_known_song(self, song_id: int, filepath: str):
+        """Laedt die Datei eines bekannten Songs; _on_file_loaded uebernimmt
+        ihn dann per ID statt ihn ueber den Dateinamen zu suchen (intern#106)."""
+        self._pending_load = (song_id, filepath)
+        self.player.load_from_list(filepath)
+
     def _on_song_selected(self, song_id, offer_copy=True):
         """Song aus der Songliste laden — ueber PathManager suchen.
 
@@ -3260,7 +3288,7 @@ class P29MainWindow(QMainWindow):
         self.player.set_label_info(song.label)
 
         if filepath:
-            self.player.load_from_list(filepath)
+            self._load_known_song(song.id, filepath)
         else:
             self.statusBar().showMessage(
                 _t("file_not_found_msg", filename=song.filename,
@@ -3471,32 +3499,45 @@ class P29MainWindow(QMainWindow):
             _t("ep_export_playlist_ok").format(n=n),
         )
 
-    def _on_ep_export_to_notes(self, entries: list):
-        """Evening Planner → Notizen: bestätigte Songs als [load_song]-Shortcodes eintragen.
-        entries: Liste von (title, mode) Tupeln ('P'/'S') oder plain str (Rueckwaertskompatibilitaet)."""
+    def _export_entries_to_notes(self, entries: list, title_key: str,
+                                 empty_key: str = ""):
+        """Gemeinsamer Kern fuer 'Songs zu Notizen uebernehmen' (Playlist UND
+        Evening Planner): baut Shortcode-Texte in GENAU der uebergebenen
+        Reihenfolge und reicht sie an notes_widget.add_notes() weiter, das
+        die End-Reihenfolge sowie die Toggle-Position (Oben/Unten) anwendet.
+        entries: Liste von (title, mode)-Tupeln ('P'/'S') oder plain str, in
+        der gewuenschten Anzeige-Reihenfolge oben->unten — der Aufrufer darf
+        NICHT selbst umkehren, sonst kollidiert das mit add_notes().
+        Keine Vollzugsmeldung: Caller sollen bei der Uebergabe nicht extra
+        die Maus fuer einen Bestaetigungsdialog brauchen, die Notiz ist
+        ohnehin sofort sichtbar."""
         if not entries:
-            QMessageBox.information(
-                self,
-                _t("ep_export_title"),
-                _t("ep_export_none_hint"),
-            )
+            if empty_key:
+                QMessageBox.information(self, _t(title_key), _t(empty_key))
             return
         # Location EINMAL vorab prüfen — sonst zeigt der Loop den
         # "keine Lokation"-Dialog einmal pro Song (wirkt wie Endlosschleife).
         if not self._notes_require_location():
             return
+        self._notes_ensure_init()
+        self.dock_notes.setVisible(True)
+        self.dock_notes.raise_()
+        texts = []
         for item in entries:
-            if isinstance(item, tuple):
-                title, mode = item
-                self._notes_insert_song_shortcode(title, mode=mode)
-            else:
-                self._notes_insert_song_shortcode(item)
-        n = len(entries)
-        QMessageBox.information(
-            self,
-            _t("ep_export_title"),
-            _t("ep_export_notes_ok").format(n=n),
-        )
+            title, mode = item if isinstance(item, tuple) else (item, "")
+            texts.append(self._song_shortcode_text(title, mode))
+        self.notes_widget.add_notes(texts)
+
+    def _on_ep_export_to_notes(self, entries: list):
+        """Evening Planner → Notizen: bestätigte Songs als [load_song]-Shortcodes eintragen.
+        entries: Liste von (title, mode) Tupeln ('P'/'S') oder plain str (Rueckwaertskompatibilitaet)."""
+        self._export_entries_to_notes(entries, "ep_export_title", "ep_export_none_hint")
+
+    def _on_pl_export_to_notes(self, entries: list):
+        """Playlist → Notizen: markierte (oder alle) Songs als [load_song]-
+        Shortcodes eintragen. entries: Liste von (title, mode)-Tupeln ('P'/'S')
+        in Playlist-Reihenfolge."""
+        self._export_entries_to_notes(entries, "pl_notes_export_title")
 
     def _on_song_delete_requested(self, song_id):
         """Entf-Taste in der Songliste: Loeschen ueber SongDataWidget."""
@@ -3554,7 +3595,7 @@ class P29MainWindow(QMainWindow):
         # Variante C+: dirty Tempo/Pitch des ALTEN Songs vor dem Wechsel sichern.
         self._flush_player_values()
         self._current_song = song
-        self.player.load_from_list(filepath)
+        self._load_known_song(song.id, filepath)
         self._ensure_primary_channel()  # Primaerkanal sicherstellen vor QE-Preview
         QTimer.singleShot(150, lambda: self.player.engine.play()
                           if not self.player.engine.is_playing() else None)
@@ -3593,7 +3634,7 @@ class P29MainWindow(QMainWindow):
         _t1 = perf_split("_on_break_play_last: lookup+find_file", _t0)
         self._flush_player_values()
         self._current_song = song
-        self.player.load_from_list(filepath)
+        self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
         self._ensure_primary_channel()
         perf_split("_on_break_play_last: ensure_primary_channel", _t2)
@@ -4725,23 +4766,20 @@ class P29MainWindow(QMainWindow):
         if self.notes_widget is None:
             self._init_notes()
 
+    def _song_shortcode_text(self, song_title: str, mode: str = "") -> str:
+        """Duenner Delegat auf shortcode_parser.song_shortcode_text (Modularisierung:
+        die Serialisierung gehoert ins Shortcode-Modul, nicht ins MainWindow)."""
+        from shortcode_parser import song_shortcode_text
+        return song_shortcode_text(song_title, mode)
+
     def _notes_insert_song_shortcode(self, song_title: str, mode: str = ""):
-        """Fuegt [load_song]-Shortcode in die Notizen ein.
-        mode='P' oder 'S' wird als named param geschrieben:
-        [load_song title="..." mode="P"] — verhindert Parser-Kollision mit positionalem Wert.
-        Ohne mode: klassisches Format [load_song "..."] fuer Abwaertskompatibilitaet."""
+        """Fuegt einen [load_song]-Shortcode in die Notizen ein."""
         if not self._notes_require_location():
             return
         self._notes_ensure_init()
         self.dock_notes.setVisible(True)
         self.dock_notes.raise_()
-        from shortcode_parser import shortcode_text
-        if mode:
-            params = {"title": song_title, "mode": mode}
-        else:
-            params = {"_value": song_title}
-        text = shortcode_text("load_song", params)
-        self.notes_widget.add_note(text)
+        self.notes_widget.add_note(self._song_shortcode_text(song_title, mode))
 
     def _notes_insert_sequence_shortcode(self, seq_id: int):
         if not self._notes_require_location():
@@ -6555,6 +6593,8 @@ class P29MainWindow(QMainWindow):
             "audio/secondary_volume": "80",
             # BL-119: Feedback-Dialog nach Songende (true/false)
             "feedback/enabled": "false",
+            # intern#96: Einfuegeposition neuer Notizen (top/bottom)
+            "notes/insert_position": "top",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6681,15 +6721,14 @@ class P29MainWindow(QMainWindow):
         for key_str, trigger in _KEY_TRIGGERS_STR.items():
             shortcut = QShortcut(QKeySequence(key_str), self)
             shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+            shortcut.setAutoRepeat(False)  # intern#101: gehaltene Taste feuert einmal
             shortcut.activated.connect(
                 lambda t=trigger: self.rule_engine.fire_trigger(t))
 
         # F13-F24 werden im EventFilter abgefangen (QKeySequence parst diese nicht)
 
-        # Space braucht Text-Input-Guard
-        space = QShortcut(QKeySequence("Space"), self)
-        space.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        space.activated.connect(self._on_key_space)
+        # Space laeuft im eventFilter (intern#101): ein QShortcut verliert gegen
+        # jedes Textfeld, die Leertaste muss bei laufender Musik aber gewinnen.
 
     def _is_text_input_focused(self) -> bool:
         """Prueft, ob ein Widget Fokus hat, in das gerade TEXT getippt wird.
@@ -6701,17 +6740,18 @@ class P29MainWindow(QMainWindow):
         Nicht belegte Tasten fallen weiterhin durch: der eventFilter feuert nur,
         wenn der Trigger registriert ist, sonst bekommt das Widget die Taste.
         """
-        w = QApplication.focusWidget()
-        if isinstance(w, QComboBox):
-            return w.isEditable()
-        return isinstance(w, (
-            QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit,
-        ))
+        return is_text_input(QApplication.focusWidget())
 
-    def _on_key_space(self):
-        """Space: ignorieren wenn Texteingabe aktiv."""
-        if not self._is_text_input_focused():
-            self.rule_engine.fire_trigger("key_space")
+    def _fire_hotkey(self, trigger_name: str, event) -> bool:
+        """Loest den Trigger aus und schluckt die Taste.
+
+        Gehaltene Taste (Auto-Repeat) feuert nur beim ersten Druck, die
+        Wiederholungen werden trotzdem geschluckt — sonst liefen sie ins
+        Fokus-Widget, z.B. als Leerzeichen ins Suchfeld (intern#101).
+        """
+        if not event.isAutoRepeat():
+            self.rule_engine.fire_trigger(trigger_name)
+        return True
 
     def eventFilter(self, obj, event):
         """App-weiter Event-Filter fuer Tasten-Shortcuts (dynamisch aus rule_engine).
@@ -6722,6 +6762,7 @@ class P29MainWindow(QMainWindow):
         Unterstützt alle dynamisch registrierten Tasten-Trigger (key_a, key_b, ..., key_z, key_0, etc.)
 
         Priorität: Text-Input/List-Search > Modal-Dialog > Tasten-Trigger
+        Ausnahme Leertaste bei laufender Musik: siehe shortcut_policy (intern#101).
         """
         # Schutz gegen PySide6/shiboken-Marshalling bei app-weiten Event-Filtern:
         # Qt liefert in bestimmten Layout-Situationen ein QWidgetItem (QLayoutItem,
@@ -6734,16 +6775,36 @@ class P29MainWindow(QMainWindow):
         if isinstance(obj, QComboBox) and opens_combo_popup(event):
             widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
+            text_focus = self._is_text_input_focused()
+            modal_open = QApplication.activeModalWidget() is not None
+
             # #70: Escape gibt den Fokus aus einem Textfeld frei -> zurueck in den
             # Hotkey-Modus. Nur wenn wirklich ein Textfeld Fokus hat und KEIN
             # modaler Dialog offen ist (dort schliesst Esc weiter den Dialog).
-            if (event.key() == Qt.Key_Escape
-                    and not QApplication.activeModalWidget()
-                    and self._is_text_input_focused()):
+            if event.key() == Qt.Key_Escape and not modal_open and text_focus:
                 w = QApplication.focusWidget()
                 if w is not None:
                     w.clearFocus()
                     return True
+
+            # intern#101: Leertaste = Safety-Taste fuer Play/Pause. Bei laufender
+            # Musik gewinnt sie gegen Textfelder und Dialoge — nur nicht, solange
+            # jemand gerade tippt (shortcut_policy). Nur ohne Modifier, wie der
+            # fruehere QShortcut("Space").
+            if (event.key() == Qt.Key_Space
+                    and event.modifiers() == Qt.NoModifier
+                    and space_should_fire(
+                        text_input_focused=text_focus,
+                        # Pause zaehlt wie Laufen: Space muss auch wieder starten.
+                        playing=self.engine.is_playing() or self.engine.is_paused(),
+                        modal_open=modal_open,
+                        typing_age_s=monotonic() - self._last_typing_ts)):
+                return self._fire_hotkey("key_space", event)
+            # Jede Taste, die ins Textfeld geht, zaehlt als Tippen — auch Strg+V,
+            # AltGr-Zeichen und Nummernblock. Erst NACH der Leertasten-Entscheidung
+            # setzen, sonst sperrt ein Space-Druck den naechsten.
+            if text_focus:
+                self._last_typing_ts = monotonic()
 
             # #68: Buchstaben-Hotkeys sollen unabhaengig von Gross-/Kleinschreibung
             # feuern — Shift zusaetzlich zu NoModifier zulassen (event.text().lower()
@@ -6757,15 +6818,16 @@ class P29MainWindow(QMainWindow):
                     fn = key_code - Qt.Key_F1 + 1
                     trigger_name = f"key_f{fn}"
                     if trigger_name in self.rule_engine.registry.triggers:
-                        if QApplication.activeModalWidget():
+                        if modal_open:
                             return False
-                        self.rule_engine.fire_trigger(trigger_name)
-                        return True
+                        return self._fire_hotkey(trigger_name, event)
 
-                # Media-/Fn-Tasten (Volume, Media Play usw.)
+                # Media-/Fn-Tasten (Volume, Media Play usw.). Bewusst OHNE
+                # Auto-Repeat-Sperre: Lauter/Leiser gedrueckt halten soll die
+                # Lautstaerke weiter veraendern (intern#101).
                 trigger_name = self._MEDIA_KEY_TRIGGERS.get(key_code)
                 if trigger_name and trigger_name in self.rule_engine.registry.triggers:
-                    if QApplication.activeModalWidget():
+                    if modal_open:
                         return False
                     self.rule_engine.fire_trigger(trigger_name)
                     return True
@@ -6774,12 +6836,9 @@ class P29MainWindow(QMainWindow):
                 key = event.text().lower()
                 trigger_name = f"key_{key}"
                 if trigger_name in self.rule_engine.registry.triggers:
-                    if self._is_text_input_focused():
+                    if text_focus or modal_open:
                         return False
-                    if QApplication.activeModalWidget():
-                        return False
-                    self.rule_engine.fire_trigger(trigger_name)
-                    return True
+                    return self._fire_hotkey(trigger_name, event)
         return super().eventFilter(obj, event)
 
     def _restore_layout(self):

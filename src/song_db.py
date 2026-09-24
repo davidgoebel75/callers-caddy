@@ -917,6 +917,7 @@ class SongDatabase:
         self._normalize_call_text_figures()
         self._conn.commit()
         self._backfill_auto_mappings_once()  # heilt ungemappte Massenimporte (einmalig)
+        self._recompute_max_to_once()  # intern#95: Band-Regel geaendert (einmalig)
         print(f"[SongDB] Datenbank geoeffnet: {db_path}")
 
     def _backfill_calls_json(self):
@@ -1761,12 +1762,67 @@ class SongDatabase:
         if existing:
             print(f"[SongDB] Song gefunden: #{existing.id} '{filename}'")
             return existing
+        return self.insert(self.new_song(filename))
 
-        # Neuer Song: Titel = Dateiname ohne Endung, beide Typen aktiv
-        title = os.path.splitext(filename)[0]
-        song = Song(filename=filename, title=title,
+    @staticmethod
+    def new_song(filename: str) -> Song:
+        """Anlage-Defaults eines neuen Songs: Titel = Dateiname ohne Endung,
+        beide Typen aktiv. Einzige Quelle dafuer — auch die Doppelgaenger-
+        Reparatur (intern#106) vergleicht dagegen."""
+        return Song(filename=filename, title=os.path.splitext(filename)[0],
                     is_pattern=1, is_singing=1)
-        return self.insert(song)
+
+    def get_or_create_for_file(self, rel_filename: str) -> Song:
+        """Song zu einer geladenen Datei finden oder anlegen (intern#106).
+
+        rel_filename ist der Pfad relativ zum Musik-Slot ('Sub/song.mp3' bzw.
+        'song.mp3' im Slot-Stamm). Erst exakt danach suchen, dann ueber den
+        Basename — nur so findet ein Song aus einem Unterordner seinen
+        Eintrag, statt einen Doppelgaenger mit Defaults anzulegen."""
+        song = self.get_by_filename(rel_filename)
+        if song is None:
+            song = self.get_or_create(os.path.basename(rel_filename))
+        return song
+
+    def merge_songs(self, keep: Song, drop_id: int, properties: dict,
+                    skip_genre_id: int = -1):
+        """Fuehrt Song drop_id in keep zusammen — in EINER Transaktion (intern#106).
+
+        keep:        bereits fertig zusammengefuehrte Song-Felder (wird 1:1
+                     geschrieben, ohne Loop-Guard: der Aufrufer hat entschieden)
+        properties:  vollstaendige song_properties fuer keep (ersetzt die alten)
+        skip_genre_id: Genre, das von drop NICHT uebernommen wird (z.B. "NEW")
+        play_history wird umgehaengt, song_location_stats addiert, danach wird
+        drop samt Abhaengigkeiten geloescht. Bricht etwas ab, bleibt alles
+        wie vorher (Rollback)."""
+        from dataclasses import asdict
+        with self._conn:
+            self._conn.execute(_UPDATE, asdict(keep))
+            self._conn.execute("DELETE FROM song_properties WHERE song_id IN (?, ?)",
+                               (keep.id, drop_id))
+            self._conn.executemany(
+                "INSERT INTO song_properties (song_id, key, value) VALUES (?, ?, ?)",
+                [(keep.id, k, v) for k, v in properties.items()])
+            self._conn.execute(
+                "INSERT OR IGNORE INTO song_genres (song_id, genre_id) "
+                "SELECT ?, genre_id FROM song_genres WHERE song_id = ? AND genre_id != ?",
+                (keep.id, drop_id, skip_genre_id))
+            self._conn.execute("UPDATE play_history SET song_id = ? WHERE song_id = ?",
+                               (keep.id, drop_id))
+            self._conn.execute(
+                "INSERT INTO song_location_stats (song_id, location_id, last_played, play_count) "
+                "SELECT ?, location_id, last_played, play_count "
+                "FROM song_location_stats WHERE song_id = ? "
+                "ON CONFLICT(song_id, location_id) DO UPDATE SET "
+                "  last_played = MAX(last_played, excluded.last_played), "
+                "  play_count = play_count + excluded.play_count",
+                (keep.id, drop_id))
+            for sql in ("DELETE FROM song_genres WHERE song_id = ?",
+                        "DELETE FROM song_location_stats WHERE song_id = ?",
+                        "DELETE FROM potential_ignored WHERE entity_id = ?",
+                        "DELETE FROM songs WHERE id = ?"):
+                self._conn.execute(sql, (drop_id,))
+        print(f"[SongDB] Song #{drop_id} in #{keep.id} '{keep.filename}' zusammengefuehrt")
 
     def clear_loop(self, song_id: int):
         """Loescht Loop-Marker fuer einen Song (umgeht Safety-Guard)."""
@@ -2912,11 +2968,16 @@ class SongDatabase:
 
         results = []
         for i, text in enumerate(calls):
+            # intern#87: teaching_order_calls ist eine View mit einer Zeile je
+            # (entity_id x Programm). Ohne ORDER BY greift fetchone() willkuerlich
+            # ein Band heraus -> das Programm-Badge der Sequenz-Anzeige wackelt.
+            # Deterministisch das niedrigste Band waehlen (passt zu _eid_min_to).
             cur2 = self._conn.execute(
                 "SELECT m.entity_id, t.teaching_order, t.canonical_name, t.program "
                 "FROM call_text_mappings m "
                 "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
-                "WHERE m.call_text = ?",
+                "WHERE m.call_text = ? "
+                "ORDER BY t.teaching_order LIMIT 1",
                 (text,)
             )
             mapping = cur2.fetchone()
@@ -3452,21 +3513,26 @@ class SongDatabase:
         """Gibt alle Call-Texte aus Sequenzen mit Haeufigkeit und aktuellem Mapping.
 
         Returns:
-            [(call_text, count, entity_id, canonical_name, program, mapped_by), ...]
-            entity_id/canonical_name/program/mapped_by sind None wenn kein Mapping.
+            [(call_text, count, entity_id, mapped_by), ...]
+            entity_id/mapped_by sind None wenn kein Mapping.
             Sortiert: count DESC, call_text ASC.
+
+        intern#95: Frueher lieferte die Abfrage zusaetzlich canonical_name und
+        program aus der Mehrfach-View teaching_order_calls (eine Zeile je
+        entity_id x Programm). Das Band war willkuerlich gewaehlt UND der Join
+        vervielfachte die Zeilen, sodass COUNT(*) die Haeufigkeit einer Figur in
+        zwei Programmen verdoppelte. Gelesen hat die beiden Spalten niemand — der
+        Call-Mapping-Dialog nimmt seine Beschriftung aus _eid_to_label. Darum
+        ganz raus statt ein Band zu bestimmen.
         """
         cur = self._conn.execute("""
             SELECT
                 je.value AS val,
                 COUNT(*) AS cnt,
                 m.entity_id,
-                t.canonical_name,
-                t.program,
                 m.mapped_by
             FROM sequences, json_each(sequences.calls_json) je
             LEFT JOIN call_text_mappings m ON m.call_text = je.value
-            LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id
             GROUP BY val
             ORDER BY cnt DESC, val ASC
         """)
@@ -3703,11 +3769,39 @@ class SongDatabase:
             "VALUES ('auto_mappings_backfilled', '1')")
         self._conn.commit()
 
+    def _recompute_max_to_once(self):
+        """Startup-Heilung (einmalig, per Flag in app_meta): rechnet
+        max_teaching_order mit der neuen Band-Regel nach.
+
+        intern#95: Bis dahin bestimmte recompute_sequence_max_to() bei Figuren in
+        mehreren Programmen ein beliebiges (faktisch das hoechste) Band; jetzt
+        gilt das niedrigste. Gespeicherte Werte aus Bestands-DBs sind damit zu
+        hoch — ohne diese Nachrechnung blieben betroffene Sequenzen bis zum
+        naechsten Import/Remapping aus dem Limit-Filter.
+        """
+        done = self._conn.execute(
+            "SELECT value FROM app_meta WHERE key='max_to_min_band'"
+        ).fetchone()
+        if done:
+            return
+        try:
+            self.recompute_sequence_max_to()
+        except Exception as e:
+            # Darf den Start nie verhindern — Flag NICHT setzen, damit es beim
+            # naechsten Start erneut versucht wird.
+            print(f"[SongDB] max_teaching_order-Nachrechnung uebersprungen: {e}")
+            return
+        self._conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) "
+            "VALUES ('max_to_min_band', '1')")
+        self._conn.commit()
+
     def recompute_sequence_max_to(self):
         """Berechnet max_teaching_order fuer alle Sequenzen neu.
 
-        Basiert auf call_text_mappings + call_text_figures_extra + teaching_order_calls.
-        Konservativ: NULL wenn mindestens ein Feld unmapped ist.
+        Basiert auf call_text_figures (Mapping + Zusatzfiguren) und der fruehesten
+        Teaching-Order je Figur. Konservativ: NULL wenn mindestens ein Feld
+        unmapped ist.
         """
         cur = self._conn.execute(
             "SELECT id, calls_json, field_1, field_2, field_3, field_4, field_5, "
@@ -3717,21 +3811,27 @@ class SongDatabase:
         )
         sequences = cur.fetchall()
 
-        # Mapping-Cache laden
-        cur2 = self._conn.execute(
-            "SELECT m.call_text, t.teaching_order "
-            "FROM call_text_mappings m "
-            "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id"
-        )
-        text_to_to = {row[0]: row[1] for row in cur2.fetchall()}
-        # BL-210: weitere Figuren eines Textes -> hoechste Teaching-Order zaehlt.
-        # Ohne Zusatzzeilen bleibt text_to_to bitgleich; fehlt einer Figur die
+        # Mapping-Cache laden. EIN Durchlauf ueber call_text_figures (Haupt-
+        # mapping + Zusatzfiguren) mit der fruehesten Teaching-Order je Figur —
+        # genau die Zeilen, die auch die Figuren-Rangfolge nutzt.
+        #
+        # intern#95: Vorher joint(e) diese Stelle auf die Mehrfach-View
+        # teaching_order_calls (eine Zeile je entity_id x Programm) und behielt
+        # per Dict-Comprehension die LETZTE Zeile -> ein beliebiges (faktisch das
+        # hoechste) Band. Eine Figur ist aber schon ab ihrem NIEDRIGSTEN Band
+        # tanzbar; sonst faellt eine Sequenz aus dem Limit-Filter, obwohl sie ins
+        # Programm passt. min_to ist dieselbe Regel, nach der auch der Band-Filter
+        # (_cover_ids) und der Figuren-Picker gehen.
+        #
+        # BL-210: mehrere Figuren eines Textes -> hoechste Teaching-Order zaehlt
+        # (alle Figuren muessen tanzbar sein). Fehlt einer Figur die
         # Teaching-Order, gilt der Text wie bisher als ungemappt.
-        for text, to in self._conn.execute(
-                "SELECT e.call_text, t.teaching_order "
-                "FROM call_text_figures_extra e "
-                "LEFT JOIN teaching_order_calls t ON t.entity_id = e.entity_id"):
-            prev = text_to_to.get(text)
+        text_to_to = {}
+        for text, _eid, to in self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED):
+            if text not in text_to_to:
+                text_to_to[text] = to
+                continue
+            prev = text_to_to[text]
             text_to_to[text] = None if prev is None or to is None else max(prev, to)
 
         updates = []
@@ -4289,19 +4389,27 @@ class SongDatabase:
 
     # ---- MS50-Reseed: gebuendelte Referenzdaten an Bestandsnutzer verteilen ----
 
-    def _backup_before_reseed(self):
-        """Pflicht-Backup der DB vor dem Reseed (Wiederherstellungspunkt)."""
+    def backup_copy(self, tag: str) -> str:
+        """Kopie der DB-Datei als Wiederherstellungspunkt vor einem riskanten
+        Eingriff: '<db>.bak_<tag>_<Zeitstempel>'. Gibt den Pfad zurueck,
+        '' wenn keine Datei da ist oder das Kopieren scheitert."""
         import shutil, datetime
         if not self.db_path or not os.path.exists(self.db_path):
-            return
+            return ""
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        dst = f"{self.db_path}.bak_pre_ms50_{ts}"
+        dst = f"{self.db_path}.bak_{tag}_{ts}"
         try:
             self._conn.execute("PRAGMA wal_checkpoint(FULL);")
             shutil.copy(self.db_path, dst)
-            print(f"[SongDB] Pflicht-Backup vor Reseed: {os.path.basename(dst)}")
+            print(f"[SongDB] Backup: {os.path.basename(dst)}")
+            return dst
         except Exception as e:
-            print(f"[SongDB] WARNUNG: Backup vor Reseed fehlgeschlagen: {e}")
+            print(f"[SongDB] WARNUNG: Backup '{tag}' fehlgeschlagen: {e}")
+            return ""
+
+    def _backup_before_reseed(self):
+        """Pflicht-Backup der DB vor dem Reseed (Wiederherstellungspunkt)."""
+        self.backup_copy("pre_ms50")
 
     def reseed_reference_data(self, force: bool = False):
         """MS50-Umbau: verteilt die gebuendelte Referenz (reference_calls.json).

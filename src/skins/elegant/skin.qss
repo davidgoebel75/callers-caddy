@@ -428,8 +428,8 @@ QToolTip {
 
 /* --- Tab-Bar --- */
 QTabBar::tab {
-    background-color: {{title_bg}};
-    color: {{title_text}};
+    background-color: {{widget_bg}};
+    color: {{button_bg}};
     border: 1px solid {{border}};
     padding: 6px 12px;
     margin-right: 2px;
@@ -525,7 +525,7 @@ QPushButton#fileBtn {
    Spezifischer als die generische QPushButton:checked-Regel, gewinnt daher. */
 QPushButton[activeState="true"]:checked {
     background-color: {{success}};
-    color: #ffffff;
+    color: {{success_text}};
 }
 QPushButton[activeState="true"]:checked:hover {
     background-color: {{success_hover}};

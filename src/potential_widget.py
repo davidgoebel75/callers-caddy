@@ -769,7 +769,9 @@ class _MetaImportPreviewDialog(QDialog):
         self.setMinimumSize(600, 400)
         layout = QVBoxLayout(self)
 
-        info = QLabel(_t('pot_meta_import_preview_info'))
+        # rows hat eine Zeile je Feld -> Songs einzeln zaehlen
+        info = QLabel(_t('pot_meta_import_preview_info',
+                         count=len({r[0] for r in rows})))
         info.setWordWrap(True)
         layout.addWidget(info)
 
