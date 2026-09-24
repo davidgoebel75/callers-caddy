@@ -6,6 +6,11 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.159)
+
+### Technische Notiz
+- **Der Sequenz-Import ist intern aufgeräumt (unsichtbar für den Betrieb).** Das Einlesen der Formate MDB, JSON, CSDS und Freitext liegt jetzt gesammelt an einer Stelle und ist durch automatische Tests abgesichert. Die alten Einzel-Importwege, die seit dem universellen Sequenz-Import nicht mehr im Menü erreichbar waren, wurden entfernt. Am Import selbst ändert sich nichts.
+
 ## 0.159 — Playlist-Mehrfachauswahl, Call-Texte mit mehreren Figuren & frei bewegliche Fenster (2026-09-24)
 
 ### Verbesserungen
