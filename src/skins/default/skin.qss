@@ -445,10 +445,10 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
-    background-color: {{widget_bg}};
-    color: {{text}};
-    border-bottom-color: {{widget_bg}};
-    border-top: 2px solid {{selection_bg}};
+    background-color: {{button_bg}};
+    color: {{button_text}};
+    border-bottom-color: {{button_bg}};
+    border-top: 2px solid {{focus_border}};
     font-weight: bold;
 }
 
