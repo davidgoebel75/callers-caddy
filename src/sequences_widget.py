@@ -28,7 +28,7 @@ from i18n import _t
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
-from sequence_mapper import CallMatcher as _CallMatcher
+from sequence_mapper import CallMatcher as _CallMatcher, canon_key, suggest_figure_set
 
 
 class _ComboClickToOpen(QObject):
@@ -2078,9 +2078,10 @@ class SequenceEditorDialog(QDialog):
             # Ohne Zuordnung den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
             selected = [suggested] if suggested is not None else []
-        entities = [(f"{cname}  [{prog}]" if prog else cname, eid)
-                    for eid, cname, _to, prog in self.db.get_teaching_order_calls()
-                    if not cname.startswith("--")]
+        # intern#87: pro entity_id nur ein Eintrag, Label ohne [Programm] -
+        # dieselbe Dedup wie im Call-Mapping-Dialog.
+        entities, _labels, _min_to = picker_entities_from_to_calls(
+            self.db.get_teaching_order_calls())
         dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
                                       unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
@@ -3083,6 +3084,55 @@ class SequenceImportDialog(QDialog):
         return self._inserted_count, self._skipped_dupes
 
 
+class _CheckableSortItem(QListWidgetItem):
+    """Sortiert angehakte Eintraege in einen Block oben (intern#74). Verwaiste
+    Figuren (tier 0) bleiben IMMER ueber den regulaeren (tier 1) — unabhaengig
+    vom Haken, wie bisher."""
+    TIER_UNKNOWN = 0
+    TIER_REGULAR = 1
+
+    def __init__(self, text, tier, orig_index):
+        super().__init__(text)
+        self._tier = tier
+        self._orig_index = orig_index
+
+    def __lt__(self, other):
+        return (self._tier, self.checkState() != Qt.Checked, self._orig_index) < \
+               (other._tier, other.checkState() != Qt.Checked, other._orig_index)
+
+
+def picker_entities_from_to_calls(to_calls):
+    """Baut die deduplizierte Figuren-Liste fuer den CallFiguresPickerDialog.
+
+    intern#87: teaching_order_calls ist eine View mit einer Zeile je
+    (entity_id x Programm). Eine entity_id steht damit je Band einmal drin
+    (Recycle in Mainstream UND Mainstream 2026). Fuers Mapping zaehlt nur die
+    entity_id, nicht das Band -> pro entity_id EIN Eintrag, Label ohne
+    [Programm]-Suffix. to_calls ist aufsteigend nach teaching_order, das erste
+    Vorkommen ist das niedrigste Band. Programm-Separatoren ("-- Basic 1 --")
+    sind keine Figuren und fliegen aus der Liste.
+
+    Beide Picker-Einstiege (Call-Mapping-Dialog und Sequenz-Editor) rufen dies,
+    damit die Dedup-Regel nur einmal im Code steht.
+
+    Returns: (entity_list, eid_to_label, eid_min_to)
+      entity_list : [(label, entity_id), ...] ohne Separatoren, fuer den Picker
+      eid_to_label: {entity_id: label} inkl. Separatoren
+      eid_min_to  : {entity_id: teaching_order} des niedrigsten Bandes
+    """
+    entity_list = []
+    eid_to_label = {}
+    eid_min_to = {}
+    for eid, cname, to, _prog in to_calls:
+        if eid in eid_to_label:
+            continue   # entity_id schon gesehen (weiteres Band) -> ueberspringen
+        eid_to_label[eid] = cname
+        eid_min_to[eid] = to   # to_calls aufsteigend sortiert -> niedrigstes Band
+        if not cname.startswith("--"):
+            entity_list.append((cname, eid))
+    return entity_list, eid_to_label, eid_min_to
+
+
 class CallFiguresPickerDialog(QDialog):
     """Mehrfach-Picker: Figuren-Menge eines Call-Texts per Haken-Liste (BL-210.4).
 
@@ -3122,28 +3172,27 @@ class CallFiguresPickerDialog(QDialog):
         unknown = [(f"[{eid}] ({_t('call_mapping_picker_unknown')})"
                     if eid in unknown_ids else f"[{eid}]", eid)
                    for eid in dict.fromkeys(selected or ()) if eid not in known]
-        first_checked = None
         # entity_id -> Eintraege in Listen-Reihenfolge. Haken und Anzeige laufen
         # darueber statt ueber alle ~760 Eintraege (Main-Thread, je Klick).
         self._items_by_eid = {}
         self._list = QListWidget()
         self._list.setUpdatesEnabled(False)
-        for label, eid in unknown + entities:
-            item = QListWidgetItem(label)
+        combined = unknown + entities
+        n_unknown = len(unknown)
+        for idx, (label, eid) in enumerate(combined):
+            tier = (_CheckableSortItem.TIER_UNKNOWN if idx < n_unknown
+                    else _CheckableSortItem.TIER_REGULAR)
+            item = _CheckableSortItem(label, tier, idx)
             item.setData(Qt.UserRole, eid)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if eid in chosen else Qt.Unchecked)
             self._list.addItem(item)
             self._items_by_eid.setdefault(eid, []).append(item)
-            if first_checked is None and eid in chosen:
-                first_checked = item
-        self._list.setUpdatesEnabled(True)
+        self._resort()
         self._checked = chosen & self._items_by_eid.keys()
         # Erst nach dem Befuellen verbinden: das Vorab-Anhaken loest nichts aus
         self._list.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._list, 1)
-        if first_checked is not None:
-            self._list.scrollToItem(first_checked, QAbstractItemView.PositionAtCenter)
 
         # Die Menge bleibt sichtbar, auch wenn der Suchfilter Haken ausblendet
         self._lbl_selected = QLabel()
@@ -3180,9 +3229,25 @@ class CallFiguresPickerDialog(QDialog):
         self._split = True
         self.accept()
 
+    def _resort(self, scroll_to=None):
+        """Sortiert den Haken-Block neu (intern#74). scroll_to: Item, zu dem
+        danach gescrollt wird — haelt den zuletzt geklickten Eintrag sichtbar,
+        auch wenn er ins obere Drittel der Liste springt."""
+        self._list.setUpdatesEnabled(False)
+        self._list.sortItems()
+        self._list.setUpdatesEnabled(True)
+        if scroll_to is not None:
+            self._list.scrollToItem(scroll_to)
+
     def _on_item_changed(self, item):
         """Die Referenz fuehrt eine Figur je Programm (z.B. Plus und Plus (2026))
-        -> alle Eintraege derselben entity_id gleich anhaken."""
+        -> alle Eintraege derselben entity_id gleich anhaken. Das Umsortieren
+        (intern#74) laeuft ueber QTimer.singleShot deferred statt synchron hier:
+        sortItems() ueber bis zu ~760 Eintraege kann laut Messwerten auf
+        langsamerer Hardware >5ms kosten — auf dem Main-Thread synchron im
+        Klick-Handler waere das ein Verstoss gegen die Audio-Prioritaet-Regel
+        (CLAUDE.md, TIC-0025). Der Haken selbst wird weiterhin sofort sichtbar,
+        nur die Positions-Aenderung im naechsten Event-Loop-Tick."""
         eid, state = item.data(Qt.UserRole), item.checkState()
         if state == Qt.Checked:
             self._checked.add(eid)
@@ -3193,6 +3258,7 @@ class CallFiguresPickerDialog(QDialog):
             if it.checkState() != state:
                 it.setCheckState(state)
         self._list.blockSignals(False)
+        QTimer.singleShot(0, lambda: self._resort(scroll_to=item))
         self._update_selected_label()
 
     def _update_selected_label(self):
@@ -3221,7 +3287,12 @@ class CallFiguresPickerDialog(QDialog):
             it.data(Qt.UserRole) for it in self._items() if not it.isHidden()))
 
     def selected_entity_ids(self) -> list:
-        """Angehakte entity_ids in Listen-Reihenfolge (jede Figur einmal)."""
+        """Angehakte entity_ids in urspruenglicher Listen-/Teaching-Reihenfolge —
+        bewusst NICHT die aktuelle (dynamisch sortierte) Sichtbar-Reihenfolge.
+        SequencesWidget._handle_line_dblclick verlaesst sich beim Speichern
+        direkt auf diese stabile Rangfolge (hoechste Teaching-Order zuerst).
+        CallMappingDialog dagegen sortiert das Ergebnis selbst per
+        _rank_figures() neu."""
         return [eid for eid in self._items_by_eid if eid in self._checked]
 
     def split_requested(self) -> bool:
@@ -3243,15 +3314,19 @@ class CallMappingDialog(QDialog):
     """Dialog zum Verwalten des Call-Text-Mappings.
 
     Zeigt alle Call-Texte aus den Sequenzen mit Haeufigkeit und aktuellem Mapping.
-    Filter-Toggle: Nicht gemappt / Gemappt / Alle.
+    Filter-Toggle: Nicht gemappt / Gemappt / Alle / Vorschlag weicht ab.
     Tabelle ist nach allen Spalten sortierbar.
     Auto-Vorschlag: normalisierter Textvergleich (Prefixe/Suffixe abschneiden).
+    Mengen-Vorschlag (BL-210.8): suggest_figure_set() erkennt Call-Texte mit
+    mehreren Figuren (All-8/Anything/Split) und schlaegt die Menge gelb vor,
+    mit Vorrang vor dem Einzel-Fuzzy-Vorschlag.
     """
 
     # Filter-Werte
     _F_UNMAPPED = "unmapped"
     _F_MAPPED   = "mapped"
     _F_ALL      = "all"
+    _F_MISMATCH = "mismatch"
 
     # Rollenwert der Figur-Spalte fuer "An Komma aufteilen"
     _SPLIT = "__SPLIT_COMMA__"
@@ -3259,11 +3334,13 @@ class CallMappingDialog(QDialog):
     def __init__(self, db, parent=None):
         super().__init__(parent)
         self.db = db
-        self._all_data    = []   # [(call_text, count, eid, cname, prog, mapped_by), ...]
+        self._all_data    = []   # [(call_text, count, eid, mapped_by), ...]
         self._entity_list = []   # [(label, entity_id), ...] — Figuren fuer den Picker
         self._eid_to_label = {}
         self._eid_min_to   = {}  # entity_id -> frueheste Teaching-Order (Rangfolge)
         self._figure_sets  = {}  # call_text -> [entity_id, ...], hoechste zuerst
+        self._set_cache    = {}  # call_text -> [entity_id, ...], BL-210.8
+        self._set_cache_ms = 0.0
         self._matcher      = None  # CallMatcher, wird in _prepare_data() gesetzt
         self._alive        = True   # False sobald der Dialog schliesst
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
@@ -3311,7 +3388,8 @@ class CallMappingDialog(QDialog):
         self._color_visible_rows_now()
         QApplication.processEvents()
         _t3 = time.perf_counter()
-        print(f"[Call-Mapping] Open: prepare {(_t1-_t0)*1000:.0f}ms, "
+        print(f"[Call-Mapping] Open: prepare {(_t1-_t0)*1000:.0f}ms "
+              f"(davon mengen {self._set_cache_ms:.0f}ms), "
               f"load_table {(_t2-_t1)*1000:.0f}ms, sichtbar-faerben {(_t3-_t2)*1000:.0f}ms, "
               f"gesamt {(_t3-_t0)*1000:.0f}ms ({self._table.rowCount()} Zeilen)")
         self._start_progressive_suggestions()
@@ -3372,6 +3450,7 @@ class CallMappingDialog(QDialog):
         self._combo_filter.addItem(_t("call_mapping_f_unmapped"), self._F_UNMAPPED)
         self._combo_filter.addItem(_t("call_mapping_f_mapped"),   self._F_MAPPED)
         self._combo_filter.addItem(_t("call_mapping_f_all"),      self._F_ALL)
+        self._combo_filter.addItem(_t("call_mapping_f_mismatch"), self._F_MISMATCH)
         self._combo_filter.currentIndexChanged.connect(self._load_table)
         filter_row.addWidget(self._combo_filter)
         filter_row.addStretch()
@@ -3409,7 +3488,8 @@ class CallMappingDialog(QDialog):
         f2 = QShortcut(QKeySequence(Qt.Key_F2), self._table)
         f2.setContext(Qt.WidgetShortcut)
         f2.activated.connect(
-            lambda: self._open_figures_picker(self._table.currentIndex()))
+            lambda: self._open_figures_picker(
+                self._table.model().index(self._table.currentIndex().row(), 2)))
 
         # Rechtsklick auf die Call-Text-Spalte -> "Beispiel zeigen" (Sequenzen,
         # die diesen Text nutzen, in einem eigenen Betrachter durchblaettern).
@@ -3476,18 +3556,39 @@ class CallMappingDialog(QDialog):
 
         to_calls = self.db.get_teaching_order_calls()
 
-        # Picker-Liste nur mit echten Figuren: "keine Zuordnung" = kein Haken,
-        # "An Komma aufteilen" ist ein Knopf im Picker, Programm-Separatoren
-        # ("-- Basic 1 --") sind keine Figuren.
-        self._entity_list = []
-        self._eid_to_label = {}
-        self._eid_min_to = {}
-        for eid, cname, to, prog in to_calls:
-            label = f"{cname}  [{prog}]" if prog else cname
-            self._eid_to_label[eid] = label
-            self._eid_min_to.setdefault(eid, to)   # to_calls aufsteigend sortiert
-            if not cname.startswith("--"):
-                self._entity_list.append((label, eid))
+        # Picker-Liste nur mit echten Figuren, pro entity_id einmal, Label ohne
+        # [Programm]-Suffix (intern#87). Dieselbe Dedup nutzt der Sequenz-Editor
+        # -> gemeinsame Helferfunktion.
+        (self._entity_list,
+         self._eid_to_label,
+         self._eid_min_to) = picker_entities_from_to_calls(to_calls)
+
+        import time
+
+        # BL-210.8: exact_lookup (kanonischer Name -> entity_id) fuer
+        # suggest_figure_set() unten. to_calls ist aufsteigend sortiert ->
+        # setdefault nimmt die niedrigste Variante. Eigener kurzer Durchlauf
+        # (< 1 ms, paar hundert Eintraege), faellt darum nicht unter die
+        # Zeitmessung unten.
+        exact_lookup = {}
+        for eid, cname, _to, _prog in to_calls:
+            exact_lookup.setdefault(canon_key(cname), eid)
+
+        # BL-210.8: Mengen-Vorschlag (suggest_figure_set) einmalig je Call-Text.
+        # bestehende EINDEUTIGE Zuordnungen -- NIE in exact_lookup mischen
+        # (sonst ist jeder gemappte Text ein Volltreffer und der Filter findet nichts)
+        t0 = time.perf_counter()
+        rest_lookup = {canon_key(t): f[0]
+                       for t, f in self._figure_sets.items() if len(f) == 1}
+        # call_text -> [entity_id, ...]; eigenes Dict, _suggest_cache bleibt
+        # unberuehrt. Nur die Figurenliste; pattern liest niemand -- bei
+        # Bedarf (Massen-Uebernahme, intern#81) ergaenzen.
+        self._set_cache = {}
+        for ct in dict.fromkeys(r[0] for r in self._all_data):
+            figs = suggest_figure_set(ct, exact_lookup, rest_lookup)[0]
+            if figs:
+                self._set_cache[ct] = figs
+        self._set_cache_ms = (time.perf_counter() - t0) * 1000
 
         # CallMatcher: Drei-Stufen-Matching (exakt → Token-Overlap → SequenceMatcher)
         self._matcher = _CallMatcher(to_calls)
@@ -3514,6 +3615,11 @@ class CallMappingDialog(QDialog):
             rows = [r for r in self._all_data if r[2] is None]
         elif fval == self._F_MAPPED:
             rows = [r for r in self._all_data if r[2] is not None]
+        elif fval == self._F_MISMATCH:
+            rows = [r for r in self._all_data
+                    if r[0] in self._set_cache
+                    and set(self._figure_sets.get(r[0]) or ())
+                        != set(self._set_cache[r[0]])]
         else:
             rows = self._all_data
 
@@ -3527,7 +3633,7 @@ class CallMappingDialog(QDialog):
         self._table.setRowCount(len(rows))
         none_label = _t("call_mapping_none")   # einmal statt je Zeile
 
-        for i, (call_text, count, entity_id, cname, prog, mapped_by) in enumerate(rows):
+        for i, (call_text, count, entity_id, mapped_by) in enumerate(rows):
 
             # Col 0: Call-Text — Hintergrundfarbe je nach Match-Qualitaet
             item0 = QTableWidgetItem(call_text)
@@ -3556,11 +3662,18 @@ class CallMappingDialog(QDialog):
                     label = self._eid_to_label.get(entity_id) or f"[{entity_id}]"
                 item0.setBackground(QColor("#d4edda"))
             else:
-                # Auto-Vorschlag via CallMatcher — aus dem Cache. Ist er noch nicht
-                # berechnet (erster Aufbau, Worker laeuft noch), bleibt die Zeile
-                # neutral-hellgrau und wird von _apply_cached_suggestions nachgefaerbt.
-                cached = self._suggest_cache.get(call_text)
-                if cached is not None:
+                # Mengen-Vorschlag (suggest_figure_set) hat Vorrang vor dem
+                # Fuzzy-Einzel-Vorschlag — gelb wie ein unsicherer Fuzzy-Treffer.
+                sug = self._set_cache.get(call_text)
+                if sug is not None:
+                    figures = self._rank_figures(sug)
+                    stored = self._stored(figures)
+                    label = self._figures_text(figures)
+                    item0.setBackground(self._bg_for_score(_CallMatcher.UNCERTAIN))   # gelb
+                elif (cached := self._suggest_cache.get(call_text)) is not None:
+                    # Auto-Vorschlag via CallMatcher — aus dem Cache. Ist er noch nicht
+                    # berechnet (erster Aufbau, Worker laeuft noch), bleibt die Zeile
+                    # neutral-hellgrau und wird von _apply_cached_suggestions nachgefaerbt.
                     score, suggested = cached
                     stored = suggested
                     label = self._eid_to_label.get(suggested, none_label)
@@ -3608,7 +3721,12 @@ class CallMappingDialog(QDialog):
         if not item0 or not item2:
             return
         if self._figures(item2, Qt.UserRole + 1):
-            return   # war beim Laden bereits gemappt
+            return   # beim Laden gemappt oder mit Mengen-Vorschlag belegt
+        # Absicherung fuer Mengen-Vorschlaege: im heutigen synchronen Ablauf
+        # durch die Pruefung oben bereits abgedeckt (UserRole+1 ist dann
+        # schon belegt) und darum hier nicht erreichbar.
+        if item0.data(Qt.UserRole) in self._set_cache:
+            return
         cached = self._suggest_cache.get(item0.data(Qt.UserRole))
         if cached is None:
             return
@@ -3763,6 +3881,9 @@ class CallMappingDialog(QDialog):
         current = self._figures(item2, Qt.UserRole)
         if current == (self._SPLIT,):
             current = ()
+        sug = self._set_cache.get(item0.data(Qt.UserRole))
+        if sug and set(current) == set(self._figures(item2, Qt.UserRole + 1)):
+            current = tuple(sug)   # Nutzer hat noch nichts gewaehlt -> Vorschlag anhaken
         dlg = CallFiguresPickerDialog(self._entity_list, selected=current,
                                       parent=self, allow_split=True,
                                       unknown_ids=self.db.unknown_figures(current))
@@ -3889,11 +4010,9 @@ class CallMappingDialog(QDialog):
             for r in self._all_data:
                 figures = confirmed_texts.get(r[0])
                 if figures is not None:
-                    # (call_text, count, entity_id, cname, prog, mapped_by)
+                    # (call_text, count, entity_id, mapped_by)
                     # entity_id = hoechste Figur (wie call_text_mappings).
-                    # cname/prog werden in _load_table nicht gelesen (Label kommt
-                    # aus _eid_to_label) -> None ist unschaedlich.
-                    new_all.append((r[0], r[1], figures[0], None, None, "manual"))
+                    new_all.append((r[0], r[1], figures[0], "manual"))
                 else:
                     new_all.append(r)
             self._all_data = new_all

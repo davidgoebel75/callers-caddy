@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.158"
+__version__ = "0.159"
 
 import sys
 import os
@@ -25,6 +25,7 @@ import math
 import shutil
 import threading
 import random
+from time import monotonic
 from datetime import date, datetime
 from PySide6.QtWidgets import (
     QApplication,
@@ -37,9 +38,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QDockWidget,
     QCheckBox,
-    QLineEdit,
-    QSpinBox,
-    QDoubleSpinBox,
     QListWidget,
     QTableWidget,
     QComboBox,
@@ -49,8 +47,6 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QAbstractItemView,
     QTextBrowser,
-    QPlainTextEdit,
-    QTextEdit,
     QSizePolicy,
     QProgressDialog,
 )
@@ -205,12 +201,14 @@ class _ZipAnalyzeWorker(QThread):
 # --- Hilfsfunktionen ---
 
 # --- Hilfsfunktionen + UI-Helfer: ausgelagert nach ui_helpers.py (BL-201) ---
+from shortcut_policy import is_text_input, space_should_fire
 from ui_helpers import (
     fmt_time,
     fmt_precise,
     parse_time_offset,
     show_loop_count_dialog,
     _make_icon,
+    _SVG_MAGNET,
     _make_dock,
     _PlayBarrier,
     _WrapButtonBar,
@@ -740,6 +738,13 @@ class P29MainWindow(QMainWindow):
         # Song-Datenbank (Pfad aus PathManager)
         self.db = SongDatabase(self.paths.db_path)
         self.db.seed_default_genres()
+        # intern#106: Doppelgaenger von Unterordner-Songs (Bug bis v0.158)
+        # in ihr Original zurueckfuehren. Laeuft bei jedem Start (eine Abfrage),
+        # damit auch Songs auf beim ersten Start nicht erreichbaren Laufwerken
+        # spaeter noch repariert werden.
+        from subfolder_duplicate_repair import repair_subfolder_duplicates
+        repair_subfolder_duplicates(self.db, self.paths.find_song_file,
+                                    self.paths.playlist_dir)
         # Mindest-Live-Volume aus INI laden
         min_vol = float(self._settings.value("audio/min_volume", 0.0))
         self.engine.set_min_volume(min_vol)
@@ -898,6 +903,7 @@ class P29MainWindow(QMainWindow):
         self.playlist_widget.on_playlist_changed = self._on_playlist_data_changed
         self.playlist_widget.on_loop_count_edit = self._on_playlist_loop_count_edit
         self.playlist_widget.on_add_to_notes = self._notes_insert_song_shortcode
+        self.playlist_widget.on_add_entries_to_notes = self._on_pl_export_to_notes
         self.playlist_widget.on_song_rating_changed = self._on_song_rating_changed
         self.dock_playlist = _make_dock(
             self, _t("dock_playlist"), self.playlist_widget, Qt.RightDockWidgetArea
@@ -1130,6 +1136,7 @@ class P29MainWindow(QMainWindow):
         # Variante C: Snapshot-Mechanismus entfernt — Live-Aenderungen werden
         # direkt persistiert (kein Sammel-Save mehr beim Song-Wechsel).
         self._file_change_song_id = None  # Guard: Datei-Wechsel per Browse-Button
+        self._pending_load = None  # (song_id, filepath): Laden eines bekannten Songs (intern#106)
         self._lyric_variant_filename = None  # aktive Lyric-Variante (None = Standard)
 
         # start_date (Fallback fuer "Tage seit letztem Abspielen")
@@ -1186,6 +1193,7 @@ class P29MainWindow(QMainWindow):
         # Einzelbuchstaben-Shortcuts (L, P) via Event-Filter
         # QShortcut wird von QTableWidget/QListWidget geschluckt,
         # daher App-weiter Event-Filter der VOR den Widgets greift
+        self._last_typing_ts = 0.0  # letzter Tastendruck in ein Textfeld (intern#101)
         QApplication.instance().installEventFilter(self)
 
         # Songliste + Playlist initial fuellen
@@ -1245,9 +1253,7 @@ class P29MainWindow(QMainWindow):
         self.dock_streamdeck.setObjectName("dock_streamdeck")
         # Default versteckt; restoreState() stellt den echten Zustand her.
         self.dock_streamdeck.hide()
-        sd_action = self.dock_streamdeck.toggleViewAction()
-        sd_action.setText(_t("dock_streamdeck"))
-        self._view_menu.addAction(sd_action)
+        self._add_view_menu_entry(self.dock_streamdeck, _t("dock_streamdeck"))
 
         # --- Dock: Break (Pausen-Uhr) ---
         # Ebenfalls vor _restore_layout(), damit Position/Groesse/Sichtbarkeit
@@ -1274,9 +1280,7 @@ class P29MainWindow(QMainWindow):
         self.dock_break.hide()  # Default; restoreState() stellt echten Zustand her
         # Beim Oeffnen die Standard-Pausendauer der aktuellen Lokation uebernehmen
         self.dock_break.visibilityChanged.connect(self._on_break_visibility)
-        break_action = self.dock_break.toggleViewAction()
-        break_action.setText(_t("dock_break"))
-        self._view_menu.addAction(break_action)
+        self._add_view_menu_entry(self.dock_break, _t("dock_break"))
         perf_log("    Break dock", _tbreak)
 
         # --- Dock: Rules ---
@@ -1310,9 +1314,7 @@ class P29MainWindow(QMainWindow):
         self.dock_rules.setFloating(True)
         self.dock_rules.resize(900, 500)
         self.dock_rules.hide()
-        rules_action = self.dock_rules.toggleViewAction()
-        rules_action.setText(_t("dock_rules"))
-        self._view_menu.addAction(rules_action)
+        self._add_view_menu_entry(self.dock_rules, _t("dock_rules"))
         self.tutorial_engine.register_widget("rules", self.rules_widget)
 
         # --- Dock: Jump Markers (BL-185, Teil 2) — vollwertig andockbar ---
@@ -1336,9 +1338,7 @@ class P29MainWindow(QMainWindow):
         # Beim Sichtbarwerden neu aufbauen (Signatur invalidieren)
         self.dock_jump_markers.visibilityChanged.connect(
             lambda vis: setattr(self, '_jm_sig', None))
-        jm_action = self.dock_jump_markers.toggleViewAction()
-        jm_action.setText(_t("dock_jump_markers"))
-        self._view_menu.addAction(jm_action)
+        self._add_view_menu_entry(self.dock_jump_markers, _t("dock_jump_markers"))
         perf_log("    JumpMarkers dock", _tjm)
 
         # --- Dock: To Call (BL-199) — vollwertig andockbar ---
@@ -1355,9 +1355,7 @@ class P29MainWindow(QMainWindow):
         )
         self.dock_to_call.setObjectName("dock_to_call")
         self.dock_to_call.hide()
-        tc_action = self.dock_to_call.toggleViewAction()
-        tc_action.setText(_t("dock_to_call"))
-        self._view_menu.addAction(tc_action)
+        self._add_view_menu_entry(self.dock_to_call, _t("dock_to_call"))
         perf_log("    ToCall dock", _ttc)
 
         # --- Dock: Pilot Square (BL-207) — vollwertig andockbar ---
@@ -1375,10 +1373,11 @@ class P29MainWindow(QMainWindow):
         )
         self.dock_pilot_square.setObjectName("dock_pilot_square")
         self.dock_pilot_square.hide()
-        sq_action = self.dock_pilot_square.toggleViewAction()
-        sq_action.setText(_t("dock_pilot_square"))
-        self._view_menu.addAction(sq_action)
+        self._add_view_menu_entry(self.dock_pilot_square, _t("dock_pilot_square"))
         perf_log("    PilotSquare dock", _tsq)
+
+        # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
+        self._wire_dock_context_menus()
 
         # Layout wiederherstellen
         self._restore_layout()
@@ -2815,7 +2814,7 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs sichern.
             # _current_song wird erst in _on_file_loaded umgesetzt — daher hier flushen.
             self._flush_player_values()
-            self.player.load_from_list(filepath)
+            self._load_known_song(entry.song.id, filepath)
         else:
             QMessageBox.warning(
                 self, _t("file_not_found_title"),
@@ -2858,6 +2857,11 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
+        # der UI aendert das nur fuer die laufende Session, nicht die INI.
+        # Der Default wird in _write_ini_defaults() gesaet.
+        saved_insert_pos = str(self._settings.value("notes/insert_position", "top"))
+        self.notes_widget.set_insert_position(saved_insert_pos)
         self.dock_notes.setWidget(self.notes_widget)
         # Aktuelle Lokation nachliefern, falls bereits gewaehlt
         if self._notes_location_id is not None:
@@ -3124,7 +3128,7 @@ class P29MainWindow(QMainWindow):
         if entry:
             filepath = self.paths.find_song_file(entry.song.filename)
             if filepath:
-                self.player.load_from_list(filepath)
+                self._load_known_song(entry.song.id, filepath)
                 print(f"[P21] Auto-Advance: #{next_idx + 1} '{entry.song.title}' vorgeladen")
             else:
                 print(f"[P21] Auto-Advance: Datei nicht gefunden: {entry.song.filename}")
@@ -3156,6 +3160,8 @@ class P29MainWindow(QMainWindow):
         # Datei-Wechsel (Browse-Button): Song per ID laden, nicht per basename
         file_change_id = getattr(self, '_file_change_song_id', None)
         self._file_change_song_id = None
+        pending = self._pending_load
+        self._pending_load = None
 
         if file_change_id:
             # Datei-Wechsel oder Musik-Variante fuer denselben Song — Lyric-Variante beibehalten
@@ -3168,8 +3174,16 @@ class P29MainWindow(QMainWindow):
             # Variante C+: dirty Tempo/Pitch des ALTEN Songs noch sichern.
             # _current_song ist hier noch der ALTE Song — der Flush trifft den richtigen.
             self._flush_player_values()
-            filename = os.path.basename(filepath)
-            song = self.db.get_or_create(filename)
+            # intern#106: Aus Songliste/Playlist ist der Song bekannt -> per ID.
+            # Sonst (Drag&Drop, Oeffnen) erst ueber den relativen Pfad suchen:
+            # nur per Basename wuerde fuer Songs aus Unterordnern ein
+            # Doppelgaenger mit Default-Werten angelegt.
+            song = None
+            if pending and pending[1] == filepath:
+                song = self.db.get_by_id(pending[0])
+            if song is None:
+                song = self.db.get_or_create_for_file(
+                    self.paths.to_relative_filename(filepath))
 
         self._current_song = song
         self._current_music_filename = os.path.basename(filepath)
@@ -3233,6 +3247,12 @@ class P29MainWindow(QMainWindow):
         self._file_change_song_id = self._current_song.id
         self.player.load_from_list(filepath)
 
+    def _load_known_song(self, song_id: int, filepath: str):
+        """Laedt die Datei eines bekannten Songs; _on_file_loaded uebernimmt
+        ihn dann per ID statt ihn ueber den Dateinamen zu suchen (intern#106)."""
+        self._pending_load = (song_id, filepath)
+        self.player.load_from_list(filepath)
+
     def _on_song_selected(self, song_id, offer_copy=True):
         """Song aus der Songliste laden — ueber PathManager suchen.
 
@@ -3268,7 +3288,7 @@ class P29MainWindow(QMainWindow):
         self.player.set_label_info(song.label)
 
         if filepath:
-            self.player.load_from_list(filepath)
+            self._load_known_song(song.id, filepath)
         else:
             self.statusBar().showMessage(
                 _t("file_not_found_msg", filename=song.filename,
@@ -3479,32 +3499,45 @@ class P29MainWindow(QMainWindow):
             _t("ep_export_playlist_ok").format(n=n),
         )
 
-    def _on_ep_export_to_notes(self, entries: list):
-        """Evening Planner → Notizen: bestätigte Songs als [load_song]-Shortcodes eintragen.
-        entries: Liste von (title, mode) Tupeln ('P'/'S') oder plain str (Rueckwaertskompatibilitaet)."""
+    def _export_entries_to_notes(self, entries: list, title_key: str,
+                                 empty_key: str = ""):
+        """Gemeinsamer Kern fuer 'Songs zu Notizen uebernehmen' (Playlist UND
+        Evening Planner): baut Shortcode-Texte in GENAU der uebergebenen
+        Reihenfolge und reicht sie an notes_widget.add_notes() weiter, das
+        die End-Reihenfolge sowie die Toggle-Position (Oben/Unten) anwendet.
+        entries: Liste von (title, mode)-Tupeln ('P'/'S') oder plain str, in
+        der gewuenschten Anzeige-Reihenfolge oben->unten — der Aufrufer darf
+        NICHT selbst umkehren, sonst kollidiert das mit add_notes().
+        Keine Vollzugsmeldung: Caller sollen bei der Uebergabe nicht extra
+        die Maus fuer einen Bestaetigungsdialog brauchen, die Notiz ist
+        ohnehin sofort sichtbar."""
         if not entries:
-            QMessageBox.information(
-                self,
-                _t("ep_export_title"),
-                _t("ep_export_none_hint"),
-            )
+            if empty_key:
+                QMessageBox.information(self, _t(title_key), _t(empty_key))
             return
         # Location EINMAL vorab prüfen — sonst zeigt der Loop den
         # "keine Lokation"-Dialog einmal pro Song (wirkt wie Endlosschleife).
         if not self._notes_require_location():
             return
+        self._notes_ensure_init()
+        self.dock_notes.setVisible(True)
+        self.dock_notes.raise_()
+        texts = []
         for item in entries:
-            if isinstance(item, tuple):
-                title, mode = item
-                self._notes_insert_song_shortcode(title, mode=mode)
-            else:
-                self._notes_insert_song_shortcode(item)
-        n = len(entries)
-        QMessageBox.information(
-            self,
-            _t("ep_export_title"),
-            _t("ep_export_notes_ok").format(n=n),
-        )
+            title, mode = item if isinstance(item, tuple) else (item, "")
+            texts.append(self._song_shortcode_text(title, mode))
+        self.notes_widget.add_notes(texts)
+
+    def _on_ep_export_to_notes(self, entries: list):
+        """Evening Planner → Notizen: bestätigte Songs als [load_song]-Shortcodes eintragen.
+        entries: Liste von (title, mode) Tupeln ('P'/'S') oder plain str (Rueckwaertskompatibilitaet)."""
+        self._export_entries_to_notes(entries, "ep_export_title", "ep_export_none_hint")
+
+    def _on_pl_export_to_notes(self, entries: list):
+        """Playlist → Notizen: markierte (oder alle) Songs als [load_song]-
+        Shortcodes eintragen. entries: Liste von (title, mode)-Tupeln ('P'/'S')
+        in Playlist-Reihenfolge."""
+        self._export_entries_to_notes(entries, "pl_notes_export_title")
 
     def _on_song_delete_requested(self, song_id):
         """Entf-Taste in der Songliste: Loeschen ueber SongDataWidget."""
@@ -3562,7 +3595,7 @@ class P29MainWindow(QMainWindow):
         # Variante C+: dirty Tempo/Pitch des ALTEN Songs vor dem Wechsel sichern.
         self._flush_player_values()
         self._current_song = song
-        self.player.load_from_list(filepath)
+        self._load_known_song(song.id, filepath)
         self._ensure_primary_channel()  # Primaerkanal sicherstellen vor QE-Preview
         QTimer.singleShot(150, lambda: self.player.engine.play()
                           if not self.player.engine.is_playing() else None)
@@ -3601,7 +3634,7 @@ class P29MainWindow(QMainWindow):
         _t1 = perf_split("_on_break_play_last: lookup+find_file", _t0)
         self._flush_player_values()
         self._current_song = song
-        self.player.load_from_list(filepath)
+        self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
         self._ensure_primary_channel()
         perf_split("_on_break_play_last: ensure_primary_channel", _t2)
@@ -4733,23 +4766,20 @@ class P29MainWindow(QMainWindow):
         if self.notes_widget is None:
             self._init_notes()
 
+    def _song_shortcode_text(self, song_title: str, mode: str = "") -> str:
+        """Duenner Delegat auf shortcode_parser.song_shortcode_text (Modularisierung:
+        die Serialisierung gehoert ins Shortcode-Modul, nicht ins MainWindow)."""
+        from shortcode_parser import song_shortcode_text
+        return song_shortcode_text(song_title, mode)
+
     def _notes_insert_song_shortcode(self, song_title: str, mode: str = ""):
-        """Fuegt [load_song]-Shortcode in die Notizen ein.
-        mode='P' oder 'S' wird als named param geschrieben:
-        [load_song title="..." mode="P"] — verhindert Parser-Kollision mit positionalem Wert.
-        Ohne mode: klassisches Format [load_song "..."] fuer Abwaertskompatibilitaet."""
+        """Fuegt einen [load_song]-Shortcode in die Notizen ein."""
         if not self._notes_require_location():
             return
         self._notes_ensure_init()
         self.dock_notes.setVisible(True)
         self.dock_notes.raise_()
-        from shortcode_parser import shortcode_text
-        if mode:
-            params = {"title": song_title, "mode": mode}
-        else:
-            params = {"_value": song_title}
-        text = shortcode_text("load_song", params)
-        self.notes_widget.add_note(text)
+        self.notes_widget.add_note(self._song_shortcode_text(song_title, mode))
 
     def _notes_insert_sequence_shortcode(self, seq_id: int):
         if not self._notes_require_location():
@@ -5551,6 +5581,9 @@ class P29MainWindow(QMainWindow):
 
         # Ansicht-Menu
         view_menu = menu_bar.addMenu(_t("menu_view"))
+        self._view_menu = view_menu
+        # dock -> Magnet-Button (Andock-Umschalter je Menuezeile, BL-204)
+        self._view_magnets = {}
         for dock, text in [
             (self.dock_player, _t("dock_player")),
             (self.dock_loop, _t("dock_loop")),
@@ -5568,12 +5601,7 @@ class P29MainWindow(QMainWindow):
             (self.dock_notes, _t("dock_notes")),
             (self.dock_evening_planner, _t("dock_evening_planner")),
         ]:
-            action = dock.toggleViewAction()
-            action.setText(text)
-            view_menu.addAction(action)
-
-        # Rules-Dock (wird spaeter in __init__ erstellt, hier nachtraeglich)
-        self._view_menu = view_menu
+            self._add_view_menu_entry(dock, text)
 
         # Einstellungen-Menu (ehemals Design)
         settings_menu = menu_bar.addMenu(_t("menu_design"))
@@ -6565,6 +6593,8 @@ class P29MainWindow(QMainWindow):
             "audio/secondary_volume": "80",
             # BL-119: Feedback-Dialog nach Songende (true/false)
             "feedback/enabled": "false",
+            # intern#96: Einfuegeposition neuer Notizen (top/bottom)
+            "notes/insert_position": "top",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6691,15 +6721,14 @@ class P29MainWindow(QMainWindow):
         for key_str, trigger in _KEY_TRIGGERS_STR.items():
             shortcut = QShortcut(QKeySequence(key_str), self)
             shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+            shortcut.setAutoRepeat(False)  # intern#101: gehaltene Taste feuert einmal
             shortcut.activated.connect(
                 lambda t=trigger: self.rule_engine.fire_trigger(t))
 
         # F13-F24 werden im EventFilter abgefangen (QKeySequence parst diese nicht)
 
-        # Space braucht Text-Input-Guard
-        space = QShortcut(QKeySequence("Space"), self)
-        space.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        space.activated.connect(self._on_key_space)
+        # Space laeuft im eventFilter (intern#101): ein QShortcut verliert gegen
+        # jedes Textfeld, die Leertaste muss bei laufender Musik aber gewinnen.
 
     def _is_text_input_focused(self) -> bool:
         """Prueft, ob ein Widget Fokus hat, in das gerade TEXT getippt wird.
@@ -6711,17 +6740,18 @@ class P29MainWindow(QMainWindow):
         Nicht belegte Tasten fallen weiterhin durch: der eventFilter feuert nur,
         wenn der Trigger registriert ist, sonst bekommt das Widget die Taste.
         """
-        w = QApplication.focusWidget()
-        if isinstance(w, QComboBox):
-            return w.isEditable()
-        return isinstance(w, (
-            QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit,
-        ))
+        return is_text_input(QApplication.focusWidget())
 
-    def _on_key_space(self):
-        """Space: ignorieren wenn Texteingabe aktiv."""
-        if not self._is_text_input_focused():
-            self.rule_engine.fire_trigger("key_space")
+    def _fire_hotkey(self, trigger_name: str, event) -> bool:
+        """Loest den Trigger aus und schluckt die Taste.
+
+        Gehaltene Taste (Auto-Repeat) feuert nur beim ersten Druck, die
+        Wiederholungen werden trotzdem geschluckt — sonst liefen sie ins
+        Fokus-Widget, z.B. als Leerzeichen ins Suchfeld (intern#101).
+        """
+        if not event.isAutoRepeat():
+            self.rule_engine.fire_trigger(trigger_name)
+        return True
 
     def eventFilter(self, obj, event):
         """App-weiter Event-Filter fuer Tasten-Shortcuts (dynamisch aus rule_engine).
@@ -6732,6 +6762,7 @@ class P29MainWindow(QMainWindow):
         Unterstützt alle dynamisch registrierten Tasten-Trigger (key_a, key_b, ..., key_z, key_0, etc.)
 
         Priorität: Text-Input/List-Search > Modal-Dialog > Tasten-Trigger
+        Ausnahme Leertaste bei laufender Musik: siehe shortcut_policy (intern#101).
         """
         # Schutz gegen PySide6/shiboken-Marshalling bei app-weiten Event-Filtern:
         # Qt liefert in bestimmten Layout-Situationen ein QWidgetItem (QLayoutItem,
@@ -6744,16 +6775,36 @@ class P29MainWindow(QMainWindow):
         if isinstance(obj, QComboBox) and opens_combo_popup(event):
             widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
+            text_focus = self._is_text_input_focused()
+            modal_open = QApplication.activeModalWidget() is not None
+
             # #70: Escape gibt den Fokus aus einem Textfeld frei -> zurueck in den
             # Hotkey-Modus. Nur wenn wirklich ein Textfeld Fokus hat und KEIN
             # modaler Dialog offen ist (dort schliesst Esc weiter den Dialog).
-            if (event.key() == Qt.Key_Escape
-                    and not QApplication.activeModalWidget()
-                    and self._is_text_input_focused()):
+            if event.key() == Qt.Key_Escape and not modal_open and text_focus:
                 w = QApplication.focusWidget()
                 if w is not None:
                     w.clearFocus()
                     return True
+
+            # intern#101: Leertaste = Safety-Taste fuer Play/Pause. Bei laufender
+            # Musik gewinnt sie gegen Textfelder und Dialoge — nur nicht, solange
+            # jemand gerade tippt (shortcut_policy). Nur ohne Modifier, wie der
+            # fruehere QShortcut("Space").
+            if (event.key() == Qt.Key_Space
+                    and event.modifiers() == Qt.NoModifier
+                    and space_should_fire(
+                        text_input_focused=text_focus,
+                        # Pause zaehlt wie Laufen: Space muss auch wieder starten.
+                        playing=self.engine.is_playing() or self.engine.is_paused(),
+                        modal_open=modal_open,
+                        typing_age_s=monotonic() - self._last_typing_ts)):
+                return self._fire_hotkey("key_space", event)
+            # Jede Taste, die ins Textfeld geht, zaehlt als Tippen — auch Strg+V,
+            # AltGr-Zeichen und Nummernblock. Erst NACH der Leertasten-Entscheidung
+            # setzen, sonst sperrt ein Space-Druck den naechsten.
+            if text_focus:
+                self._last_typing_ts = monotonic()
 
             # #68: Buchstaben-Hotkeys sollen unabhaengig von Gross-/Kleinschreibung
             # feuern — Shift zusaetzlich zu NoModifier zulassen (event.text().lower()
@@ -6767,15 +6818,16 @@ class P29MainWindow(QMainWindow):
                     fn = key_code - Qt.Key_F1 + 1
                     trigger_name = f"key_f{fn}"
                     if trigger_name in self.rule_engine.registry.triggers:
-                        if QApplication.activeModalWidget():
+                        if modal_open:
                             return False
-                        self.rule_engine.fire_trigger(trigger_name)
-                        return True
+                        return self._fire_hotkey(trigger_name, event)
 
-                # Media-/Fn-Tasten (Volume, Media Play usw.)
+                # Media-/Fn-Tasten (Volume, Media Play usw.). Bewusst OHNE
+                # Auto-Repeat-Sperre: Lauter/Leiser gedrueckt halten soll die
+                # Lautstaerke weiter veraendern (intern#101).
                 trigger_name = self._MEDIA_KEY_TRIGGERS.get(key_code)
                 if trigger_name and trigger_name in self.rule_engine.registry.triggers:
-                    if QApplication.activeModalWidget():
+                    if modal_open:
                         return False
                     self.rule_engine.fire_trigger(trigger_name)
                     return True
@@ -6784,12 +6836,9 @@ class P29MainWindow(QMainWindow):
                 key = event.text().lower()
                 trigger_name = f"key_{key}"
                 if trigger_name in self.rule_engine.registry.triggers:
-                    if self._is_text_input_focused():
+                    if text_focus or modal_open:
                         return False
-                    if QApplication.activeModalWidget():
-                        return False
-                    self.rule_engine.fire_trigger(trigger_name)
-                    return True
+                    return self._fire_hotkey(trigger_name, event)
         return super().eventFilter(obj, event)
 
     def _restore_layout(self):
@@ -6843,9 +6892,172 @@ class P29MainWindow(QMainWindow):
         # Layout-Zustand ihn angedockt restauriert hat: Floating erzwingen
         if not self.dock_evening_planner.isFloating():
             self.dock_evening_planner.setFloating(True)
+        # BL-204: gespeicherten "Frei bewegen"-Zustand erneut anwenden
+        # (allowedAreas ist nicht Teil von saveState/restoreState).
+        self._apply_saved_dock_free()
         # Mindesthoehen nach restoreState() erneut erzwingen
         self.player.setMinimumHeight(380)
         self.loop_widget.setMinimumHeight(190)
+
+    # BL-204: Docks, die bewusst NICHT andockbar sind (immer frei schwebend).
+    # Fuer sie ist der "Frei bewegen"-Umschalter fix an (angehakt + deaktiviert),
+    # damit die Titelleisten-Menues einheitlich bleiben, ohne diese bewusst
+    # nicht-dockbaren Fenster zu brechen.
+    _FIXED_FREE_DOCKS = frozenset({
+        "dock_manager", "dock_loop_finder", "dock_photo",
+        "dock_evening_planner", "dock_break", "dock_rules", "dock_reports",
+    })
+
+    @staticmethod
+    def _all_dock_areas():
+        return (Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea
+                | Qt.TopDockWidgetArea | Qt.BottomDockWidgetArea)
+
+    def _wire_dock_context_menus(self):
+        """Haengt an jede Dock-Titelleiste ein Kontextmenue 'Frei bewegen'.
+
+        Standardkonform ueber Qt.CustomContextMenu — KEINE eigene Titelleiste.
+        customContextMenuRequested feuert bei Rechtsklick auf die (native)
+        Titelleiste; ein y-Guard im Handler haelt das Menue vom Dock-Inhalt fern.
+        Uniform fuer ALLE Docks (auch kuenftige), da ueber findChildren gesetzt.
+
+        Der Rueckweg (aus 'frei' wieder andocken) laeuft ueber das Magnet-Icon in
+        der jeweiligen Zeile des Ansicht-Menues (siehe _add_view_menu_entry) — ein
+        frei schwebendes Dock ist ein natives Fenster mit Windows-Leiste, dort
+        greift Qt's Titelleisten-Rechtsklick nicht.
+        """
+        for dock in self.findChildren(QDockWidget):
+            dock.setContextMenuPolicy(Qt.CustomContextMenu)
+            dock.customContextMenuRequested.connect(
+                lambda pos, d=dock: self._on_dock_context_menu(d, pos))
+
+    def _on_dock_context_menu(self, dock, pos):
+        """Zeigt bei Rechtsklick auf die Dock-Titelleiste das 'Frei bewegen'-Menue."""
+        # y-Guard: nur oberhalb des Inhalts-Widgets (= Titelleiste/Rahmen),
+        # damit der Rechtsklick im Inhalt weiterhin dessen eigenes Menue erhaelt.
+        content = dock.widget()
+        if content is not None and pos.y() > content.geometry().top():
+            return
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu(dock)
+        act = menu.addAction(_t("dock_ctx_free_move"))
+        act.setCheckable(True)
+        act.setChecked(dock.allowedAreas() == Qt.NoDockWidgetArea)
+        if dock.objectName() in self._FIXED_FREE_DOCKS:
+            # Bewusst nicht-dockbares Fenster: Zustand fix, nur zur Anzeige.
+            act.setEnabled(False)
+        else:
+            act.toggled.connect(lambda free, d=dock: self._set_dock_free(d, free))
+        menu.exec(dock.mapToGlobal(pos))
+
+    def _set_dock_free(self, dock, free):
+        """Schaltet einen Dock zwischen 'frei schwebend' und 'andockbar' um.
+
+        free=True : kein Andocken (NoDockWidgetArea), sofort schwebend.
+        free=False: alle vier Andockbereiche wieder erlaubt UND zurueck angedockt
+                    (setFloating(False)) — sonst bliebe es eine Einbahnstrasse.
+        Zustand pro Dock in der INI gemerkt und Layout gesichert.
+        """
+        if free:
+            dock.setAllowedAreas(Qt.NoDockWidgetArea)
+            if not dock.isFloating():
+                dock.setFloating(True)
+        else:
+            dock.setAllowedAreas(self._all_dock_areas())
+            if dock.isFloating():
+                dock.setFloating(False)
+        name = dock.objectName()
+        if name:
+            self._settings.setValue(f"dockfree/{name}", free)
+        self._refresh_view_magnet(dock)
+        # Position/Floating gleich mitsichern (nicht erst beim 60s-Autosave).
+        if hasattr(self, "_layout_save_timer"):
+            self._save_layout()
+
+    def _apply_saved_dock_free(self):
+        """Wendet den gespeicherten 'Frei bewegen'-Zustand auf die dockbaren
+        Docks an. Fix-freie Docks bleiben unberuehrt (ihr Zustand wird an anderer
+        Stelle erzwungen)."""
+        for dock in self.findChildren(QDockWidget):
+            name = dock.objectName()
+            if not name or name in self._FIXED_FREE_DOCKS:
+                continue
+            free = self._settings.value(f"dockfree/{name}", False, type=bool)
+            dock.setAllowedAreas(
+                Qt.NoDockWidgetArea if free else self._all_dock_areas())
+            self._refresh_view_magnet(dock)
+
+    # ---- BL-204: Andock-Umschalter (Magnet) je Zeile im Ansicht-Menue ----
+
+    def _add_view_menu_entry(self, dock, text):
+        """Fuegt dem Ansicht-Menue eine Zeile fuer einen Dock hinzu: links die
+        (unveraenderte) Sichtbarkeits-Umschaltung, rechtsbuendig ein Magnet-Icon
+        zum Umschalten angedockt <-> frei. Der Magnet zeigt den Snap-Zustand:
+        angedockt = kraeftige Textfarbe, frei = dezent."""
+        from PySide6.QtWidgets import (
+            QWidget, QHBoxLayout, QCheckBox, QToolButton, QWidgetAction)
+        from PySide6.QtCore import QSize
+        row = QWidget(self._view_menu)
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(8, 2, 8, 2)
+        lay.setSpacing(14)
+        # Sichtbarkeit: dieselbe toggleViewAction wie bisher, nur als Checkbox
+        # gespiegelt (Haekchen bleibt via _sync_dock_view_actions in Takt).
+        act = dock.toggleViewAction()
+        act.setText(text)
+        chk = QCheckBox(text, row)
+        chk.setChecked(act.isChecked())
+        chk.clicked.connect(lambda checked, d=dock: d.setVisible(checked))
+        act.toggled.connect(chk.setChecked)
+        magnet = QToolButton(row)
+        magnet.setAutoRaise(True)
+        magnet.setFocusPolicy(Qt.NoFocus)
+        magnet.setCursor(Qt.PointingHandCursor)
+        magnet.setIconSize(QSize(16, 16))
+        magnet.clicked.connect(lambda _=False, d=dock: self._toggle_dock_snap(d))
+        lay.addWidget(chk)
+        lay.addStretch(1)
+        lay.addWidget(magnet)
+        wa = QWidgetAction(self._view_menu)
+        wa.setDefaultWidget(row)
+        self._view_menu.addAction(wa)
+        self._view_magnets[dock] = magnet
+        self._refresh_view_magnet(dock)
+
+    def _toggle_dock_snap(self, dock):
+        """Magnet-Klick: angedockt -> frei, frei -> wieder angedockt."""
+        if dock.objectName() in self._FIXED_FREE_DOCKS:
+            return
+        free_now = dock.allowedAreas() == Qt.NoDockWidgetArea
+        self._set_dock_free(dock, not free_now)
+
+    def _refresh_view_magnet(self, dock):
+        """Aktualisiert Farbe/Tooltip/Aktivierung des Magneten je nach Snap-Zustand.
+        Angedockt/gesnappt -> kontrastreiche Textfarbe (haftet); frei -> dezent."""
+        magnet = getattr(self, "_view_magnets", {}).get(dock)
+        if magnet is None:
+            return
+        fixed = dock.objectName() in self._FIXED_FREE_DOCKS
+        free = dock.allowedAreas() == Qt.NoDockWidgetArea
+        # Angedockt = aktiv/"haftet" -> Theme-Akzentfarbe (auffaellig, passend zum
+        # Skin). Frei = inaktiv -> dezenter, kontrastarmer Ton.
+        if getattr(self, "skin_mgr", None) is not None:
+            if free:
+                color = self.skin_mgr.color(
+                    "muted_text", self.skin_mgr.color("text_dim", "#999999"))
+            else:
+                color = self.skin_mgr.color(
+                    "selection_bg", self.skin_mgr.color("text", "#0067c0"))
+        else:
+            color = "#999999" if free else "#0067c0"
+        magnet.setIcon(_make_icon(_SVG_MAGNET, color))
+        magnet.setEnabled(not fixed)
+        magnet.setToolTip(
+            _t("dock_undock_tooltip") if free else _t("dock_ctx_free_move"))
+
+    def _refresh_all_view_magnets(self):
+        for dock in getattr(self, "_view_magnets", {}):
+            self._refresh_view_magnet(dock)
 
     def _sync_dock_view_actions(self):
         """Gleicht die View-Menue-Haekchen mit der echten Dock-Sichtbarkeit ab.
@@ -6985,6 +7197,8 @@ class P29MainWindow(QMainWindow):
             self._sb_player_bar.update()
             # Tutorial-Overlay mit neuen Farben neu zeichnen
             self.tutorial_engine.refresh_overlay()
+            # BL-204: Magnet-Icons im Ansicht-Menue neu einfaerben (Snap-Zustand)
+            self._refresh_all_view_magnets()
             print(f"[Skin] Gewechselt auf '{skin_name}'")
             return True
         return False

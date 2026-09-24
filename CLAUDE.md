@@ -9,10 +9,24 @@
 - Neue/verbesserte Features und relevante Bugfixes/Perf als Bullet Points **direkt nach dem Merge** dort eintragen. **Noch KEINE Versionsnummer, KEIN Datum** — das bleibt dem Build vorbehalten (eine Sammelversion pro Build, keine neue Nummer pro Feature).
 - Endnutzer-orientiert formulieren, Sprache: **Deutsch**.
 
-**2. Beim Build (Sammelversion + Versions-Bump):**
+**2. Beim Release (Sammelversion + Versions-Bump) — auf `develop`, VOR dem Release-PR:**
 - Aus `(Unreleased)` wird die fertige Version: Ueberschrift auf `## 0.XX — <Kurztitel> (YYYY-MM-DD)` setzen (neueste Version zuerst).
 - Versionsnummer: `0.XX` (XX = Prototyp-Nummer, zweistellig). Ab offiziellem Launch: `2.0+` (1.x war die alte Version).
-- Siehe „Versions-Bump — PFLICHT-DOPPELPACK".
+- Siehe „Versions-Bump — PFLICHT-DOPPELPACK" und „Branches und Release".
+
+## Branches und Release
+
+`develop` ist Default-Branch und Sammelstelle fuer alles Fertige. `main` enthaelt nur veroeffentlichte Staende.
+
+- **Neue Arbeit:** Branch immer frisch von `develop` abzweigen, Pull Request nach `develop`.
+- **Auf `main` wird nie direkt committet.** Aenderungen kommen dort nur ueber den Release-PR an.
+- **Release — Reihenfolge IMMER:**
+  1. Auf `develop`: Versions-Bump + Changelog (siehe PFLICHT-DOPPELPACK), committen, pushen.
+  2. Pull Request `develop` → `main` anlegen: `gh pr create --base main --head develop --title "Release 0.XX"`. Tests abwarten.
+  3. Mergen mit **„Create a merge commit"** — NIE „Squash and merge", NIE „Rebase and merge". Sonst verliert Git die Verbindung zwischen `develop` und `main`, und der naechste Release-PR bringt alte Commits doppelt plus Konflikte.
+  4. `main` holen (`git switch main && git pull`), bauen (siehe Build-Regel), Tag setzen: `git tag -a 0.XX -m "Release 0.XX"` und `git push origin 0.XX` (Format wie `0.151`, ohne `v`).
+- **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
+- Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
 
 ## Versions-Bump — PFLICHT-DOPPELPACK
 
@@ -126,6 +140,22 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 - **setFloating(True) kostet ~90ms pro Aufruf (Windows)**: Der erste `setFloating(True)`-Aufruf auf einem QDockWidget, der einen nativen Window-Handle anlegt, kostet auf Windows ~90ms (Fenster-Manager-Overhead). Die Kosten sind einmalig und "wandern" ins naechste Bucket wenn man sie per QTimer deferriert — Gesamtzeit bleibt gleich. Lazy-Docks (Placeholder-Pattern) sollten `setFloating(True)` und `restoreGeometry()` trotzdem per `QTimer.singleShot(0, ...)` nach `show()` verschieben, aber NICHT erwarten, dass damit die Gesamtladezeit sinkt. Die Ursache wurde in P0.62 gruendlich analysiert (4 Test-Runs).
 
 - **StyleSheet haengt `setFont()` aus — Schriftgroesse IMMER per `font-size` im StyleSheet setzen**: Hat ein Widget ein StyleSheet gesetzt (schon ein blosses `color: …` reicht), ignoriert Qt spaetere `setFont()`/`setPixelSize()`-Aufrufe stillschweigend — die Schrift bleibt auf Standardgroesse. Das kostet jedes Mal eine Debug-Schleife. **Regel:** Wenn ein Widget ein StyleSheet hat und die Schriftgroesse dynamisch/berechnet ist, die Groesse ins selbe StyleSheet schreiben (`f"color: {c}; font-size: {px}px;"`), NICHT ueber `setFont()`. `QFontMetrics` zum Ausmessen ist ok — nur das Anwenden muss ueber das StyleSheet laufen. Trat u.a. bei BL-189 auf (dynamischer Header im `SequenceViewWidget`).
+
+## Projektsprache — CONTEXT.md
+
+`CONTEXT.md` liegt im Projektstamm und ist das Glossar der Projektsprache:
+Figuren, Programme, Sequenzen, Songs, Abend-Begriffe — je mit dem gewaehlten
+Begriff und den Varianten, die bewusst vermieden werden (`_Avoid_`).
+
+- **Vor dem Benennen lesen.** Klassen, DB-Felder, UI-Texte, Commit-, Issue- und
+  PR-Titel benutzen den Begriff aus `CONTEXT.md`, nicht eine Variante aus dessen
+  Avoid-Liste. Steht ein Begriff noch nicht drin, ist das ein Signal: entweder
+  gibt es ihn im Projekt gar nicht, oder er fehlt im Glossar.
+- **Neuer oder geschaerfter Begriff → sofort eintragen**, wie beim Changelog:
+  solange er frisch ist, nicht erst vorm Release.
+- **Glossar, kein Pflichtenheft.** Eine bis zwei Saetze je Begriff, keine
+  Implementierungsdetails (keine Tabellen, keine Funktionsnamen, keine Ablaeufe).
+- Die Datei bleibt im Projektstamm — dort suchen die Agenten-Werkzeuge sie.
 
 ## Subdokumente — wann was lesen
 
