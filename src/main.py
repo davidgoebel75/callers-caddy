@@ -25,6 +25,7 @@ import math
 import shutil
 import threading
 import random
+from time import monotonic
 from datetime import date, datetime
 from PySide6.QtWidgets import (
     QApplication,
@@ -37,9 +38,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QDockWidget,
     QCheckBox,
-    QLineEdit,
-    QSpinBox,
-    QDoubleSpinBox,
     QListWidget,
     QTableWidget,
     QComboBox,
@@ -49,8 +47,6 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QAbstractItemView,
     QTextBrowser,
-    QPlainTextEdit,
-    QTextEdit,
     QSizePolicy,
     QProgressDialog,
 )
@@ -205,6 +201,7 @@ class _ZipAnalyzeWorker(QThread):
 # --- Hilfsfunktionen ---
 
 # --- Hilfsfunktionen + UI-Helfer: ausgelagert nach ui_helpers.py (BL-201) ---
+from shortcut_policy import is_text_input, space_should_fire
 from ui_helpers import (
     fmt_time,
     fmt_precise,
@@ -1196,6 +1193,7 @@ class P29MainWindow(QMainWindow):
         # Einzelbuchstaben-Shortcuts (L, P) via Event-Filter
         # QShortcut wird von QTableWidget/QListWidget geschluckt,
         # daher App-weiter Event-Filter der VOR den Widgets greift
+        self._last_typing_ts = 0.0  # letzter Tastendruck in ein Textfeld (intern#101)
         QApplication.instance().installEventFilter(self)
 
         # Songliste + Playlist initial fuellen
@@ -6723,15 +6721,14 @@ class P29MainWindow(QMainWindow):
         for key_str, trigger in _KEY_TRIGGERS_STR.items():
             shortcut = QShortcut(QKeySequence(key_str), self)
             shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+            shortcut.setAutoRepeat(False)  # intern#101: gehaltene Taste feuert einmal
             shortcut.activated.connect(
                 lambda t=trigger: self.rule_engine.fire_trigger(t))
 
         # F13-F24 werden im EventFilter abgefangen (QKeySequence parst diese nicht)
 
-        # Space braucht Text-Input-Guard
-        space = QShortcut(QKeySequence("Space"), self)
-        space.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        space.activated.connect(self._on_key_space)
+        # Space laeuft im eventFilter (intern#101): ein QShortcut verliert gegen
+        # jedes Textfeld, die Leertaste muss bei laufender Musik aber gewinnen.
 
     def _is_text_input_focused(self) -> bool:
         """Prueft, ob ein Widget Fokus hat, in das gerade TEXT getippt wird.
@@ -6743,17 +6740,18 @@ class P29MainWindow(QMainWindow):
         Nicht belegte Tasten fallen weiterhin durch: der eventFilter feuert nur,
         wenn der Trigger registriert ist, sonst bekommt das Widget die Taste.
         """
-        w = QApplication.focusWidget()
-        if isinstance(w, QComboBox):
-            return w.isEditable()
-        return isinstance(w, (
-            QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit,
-        ))
+        return is_text_input(QApplication.focusWidget())
 
-    def _on_key_space(self):
-        """Space: ignorieren wenn Texteingabe aktiv."""
-        if not self._is_text_input_focused():
-            self.rule_engine.fire_trigger("key_space")
+    def _fire_hotkey(self, trigger_name: str, event) -> bool:
+        """Loest den Trigger aus und schluckt die Taste.
+
+        Gehaltene Taste (Auto-Repeat) feuert nur beim ersten Druck, die
+        Wiederholungen werden trotzdem geschluckt — sonst liefen sie ins
+        Fokus-Widget, z.B. als Leerzeichen ins Suchfeld (intern#101).
+        """
+        if not event.isAutoRepeat():
+            self.rule_engine.fire_trigger(trigger_name)
+        return True
 
     def eventFilter(self, obj, event):
         """App-weiter Event-Filter fuer Tasten-Shortcuts (dynamisch aus rule_engine).
@@ -6764,6 +6762,7 @@ class P29MainWindow(QMainWindow):
         Unterstützt alle dynamisch registrierten Tasten-Trigger (key_a, key_b, ..., key_z, key_0, etc.)
 
         Priorität: Text-Input/List-Search > Modal-Dialog > Tasten-Trigger
+        Ausnahme Leertaste bei laufender Musik: siehe shortcut_policy (intern#101).
         """
         # Schutz gegen PySide6/shiboken-Marshalling bei app-weiten Event-Filtern:
         # Qt liefert in bestimmten Layout-Situationen ein QWidgetItem (QLayoutItem,
@@ -6776,16 +6775,36 @@ class P29MainWindow(QMainWindow):
         if isinstance(obj, QComboBox) and opens_combo_popup(event):
             widen_combo_popup(obj)
         if event.type() == QEvent.KeyPress:
+            text_focus = self._is_text_input_focused()
+            modal_open = QApplication.activeModalWidget() is not None
+
             # #70: Escape gibt den Fokus aus einem Textfeld frei -> zurueck in den
             # Hotkey-Modus. Nur wenn wirklich ein Textfeld Fokus hat und KEIN
             # modaler Dialog offen ist (dort schliesst Esc weiter den Dialog).
-            if (event.key() == Qt.Key_Escape
-                    and not QApplication.activeModalWidget()
-                    and self._is_text_input_focused()):
+            if event.key() == Qt.Key_Escape and not modal_open and text_focus:
                 w = QApplication.focusWidget()
                 if w is not None:
                     w.clearFocus()
                     return True
+
+            # intern#101: Leertaste = Safety-Taste fuer Play/Pause. Bei laufender
+            # Musik gewinnt sie gegen Textfelder und Dialoge — nur nicht, solange
+            # jemand gerade tippt (shortcut_policy). Nur ohne Modifier, wie der
+            # fruehere QShortcut("Space").
+            if (event.key() == Qt.Key_Space
+                    and event.modifiers() == Qt.NoModifier
+                    and space_should_fire(
+                        text_input_focused=text_focus,
+                        # Pause zaehlt wie Laufen: Space muss auch wieder starten.
+                        playing=self.engine.is_playing() or self.engine.is_paused(),
+                        modal_open=modal_open,
+                        typing_age_s=monotonic() - self._last_typing_ts)):
+                return self._fire_hotkey("key_space", event)
+            # Jede Taste, die ins Textfeld geht, zaehlt als Tippen — auch Strg+V,
+            # AltGr-Zeichen und Nummernblock. Erst NACH der Leertasten-Entscheidung
+            # setzen, sonst sperrt ein Space-Druck den naechsten.
+            if text_focus:
+                self._last_typing_ts = monotonic()
 
             # #68: Buchstaben-Hotkeys sollen unabhaengig von Gross-/Kleinschreibung
             # feuern — Shift zusaetzlich zu NoModifier zulassen (event.text().lower()
@@ -6799,15 +6818,16 @@ class P29MainWindow(QMainWindow):
                     fn = key_code - Qt.Key_F1 + 1
                     trigger_name = f"key_f{fn}"
                     if trigger_name in self.rule_engine.registry.triggers:
-                        if QApplication.activeModalWidget():
+                        if modal_open:
                             return False
-                        self.rule_engine.fire_trigger(trigger_name)
-                        return True
+                        return self._fire_hotkey(trigger_name, event)
 
-                # Media-/Fn-Tasten (Volume, Media Play usw.)
+                # Media-/Fn-Tasten (Volume, Media Play usw.). Bewusst OHNE
+                # Auto-Repeat-Sperre: Lauter/Leiser gedrueckt halten soll die
+                # Lautstaerke weiter veraendern (intern#101).
                 trigger_name = self._MEDIA_KEY_TRIGGERS.get(key_code)
                 if trigger_name and trigger_name in self.rule_engine.registry.triggers:
-                    if QApplication.activeModalWidget():
+                    if modal_open:
                         return False
                     self.rule_engine.fire_trigger(trigger_name)
                     return True
@@ -6816,12 +6836,9 @@ class P29MainWindow(QMainWindow):
                 key = event.text().lower()
                 trigger_name = f"key_{key}"
                 if trigger_name in self.rule_engine.registry.triggers:
-                    if self._is_text_input_focused():
+                    if text_focus or modal_open:
                         return False
-                    if QApplication.activeModalWidget():
-                        return False
-                    self.rule_engine.fire_trigger(trigger_name)
-                    return True
+                    return self._fire_hotkey(trigger_name, event)
         return super().eventFilter(obj, event)
 
     def _restore_layout(self):
