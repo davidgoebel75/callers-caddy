@@ -8,8 +8,16 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ## (Unreleased — seit 0.159)
 
+### Verbesserungen
+- **Die Mustererkennung für zusammengesetzte Call-Texte wirkt jetzt auch im Sequenz-Editor.** Bisher schlug sie nur im Call-Mapping vor; beim Eintippen einer Sequenz hakte der Doppelklick weiter genau eine Figur an – und nur, wenn der Text noch gar keine Zuordnung hatte. Jetzt hakt der Auswahldialog bei Texten wie „Heads Touch 1/4 & Roll" alle erkannten Figuren vor, auch wenn schon eine unvollständige Zuordnung existiert (die bestehenden Haken bleiben erhalten). Zeilen, bei denen die Erkennung noch fehlende Figuren vorschlägt, sind gelb statt grün markiert – ein Doppelklick lohnt sich dort. Übernommen wird wie bisher erst mit „OK"; Abbrechen ändert nichts.
+
+### Bugfixes
+- **Der Sequenz-Filter reagiert beim Wechsel von Programm, Limit oder „Nur“ wieder ohne Stocken.** Seit 0.159 dauerte die Trefferzählung nach einem Filterwechsel oft rund 140 ms, und beim Programmwechsel während laufender Musik stockte die Oberfläche kurz (die Musik selbst lief weiter). Jetzt kostet ein Wechsel nur noch wenige Millisekunden; einmalig nach dem Start oder nach einer Änderung an den Zuordnungen dauert der erste neue Filter etwas länger. Die gefundenen Sequenzen sind dieselben wie vorher.
+
 ### Technische Notiz
 - **Der Sequenz-Import ist intern aufgeräumt (unsichtbar für den Betrieb).** Das Einlesen der Formate MDB, JSON, CSDS und Freitext liegt jetzt gesammelt an einer Stelle und ist durch automatische Tests abgesichert. Die alten Einzel-Importwege, die seit dem universellen Sequenz-Import nicht mehr im Menü erreichbar waren, wurden entfernt. Am Import selbst ändert sich nichts.
+
+---
 
 ## 0.159 — Playlist-Mehrfachauswahl, Call-Texte mit mehreren Figuren & frei bewegliche Fenster (2026-09-24)
 

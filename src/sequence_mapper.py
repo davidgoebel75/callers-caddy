@@ -351,6 +351,24 @@ def _raw_exact_match(text: str, exact_lookup: dict,
     return None
 
 
+def figure_set_lookups(to_calls, figure_sets: dict) -> tuple:
+    """(exact_lookup, rest_lookup) fuer suggest_figure_set() -- EINE Stelle
+    fuer Call-Mapping-Dialog und Sequenz-Editor (BL-210.12).
+
+    to_calls: get_teaching_order_calls(), aufsteigend nach Teaching Order --
+    setdefault behaelt je Name die niedrigste Variante. figure_sets:
+    get_all_call_text_figures(). rest_lookup nimmt nur EINDEUTIGE
+    Zuordnungen und wird NIE in exact_lookup gemischt (sonst waere jeder
+    gemappte Text ein Volltreffer und bekaeme keinen Vorschlag mehr).
+    """
+    exact_lookup = {}
+    for eid, cname, _to, _prog in to_calls:
+        exact_lookup.setdefault(canon_key(cname), eid)
+    rest_lookup = {canon_key(t): f[0]
+                   for t, f in figure_sets.items() if len(f) == 1}
+    return exact_lookup, rest_lookup
+
+
 def suggest_figure_set(raw_text: str, exact_lookup: dict,
                         rest_lookup: Optional[dict] = None) -> tuple:
     """Schlaegt eine Figuren-Menge fuer einen Call-Text vor, der erkennbar
