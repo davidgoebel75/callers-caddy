@@ -2180,6 +2180,11 @@
     "en": "Jump Markers",
     "ja": "ジャンプマーカー"
   },
+  "jumpmarkers_dblclick_hint": {
+    "de": "Doppelklick: dort abspielen",
+    "en": "Double-click: play from here",
+    "ja": "ダブルクリック: ここから再生"
+  },
   "jumpmarkers_empty": {
     "de": "Kein Song geladen.\nSprungziele erscheinen hier, sobald ein Song geladen ist.",
     "en": "No song loaded.\nJump targets appear here once a song is loaded.",

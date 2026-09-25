@@ -1326,6 +1326,7 @@ class P29MainWindow(QMainWindow):
             self.engine, self.db,
             skin_mgr=self.skin_mgr,
             jump_callback=self._jump_to_time,
+            play_callback=self._jump_and_play,
             song_provider=lambda: self._current_song,
             perf_start=perf_start, perf_log=perf_log,
         )
@@ -5334,6 +5335,28 @@ class P29MainWindow(QMainWindow):
             self.engine.seek_with_crossfade(target, xfade_ms)
         else:
             self.engine.seek(target)
+
+    def _jump_and_play(self, time_seconds: float):
+        """Doppelklick auf einen Sprung-Button (intern#100): hinspringen und
+        abspielen. Laeuft der Song schon, nichts tun: Der erste Klick des
+        Doppelklicks ist bereits gesprungen, ein zweiter Sprung wuerde das
+        Stueck nach dem Marker doppelt spielen (und _on_play() von vorne
+        starten). Gestoppt/pausiert: normaler Play-Weg (Rules,
+        Spieldauer-Timer wie beim Play-Button bzw. Resume)."""
+        eng = self.player.engine
+        if eng.is_playing():
+            return
+        if eng.is_loaded() and not eng.is_paused():
+            # Start aus dem Stopp: play() verwirft die ersten Samples als
+            # Warmup -> um genau diese Strecke frueher ansetzen, damit der
+            # Marker selbst als Erstes zu hoeren ist.
+            self._jump_to_time(
+                max(0.0, time_seconds - eng.play_warmup_song_seconds()))
+            self.player._on_play()
+            return
+        self._jump_to_time(time_seconds)
+        if eng.is_loaded() and not eng.is_playing():
+            self.player._on_play()
 
     def _add_custom_marker(self):
         """Set-Marker-Button: legt an der aktuellen Abspielposition einen Marker an.

@@ -202,6 +202,11 @@ WSOLA_WINDOW_SIZE = 8192
 LOOP_XFADE_FRAMES = 2048     # Default ~46ms bei 44100 Hz — PCM-Crossfade am Loop-Uebergang
 PREPROCESS_OUTPUT_SECONDS = 1.0   # Fix B (AR-020): 0.25 → 1.0 — groessere Output-Polster-Reserve,
                                   # damit Lock-Hold-Spitzen den 11ms-WDM-KS-Hardware-Buffer nicht mehr trifft.
+# WSOLA-Warmup beim Start aus dem Stopp (play()): so viel Output wird
+# verarbeitet und verworfen (Stille), bis die Overlap-Add-Fenster eingeschwungen
+# sind. intern#100: als Konstante, damit "an Marker springen und abspielen" um
+# genau diese Strecke frueher ansetzen kann.
+PLAY_WARMUP_SECONDS = 0.2
 
 # --- Anti-Ruckler-Schalter (siehe docs/anti_ruckler_backlog.md) -------------
 MMCSS_ENABLED = True   # AR-009: Feeder-Thread auf MMCSS "Pro Audio" hochstufen
@@ -795,10 +800,18 @@ class AudioEngine:
             return 0
         # Ab Post-Stretcher-Pitch-Architektur (2026-06-03): Stretcher-Input
         # ist Original-Audio, daher KEIN ratio-Faktor mehr auf `buffered`.
-        # (Output-Buffer im Stretcher + Pitcher-Carry sind klein gegen den
-        # 5-Sekunden-Input-Puffer; vernachlaessigt fuer die Slider-Anzeige.)
+        # intern#100: Der vorberechnete Output-Buffer (PREPROCESS_OUTPUT_SECONDS,
+        # seit AR-020 1 s) ist schon aus dem Input verschwunden, aber noch nicht
+        # zu hoeren -- ohne Abzug lief die Position ~1 s vor dem Ton (Anzeige,
+        # Loop-In/-Out setzen). Output-Frames x Stretcher-Tempo = Original-Frames;
+        # Pitcher-Carry analog (x pitch_ratio x Stretcher-Tempo = User-Tempo).
+        # Nur Lesezugriffe ohne Lock, wie input_available().
         buffered = max(0, self.stretcher.input_available())
-        pos = max(0, self._feed_pos - buffered)
+        buffered += self.stretcher.output_available() * self.stretcher.tempo
+        if self.pitcher:
+            buffered += (len(self.pitcher._out_carry)
+                         * self._user_tempo * self._today_tempo)
+        pos = max(0, self._feed_pos - int(buffered))
         # Nach Loop-Wrap kann _feed_pos nahe loop_in sein waehrend
         # der Buffer noch altes Audio enthaelt → pos klemmen.
         # NUR wenn Feed bereits im Loop-Bereich ist (nicht bei Pattern-Start
@@ -1488,7 +1501,7 @@ class AudioEngine:
             self.stretcher.preprocess(target)
         # WSOLA-Warmup: ~200ms verarbeiten und verwerfen, damit
         # die Overlap-Add-Fenster sauber eingeschwungen sind
-        self._warmup_frames = int(0.2 * self.sample_rate)
+        self._warmup_frames = int(PLAY_WARMUP_SECONDS * self.sample_rate)
         self.playing = True
         self.paused = False
         # Stream wiederverwenden statt jedes Mal neu erstellen
@@ -1631,6 +1644,11 @@ class AudioEngine:
         if self.stretcher and self.sample_rate:
             return self._estimate_playback_pos() / self.sample_rate
         return 0.0
+
+    def play_warmup_song_seconds(self) -> float:
+        """Song-Sekunden, die play() beim Start aus dem Stopp als Warmup
+        verwirft (Output-Frames x User-/Heute-Tempo = Original-Zeit)."""
+        return PLAY_WARMUP_SECONDS * self._user_tempo * self._today_tempo
 
     def get_playback_position_seconds(self):
         """Praezise Wiedergabe-Position basierend auf dem Sample-Counter.

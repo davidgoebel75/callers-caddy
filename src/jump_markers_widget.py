@@ -4,7 +4,8 @@ Jump-Markers-Widget fuer Callers Caddy (BL-185, Teil 2).
 Zeigt die Sprungziele des aktuellen Songs als gleichmaessig verteilte Buttons
 mit dynamischem Zeilenumbruch (aehnlich dem Stream Deck). Immer dabei:
 Start, Loop Start, Loop End, End. Dazu die vom Nutzer gesetzten Custom-Marker
-(nach Zeit sortiert). Ein Klick springt an die jeweilige Position.
+(nach Zeit sortiert). Ein Klick springt an die jeweilige Position, ein
+Doppelklick springt und startet die Wiedergabe (intern#100).
 
 Datenquellen:
 - Engine: loop_in_seconds / loop_out_seconds / get_original_duration()
@@ -17,6 +18,22 @@ from PySide6.QtCore import Qt
 
 from i18n import _t
 from button_grid import compute_cells
+
+
+class _JumpButton(QPushButton):
+    """Sprung-Button: Klick wie QPushButton, Doppelklick ruft on_double."""
+
+    def __init__(self, text, on_double, parent=None):
+        super().__init__(text, parent)
+        self._on_double = on_double
+
+    def mouseDoubleClickEvent(self, event):
+        # Der erste Klick des Doppelklicks hat schon gesprungen (clicked).
+        if event.button() == Qt.LeftButton and self._on_double:
+            self._on_double()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
 
 def _fmt_time(s: float) -> str:
@@ -43,13 +60,14 @@ class JumpMarkersWidget(QWidget):
     _MAX_H = 54       # Maximale Button-Hoehe (verhindert riesige Buttons bei wenigen)
 
     def __init__(self, engine, db, skin_mgr=None, jump_callback=None,
-                 song_provider=None, parent=None,
+                 song_provider=None, parent=None, play_callback=None,
                  perf_start=None, perf_log=None):
         super().__init__(parent)
         self._engine = engine
         self._db = db
         self._skin_mgr = skin_mgr
         self._jump_callback = jump_callback      # fn(time_seconds)
+        self._play_callback = play_callback      # fn(time_seconds), Doppelklick
         self._song_provider = song_provider      # fn() -> Song|None
         # Perf-Instrumentierung per Callback hereingereicht (kein Zirkelimport von
         # main.py). No-ops, wenn nicht gesetzt oder Performance-Log deaktiviert.
@@ -120,7 +138,17 @@ class JumpMarkersWidget(QWidget):
         except Exception:
             pass
 
-        return [(label, t, f"{label} — {_fmt_precise(t)}") for label, t in targets]
+        return [(label, t, self._tooltip(label, t)) for label, t in targets]
+
+    @staticmethod
+    def _tooltip(label: str, t: float) -> str:
+        """intern#100: 'Label · mm:ss.cs', nur 'mm:ss.cs', wenn das Label bloss die
+        gerundete Zeit ist (ungelabelt oder Vorbelegung aus 'Marker setzen').
+        Frueher 'mm:ss — mm:ss.cs', das wie eine Zeitspanne aussah."""
+        precise = _fmt_precise(t)
+        if label.strip() in ("", _fmt_time(t)):
+            return precise
+        return f"{label} · {precise}"
 
     def refresh(self):
         """Sprungziele neu einlesen und Buttons aufbauen."""
@@ -132,10 +160,11 @@ class JumpMarkersWidget(QWidget):
         self.setStyleSheet(self._button_stylesheet())
 
         for label, t, tooltip in self._collect_targets():
-            btn = QPushButton(label, self)
+            btn = _JumpButton(
+                label, lambda tt=t: self._on_double_clicked(tt), self)
             btn.setObjectName("jumpBtn")
             btn.setFocusPolicy(Qt.NoFocus)
-            btn.setToolTip(tooltip)
+            btn.setToolTip(f"{tooltip}\n{_t('jumpmarkers_dblclick_hint')}")
             btn.clicked.connect(
                 lambda checked=False, tt=t: self._on_clicked(tt))
             btn.show()
@@ -148,6 +177,10 @@ class JumpMarkersWidget(QWidget):
     def _on_clicked(self, time_seconds: float):
         if self._jump_callback:
             self._jump_callback(time_seconds)
+
+    def _on_double_clicked(self, time_seconds: float):
+        if self._play_callback:
+            self._play_callback(time_seconds)
 
     # --- Layout ---
 
