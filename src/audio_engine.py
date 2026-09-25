@@ -795,10 +795,18 @@ class AudioEngine:
             return 0
         # Ab Post-Stretcher-Pitch-Architektur (2026-06-03): Stretcher-Input
         # ist Original-Audio, daher KEIN ratio-Faktor mehr auf `buffered`.
-        # (Output-Buffer im Stretcher + Pitcher-Carry sind klein gegen den
-        # 5-Sekunden-Input-Puffer; vernachlaessigt fuer die Slider-Anzeige.)
+        # intern#100: Der vorberechnete Output-Buffer (PREPROCESS_OUTPUT_SECONDS,
+        # seit AR-020 1 s) ist schon aus dem Input verschwunden, aber noch nicht
+        # zu hoeren -- ohne Abzug lief die Position ~1 s vor dem Ton (Anzeige,
+        # Loop-In/-Out setzen). Output-Frames x Stretcher-Tempo = Original-Frames;
+        # Pitcher-Carry analog (x pitch_ratio x Stretcher-Tempo = User-Tempo).
+        # Nur Lesezugriffe ohne Lock, wie input_available().
         buffered = max(0, self.stretcher.input_available())
-        pos = max(0, self._feed_pos - buffered)
+        buffered += self.stretcher.output_available() * self.stretcher.tempo
+        if self.pitcher:
+            buffered += (len(self.pitcher._out_carry)
+                         * self._user_tempo * self._today_tempo)
+        pos = max(0, self._feed_pos - int(buffered))
         # Nach Loop-Wrap kann _feed_pos nahe loop_in sein waehrend
         # der Buffer noch altes Audio enthaelt → pos klemmen.
         # NUR wenn Feed bereits im Loop-Bereich ist (nicht bei Pattern-Start

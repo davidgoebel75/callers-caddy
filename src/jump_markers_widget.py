@@ -120,7 +120,17 @@ class JumpMarkersWidget(QWidget):
         except Exception:
             pass
 
-        return [(label, t, f"{label} — {_fmt_precise(t)}") for label, t in targets]
+        return [(label, t, self._tooltip(label, t)) for label, t in targets]
+
+    @staticmethod
+    def _tooltip(label: str, t: float) -> str:
+        """intern#100: 'Label · mm:ss.cs', nur 'mm:ss.cs', wenn das Label bloss die
+        gerundete Zeit ist (ungelabelt oder Vorbelegung aus 'Marker setzen').
+        Frueher 'mm:ss — mm:ss.cs', das wie eine Zeitspanne aussah."""
+        precise = _fmt_precise(t)
+        if label.strip() in ("", _fmt_time(t)):
+            return precise
+        return f"{label} · {precise}"
 
     def refresh(self):
         """Sprungziele neu einlesen und Buttons aufbauen."""
