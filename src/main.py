@@ -4721,13 +4721,12 @@ class P29MainWindow(QMainWindow):
         """Oeffnet den Fuellen-Dialog des To-Call-Widgets (BL-199)."""
         from to_call_widget import ToCallFillDialog
         progs = self.db.get_all_dance_programs()
-        # Aktives Programm als Default: erstes der Session-Programm-Wahl
+        # Vorauswahl: hoechstes der gewaehlten Tanzprogramme (dieselbe Regel wie
+        # der Programm-Button im Player) -- trifft den Normalfall am Clubabend.
         label_by_id = {r[0]: (r[2] or r[1]) for r in progs}
-        active_label = ""
-        for pid in getattr(self, '_session_program_ids', []) or []:
-            if pid in label_by_id:
-                active_label = label_by_id[pid]
-                break
+        top_id, _code = self._top_program(
+            getattr(self, '_session_program_ids', []) or [])
+        active_label = label_by_id.get(top_id, "")
         if not active_label and progs:
             active_label = progs[0][2] or progs[0][1]
 

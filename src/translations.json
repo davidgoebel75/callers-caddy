@@ -2225,6 +2225,11 @@
     "en": "No calls yet.\nUse \"Fill\" to pick a dance program.",
     "ja": "コールがありません。\n「追加」でダンスプログラムを選択してください。"
   },
+  "tocall_done_bar": {
+    "de": "{count} erledigt",
+    "en": "{count} done",
+    "ja": "完了 {count} 件"
+  },
   "tocall_fill_title": {
     "de": "Calls füllen",
     "en": "Fill calls",
