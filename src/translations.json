@@ -2901,9 +2901,9 @@
     "ja": "ヘッダー"
   },
   "seq_editor_lines_hint": {
-    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer). Doppelklick auf eine Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
-    "en": "One call per line. Green lines are recognized (mapped or exact match). Double-click a line to edit its assignment. Maximum 15 calls per sequence.",
-    "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）です。行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
+    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer), gelbe haben einen Vorschlag mit noch fehlenden Figuren. Doppelklick auf eine Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
+    "en": "One call per line. Green lines are recognized (mapped or exact match), yellow lines have a suggestion with figures still missing. Double-click a line to edit its assignment. Maximum 15 calls per sequence.",
+    "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）、黄色の行にはまだ割り当てられていないフィギュアの提案があります。行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
   },
   "seq_editor_type_required": {
     "de": "Bitte einen Sequenz-Typ angeben (Pflichtfeld).",
