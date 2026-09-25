@@ -25,6 +25,19 @@ def distribute(n: int, rows: int) -> list:
     return [base + 1 if i < rem else base for i in range(rows)]
 
 
+def min_matrix_height(n: int, avail_w: int, *, margin: int = 8, gap: int = 6,
+                      min_w: int = 78, min_h: int = 30) -> int:
+    """Hoehe (inkl. Rand), die n Kacheln mindestens brauchen: maximal viele
+    Spalten, jede Kachel auf min_h. Passt die Flaeche nicht, muss der
+    Aufrufer scrollen (intern#114)."""
+    if n <= 0:
+        return 0
+    inner_w = max(1, avail_w - 2 * margin)
+    cols = min(n, max(1, int((inner_w + gap) // (min_w + gap))))
+    rows = math.ceil(n / cols)
+    return rows * min_h + (rows - 1) * gap + 2 * margin
+
+
 def compute_cells(n: int, avail_w: int, avail_h: int, *,
                   margin: int = 8, gap: int = 6,
                   min_w: int = 78, min_h: int = 30, max_h: int = 54,
@@ -60,9 +73,14 @@ def compute_cells(n: int, avail_w: int, avail_h: int, *,
     def _cell_h(rows):
         return (inner_h - (rows - 1) * gap) / rows
 
+    cols_max = max(1, int((inner_w + gap) // (min_w + gap)))
+
     if target_ratio and target_ratio > 0:
         # Spaltenzahl so waehlen, dass Breite:Hoehe dem Zielverhaeltnis am
         # naechsten kommt (Gleichstand -> weniger leere Zellen, dann groesser).
+        # Nur Spaltenzahlen, bei denen die Kacheln min_h erreichen -- sonst
+        # wuerde die Hoehe unten geklemmt und die Matrix liefe ueber avail_h
+        # hinaus, obwohl mehr Spalten gepasst haetten (intern#114).
         best = None
         for c in range(1, n + 1):
             r = math.ceil(n / c)
@@ -70,18 +88,24 @@ def compute_cells(n: int, avail_w: int, avail_h: int, *,
             if cw < min_w and c > 1:
                 continue
             ch = _cell_h(r)
-            if ch <= 0:
+            if ch < min_h:
                 continue
             score = (abs(cw / ch - target_ratio), c * r - n, -cw)
             if best is None or score < best[0]:
                 best = (score, c, r, cw, ch)
+        if best is None:
+            # Passt bei keiner Spaltenzahl: maximal viele Spalten, Kacheln auf
+            # min_h. Die Matrix wird dann hoeher als avail_h, der Aufrufer
+            # scrollt (frueher: TypeError beim Entpacken von None).
+            cols = min(n, cols_max)
+            rows = math.ceil(n / cols)
+            best = (None, cols, rows, _cell_w(cols), _cell_h(rows))
         _, cols, rows, cw, ch = best
         # Hoehe auf breite/ratio deckeln -> Kacheln bleiben "quer" (>= Ratio).
         btn_h = int(max(min_h, min(max_h, ch, cw / target_ratio)))
     else:
         # So viele Spalten wie moeglich (Kacheln bis Mindestbreite schmaler) ->
         # minimale Zeilenzahl.
-        cols_max = max(1, int((inner_w + gap) // (min_w + gap)))
         cols = min(n, cols_max)
         rows = math.ceil(n / cols)
         btn_h = int(max(min_h, min(max_h, _cell_h(rows))))

@@ -13,6 +13,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Der Sequenz-Filter reagiert beim Wechsel von Programm, Limit oder „Nur“ wieder ohne Stocken.** Seit 0.159 dauerte die Trefferzählung nach einem Filterwechsel oft rund 140 ms, und beim Programmwechsel während laufender Musik stockte die Oberfläche kurz (die Musik selbst lief weiter). Jetzt kostet ein Wechsel nur noch wenige Millisekunden; einmalig nach dem Start oder nach einer Änderung an den Zuordnungen dauert der erste neue Filter etwas länger. Die gefundenen Sequenzen sind dieselben wie vorher.
+- **Im To-Call-Fenster überlappen sich die Kacheln bei vielen Calls nicht mehr.** War das Fenster zu klein für alle Calls, schoben sich die offenen Kacheln über die erledigten oder wurden unten abgeschnitten. Jetzt klappen die erledigten Calls bei Platzmangel automatisch zu einer Leiste „36 erledigt ▸“ ein; ein Klick darauf klappt sie auf und wieder zu. Reicht der Platz auch dann nicht, bekommt das Fenster eine Scrollleiste. Bei sehr wenig Höhe konnte das Fenster außerdem ganz aufhören, sich neu anzuordnen – auch das ist behoben.
 
 ### Technische Notiz
 - **Der Sequenz-Import ist intern aufgeräumt (unsichtbar für den Betrieb).** Das Einlesen der Formate MDB, JSON, CSDS und Freitext liegt jetzt gesammelt an einer Stelle und ist durch automatische Tests abgesichert. Die alten Einzel-Importwege, die seit dem universellen Sequenz-Import nicht mehr im Menü erreichbar waren, wurden entfernt. Am Import selbst ändert sich nichts.
