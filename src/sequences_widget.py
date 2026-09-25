@@ -29,6 +29,7 @@ from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
 from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
                              suggest_figure_set)
+from sequence_filter import filter_query_args
 
 
 class _ComboClickToOpen(QObject):
@@ -799,38 +800,6 @@ class SequencesWidget(QWidget):
             return None
         return self._combo_limit.itemData(idx, Qt.UserRole)
 
-    def _get_min_to_filter(self):
-        """Gibt die Untergrenze fuer den "Nur"-Filter zurueck (oder None).
-
-        Aktiv nur wenn die Checkbox gesetzt UND ein Limit gewaehlt ist.
-        Untergrenze = Programm-Start des Limit-Calls (Ganzzahlteil der
-        Teaching Order, z.B. 50.0 bei einem A1-Limit) — d.h. der hoechste
-        Call der Sequenz muss im Programm des Limits liegen.
-        """
-        if not self._check_only_program.isChecked():
-            return None
-        limit = self._get_limit_filter()
-        if limit is None:
-            return None
-        return float(int(limit))
-
-    def _get_bands_below(self):
-        """MS50: Bei aktivem "Nur"-Filter die Baender UNTER dem obersten der
-        gewaehlten Programme. Der Filter zeigt dann nur Sequenzen, die das oberste
-        Band wirklich brauchen (nicht mit den tieferen tanzbar).
-
-        Rueckgabe None, wenn "Nur" aus ist oder nur ein Band gewaehlt ist
-        (dann gibt es nichts "darunter").
-        """
-        bands = self._program_bands
-        if not bands or not self._check_only_program.isChecked():
-            return None
-        if len(bands) < 2:
-            return None
-        top = max(bands)
-        below = set(bands) - {top}
-        return below or None
-
     def _get_type_filter(self):
         """Gibt den Type-Filter-Text zurueck (oder None)."""
         idx = self._combo_type.currentIndex()
@@ -1040,38 +1009,18 @@ class SequencesWidget(QWidget):
             self.on_open_detail(seq_ids, target_idx)
 
     def _current_filter_args(self) -> dict:
-        """MS50: Zentrale Ableitung ALLER Filter-Parameter fuer die Sequenz-Abfragen
-        (Tabelle, Zaehler, Detail-IDs) — eine Quelle, damit die Pfade nicht
-        auseinanderlaufen. Im Baender-Modus begrenzt der Limit-Filter die effektive
-        Band-Menge (_effective_bands) und "Only" laeuft ueber bands_below; ohne
-        Programmwahl gilt der Legacy-max_to/min_to-Pfad."""
-        args = dict(
-            entity_id_filter=self._get_contains_filter(),
-            type_filter=self._get_type_filter(),
-            difficulty_filter=self._get_difficulty_filter(),
-            tags_filter=self._get_tags_filter(),
+        """MS50: Filter-Parameter fuer ALLE Sequenz-Abfragen (Tabelle, Zaehler,
+        Detail-IDs) — eine Quelle, damit die Pfade nicht auseinanderlaufen.
+        Die Regel selbst steht in sequence_filter.filter_query_args."""
+        return filter_query_args(
+            contains=self._get_contains_filter(),
+            limit=self._get_limit_filter(),
+            only=self._check_only_program.isChecked(),
+            seq_type=self._get_type_filter(),
+            difficulty=self._get_difficulty_filter(),
+            tags=self._get_tags_filter(),
+            bands=self._program_bands,
         )
-        if self._program_bands:
-            # Limit wirkt als FEINE Teaching-Order-Obergrenze (cover_max_to) INNERHALB
-            # der gewaehlten Baender — nicht als Band-Reduktion. So schliesst "Limit =
-            # Spin Chain Thru" die spaeter gelehrten Figuren desselben Bandes (Recycle)
-            # korrekt aus.
-            args.update(
-                max_to_filter=None,
-                min_to_filter=None,
-                bands_filter=self._program_bands,
-                bands_below_filter=self._get_bands_below(),
-                cover_max_to=self._get_limit_filter(),
-            )
-        else:
-            args.update(
-                max_to_filter=self._get_limit_filter(),
-                min_to_filter=self._get_min_to_filter(),
-                bands_filter=None,
-                bands_below_filter=None,
-                cover_max_to=None,
-            )
-        return args
 
     # ---- Daten laden ----
 
