@@ -1285,16 +1285,6 @@
     "en": "Result:\n  Unique call texts: {total}\n  Mapped: {mapped}\n  Unmapped: {unmapped}\n  Of which auto: {auto}, manual: {manual}",
     "ja": "結果:\n  固有の Call テキスト: {total}\n  マッピング済み: {mapped}\n  未マッピング: {unmapped}\n  うち自動: {auto}、手動: {manual}"
   },
-  "import_done_title": {
-    "de": "Import abgeschlossen",
-    "en": "Import complete",
-    "ja": "インポート完了"
-  },
-  "import_done_msg": {
-    "de": "Sequenzen importiert: {count}\n\nHinweis: Fuehre tools/map_sequence_calls.py aus,\num die Teaching-Order-Zuordnung zu erstellen.",
-    "en": "Sequences imported: {count}\n\nNote: Run tools/map_sequence_calls.py\nto create the teaching order assignments.",
-    "ja": "インポートしたシーケンス: {count}\n\n注意: tools/map_sequence_calls.py を実行して\nTeaching Order の割り当てを作成してください。"
-  },
   "btn_auto_scroll": {
     "de": "Auto-Scroll",
     "en": "Auto-Scroll",
@@ -2880,11 +2870,6 @@
     "en": "Sequence editor...",
     "ja": "シーケンスエディタ..."
   },
-  "menu_import_sequences": {
-    "de": "Sequenzen importieren (MDB)...",
-    "en": "Import sequences (MDB)...",
-    "ja": "シーケンスをインポート (MDB)..."
-  },
   "seq_editor_title": {
     "de": "Sequenz-Editor",
     "en": "Sequence Editor",
@@ -2901,9 +2886,9 @@
     "ja": "ヘッダー"
   },
   "seq_editor_lines_hint": {
-    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer). Doppelklick auf eine Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
-    "en": "One call per line. Green lines are recognized (mapped or exact match). Double-click a line to edit its assignment. Maximum 15 calls per sequence.",
-    "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）です。行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
+    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer), gelbe haben einen Vorschlag mit noch fehlenden Figuren. Doppelklick auf eine Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
+    "en": "One call per line. Green lines are recognized (mapped or exact match), yellow lines have a suggestion with figures still missing. Double-click a line to edit its assignment. Maximum 15 calls per sequence.",
+    "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）、黄色の行にはまだ割り当てられていないフィギュアの提案があります。行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
   },
   "seq_editor_type_required": {
     "de": "Bitte einen Sequenz-Typ angeben (Pflichtfeld).",
@@ -3315,46 +3300,6 @@
     "en": "All call texts are already mapped.",
     "ja": "すべての Call テキストはすでにマッピング済みです。"
   },
-  "menu_import_sequences_json": {
-    "de": "Sequenzen importieren (JSON)...",
-    "en": "Import sequences (JSON)...",
-    "ja": "シーケンスをインポート (JSON)..."
-  },
-  "menu_import_sequences_csds": {
-    "de": "Sequenzen importieren (CSDS)...",
-    "en": "Import sequences (CSDS)...",
-    "ja": "シーケンスをインポート (CSDS)..."
-  },
-  "dialog_csds_select": {
-    "de": "CSDS-Dateien waehlen",
-    "en": "Select CSDS files",
-    "ja": "CSDS ファイルを選択"
-  },
-  "filter_csds": {
-    "de": "CSDS-Dateien (*.in *.csds *.txt);;Alle Dateien (*.*)",
-    "en": "CSDS files (*.in *.csds *.txt);;All files (*.*)",
-    "ja": "CSDS ファイル (*.in *.csds *.txt);;すべてのファイル (*.*)"
-  },
-  "import_csds_title": {
-    "de": "CSDS-Import",
-    "en": "CSDS Import",
-    "ja": "CSDS インポート"
-  },
-  "import_csds_empty": {
-    "de": "Keine gueltigen Sequenzen in den gewaehlten Dateien gefunden.",
-    "en": "No valid sequences found in the selected files.",
-    "ja": "選択したファイルに有効なシーケンスが見つかりませんでした。"
-  },
-  "import_csds_done": {
-    "de": "{inserted} Sequenzen importiert, {skipped} uebersprungen.",
-    "en": "{inserted} sequences imported, {skipped} skipped.",
-    "ja": "{inserted} シーケンスをインポート、{skipped} スキップしました。"
-  },
-  "menu_import_sequences_freetext": {
-    "de": "Sequenzen importieren (Freitext)...",
-    "en": "Import sequences (free text)...",
-    "ja": "シーケンスをインポート（フリーテキスト）..."
-  },
   "menu_import_sequences_universal": {
     "de": "Sequenzen importieren...",
     "en": "Import sequences...",
@@ -3520,85 +3465,10 @@
     "en": "The {count} selected sequences will be permanently deleted. Continue?",
     "ja": "選択した {count} 件のシーケンスが完全に削除されます。続行しますか？"
   },
-  "dialog_freetext_select": {
-    "de": "Freitext-Datei waehlen",
-    "en": "Select free-text file",
-    "ja": "フリーテキストファイルを選択"
-  },
-  "filter_freetext": {
-    "de": "Textdateien (*.txt *.md);;Alle Dateien (*.*)",
-    "en": "Text files (*.txt *.md);;All files (*.*)",
-    "ja": "テキストファイル (*.txt *.md);;すべてのファイル (*.*)"
-  },
-  "freetext_import_title": {
-    "de": "Sequenzen aus Freitext importieren",
-    "en": "Import sequences from free text",
-    "ja": "フリーテキストからシーケンスをインポート"
-  },
-  "freetext_import_file": {
-    "de": "Datei:",
-    "en": "File:",
-    "ja": "ファイル:"
-  },
-  "freetext_import_preview": {
-    "de": "Vorschau:",
-    "en": "Preview:",
-    "ja": "プレビュー:"
-  },
-  "freetext_import_status": {
-    "de": "{count} Sequenz(en) erkannt.",
-    "en": "{count} sequence(s) detected.",
-    "ja": "{count} シーケンスを検出しました。"
-  },
-  "freetext_import_status_empty": {
-    "de": "Keine Sequenz erkannt. Bitte Datei waehlen.",
-    "en": "No sequences detected. Please select a file.",
-    "ja": "シーケンスが検出されませんでした。ファイルを選択してください。"
-  },
-  "freetext_import_status_truncated": {
-    "de": "{count} Sequenz(en) wurden auf {max} Calls gekuerzt.",
-    "en": "{count} sequence(s) were truncated to {max} calls.",
-    "ja": "{count} シーケンスが {max} Calls に切り詰められました。"
-  },
-  "freetext_import_read_error": {
-    "de": "Datei konnte nicht gelesen werden:\n{error}",
-    "en": "Could not read file:\n{error}",
-    "ja": "ファイルを読み込めませんでした:\n{error}"
-  },
-  "freetext_import_done": {
-    "de": "{inserted} Sequenzen importiert, {skipped} uebersprungen.",
-    "en": "{inserted} sequences imported, {skipped} skipped.",
-    "ja": "{inserted} シーケンスをインポート、{skipped} スキップしました。"
-  },
   "btn_import": {
     "de": "Importieren",
     "en": "Import",
     "ja": "インポート"
-  },
-  "dialog_json_select": {
-    "de": "JSON-Dateien waehlen",
-    "en": "Select JSON files",
-    "ja": "JSON ファイルを選択"
-  },
-  "filter_json": {
-    "de": "JSON-Dateien (*.json);;Alle Dateien (*.*)",
-    "en": "JSON files (*.json);;All files (*.*)",
-    "ja": "JSON ファイル (*.json);;すべてのファイル (*.*)"
-  },
-  "import_json_title": {
-    "de": "JSON-Import",
-    "en": "JSON Import",
-    "ja": "JSON インポート"
-  },
-  "import_json_empty": {
-    "de": "Keine gueltigen Sequenzen in den gewaehlten Dateien gefunden.",
-    "en": "No valid sequences found in the selected files.",
-    "ja": "選択したファイルに有効なシーケンスが見つかりませんでした。"
-  },
-  "import_json_done": {
-    "de": "{inserted} Sequenzen importiert, {skipped} uebersprungen.",
-    "en": "{inserted} sequences imported, {skipped} skipped.",
-    "ja": "{inserted} シーケンスをインポート、{skipped} スキップしました。"
   },
   "menu_location": {
     "de": "Lokation",
@@ -3814,26 +3684,6 @@
     "de": "Layout-Dateien (*.ini);;Alle Dateien (*)",
     "en": "Layout files (*.ini);;All files (*)",
     "ja": "レイアウトファイル (*.ini);;すべてのファイル (*)"
-  },
-  "import_sequences_title": {
-    "de": "Sequenzen importieren",
-    "en": "Import sequences",
-    "ja": "シーケンスをインポート"
-  },
-  "import_sequences_exists": {
-    "de": "Es sind bereits {count} Sequenzen vorhanden.\n\nTrotzdem importieren? (Duplikate moeglich)",
-    "en": "There are already {count} sequences.\n\nImport anyway? (duplicates possible)",
-    "ja": "すでに {count} 件のシーケンスがあります。\n\nそれでもインポートしますか？（重複の可能性あり）"
-  },
-  "dialog_mdb_select": {
-    "de": "Access-Datenbank waehlen",
-    "en": "Select Access database",
-    "ja": "Access データベースを選択"
-  },
-  "filter_mdb": {
-    "de": "Access-Datenbank (*.mdb);;Alle Dateien (*.*)",
-    "en": "Access database (*.mdb);;All files (*.*)",
-    "ja": "Access データベース (*.mdb);;すべてのファイル (*.*)"
   },
   "language_restart_title": {
     "de": "Sprache geaendert",

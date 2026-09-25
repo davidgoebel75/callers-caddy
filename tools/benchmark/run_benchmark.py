@@ -25,6 +25,7 @@ Doku/Design: siehe Issue davidgoebel75/callers-caddy-intern#72.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import os
 import platform
@@ -114,7 +115,8 @@ def _clone_settings_ini(source_ini: Path, sandbox: Path, source_dir: Path,
     # und defaulten dann relativ zum (leeren) Sandbox-cwd. Damit Lyrics-Dateien
     # (fuer Dynamic-Lyrics) und Playlists gefunden werden, auf die echten
     # Quellordner zeigen, sofern sie existieren.
-    for key, default in (("import_dir", "neu"), ("lyrics_dir", "lyrics"),
+    for key, default in (("music_dir_1", "music"),
+                         ("import_dir", "neu"), ("lyrics_dir", "lyrics"),
                          ("playlist_dir", "playlists")):
         ini_key = f"paths/{key}"
         if not s.contains(ini_key):
@@ -423,9 +425,46 @@ def _lyrics_dynamic(bench: Bench, out: list):
                 "meta": {"aktiviert": bool(getattr(lw, "_dynamic_enabled", False))}})
 
 
-def run_interactive(bench: Bench) -> list[dict]:
-    """Schritte 2-8 + Singing-Block (ein Durchlauf). Gibt rohe Schritt-Eintraege
-    zurueck (ohne Ausgabe) — scenario() aggregiert bei --repeat den Median."""
+def _program_limit_switch(bench: Bench, out: list, rep: int):
+    """intern#111: Filterwechsel, die das Cover NEU rechnen muessen. Jeder
+    Durchlauf nimmt eine andere Band-Teilmenge bzw. einen anderen Limit-Eintrag
+    -> kein Cache-Treffer, auch bei --repeat. (Wiederholt man dieselbe Auswahl,
+    misst man nur den Cache.) Braucht eine Lokation mit Programmen (Schritt 6)."""
+    sw = bench.window.sequences_widget
+    orig = sorted(sw._program_bands or [])
+    if len(orig) < 2:
+        for name in ("sequences_program_switch", "sequences_limit_switch"):
+            out.append({"name": name, "ms": 0.0, "ok": False,
+                        "meta": {"grund": "Lokation hat weniger als 2 Baender"}})
+        return
+
+    # Echte Teilmengen, groesste zuerst (realistisch: Programm eine Stufe tiefer)
+    subsets = [set(c) for k in range(len(orig) - 1, 0, -1)
+               for c in itertools.combinations(orig, k)]
+    bands = subsets[rep % len(subsets)]
+    ms, _ = _measure(bench, "sequences_program_switch",
+                     lambda: sw.set_program_bands(bands))
+    out.append({"name": "sequences_program_switch", "ms": ms, "ok": True,
+                "meta": {"baender": sorted(bands), "von": orig,
+                         "treffer": sw._total_count}})
+    sw.set_program_bands(orig)   # zurueck (gecacht, nicht gemessen)
+    bench.pump()
+
+    combo = sw._combo_limit
+    n = combo.count() - 1        # Index 0 = "kein Limit"
+    idx = 1 + (rep * 7) % n if n > 0 else 0
+    ms, _ = _measure(bench, "sequences_limit_switch",
+                     lambda: combo.setCurrentIndex(idx))
+    out.append({"name": "sequences_limit_switch", "ms": ms, "ok": idx > 0,
+                "meta": {"limit": combo.itemText(idx), "treffer": sw._total_count}})
+    combo.setCurrentIndex(0)
+    bench.pump()
+
+
+def run_interactive(bench: Bench, rep: int = 0) -> list[dict]:
+    """Schritte 2-9 + Singing-Block (ein Durchlauf; rep = Nummer des Durchlaufs).
+    Gibt rohe Schritt-Eintraege zurueck (ohne Ausgabe) — scenario() aggregiert
+    bei --repeat den Median."""
     window = bench.window
     fb = window.song_list._filter_bar
     engine = window.player.engine
@@ -477,6 +516,9 @@ def run_interactive(bench: Bench) -> list[dict]:
     sw.set_contains_filter("")   # Filter zuruecksetzen (fuer den naechsten Lauf)
     bench.pump()
 
+    # --- Schritt 9: Programm und Limit wechseln (intern#111) ------------------
+    _program_limit_switch(bench, out, rep)
+
     # --- Singing-Block: "Sounds Of Silence" (voll gepflegt) ------------------
     # Auswahl laedt zugleich Lyrics + SyncPoints; danach Play/Stop und die
     # Dynamic-Lyrics (Figuren-Text -> Sequenzen). Suchfeld vorher leeren, damit
@@ -518,7 +560,7 @@ def scenario(bench: Bench, timings: dict):
 
     # --- Schritte 2-8: interaktiv, N-fach -> Median --------------------------
     n = max(1, bench.repeat)
-    runs = [run_interactive(bench) for _ in range(n)]
+    runs = [run_interactive(bench, i) for i in range(n)]
 
     order = [e["name"] for e in runs[0]]
     by_name: dict[str, list] = {}
