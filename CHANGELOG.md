@@ -10,6 +10,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Verbesserungen
 - **Die Mustererkennung für zusammengesetzte Call-Texte wirkt jetzt auch im Sequenz-Editor.** Bisher schlug sie nur im Call-Mapping vor; beim Eintippen einer Sequenz hakte der Doppelklick weiter genau eine Figur an – und nur, wenn der Text noch gar keine Zuordnung hatte. Jetzt hakt der Auswahldialog bei Texten wie „Heads Touch 1/4 & Roll" alle erkannten Figuren vor, auch wenn schon eine unvollständige Zuordnung existiert (die bestehenden Haken bleiben erhalten). Zeilen, bei denen die Erkennung noch fehlende Figuren vorschlägt, sind gelb statt grün markiert – ein Doppelklick lohnt sich dort. Übernommen wird wie bisher erst mit „OK"; Abbrechen ändert nichts.
+- **„Füllen“ im To-Call-Fenster schlägt jetzt das höchste gewählte Tanzprogramm vor.** Sind etwa Mainstream (2026) und Plus (2026) gewählt, steht der Dialog direkt auf Plus (2026) – dasselbe Programm, das auch der Programm-Button im Player zeigt. Bisher war es das erste der Auswahl, was meist das niedrigste war.
 
 ### Bugfixes
 - **Der Sequenz-Filter reagiert beim Wechsel von Programm, Limit oder „Nur“ wieder ohne Stocken.** Seit 0.159 dauerte die Trefferzählung nach einem Filterwechsel oft rund 140 ms, und beim Programmwechsel während laufender Musik stockte die Oberfläche kurz (die Musik selbst lief weiter). Jetzt kostet ein Wechsel nur noch wenige Millisekunden; einmalig nach dem Start oder nach einer Änderung an den Zuordnungen dauert der erste neue Filter etwas länger. Die gefundenen Sequenzen sind dieselben wie vorher.
