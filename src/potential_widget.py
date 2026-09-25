@@ -762,8 +762,9 @@ class _MetaFieldSelectDialog(QDialog):
 class _MetaImportPreviewDialog(QDialog):
     """Preview-Tabelle vor dem Metadaten-Import."""
 
-    def __init__(self, rows, parent=None):
+    def __init__(self, rows, parent=None, notice=""):
         # rows: [(song_id, title, field_label, value_str, warning)]
+        # notice: optionaler Hinweis ueber der Tabelle (intern#108)
         super().__init__(parent)
         self.setWindowTitle(_t('pot_meta_import'))
         self.setMinimumSize(600, 400)
@@ -774,6 +775,11 @@ class _MetaImportPreviewDialog(QDialog):
                          count=len({r[0] for r in rows})))
         info.setWordWrap(True)
         layout.addWidget(info)
+        if notice:
+            notice_lbl = QLabel(notice)
+            notice_lbl.setWordWrap(True)
+            notice_lbl.setStyleSheet("color: #d04040; font-weight: 600;")
+            layout.addWidget(notice_lbl)
 
         self._table = QTableWidget(len(rows), 5)
         self._table.setHorizontalHeaderLabels([
@@ -4103,10 +4109,13 @@ class PotentialWidget(QWidget):
             "  Does it have a catchy chorus people sing along to? Is it a crowd favourite?\n"
             "  When in doubt between two values, pick the lower number (stronger response).\n\n"
             "=== OUTPUT FORMAT ===\n"
-            "Return a JSON array — only id and the fields you filled, no other keys:\n"
+            "Return a JSON array — id, title and the fields you filled, no other keys.\n"
+            "Copy \"id\" and \"title\" EXACTLY as given in the input, character for\n"
+            "character — never change, renumber or reorder them. The title is used to\n"
+            "verify that every value lands on the right song.\n"
             "[\n"
-            "  {\"id\": 42, \"original_artist\": \"Tom Jones\", \"release_year\": \"1971\", \"err\": 1},\n"
-            "  {\"id\": 71, \"genre\": [\"Country\", \"Hoedown\"], \"quality\": 6}\n"
+            "  {\"id\": 42, \"title\": \"Delilah\", \"original_artist\": \"Tom Jones\", \"release_year\": \"1968\", \"err\": 1},\n"
+            "  {\"id\": 71, \"title\": \"Cotton Eye Joe\", \"genre\": [\"Country\", \"Hoedown\"], \"quality\": 6}\n"
             "]"
         )
         dlg = QDialog(self)
@@ -4149,12 +4158,27 @@ class PotentialWidget(QWidget):
         field_labels = {k: lbl for k, lbl, _ in _META_EXPORT_FIELDS}
 
         preview_rows = []
+        # intern#108: Zuordnung ueber die id pruefen -- die Datei soll den
+        # Titel unveraendert mitliefern (siehe Prompt). Weicht er ab, hat z. B.
+        # eine KI Werte an die falsche id gehaengt -> Zeile warnen, nicht
+        # vorab anhaken. Ohne Titel ist die Zuordnung nicht pruefbar.
+        titles_missing = 0
         for entry in songs:
             sid = entry.get('id')
             if not sid:
                 continue
             song = self.db.get_by_id(sid)
             title = (song.title or song.filename) if song else f"ID {sid}"
+            file_title = str(entry.get('title') or '').strip()
+            id_warning = ''
+            if song is None:
+                id_warning = _t('pot_meta_import_id_unknown')
+            elif not file_title:
+                titles_missing += 1
+            elif not song_match.same_song_title(file_title, song.title or '',
+                                                song.filename or ''):
+                id_warning = _t('pot_meta_import_title_mismatch',
+                                title=file_title)
             for key, val in entry.items():
                 if key in ('id', 'title', 'filename', 'artist', 'label', 'missing'):
                     continue
@@ -4173,6 +4197,8 @@ class PotentialWidget(QWidget):
                 else:
                     value_str = str(val)
                     warning = ''
+                if id_warning:
+                    warning = f"{id_warning} {warning}".strip()
                 preview_rows.append((sid, title, lbl, value_str, warning))
 
         if not preview_rows:
@@ -4180,7 +4206,9 @@ class PotentialWidget(QWidget):
                                     _t('pot_meta_import_empty'))
             return
 
-        prev_dlg = _MetaImportPreviewDialog(preview_rows, self)
+        notice = (_t('pot_meta_import_no_titles', count=titles_missing)
+                  if titles_missing else '')
+        prev_dlg = _MetaImportPreviewDialog(preview_rows, self, notice=notice)
         if prev_dlg.exec() != QDialog.Accepted:
             return
 
@@ -4272,6 +4300,7 @@ class PotentialWidget(QWidget):
                     csv_rows.append({
                         'title_norm': self._csv_normalize(title),
                         'title_raw': title,
+                        'label_name': row.get('Label', '').strip(),
                         'label_code': row.get('Label Code', '').strip(),
                         'number': row.get('Number', '').strip(),
                         'caller': row.get('Caller', '').strip(),
@@ -4288,12 +4317,12 @@ class PotentialWidget(QWidget):
         for cr in csv_rows:
             csv_title_index.setdefault(cr['title_norm'], []).append(cr)
 
-        # Index: LabelCode+Nummer → [csv_rows]
-        csv_label_index = {}
+        # Index: Nummer → [csv_rows] (Label wird beim Treffer mitgeprueft)
+        csv_number_index = {}
         for cr in csv_rows:
-            if cr['label_code'] and cr['number']:
-                key = (cr['label_code'].upper(), cr['number'])
-                csv_label_index.setdefault(key, []).append(cr)
+            if cr['number']:
+                csv_number_index.setdefault(
+                    cr['number'].lstrip('0').lower(), []).append(cr)
 
         # Alle normierten CSV-Titel für Fuzzy-Suche
         all_csv_norms = list(csv_title_index.keys())
@@ -4351,24 +4380,22 @@ class PotentialWidget(QWidget):
         for entry in missing_map.values():
             sid = entry['song_id']
             db_title_norm = self._csv_normalize(entry['title'])
-            db_label_norm = self._csv_normalize(entry['label_db'])
 
             # Exakter Titel-Treffer
             hits = csv_title_index.get(db_title_norm)
             score = 1.0
 
-            # Label-Code+Nummer Treffer als Alternative / Ergänzung
-            label_hits = None
-            for part in re.split(r'\s+', db_label_norm):
-                num_m = re.match(r'^(\d+)$', part)
-                code_m = re.match(r'^([a-z]+)$', part)
-                if num_m or code_m:
-                    for (lc, num), lrows in csv_label_index.items():
-                        if (num_m and num == part) or (code_m and lc.lower() == part):
-                            label_hits = lrows
-                            break
-                if label_hits:
-                    break
+            # Label+Nummer als Alternative, wenn der Titel nicht exakt trifft.
+            # intern#108: Nummer UND Label muessen zusammen passen -- frueher
+            # reichte die Nummer allein (beliebiges Label) oder das Kuerzel
+            # allein (beliebige Nummer), das traf fremde Aufnahmen.
+            _, db_num = song_match.split_label_number(entry['label_db'])
+            label_hits = [
+                cr for cr in csv_number_index.get(db_num.lstrip('0').lower(), [])
+                if song_match.label_number_matches(
+                    entry['label_db'], cr['label_name'], cr['label_code'],
+                    cr['number'])
+            ] if db_num else []
             if label_hits and not hits:
                 hits = label_hits
                 score = 0.95

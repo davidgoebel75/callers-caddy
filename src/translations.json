@@ -5837,6 +5837,21 @@
     "en": "{count} songs with changes found. Please review and confirm:",
     "ja": "変更のある {count} 曲が見つかりました。確認して承認してください:"
   },
+  "pot_meta_import_title_mismatch": {
+    "de": "Titel in der Datei: „{title}“ – passt nicht zu diesem Song, Zuordnung prüfen!",
+    "en": "Title in the file: “{title}” – does not match this song, check the assignment!",
+    "ja": "ファイル内のタイトル「{title}」がこの曲と一致しません。割り当てを確認してください！"
+  },
+  "pot_meta_import_id_unknown": {
+    "de": "Song-ID gibt es in dieser Datenbank nicht",
+    "en": "Song ID does not exist in this database",
+    "ja": "この曲 ID はデータベースに存在しません"
+  },
+  "pot_meta_import_no_titles": {
+    "de": "Bei {count} Songs enthält die Datei keinen Titel – dort ist nicht prüfbar, ob die Werte beim richtigen Song landen. Bitte stichprobenartig kontrollieren.",
+    "en": "For {count} songs the file contains no title – it cannot be checked whether the values land on the right song. Please spot-check them.",
+    "ja": "{count} 曲についてファイルにタイトルがありません。値が正しい曲に割り当てられるか確認できません。抜き取りで確認してください。"
+  },
   "pot_meta_import_empty": {
     "de": "Die Datei enthält keine verwertbaren Änderungen.",
     "en": "The file contains no applicable changes.",
