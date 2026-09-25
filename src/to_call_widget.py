@@ -184,34 +184,35 @@ class ToCallWidget(QWidget):
         """Kachel-Optik je nach Status: ungenutzt = kontrastreiche Theme-Textfarbe
         (button_text, auf button_bg gut lesbar), genutzt = gedimmt (mittlerer Ton
         zwischen Text- und Hintergrundfarbe), aber weiterhin sichtbar."""
-        border = self._c("border", "#555555")
-        text = self._c("button_text", "#f7f7f7")
         if tile.used:
             # Genutzt: Hintergrund UND Text wechseln -> deutlich gedaempft,
             # aber noch gut lesbar (mittlerer Ton auf gedaempftem Hintergrund).
-            bg = self._c("muted_bg", "#424242")
-            fg = self._c("text_dim", self._blend(text, bg, 0.5))
+            bg, fg = self._muted_colors()
         else:
             bg = self._c("button_bg", "#615f8b")
-            fg = text
-        tile.setStyleSheet(
-            "QLabel#callTile {"
-            f" background-color: {bg}; color: {fg};"
-            f" border: 1px solid {border}; border-radius: 8px;"
-            f" padding: 2px 6px; font-weight: 600; font-size: {tile.font_px}px; }}"
-        )
+            fg = self._c("button_text", "#f7f7f7")
+        tile.setStyleSheet(self._label_qss("callTile", bg, fg, tile.font_px))
 
     def _style_done_bar(self):
         """Leiste der Erledigt-Zone: gedaempft wie erledigte Kacheln."""
-        border = self._c("border", "#555555")
+        bg, fg = self._muted_colors()
+        self._done_bar.setStyleSheet(self._label_qss("tocallDoneBar", bg, fg, 13))
+
+    def _muted_colors(self) -> tuple:
+        """(bg, fg) der gedaempften Optik -- erledigte Kacheln und Leiste."""
         bg = self._c("muted_bg", "#424242")
         fg = self._c("text_dim", self._blend(self._c("button_text", "#f7f7f7"),
                                              bg, 0.5))
-        self._done_bar.setStyleSheet(
-            "QLabel#tocallDoneBar {"
+        return bg, fg
+
+    def _label_qss(self, name: str, bg: str, fg: str, font_px: int) -> str:
+        """Gemeinsames Kachel-StyleSheet fuer QLabel#name."""
+        border = self._c("border", "#555555")
+        return (
+            f"QLabel#{name} {{"
             f" background-color: {bg}; color: {fg};"
             f" border: 1px solid {border}; border-radius: 8px;"
-            " padding: 2px 6px; font-weight: 600; font-size: 13px; }"
+            f" padding: 2px 6px; font-weight: 600; font-size: {font_px}px; }}"
         )
 
     # Innen-Reserve fuer Rand + Padding (border 1px + padding 2px/6px, etwas Puffer)
@@ -283,6 +284,11 @@ class ToCallWidget(QWidget):
         # Klick schaltet den aktuellen Zustand um; gilt bis zum naechsten Fuellen.
         self._done_expanded = not self._done_expanded
         self._relayout()
+        if self._done_expanded:
+            # Aufgeklappte Erledigte ins Bild holen: Leiste an den oberen Rand
+            # scrollen (so weit moeglich), sonst passiert scheinbar nichts.
+            sb = self._scroll.verticalScrollBar()
+            sb.setValue(min(sb.maximum(), self._done_bar.y() - self._MARGIN))
 
     def _relayout(self):
         _t0 = self._perf_start()
@@ -368,11 +374,7 @@ class ToCallWidget(QWidget):
                 h_open_full = self._MAX_H
             done_h = int(min(self._DONE_MAX_H,
                              max(self._DONE_MIN_H, h_open_full // 2)))
-            iw = max(1, width - 2 * self._MARGIN)
-            cols_max = max(1, int((iw + self._GAP) // (self._MIN_W + self._GAP)))
-            d_cols = min(len(dones), cols_max)
-            d_rows = -(-len(dones) // d_cols)  # ceil
-            done_box = d_rows * done_h + (d_rows - 1) * self._GAP + 2 * self._MARGIN
+            done_box = min_matrix_height(len(dones), width, min_h=done_h, **grid)
         bar_block = (self._BAR_H + (self._MARGIN if collapsed else 0)
                      if show_bar else 0)
 
@@ -380,23 +382,39 @@ class ToCallWidget(QWidget):
         #    jede Kachel _MIN_H behaelt (dann scrollt die Flaeche).
         open_h = max(open_min, view_h - bar_block - done_box) if opens else 0
         placed = []
+        bottom = self._MARGIN - self._GAP   # Unterkante des bisher Gesetzten
         if opens:
             _, _, o_cells = compute_cells(
                 len(opens), width, open_h, min_h=self._MIN_H,
                 max_h=self._MAX_H, target_ratio=self._RATIO, **grid)
             placed += [(t, x, y, w, h) for t, (x, y, w, h) in zip(opens, o_cells)]
+            bottom = max(y + h for _t, _x, y, _w, h in placed)
+        # 3) Leiste direkt unter die offenen Kacheln, Erledigte direkt darunter.
         bar = None
         if show_bar:
-            bar = (self._MARGIN, open_h, max(1, width - 2 * self._MARGIN),
-                   self._BAR_H)
+            bar = [self._MARGIN, bottom + self._GAP,
+                   max(1, width - 2 * self._MARGIN), self._BAR_H]
+            bottom = bar[1] + self._BAR_H
         if dones and not collapsed:
-            top = open_h + (self._BAR_H if show_bar else 0)
+            top = bottom - self._MARGIN + self._GAP   # done_box bringt Rand mit
             _, _, d_cells = compute_cells(
                 len(dones), width, done_box, min_h=self._DONE_MIN_H,
                 max_h=self._DONE_MAX_H, **grid)
             placed += [(t, x, top + y, w, h) for t, (x, y, w, h) in zip(dones, d_cells)]
-        return {"placed": placed, "bar": bar, "collapsed": collapsed,
-                "content_h": open_h + bar_block + done_box}
+            bottom = max(y + h for _t, _x, y, _w, h in placed)
+
+        # 4) Alles zusammen senkrecht zentrieren (compute_cells zentriert nur
+        #    die offenen in ihrer Zone -> sonst Luecke ueber der Leiste).
+        first = min([y for _t, _x, y, _w, _h in placed] + ([bar[1]] if bar else []))
+        group_h = bottom - first
+        new_top = self._MARGIN + max(0, (view_h - 2 * self._MARGIN - group_h) // 2)
+        dy = new_top - first
+        placed = [(t, x, y + dy, w, h) for t, x, y, w, h in placed]
+        if bar:
+            bar[1] += dy
+        return {"placed": placed, "bar": tuple(bar) if bar else None,
+                "collapsed": collapsed,
+                "content_h": new_top + group_h + self._MARGIN}
 
 
 class ToCallFillDialog(QDialog):

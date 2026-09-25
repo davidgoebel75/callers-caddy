@@ -128,3 +128,29 @@ def test_compute_cells_ratio_bevorzugt_spaltenzahl_mit_min_h():
                                   target_ratio=2.0)
     assert max(y + hh for _x, y, _w, hh in cells) <= h
     assert min_matrix_height(n, w, min_w=90, min_h=34) <= h
+
+
+def test_aufklappen_scrollt_zur_erledigt_zone(widget):
+    # Review-Hinweis: ohne Mitscrollen lagen die Erledigten ausserhalb der Sicht
+    tc = widget(80, 36, 460, 700)
+    QTest.mouseClick(tc._done_bar, Qt.LeftButton)
+    sb = tc._scroll.verticalScrollBar()
+    assert sb.value() > 0
+    assert sb.value() == min(sb.maximum(), tc._done_bar.y() - tc._MARGIN)
+
+
+def test_leiste_direkt_unter_den_offenen_kacheln(widget):
+    # Review-Hinweis: wenige Calls -> keine Luecke ueber der Leiste
+    tc = widget(10, 3, 460, 700)
+    unten = max(t.geometry().bottom() + 1 for t in _sichtbar(tc))
+    assert tc._done_bar.y() - unten == tc._GAP
+    # Gruppe senkrecht zentriert
+    oben = min(t.y() for t in _sichtbar(tc))
+    rest_unten = tc._canvas.height() - (tc._done_bar.geometry().bottom() + 1)
+    assert abs(oben - rest_unten) <= 1
+
+
+def test_alle_erledigt_leiste_mit_rand(widget):
+    tc = widget(5, 5, 460, 700)
+    assert tc._done_bar.y() >= tc._MARGIN
+    assert _sichtbar(tc) == []

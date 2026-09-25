@@ -25,6 +25,11 @@ def distribute(n: int, rows: int) -> list:
     return [base + 1 if i < rem else base for i in range(rows)]
 
 
+def _max_cols(inner_w: float, min_w: int, gap: int) -> int:
+    """Hoechstens so viele Spalten, dass jede Kachel min_w breit bleibt."""
+    return max(1, int((inner_w + gap) // (min_w + gap)))
+
+
 def min_matrix_height(n: int, avail_w: int, *, margin: int = 8, gap: int = 6,
                       min_w: int = 78, min_h: int = 30) -> int:
     """Hoehe (inkl. Rand), die n Kacheln mindestens brauchen: maximal viele
@@ -33,7 +38,7 @@ def min_matrix_height(n: int, avail_w: int, *, margin: int = 8, gap: int = 6,
     if n <= 0:
         return 0
     inner_w = max(1, avail_w - 2 * margin)
-    cols = min(n, max(1, int((inner_w + gap) // (min_w + gap))))
+    cols = min(n, _max_cols(inner_w, min_w, gap))
     rows = math.ceil(n / cols)
     return rows * min_h + (rows - 1) * gap + 2 * margin
 
@@ -73,7 +78,7 @@ def compute_cells(n: int, avail_w: int, avail_h: int, *,
     def _cell_h(rows):
         return (inner_h - (rows - 1) * gap) / rows
 
-    cols_max = max(1, int((inner_w + gap) // (min_w + gap)))
+    cols_max = _max_cols(inner_w, min_w, gap)
 
     if target_ratio and target_ratio > 0:
         # Spaltenzahl so waehlen, dass Breite:Hoehe dem Zielverhaeltnis am
