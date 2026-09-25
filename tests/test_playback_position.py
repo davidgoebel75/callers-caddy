@@ -92,3 +92,62 @@ def test_loop_in_setzen_trifft_den_gehoerten_moment(engine):
 ])
 def test_tooltip_ohne_scheinbare_zeitspanne(label, t, erwartet):
     assert JumpMarkersWidget._tooltip(label, t) == erwartet
+
+
+# --- Doppelklick auf Sprung-Button: hinspringen und abspielen (intern#100) ---
+
+import types
+
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
+
+
+def _jump_widget(sprung, play):
+    engine = types.SimpleNamespace(get_original_duration=lambda: 180.0,
+                                   loop_in_seconds=0.0, loop_out_seconds=0.0)
+    db = types.SimpleNamespace(get_markers=lambda _sid: [(1, 29.54, "Refrain")])
+    w = JumpMarkersWidget(engine, db, jump_callback=sprung, play_callback=play,
+                          song_provider=lambda: types.SimpleNamespace(id=1))
+    w.resize(300, 120)
+    w.refresh()
+    return w
+
+
+def test_klick_springt_doppelklick_spielt(qapp):
+    spruenge, plays = [], []
+    w = _jump_widget(spruenge.append, plays.append)
+    refrain = [b for b in w._buttons if b.text() == "Refrain"][0]
+    assert "\n" in refrain.toolTip()                      # Doppelklick-Hinweis
+
+    QTest.mouseClick(refrain, Qt.LeftButton)
+    assert spruenge == [29.54] and plays == []
+
+    QTest.mouseDClick(refrain, Qt.LeftButton)
+    assert plays == [29.54]
+
+
+def _fenster(playing, paused=False):
+    import main
+    eng = types.SimpleNamespace(
+        is_loaded=lambda: True,
+        is_playing=lambda: playing and not paused)
+    aufrufe = []
+    fake = types.SimpleNamespace(
+        player=types.SimpleNamespace(engine=eng,
+                                     _on_play=lambda: aufrufe.append("play")),
+        _jump_to_time=lambda t: aufrufe.append(("sprung", t)))
+    main.P29MainWindow._jump_and_play(fake, 29.54)
+    return aufrufe
+
+
+def test_doppelklick_gestoppt_springt_und_startet():
+    assert _fenster(playing=False) == [("sprung", 29.54), "play"]
+
+
+def test_doppelklick_pausiert_springt_und_setzt_fort():
+    assert _fenster(playing=True, paused=True) == [("sprung", 29.54), "play"]
+
+
+def test_doppelklick_laufend_springt_nur():
+    # _on_play() wuerde einen laufenden Song von vorne starten
+    assert _fenster(playing=True) == [("sprung", 29.54)]
