@@ -14,6 +14,9 @@ Die Versionen 1.xx bleiben für die alte Version offen
 ### Bugfixes
 - **Der Sequenz-Filter reagiert beim Wechsel von Programm, Limit oder „Nur“ wieder ohne Stocken.** Seit 0.159 dauerte die Trefferzählung nach einem Filterwechsel oft rund 140 ms, und beim Programmwechsel während laufender Musik stockte die Oberfläche kurz (die Musik selbst lief weiter). Jetzt kostet ein Wechsel nur noch wenige Millisekunden; einmalig nach dem Start oder nach einer Änderung an den Zuordnungen dauert der erste neue Filter etwas länger. Die gefundenen Sequenzen sind dieselben wie vorher.
 
+### Technische Notiz
+- **Der Sequenz-Import ist intern aufgeräumt (unsichtbar für den Betrieb).** Das Einlesen der Formate MDB, JSON, CSDS und Freitext liegt jetzt gesammelt an einer Stelle und ist durch automatische Tests abgesichert. Die alten Einzel-Importwege, die seit dem universellen Sequenz-Import nicht mehr im Menü erreichbar waren, wurden entfernt. Am Import selbst ändert sich nichts.
+
 ---
 
 ## 0.159 — Playlist-Mehrfachauswahl, Call-Texte mit mehreren Figuren & frei bewegliche Fenster (2026-09-24)

@@ -46,7 +46,6 @@ _UNGESAET_BEKANNT = {
 _OHNE_META_BEKANNT = {
     "lyrics/auto_width",
     "rules/streamdeck_seeded_v1",   # interner Marker, kein Nutzer-Schalter
-    "sequences/freetext_import_dir",
     "sequences/universal_import_dir",
     "sort/random_tiebreaker",
 }

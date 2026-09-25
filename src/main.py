@@ -379,7 +379,7 @@ from playlist_widget import (
 # --- Sequenzen-UI -> sequences_widget.py (BL-201, Stufe 4) ------------------
 from sequences_widget import (
     SequenceViewWidget, SequencesWidget, SequenceEditorDialog,
-    FreetextSequenceImportDialog, SequenceImportDialog, CallMappingDialog,
+    SequenceImportDialog, CallMappingDialog,
 )
 
 
@@ -5899,60 +5899,6 @@ class P29MainWindow(QMainWindow):
                 self.sequence_view_widget.set_sequence(self.db, seq_ids, 0)
             perf_split("    _init_sequences.sequence_view prefill", _ts1)
 
-    def _on_import_sequences(self):
-        """Menue: Sequenzen aus MDB importieren."""
-        # Pruefen ob schon Sequenzen vorhanden
-        existing = self.db.get_sequence_count()
-        if existing > 0:
-            reply = QMessageBox.question(
-                self, _t("import_sequences_title"),
-                _t("import_sequences_exists", count=existing),
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
-                return
-
-        # MDB-Datei waehlen
-        last_mdb = str(self._settings.value("sequences/mdb_path", ""))
-        if not last_mdb or not os.path.isdir(os.path.dirname(last_mdb)):
-            last_mdb = os.path.expanduser("~")
-        mdb_path, _ = QFileDialog.getOpenFileName(
-            self, _t("dialog_mdb_select"), last_mdb,
-            _t("filter_mdb")
-        )
-        if not mdb_path:
-            return
-
-        # Pfad merken
-        self._settings.setValue("sequences/mdb_path", mdb_path)
-
-        # Import durchfuehren
-        self.sequences_widget.import_from_mdb(mdb_path)
-
-        # Sequenzen-Tab aktivieren
-        self.dock_sequences.raise_()
-
-    def _on_import_sequences_json(self):
-        """Menue: Sequenzen aus JSON-Dateien importieren (Ceder-Format)."""
-        last_dir = str(self._settings.value("sequences/json_import_dir", ""))
-        if not last_dir or not os.path.isdir(last_dir):
-            last_dir = os.path.expanduser("~")
-
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, _t("dialog_json_select"), last_dir,
-            _t("filter_json")
-        )
-        if not paths:
-            return
-
-        # Letztes Verzeichnis merken
-        self._settings.setValue(
-            "sequences/json_import_dir", os.path.dirname(paths[0])
-        )
-
-        self.sequences_widget.import_from_json(paths)
-        self.dock_sequences.raise_()
-
     def _on_export_sequences_json(self):
         """Menue: Alle Sequenzen als JSON-Datei exportieren (gleiche Struktur wie Import)."""
         import json as _json
@@ -6118,27 +6064,6 @@ class P29MainWindow(QMainWindow):
                 _t("mapping_import_error", msg=str(e))
             )
 
-    def _on_import_sequences_csds(self):
-        """Menue: Sequenzen aus CSDS-Dateien importieren (Vic Ceder Export)."""
-        last_dir = str(self._settings.value("sequences/csds_import_dir", ""))
-        if not last_dir or not os.path.isdir(last_dir):
-            last_dir = str(self._settings.value("sequences/json_import_dir",
-                           os.path.expanduser("~")))
-
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, _t("dialog_csds_select"), last_dir,
-            _t("filter_csds")
-        )
-        if not paths:
-            return
-
-        self._settings.setValue(
-            "sequences/csds_import_dir", os.path.dirname(paths[0])
-        )
-
-        self.sequences_widget.import_from_csds(paths)
-        self.dock_sequences.raise_()
-
     def _on_import_sequences_universal(self):
         """Universeller Sequenz-Import (BL-098): erkennt MDB/JSON/CSDS/Freitext."""
         dlg = SequenceImportDialog(self.db, parent=self)
@@ -6153,18 +6078,6 @@ class P29MainWindow(QMainWindow):
             self, _t("seq_import_title"),
             _t("seq_import_done", inserted=inserted, dupes=skipped)
         )
-
-    def _on_import_sequences_freetext(self):
-        """Menue: Sequenzen aus einer Freitext-Datei importieren (BL-098)."""
-        dlg = FreetextSequenceImportDialog(self.db, parent=self)
-        if dlg.exec() != QDialog.Accepted:
-            return
-        sequences, seq_type, difficulty = dlg.get_result()
-        if not sequences or not seq_type:
-            return
-        self.sequences_widget.import_from_freetext(sequences, seq_type,
-                                                   difficulty)
-        self.dock_sequences.raise_()
 
     def _show_paths_info(self):
         """Zeigt alle konfigurierten Pfade an."""
