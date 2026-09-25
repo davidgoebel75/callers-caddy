@@ -86,6 +86,37 @@ def title_similarity(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, na, nb).ratio()
 
 
+# Ab dieser Aehnlichkeit gilt ein zurueckgelieferter Titel als "derselbe Song"
+# (toleriert KI-Kosmetik wie Gross-/Kleinschreibung, Quotes, Tippfehler-Fixes;
+# vertauschte Songs liegen weit darunter).
+SAME_TITLE_MIN_SIMILARITY = 0.85
+
+
+def same_song_title(file_title: str, db_title: str, db_filename: str = "") -> bool:
+    """intern#108: Passt ein aus einer Datei zurueckgelieferter Titel zum Song?
+
+    Verglichen wird gegen den DB-Titel und gegen den Dateinamen ohne Ordner
+    und Endung (der Metadaten-Export schreibt 'title or filename').
+    """
+    stem = re.sub(r"\.[A-Za-z0-9]{2,4}$", "",
+                  re.split(r"[\\/]", db_filename or "")[-1])
+    return any(title_similarity(file_title, cand) >= SAME_TITLE_MIN_SIMILARITY
+               for cand in (db_title, stem) if cand)
+
+
+def label_number_matches(db_label_field: str, label_name: str,
+                         label_code: str, number: str) -> bool:
+    """intern#108: Passt ein Katalogeintrag (Label, Kuerzel, Nummer) zum
+    Labeltext eines Songs? Nummer UND Label muessen zusammen passen -- nur die
+    Nummer oder nur das Kuerzel trifft beliebige andere Aufnahmen."""
+    name, num = split_label_number(db_label_field)
+    if not name or not num or not number:
+        return False
+    if num.lstrip("0").lower() != str(number).strip().lstrip("0").lower():
+        return False
+    return _norm(name) in {_norm(label_code), _norm(label_name)} - {""}
+
+
 # ---------------------------------------------------------------------------
 # Rohname -> (Titel, Labelname, Nummer)
 # ---------------------------------------------------------------------------
