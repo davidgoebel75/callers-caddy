@@ -153,9 +153,10 @@ def test_doppelklick_pausiert_springt_und_setzt_fort():
     assert _fenster(playing=True, paused=True) == [("sprung", 29.54), "play"]
 
 
-def test_doppelklick_laufend_springt_nur():
-    # _on_play() wuerde einen laufenden Song von vorne starten
-    assert _fenster(playing=True) == [("sprung", 29.54)]
+def test_doppelklick_laufend_tut_nichts_zusaetzlich():
+    # Der erste Klick ist schon gesprungen; ein zweiter Sprung wuerde das
+    # Stueck nach dem Marker doppelt spielen, _on_play() von vorne starten.
+    assert _fenster(playing=True) == []
 
 
 @pytest.mark.parametrize("tempo", [1.0, 1.1])

@@ -5338,11 +5338,15 @@ class P29MainWindow(QMainWindow):
 
     def _jump_and_play(self, time_seconds: float):
         """Doppelklick auf einen Sprung-Button (intern#100): hinspringen und
-        abspielen. Laeuft der Song schon, nur springen -- _on_play() wuerde
-        sonst von vorne starten. Gestoppt/pausiert: normaler Play-Weg (Rules,
+        abspielen. Laeuft der Song schon, nichts tun: Der erste Klick des
+        Doppelklicks ist bereits gesprungen, ein zweiter Sprung wuerde das
+        Stueck nach dem Marker doppelt spielen (und _on_play() von vorne
+        starten). Gestoppt/pausiert: normaler Play-Weg (Rules,
         Spieldauer-Timer wie beim Play-Button bzw. Resume)."""
         eng = self.player.engine
-        if eng.is_loaded() and not eng.is_playing() and not eng.is_paused():
+        if eng.is_playing():
+            return
+        if eng.is_loaded() and not eng.is_paused():
             # Start aus dem Stopp: play() verwirft die ersten Samples als
             # Warmup -> um genau diese Strecke frueher ansetzen, damit der
             # Marker selbst als Erstes zu hoeren ist.
