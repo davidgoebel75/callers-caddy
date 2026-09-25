@@ -5342,8 +5342,16 @@ class P29MainWindow(QMainWindow):
         abspielen. Laeuft der Song schon, nur springen -- _on_play() wuerde
         sonst von vorne starten. Gestoppt/pausiert: normaler Play-Weg (Rules,
         Spieldauer-Timer wie beim Play-Button bzw. Resume)."""
-        self._jump_to_time(time_seconds)
         eng = self.player.engine
+        if eng.is_loaded() and not eng.is_playing() and not eng.is_paused():
+            # Start aus dem Stopp: play() verwirft die ersten Samples als
+            # Warmup -> um genau diese Strecke frueher ansetzen, damit der
+            # Marker selbst als Erstes zu hoeren ist.
+            self._jump_to_time(
+                max(0.0, time_seconds - eng.play_warmup_song_seconds()))
+            self.player._on_play()
+            return
+        self._jump_to_time(time_seconds)
         if eng.is_loaded() and not eng.is_playing():
             self.player._on_play()
 

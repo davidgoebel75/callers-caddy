@@ -130,7 +130,9 @@ def _fenster(playing, paused=False):
     import main
     eng = types.SimpleNamespace(
         is_loaded=lambda: True,
-        is_playing=lambda: playing and not paused)
+        is_playing=lambda: playing and not paused,
+        is_paused=lambda: playing and paused,
+        play_warmup_song_seconds=lambda: 0.2)
     aufrufe = []
     fake = types.SimpleNamespace(
         player=types.SimpleNamespace(engine=eng,
@@ -140,8 +142,11 @@ def _fenster(playing, paused=False):
     return aufrufe
 
 
-def test_doppelklick_gestoppt_springt_und_startet():
-    assert _fenster(playing=False) == [("sprung", 29.54), "play"]
+def test_doppelklick_gestoppt_setzt_um_warmup_frueher_an():
+    aufrufe = _fenster(playing=False)
+    assert aufrufe[0][0] == "sprung"
+    assert aufrufe[0][1] == pytest.approx(29.34)
+    assert aufrufe[1:] == ["play"]
 
 
 def test_doppelklick_pausiert_springt_und_setzt_fort():
@@ -151,3 +156,23 @@ def test_doppelklick_pausiert_springt_und_setzt_fort():
 def test_doppelklick_laufend_springt_nur():
     # _on_play() wuerde einen laufenden Song von vorne starten
     assert _fenster(playing=True) == [("sprung", 29.54)]
+
+
+@pytest.mark.parametrize("tempo", [1.0, 1.1])
+def test_start_aus_dem_stopp_mit_vorlauf_trifft_den_marker(engine, tempo):
+    # play() verwirft PLAY_WARMUP_SECONDS Output als Warmup; mit dem Vorlauf
+    # aus _jump_and_play ist der Marker das Erste, was zu hoeren ist.
+    e, ref = engine
+    e.playing = False
+    e._ensure_stream = lambda: None          # kein Audiogeraet im Test
+    e.set_tempo(tempo)
+    e.seek(20.0 - e.play_warmup_song_seconds())
+    e.play()
+    ausgabe = _spielen(e, 0.6)
+    start = int(np.argmax(np.abs(ausgabe) > 1e-6))     # Ende der Warmup-Stille
+    seg = ausgabe[start:start + int(0.05 * SR)]
+    lo = int(18 * SR)
+    k = int(np.argmax(np.correlate(ref[lo:int(22 * SR)], seg, "valid")))
+    # Warmup wird in ganzen Callback-Bloecken verworfen -> bis zu einem Block
+    # Rest (hier 46 ms, am Geraet ~10 ms). Ohne Vorlauf waeren es 200 ms.
+    assert (lo + k) / SR == pytest.approx(20.0, abs=FRAMES / SR)
