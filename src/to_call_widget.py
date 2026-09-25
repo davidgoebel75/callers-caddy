@@ -11,11 +11,12 @@ Der Status lebt nur zur Laufzeit; "Fuellen" (Kopfzeile) startet frisch.
 Die Kachel-Beschriftung bricht bei Bedarf um (einheitliche Schriftgroesse,
 unterschiedlich lange Call-Namen).
 
-Platzmangel (intern#114): Die Kacheln liegen in einer QScrollArea. Passt nicht
-alles hinein, klappt die Erledigt-Zone automatisch zu einer Leiste
-("36 erledigt ▸") ein; reicht auch das nicht, schrumpfen die offenen Kacheln
-bis _MIN_H und die Flaeche scrollt senkrecht. Ein Klick auf die Leiste klappt
-auf/zu (gilt bis zum naechsten "Fuellen").
+Erledigt-Zone und Platzmangel (intern#114): Erledigte Calls stehen
+standardmaessig eingeklappt als Leiste ("36 erledigt ▸") unter den offenen --
+die offenen sollen hervorstechen. Ein Klick auf die Leiste klappt auf/zu
+(gilt bis zum naechsten "Fuellen"). Die Kacheln liegen in einer QScrollArea:
+passt nicht alles hinein, schrumpfen die offenen Kacheln bis _MIN_H, danach
+scrollt die Flaeche senkrecht.
 """
 
 from PySide6.QtWidgets import (
@@ -96,10 +97,9 @@ class ToCallWidget(QWidget):
         self._perf_log = perf_log or (lambda *a, **k: None)
         self._tiles: list[_CallTile] = []
         self._done_counter = 0   # laufende Nummer fuers Abhaken (Reihenfolge unten)
-        # Erledigt-Zone: None = automatisch (einklappen nur bei Platzmangel),
-        # True/False = Klick auf die Leiste, gilt bis zum naechsten Fuellen.
-        self._done_expanded = None
-        self._done_bar_expanded = True   # zuletzt angezeigter Zustand der Leiste
+        # Erledigt-Zone: standardmaessig eingeklappt; Klick auf die Leiste
+        # schaltet um, gilt bis zum naechsten Fuellen.
+        self._done_expanded = False
         self.setMinimumSize(160, 120)
 
         # Kachelflaeche: Leinwand in einer Scroll-Area (intern#114). Die Kacheln
@@ -256,7 +256,7 @@ class ToCallWidget(QWidget):
             tile.deleteLater()
         self._tiles = []
         self._done_counter = 0
-        self._done_expanded = None
+        self._done_expanded = False
         for eid, name in calls:
             tile = _CallTile(eid, name, self._on_tile_toggle, self._canvas)
             self._style_tile(tile)
@@ -281,7 +281,7 @@ class ToCallWidget(QWidget):
 
     def _on_done_bar_clicked(self):
         # Klick schaltet den aktuellen Zustand um; gilt bis zum naechsten Fuellen.
-        self._done_expanded = not self._done_bar_expanded
+        self._done_expanded = not self._done_expanded
         self._relayout()
 
     def _relayout(self):
@@ -320,11 +320,10 @@ class ToCallWidget(QWidget):
 
         # Leiste der Erledigt-Zone
         bar = plan["bar"]
-        self._done_bar_expanded = not plan["collapsed"]
         if bar is None:
             self._done_bar.hide()
         else:
-            arrow = "▾" if self._done_bar_expanded else "▸"
+            arrow = "▸" if plan["collapsed"] else "▾"
             self._done_bar.setText(f"{_t('tocall_done_bar', count=len(dones))} {arrow}")
             self._done_bar.setGeometry(*bar)
             self._done_bar.show()
@@ -354,12 +353,12 @@ class ToCallWidget(QWidget):
         open_min = (min_matrix_height(len(opens), width, min_h=self._MIN_H, **grid)
                     if opens else 0)
 
-        # 1) Erledigt-Zone: Kacheln ~halb so hoch wie die offenen (gedeckelt).
-        #    Passt beides nicht, klappt sie automatisch ein (Leiste).
+        # 1) Erledigt-Zone: eingeklappt nur die Leiste; aufgeklappt die
+        #    Kacheln ~halb so hoch wie die offenen (gedeckelt) unter der Leiste.
         done_box = 0
-        collapsed = False
-        show_bar = False
-        if dones:
+        show_bar = bool(dones)
+        collapsed = show_bar and not self._done_expanded
+        if dones and not collapsed:
             if opens:
                 _, _, a_cells = compute_cells(
                     len(opens), width, view_h, min_h=self._MIN_H,
@@ -374,15 +373,6 @@ class ToCallWidget(QWidget):
             d_cols = min(len(dones), cols_max)
             d_rows = -(-len(dones) // d_cols)  # ceil
             done_box = d_rows * done_h + (d_rows - 1) * self._GAP + 2 * self._MARGIN
-            if self._done_expanded is None:
-                collapsed = open_min + done_box > view_h
-            else:
-                collapsed = not self._done_expanded
-            # Leiste nur, wenn eingeklappt oder von Hand aufgeklappt -- passt
-            # alles von selbst, bleibt die Ansicht wie bisher.
-            show_bar = collapsed or self._done_expanded is True
-            if collapsed:
-                done_box = 0
         bar_block = (self._BAR_H + (self._MARGIN if collapsed else 0)
                      if show_bar else 0)
 

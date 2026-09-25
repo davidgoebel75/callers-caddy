@@ -2,8 +2,9 @@
 
 Frueher liefen die offenen Kacheln ueber ihre Zone hinaus in die Erledigt-Zone
 (Ueberlappen) oder wurden unten abgeschnitten; bei wenig Hoehe warf
-compute_cells einen TypeError. Jetzt: Erledigt-Zone klappt automatisch ein,
-offene Kacheln schrumpfen bis _MIN_H, danach scrollt die Flaeche.
+compute_cells einen TypeError. Jetzt: Erledigte stehen standardmaessig
+eingeklappt als Leiste unter den offenen, offene Kacheln schrumpfen bis
+_MIN_H, danach scrollt die Flaeche.
 """
 import pytest
 from PySide6.QtCore import Qt
@@ -49,15 +50,25 @@ def _ausserhalb(tc):
     return [t for t in _sichtbar(tc) if t.geometry().bottom() >= h]
 
 
-def test_passt_alles_bleibt_die_ansicht_wie_bisher(widget):
-    tc = widget(40, 10, 460, 1000)
+def test_ohne_erledigte_keine_leiste_und_kein_scrollen(widget):
+    tc = widget(40, 0, 460, 1000)
     assert not tc._done_bar.isVisibleTo(tc._canvas)
     assert len(_sichtbar(tc)) == 40
     assert tc._canvas.height() == tc._scroll.viewport().height()
     assert _ueberlappungen(tc) == 0
 
 
-def test_platzmangel_klappt_erledigte_ein_statt_zu_ueberlappen(widget):
+def test_erledigte_sind_standardmaessig_eingeklappt(widget):
+    # auch wenn genug Platz waere: die offenen sollen hervorstechen
+    tc = widget(40, 10, 460, 1000)
+    assert tc._done_bar.isVisibleTo(tc._canvas)
+    assert tc._done_bar.text() == "10 erledigt ▸"
+    assert len(_sichtbar(tc)) == 30
+    assert tc._canvas.height() == tc._scroll.viewport().height()
+    assert _ueberlappungen(tc) == 0
+
+
+def test_viele_calls_eingeklappt_ohne_ueberlappen(widget):
     # Fall aus dem Screenshot: 80 Calls, 36 erledigt, zu wenig Hoehe
     tc = widget(80, 36, 460, 700)
     assert tc._done_bar.isVisibleTo(tc._canvas)
@@ -94,7 +105,7 @@ def test_fuellen_setzt_die_handwahl_zurueck(widget):
     QTest.mouseClick(tc._done_bar, Qt.LeftButton)
     assert tc._done_expanded is True
     tc.fill([("a", "Dosado")])
-    assert tc._done_expanded is None
+    assert tc._done_expanded is False
 
 
 def test_wenig_hoehe_wirft_keinen_fehler(widget):
