@@ -228,10 +228,16 @@ class _PersonBox(QPlainTextEdit):
         self._selected = selected
         self._apply_style()
 
-    def clear_content(self):
+    def clear_names(self):
         self.clear()
-        self._fill = None
         self._refit()
+
+    def clear_colors(self):
+        self.set_fill(None)
+
+    def clear_content(self):
+        self.clear_names()
+        self.clear_colors()
 
     def focusInEvent(self, event):
         super().focusInEvent(event)
@@ -397,12 +403,28 @@ class PilotSquareWidget(QWidget):
             pgrid.addWidget(sw, i // 4, i % 4)
         grid.addWidget(palette, 1, 1)
 
-        # Ecke links unten: Leeren (normale Buttongroesse, unten-links platziert)
+        # Ecke links unten: drei gleich breite Leeren-Buttons uebereinander
+        # (Namen / Farben / Alles). Die Buttons fuellen die Breite des
+        # Containers, der sich nach dem breitesten Text richtet.
+        clear_box = QWidget()
+        clear_lay = QVBoxLayout(clear_box)
+        clear_lay.setContentsMargins(0, 0, 0, 0)
+        clear_lay.setSpacing(4)
+        self._btn_clear_names = QPushButton(_t("square.clear_names_btn"))
+        self._btn_clear_names.setToolTip(_t("square.clear_names_tooltip"))
+        self._btn_clear_names.clicked.connect(self._on_clear_names)
+        self._btn_clear_colors = QPushButton(_t("square.clear_colors_btn"))
+        self._btn_clear_colors.setToolTip(_t("square.clear_colors_tooltip"))
+        self._btn_clear_colors.clicked.connect(self._on_clear_colors)
         self._btn_clear = QPushButton(_t("square.clear_btn"))
         self._btn_clear.setToolTip(_t("square.clear_tooltip"))
-        self._btn_clear.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._btn_clear.clicked.connect(self._on_clear)
-        grid.addWidget(self._btn_clear, 2, 0, Qt.AlignCenter)
+        for btn in (self._btn_clear_names, self._btn_clear_colors,
+                    self._btn_clear):
+            btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            clear_lay.addWidget(btn)
+        clear_box.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        grid.addWidget(clear_box, 2, 0, Qt.AlignCenter)
 
         # Ecke rechts unten: Schliessen (normale Buttongroesse, unten-rechts)
         self._btn_close = QPushButton(_t("square.close_btn"))
@@ -418,6 +440,7 @@ class PilotSquareWidget(QWidget):
             self._couples[2].man, self._couples[2].woman,
             self._couples[3].man, self._couples[3].woman,
             self._couples[4].man, self._couples[4].woman,
+            self._btn_clear_names, self._btn_clear_colors,
             self._btn_clear, self._btn_close,
         ]
         for first, second in zip(tab_order, tab_order[1:]):
@@ -444,16 +467,36 @@ class PilotSquareWidget(QWidget):
             boxes.extend(cell.person_boxes())
         return boxes
 
+    def _confirm_clear(self, has_content: bool, key: str) -> bool:
+        """Sicherheitsabfrage — nur, wenn es tatsaechlich etwas zu loeschen gibt."""
+        if not has_content:
+            return True
+        reply = QMessageBox.question(
+            self, _t(f"square.{key}_confirm_title"),
+            _t(f"square.{key}_confirm_msg"),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        return reply == QMessageBox.Yes
+
+    def _on_clear_names(self):
+        boxes = self._all_boxes()
+        if not self._confirm_clear(
+                any(b.toPlainText().strip() for b in boxes), "clear_names"):
+            return
+        for b in boxes:
+            b.clear_names()
+
+    def _on_clear_colors(self):
+        boxes = self._all_boxes()
+        if not self._confirm_clear(any(b._fill for b in boxes), "clear_colors"):
+            return
+        for b in boxes:
+            b.clear_colors()
+
     def _on_clear(self):
         boxes = self._all_boxes()
-        has_content = any(b.toPlainText().strip() or b._fill for b in boxes)
-        if has_content:
-            reply = QMessageBox.question(
-                self, _t("square.clear_confirm_title"),
-                _t("square.clear_confirm_msg"),
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply != QMessageBox.Yes:
-                return
+        if not self._confirm_clear(
+                any(b.toPlainText().strip() or b._fill for b in boxes), "clear"):
+            return
         for b in boxes:
             b.clear_content()
 
@@ -494,4 +537,6 @@ class PilotSquareWidget(QWidget):
             f"border: none; border-radius: 3px; padding: 6px 12px; }}"
             f"QPushButton:hover {{ background: {c['warning_hover']}; }}")
         self._btn_close.setStyleSheet(btn_style)
-        self._btn_clear.setStyleSheet(clear_style)
+        for btn in (self._btn_clear_names, self._btn_clear_colors,
+                    self._btn_clear):
+            btn.setStyleSheet(clear_style)
