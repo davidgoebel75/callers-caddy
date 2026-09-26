@@ -1098,7 +1098,7 @@ class P29MainWindow(QMainWindow):
             QDockWidget.DockWidgetMovable
             | QDockWidget.DockWidgetFloatable
             | QDockWidget.DockWidgetClosable)
-        # Nicht dockbar — nur als freies Fenster (wie Photo/Reports/Rules)
+        # Standard: freies Fenster (per Magnet andockbar, s. _DEFAULT_FREE_DOCKS)
         self.dock_evening_planner.setFloating(True)
         self.dock_evening_planner.setAllowedAreas(Qt.NoDockWidgetArea)
         self.dock_evening_planner.hide()
@@ -2886,8 +2886,10 @@ class P29MainWindow(QMainWindow):
             QTimer.singleShot(0, self._init_evening_planner)
 
     def _init_evening_planner(self):
-        self.dock_evening_planner.setFloating(True)
-        self.dock_evening_planner.setAllowedAreas(Qt.NoDockWidgetArea)
+        # Nur schweben lassen, wenn der Dock (Magnet) auf 'frei' steht —
+        # eine angedockte Wahl des Nutzers bleibt erhalten.
+        if self.dock_evening_planner.allowedAreas() == Qt.NoDockWidgetArea:
+            self.dock_evening_planner.setFloating(True)
         self.evening_planner = EveningPlannerWidget(
             self.db, settings=self._settings, parent=self)
         self.evening_planner.apply_skin(self.skin_mgr)
@@ -2926,8 +2928,10 @@ class P29MainWindow(QMainWindow):
             QTimer.singleShot(0, self._init_reports)
 
     def _init_reports(self):
-        self.dock_reports.setFloating(True)
-        self.dock_reports.setAllowedAreas(Qt.NoDockWidgetArea)
+        # Nur schweben lassen, wenn der Dock (Magnet) auf 'frei' steht —
+        # eine angedockte Wahl des Nutzers bleibt erhalten.
+        if self.dock_reports.allowedAreas() == Qt.NoDockWidgetArea:
+            self.dock_reports.setFloating(True)
         self.reports_widget = ReportsWidget(self.db, paths=self.paths)
         self.reports_widget.set_date_format(self._date_format)
         self.dock_reports.setWidget(self.reports_widget)
@@ -6838,7 +6842,9 @@ class P29MainWindow(QMainWindow):
     # Fuer sie ist der "Frei bewegen"-Umschalter fix an (angehakt + deaktiviert),
     # damit die Titelleisten-Menues einheitlich bleiben, ohne diese bewusst
     # nicht-dockbaren Fenster zu brechen.
-    _FIXED_FREE_DOCKS = frozenset({
+    # Docks, die OHNE gespeicherte Wahl frei schweben (frueher fix nicht
+    # dockbar). Per Magnet/Kontextmenue jetzt wie alle anderen umschaltbar.
+    _DEFAULT_FREE_DOCKS = frozenset({
         "dock_manager", "dock_loop_finder", "dock_photo",
         "dock_evening_planner", "dock_break", "dock_rules", "dock_reports",
     })
@@ -6878,11 +6884,7 @@ class P29MainWindow(QMainWindow):
         act = menu.addAction(_t("dock_ctx_free_move"))
         act.setCheckable(True)
         act.setChecked(dock.allowedAreas() == Qt.NoDockWidgetArea)
-        if dock.objectName() in self._FIXED_FREE_DOCKS:
-            # Bewusst nicht-dockbares Fenster: Zustand fix, nur zur Anzeige.
-            act.setEnabled(False)
-        else:
-            act.toggled.connect(lambda free, d=dock: self._set_dock_free(d, free))
+        act.toggled.connect(lambda free, d=dock: self._set_dock_free(d, free))
         menu.exec(dock.mapToGlobal(pos))
 
     def _set_dock_free(self, dock, free):
@@ -6910,14 +6912,15 @@ class P29MainWindow(QMainWindow):
             self._save_layout()
 
     def _apply_saved_dock_free(self):
-        """Wendet den gespeicherten 'Frei bewegen'-Zustand auf die dockbaren
-        Docks an. Fix-freie Docks bleiben unberuehrt (ihr Zustand wird an anderer
-        Stelle erzwungen)."""
+        """Wendet den gespeicherten 'Frei bewegen'-Zustand auf alle Docks an.
+        Ohne gespeicherte Wahl gilt fuer _DEFAULT_FREE_DOCKS 'frei', sonst
+        'andockbar'."""
         for dock in self.findChildren(QDockWidget):
             name = dock.objectName()
-            if not name or name in self._FIXED_FREE_DOCKS:
+            if not name:
                 continue
-            free = self._settings.value(f"dockfree/{name}", False, type=bool)
+            free = self._settings.value(
+                f"dockfree/{name}", name in self._DEFAULT_FREE_DOCKS, type=bool)
             dock.setAllowedAreas(
                 Qt.NoDockWidgetArea if free else self._all_dock_areas())
             self._refresh_view_magnet(dock)
@@ -6928,10 +6931,13 @@ class P29MainWindow(QMainWindow):
         """Fuegt dem Ansicht-Menue eine Zeile fuer einen Dock hinzu: links die
         (unveraenderte) Sichtbarkeits-Umschaltung, rechtsbuendig ein Magnet-Icon
         zum Umschalten angedockt <-> frei. Der Magnet zeigt den Snap-Zustand:
-        angedockt = kraeftige Textfarbe, frei = dezent."""
+        angedockt = kraeftige Textfarbe, frei = dezent.
+
+        Die Zeilen werden alphabetisch nach dem (uebersetzten) Text einsortiert,
+        egal wann ein Dock angelegt wird (intern#117)."""
         from PySide6.QtWidgets import (
             QWidget, QHBoxLayout, QCheckBox, QToolButton, QWidgetAction)
-        from PySide6.QtCore import QSize
+        from PySide6.QtCore import QSize, QCollator, QLocale
         row = QWidget(self._view_menu)
         lay = QHBoxLayout(row)
         lay.setContentsMargins(8, 2, 8, 2)
@@ -6955,14 +6961,20 @@ class P29MainWindow(QMainWindow):
         lay.addWidget(magnet)
         wa = QWidgetAction(self._view_menu)
         wa.setDefaultWidget(row)
-        self._view_menu.addAction(wa)
+        wa.setData(text)
+        collator = QCollator(QLocale())
+        collator.setCaseSensitivity(Qt.CaseInsensitive)
+        before = next((a for a in self._view_menu.actions()
+                       if collator.compare(text, a.data() or "") < 0), None)
+        if before is None:
+            self._view_menu.addAction(wa)
+        else:
+            self._view_menu.insertAction(before, wa)
         self._view_magnets[dock] = magnet
         self._refresh_view_magnet(dock)
 
     def _toggle_dock_snap(self, dock):
         """Magnet-Klick: angedockt -> frei, frei -> wieder angedockt."""
-        if dock.objectName() in self._FIXED_FREE_DOCKS:
-            return
         free_now = dock.allowedAreas() == Qt.NoDockWidgetArea
         self._set_dock_free(dock, not free_now)
 
@@ -6972,7 +6984,6 @@ class P29MainWindow(QMainWindow):
         magnet = getattr(self, "_view_magnets", {}).get(dock)
         if magnet is None:
             return
-        fixed = dock.objectName() in self._FIXED_FREE_DOCKS
         free = dock.allowedAreas() == Qt.NoDockWidgetArea
         # Angedockt = aktiv/"haftet" -> Theme-Akzentfarbe (auffaellig, passend zum
         # Skin). Frei = inaktiv -> dezenter, kontrastarmer Ton.
@@ -6986,7 +6997,6 @@ class P29MainWindow(QMainWindow):
         else:
             color = "#999999" if free else "#0067c0"
         magnet.setIcon(_make_icon(_SVG_MAGNET, color))
-        magnet.setEnabled(not fixed)
         magnet.setToolTip(
             _t("dock_undock_tooltip") if free else _t("dock_ctx_free_move"))
 
