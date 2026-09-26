@@ -6931,10 +6931,13 @@ class P29MainWindow(QMainWindow):
         """Fuegt dem Ansicht-Menue eine Zeile fuer einen Dock hinzu: links die
         (unveraenderte) Sichtbarkeits-Umschaltung, rechtsbuendig ein Magnet-Icon
         zum Umschalten angedockt <-> frei. Der Magnet zeigt den Snap-Zustand:
-        angedockt = kraeftige Textfarbe, frei = dezent."""
+        angedockt = kraeftige Textfarbe, frei = dezent.
+
+        Die Zeilen werden alphabetisch nach dem (uebersetzten) Text einsortiert,
+        egal wann ein Dock angelegt wird (intern#117)."""
         from PySide6.QtWidgets import (
             QWidget, QHBoxLayout, QCheckBox, QToolButton, QWidgetAction)
-        from PySide6.QtCore import QSize
+        from PySide6.QtCore import QSize, QCollator, QLocale
         row = QWidget(self._view_menu)
         lay = QHBoxLayout(row)
         lay.setContentsMargins(8, 2, 8, 2)
@@ -6958,7 +6961,15 @@ class P29MainWindow(QMainWindow):
         lay.addWidget(magnet)
         wa = QWidgetAction(self._view_menu)
         wa.setDefaultWidget(row)
-        self._view_menu.addAction(wa)
+        wa.setData(text)
+        collator = QCollator(QLocale())
+        collator.setCaseSensitivity(Qt.CaseInsensitive)
+        before = next((a for a in self._view_menu.actions()
+                       if collator.compare(text, a.data() or "") < 0), None)
+        if before is None:
+            self._view_menu.addAction(wa)
+        else:
+            self._view_menu.insertAction(before, wa)
         self._view_magnets[dock] = magnet
         self._refresh_view_magnet(dock)
 
