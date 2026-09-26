@@ -9693,10 +9693,30 @@
     "en": "Remove fill colour (select a field, then click here)",
     "ja": "塗りつぶしを解除（フィールドを選択してからクリック）"
   },
+  "square.clear_names_btn": {
+    "de": "Namen löschen",
+    "en": "Clear names",
+    "ja": "名前をクリア"
+  },
+  "square.clear_names_tooltip": {
+    "de": "Alle Namen löschen, Farben bleiben erhalten",
+    "en": "Clear all names, colours are kept",
+    "ja": "すべての名前をクリア（色は保持）"
+  },
+  "square.clear_colors_btn": {
+    "de": "Farben löschen",
+    "en": "Clear colours",
+    "ja": "色をクリア"
+  },
+  "square.clear_colors_tooltip": {
+    "de": "Alle Farben zurücksetzen, Namen bleiben erhalten",
+    "en": "Reset all colours, names are kept",
+    "ja": "すべての色をリセット（名前は保持）"
+  },
   "square.clear_btn": {
-    "de": "Leeren",
-    "en": "Clear",
-    "ja": "クリア"
+    "de": "Alles löschen",
+    "en": "Clear all",
+    "ja": "すべてクリア"
   },
   "square.clear_tooltip": {
     "de": "Alle Felder und Farben zurücksetzen",
@@ -9722,6 +9742,26 @@
     "de": "Alle Notizen und Farben im Square werden gelöscht.",
     "en": "All notes and colours in the square will be deleted.",
     "ja": "スクエア内のすべてのメモと色が削除されます。"
+  },
+  "square.clear_names_confirm_title": {
+    "de": "Namen löschen?",
+    "en": "Clear names?",
+    "ja": "名前をクリアしますか？"
+  },
+  "square.clear_names_confirm_msg": {
+    "de": "Alle Namen im Square werden gelöscht. Die Farben bleiben erhalten.",
+    "en": "All names in the square will be deleted. Colours are kept.",
+    "ja": "スクエア内のすべての名前が削除されます。色は保持されます。"
+  },
+  "square.clear_colors_confirm_title": {
+    "de": "Farben löschen?",
+    "en": "Clear colours?",
+    "ja": "色をクリアしますか？"
+  },
+  "square.clear_colors_confirm_msg": {
+    "de": "Alle Farben im Square werden zurückgesetzt. Die Namen bleiben erhalten.",
+    "en": "All colours in the square will be reset. Names are kept.",
+    "ja": "スクエア内のすべての色がリセットされます。名前は保持されます。"
   },
   "dock_pilot_square": {
     "de": "Pilot Square",
