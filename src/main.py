@@ -1270,6 +1270,8 @@ class P29MainWindow(QMainWindow):
         # Zuletzt wirklich gestarteter Song dieser Sitzung (ohne Wartemusik,
         # Audition, Beat Snap) — Quelle fuer "Letzten Song spielen"
         self._last_logged_song_id = None
+        # Vor der Wartemusik geladener Song — wird nach der Pause wieder geladen
+        self._pre_break_song_id = None
         # Latch: unterdrueckt den Feedback-Dialog am Ende der Wartemusik. Wird in
         # _trigger_song_stopped einmalig gelesen und zurueckgesetzt (wie _in_audition).
         self._break_music_suppress_feedback = False
@@ -3652,6 +3654,10 @@ class P29MainWindow(QMainWindow):
             return False
         _t1 = perf_split("_on_break_play_last: lookup+find_file", _t0)
         self._flush_player_values()
+        # Vorher geladenen Song merken (z.B. der per Auto-Advance vorgeladene
+        # naechste Playlist-Song) — _on_break_stop_last laedt ihn wieder.
+        prev = self._current_song
+        self._pre_break_song_id = prev.id if prev and prev.id != song.id else None
         self._current_song = song
         self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
@@ -3719,10 +3725,26 @@ class P29MainWindow(QMainWindow):
             # Rules wieder freigeben (genau ein resume() zum suspend() oben)
             self.rule_engine.resume("break_music")
             self._break_music_active = False
+            self._restore_pre_break_song()
         # Break-Widget-Button zuruecksetzen (Auto-Stop)
         if getattr(self, 'break_widget', None) is not None:
             self.break_widget.set_music_stopped()
         perf_log("_on_break_stop_last", _t0)
+
+    def _restore_pre_break_song(self):
+        """Laedt nach der Wartemusik wieder den Song, der vor der Pause geladen
+        war (intern#110). Ohne Abspielen; Laden ist synchron, eine Folge-Rule
+        "Play" (z.B. auf Break Finished) spielt also diesen Song."""
+        song_id, self._pre_break_song_id = self._pre_break_song_id, None
+        if not song_id:
+            return
+        song = self.db.get_by_id(song_id)
+        filepath = self.paths.find_song_file(song.filename) if song else None
+        if not filepath:
+            return
+        self._flush_player_values()
+        self._current_song = song
+        self._load_known_song(song.id, filepath)
 
     def _on_potential_navigate_beatsnap(self, song_id):
         """Laedt den Song und oeffnet Beat Snap."""
