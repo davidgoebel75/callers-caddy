@@ -3095,7 +3095,7 @@ class SongDatabase:
         """Loescht Mappings. Ohne Parameter: alle. Mit: nur die angegebene Quelle.
 
         Args:
-            mapped_by: 'auto' oder 'manual' — None loescht alle
+            mapped_by: 'auto', 'manual' oder 'inferred' — None loescht alle
         """
         # BL-210: weitere Figuren zuerst, solange die Hauptzeilen noch sagen,
         # zu welcher Quelle sie gehoeren (nie Zusatzzeile ohne Hauptzeile).
@@ -3672,12 +3672,17 @@ class SongDatabase:
         cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'manual'")
         manual_count = cur.fetchone()[0]
 
+        # intern#97: aus Mengen-Vorschlaegen uebernommen ("Optimieren")
+        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'inferred'")
+        inferred_count = cur.fetchone()[0]
+
         return {
             "total_unique_texts": len(all_texts),
             "mapped": mapped_count,
             "unmapped": len(all_texts) - mapped_count,
             "auto": auto_count,
             "manual": manual_count,
+            "inferred": inferred_count,
         }
 
     def backfill_auto_mappings(self) -> int:

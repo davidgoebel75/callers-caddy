@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
     QMessageBox, QDialog, QMenu, QAbstractItemView,
     QTextBrowser, QTextEdit, QPlainTextEdit, QListWidget, QListWidgetItem,
+    QDialogButtonBox,
 )
 from PySide6.QtCore import Qt, QTimer, QSettings, QEvent, QObject
 from PySide6.QtGui import (
@@ -1294,7 +1295,8 @@ class SequencesWidget(QWidget):
                mapped=stats['mapped'],
                unmapped=stats['unmapped'],
                auto=stats['auto'],
-               manual=stats['manual'])
+               manual=stats['manual'],
+               inferred=stats['inferred'])
         )
 
     def _do_remapping(self):
@@ -2528,6 +2530,37 @@ class _NumericItem(QTableWidgetItem):
             return super().__lt__(other)
 
 
+class CallMappingOptimizeDialog(QDialog):
+    """Rueckfrage zum Knopf "Optimieren" im Call-Mapping-Dialog (intern#97).
+
+    Zeigt die drei Gruppen (neu zuordnen / ergaenzen / aendern) mit ihrer
+    Anzahl, jede mit eigenem Haken (vorbelegt). chosen_groups() liefert die
+    angehakten Gruppen als Menge aus "new", "extend", "change".
+    """
+
+    GROUPS = ("new", "extend", "change")
+
+    def __init__(self, new: int, extend: int, change: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("call_mapping_optimize_title"))
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(_t("call_mapping_optimize_intro")))
+        self._checks = {}
+        for key, count in zip(self.GROUPS, (new, extend, change)):
+            cb = QCheckBox(_t(f"call_mapping_optimize_{key}", count=count))
+            cb.setChecked(count > 0)
+            cb.setEnabled(count > 0)
+            layout.addWidget(cb)
+            self._checks[key] = cb
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def chosen_groups(self) -> set:
+        return {k for k, cb in self._checks.items() if cb.isChecked()}
+
+
 class CallMappingDialog(QDialog):
     """Dialog zum Verwalten des Call-Text-Mappings.
 
@@ -2563,6 +2596,7 @@ class CallMappingDialog(QDialog):
         self._alive        = True   # False sobald der Dialog schliesst
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
         self._pending_pos   = 0
+        self._optimized     = False  # intern#97: "Optimieren" hat geschrieben
         self.setWindowTitle(_t("call_mapping_title"))
         self.setMinimumSize(900, 600)
         self._build_ui()
@@ -2571,6 +2605,12 @@ class CallMappingDialog(QDialog):
         # Stattdessen: Fenster sofort mit Ladehinweis zeigen, dann laden.
         self._loaded_once = False
         self._label_info.setText(_t("call_mapping_loading"))
+
+    @property
+    def optimized(self) -> bool:
+        """True, sobald "Optimieren" Zuordnungen geschrieben hat -- dann muss
+        der Aufrufer die Sequenzen auch bei Abbrechen neu mappen."""
+        return self._optimized
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -2753,6 +2793,11 @@ class CallMappingDialog(QDialog):
         self._btn_confirm_sel = QPushButton(_t("call_mapping_confirm_selected"))
         self._btn_confirm_sel.clicked.connect(self._on_confirm_selected)
         btn_layout.addWidget(self._btn_confirm_sel)
+        # intern#97: alle abweichenden Mengen-Vorschlaege auf einen Schlag
+        self._btn_optimize = QPushButton(_t("call_mapping_optimize"))
+        self._btn_optimize.setToolTip(_t("call_mapping_optimize_tip"))
+        self._btn_optimize.clicked.connect(self._on_optimize)
+        btn_layout.addWidget(self._btn_optimize)
         btn_layout.addStretch()
         self._btn_save = QPushButton(_t("call_mapping_save"))
         self._btn_save.setDefault(True)
@@ -3258,6 +3303,59 @@ class CallMappingDialog(QDialog):
                 self, _t("call_mapping_title"),
                 _t("call_mapping_confirmed_n", count=confirmed)
             )
+
+    def _optimize_groups(self) -> dict:
+        """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
+        Filters "Vorschlag weicht ab") in drei Gruppen:
+        new    -> bisher ohne Zuordnung
+        extend -> Vorschlag ist echte Obermenge der Zuordnung (fehlende Figuren)
+        change -> Vorschlag weicht anders ab
+        Werte: {call_text: Vorschlag}."""
+        groups = {"new": {}, "extend": {}, "change": {}}
+        for call_text in dict.fromkeys(r[0] for r in self._all_data):
+            sug = self._set_cache.get(call_text)
+            if not sug:
+                continue
+            current = set(self._figure_sets.get(call_text) or ())
+            if current == set(sug):
+                continue
+            if not current:
+                key = "new"
+            elif current < set(sug):
+                key = "extend"
+            else:
+                key = "change"
+            groups[key][call_text] = sug
+        return groups
+
+    def _on_optimize(self):
+        """Knopf "Optimieren" (intern#97): uebernimmt die Mengen-Vorschlaege der
+        gewaehlten Gruppen nach Rueckfrage als mapped_by='inferred'."""
+        groups = self._optimize_groups()
+        if not any(groups.values()):
+            QMessageBox.information(self, _t("call_mapping_title"),
+                                    _t("call_mapping_optimize_nothing"))
+            return
+        dlg = CallMappingOptimizeDialog(len(groups["new"]), len(groups["extend"]),
+                                        len(groups["change"]), parent=self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        pairs = [(ct, self._rank_figures(sug))
+                 for key in dlg.chosen_groups()
+                 for ct, sug in groups[key].items()]
+        if not pairs:
+            return
+        # EINE Transaktion (TIC-0025: kurz genug fuer den Main-Thread)
+        written = self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
+        self.db.recompute_sequence_max_to()
+        self._optimized = True
+        # In-Memory-Stand aus der DB nachladen; die Mengen-Vorschlaege bleiben,
+        # die uebernommenen Zeilen fallen so aus "Vorschlag weicht ab" heraus.
+        self._all_data = self.db.get_all_call_texts_with_mapping()
+        self._figure_sets = self.db.get_all_call_text_figures()
+        self._load_table()
+        QMessageBox.information(self, _t("call_mapping_title"),
+                                _t("call_mapping_optimize_done", count=written))
 
     def _on_save(self):
         """Speichert geaenderte Zuordnungen; fuehrt Splits durch; loescht entfernte."""

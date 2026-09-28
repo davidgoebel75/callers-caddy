@@ -1281,9 +1281,9 @@
     "ja": "Remapping 完了"
   },
   "remapping_done_msg": {
-    "de": "Ergebnis:\n  Einzigartige Call-Texte: {total}\n  Gemappt: {mapped}\n  Nicht gemappt: {unmapped}\n  Davon auto: {auto}, manuell: {manual}",
-    "en": "Result:\n  Unique call texts: {total}\n  Mapped: {mapped}\n  Unmapped: {unmapped}\n  Of which auto: {auto}, manual: {manual}",
-    "ja": "結果:\n  固有の Call テキスト: {total}\n  マッピング済み: {mapped}\n  未マッピング: {unmapped}\n  うち自動: {auto}、手動: {manual}"
+    "de": "Ergebnis:\n  Einzigartige Call-Texte: {total}\n  Gemappt: {mapped}\n  Nicht gemappt: {unmapped}\n  Davon auto: {auto}, manuell: {manual}, abgeleitet: {inferred}",
+    "en": "Result:\n  Unique call texts: {total}\n  Mapped: {mapped}\n  Unmapped: {unmapped}\n  Of which auto: {auto}, manual: {manual}, inferred: {inferred}",
+    "ja": "結果:\n  固有の Call テキスト: {total}\n  マッピング済み: {mapped}\n  未マッピング: {unmapped}\n  うち自動: {auto}、手動: {manual}、推定: {inferred}"
   },
   "btn_auto_scroll": {
     "de": "Auto-Scroll",
@@ -3274,6 +3274,51 @@
     "de": "Keine Zeilen ausgewählt oder keine bestätigbaren Vorschläge in der Auswahl.",
     "en": "No rows selected, or no confirmable suggestions in selection.",
     "ja": "行が選択されていないか、選択内に確定可能な提案がありません。"
+  },
+  "call_mapping_optimize": {
+    "de": "Optimieren",
+    "en": "Optimize",
+    "ja": "最適化"
+  },
+  "call_mapping_optimize_tip": {
+    "de": "Übernimmt alle Mengen-Vorschläge, die von der Zuordnung abweichen (Filter \"Vorschlag weicht ab\"), auf einen Schlag. Vorher kommt eine Rückfrage.",
+    "en": "Adopts all set suggestions that differ from the mapping (filter \"Suggestion differs\") in one go. Asks for confirmation first.",
+    "ja": "マッピングと異なるセット提案（フィルター「提案が異なる」）をまとめて適用します。事前に確認します。"
+  },
+  "call_mapping_optimize_title": {
+    "de": "Vorschläge übernehmen",
+    "en": "Adopt suggestions",
+    "ja": "提案を適用"
+  },
+  "call_mapping_optimize_intro": {
+    "de": "Welche Mengen-Vorschläge sollen übernommen werden?",
+    "en": "Which set suggestions should be adopted?",
+    "ja": "どのセット提案を適用しますか？"
+  },
+  "call_mapping_optimize_new": {
+    "de": "{count} Call-Texte neu zuordnen (bisher ohne Zuordnung)",
+    "en": "Map {count} call texts (currently unmapped)",
+    "ja": "{count} 件の Call テキストを新規マッピング（未マッピング）"
+  },
+  "call_mapping_optimize_extend": {
+    "de": "{count} Zuordnungen ergänzen (Figuren fehlen noch)",
+    "en": "Complete {count} mappings (figures missing)",
+    "ja": "{count} 件のマッピングを補完（フィギュア不足）"
+  },
+  "call_mapping_optimize_change": {
+    "de": "{count} Zuordnungen ändern (Vorschlag weicht anders ab)",
+    "en": "Change {count} mappings (suggestion differs otherwise)",
+    "ja": "{count} 件のマッピングを変更（提案が別の形で異なる）"
+  },
+  "call_mapping_optimize_nothing": {
+    "de": "Kein Vorschlag weicht von der Zuordnung ab – nichts zu optimieren.",
+    "en": "No suggestion differs from the mapping – nothing to optimize.",
+    "ja": "マッピングと異なる提案はありません。最適化するものはありません。"
+  },
+  "call_mapping_optimize_done": {
+    "de": "{count} Zuordnungen aus Vorschlägen übernommen.",
+    "en": "{count} mappings adopted from suggestions.",
+    "ja": "{count} 件のマッピングを提案から適用しました。"
   },
   "call_mapping_saved": {
     "de": "{count} Zuordnungen gespeichert.",

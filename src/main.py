@@ -6023,7 +6023,9 @@ class P29MainWindow(QMainWindow):
             )
             return
         dlg = CallMappingDialog(self.db, self)
-        if dlg.exec() == QDialog.Accepted:
+        # "Optimieren" (intern#97) schreibt schon vor dem Schliessen -> auch
+        # bei Abbrechen neu mappen, sonst zeigt die Sequenzansicht alte Baender.
+        if dlg.exec() == QDialog.Accepted or dlg.optimized:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
 
