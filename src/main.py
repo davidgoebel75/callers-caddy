@@ -1267,6 +1267,9 @@ class P29MainWindow(QMainWindow):
         self._break_music_active = False
         self._break_music_timer = None
         self._break_with_music = False  # Art der letzten Pause (Condition break_type)
+        # Zuletzt wirklich gestarteter Song dieser Sitzung (ohne Wartemusik,
+        # Audition, Beat Snap) — Quelle fuer "Letzten Song spielen"
+        self._last_logged_song_id = None
         # Latch: unterdrueckt den Feedback-Dialog am Ende der Wartemusik. Wird in
         # _trigger_song_stopped einmalig gelesen und zurueckgesetzt (wie _in_audition).
         self._break_music_suppress_feedback = False
@@ -2618,6 +2621,7 @@ class P29MainWindow(QMainWindow):
         _ch.log_action(f"Play: {self._current_song.title or self._current_song.filename}")
         # Audition/Beat-Snap nicht in Historie loggen, aber Rules trotzdem feuern
         if not getattr(self, '_suppress_play_log', False):
+            self._last_logged_song_id = self._current_song.id
             location_id = self._current_location.id if self._current_location else None
             # Historie-Log ist "best effort": ist die DB gerade gesperrt (z.B.
             # laufende Bulk-Worker), darf das NICHT das Abspielen verhindern.
@@ -3614,7 +3618,15 @@ class P29MainWindow(QMainWindow):
     # ---- Break: Wartemusik (zuletzt gespielter Song, ohne Historie) ----
 
     def _last_played_song_id(self):
-        """Ermittelt die ID des zuletzt gespielten Songs (aus der Historie)."""
+        """Ermittelt die ID des zuletzt gespielten Songs.
+
+        Zuerst der in dieser Sitzung zuletzt gestartete Song, dann die Historie
+        der Lokation. Der geladene Song ist nur der letzte Ausweg: nach
+        Auto-Advance ist das schon der NAECHSTE Playlist-Song (ohne Lokation
+        ist die Historie leer, intern#110).
+        """
+        if getattr(self, "_last_logged_song_id", None):
+            return self._last_logged_song_id
         location_id = self._current_location.id if self._current_location else None
         lpm = self.db.get_last_played_map(location_id)
         if lpm:
