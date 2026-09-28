@@ -3695,6 +3695,14 @@ class P29MainWindow(QMainWindow):
             self._break_music_timer = None
         if self._break_music_active:
             self.engine.stop()
+            # Das Ende der Wartemusik ist kein Songende: ohne diesen Reset
+            # erkennt _update_all im naechsten Tick "Song-Ende" und feuert
+            # song_stopped (dann schon ohne Sperre) -> Auto-Advance schaltet
+            # weiter, mit break_finished -> Auto-Advance sogar doppelt
+            # (intern#110). Der Feedback-Latch wird damit nicht mehr in
+            # _trigger_song_stopped konsumiert, also hier loeschen.
+            self._was_playing = False
+            self._break_music_suppress_feedback = False
             self._suppress_play_log = False
             # Rules wieder freigeben (genau ein resume() zum suspend() oben)
             self.rule_engine.resume("break_music")
