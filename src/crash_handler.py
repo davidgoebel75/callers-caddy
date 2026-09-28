@@ -21,6 +21,9 @@ from datetime import datetime
 
 _logger = None  # Singleton
 
+# INI-Key: Dateiname des zuletzt beim Start gemeldeten Crash-Logs
+LAST_NOTIFIED_KEY = "crash/last_notified"
+
 
 class CrashLogger:
     RING_SIZE = 25
@@ -112,7 +115,9 @@ class CrashLogger:
     def _write_log(self, reason: str, exc_type=None, exc_value=None, exc_tb=None,
                    extra_lines=None):
         """Schreibt sofort ein Crash-Logfile auf Disk."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Mikrosekunden: zwei Fehler in derselben Sekunde ueberschreiben sich
+        # nicht; sortiert trotzdem korrekt nach alten Namen ('.' < '_').
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         # Crash-Logs liegen in logs/crashes/. Ordner robust erzeugen.
         crash_dir = os.path.join(self._app_dir, "logs", "crashes")
         try:
@@ -154,13 +159,16 @@ class CrashLogger:
         sys.__excepthook__(exc_type, exc_value, exc_tb)
 
     @staticmethod
-    def find_crash_logs(app_dir: str) -> list:
+    def find_crash_logs(app_dir: str, newer_than: str = "") -> list:
         """Gibt sortierte Liste aller crash_*.log-Dateipfade zurueck (neueste zuerst).
-        Schaut primaer in logs/crashes/, faellt zurueck auf app_dir (Legacy)."""
+        Schaut primaer in logs/crashes/, faellt zurueck auf app_dir (Legacy).
+        newer_than: nur Logs, deren Dateiname (Zeitstempel) groesser ist —
+        so werden bereits gemeldete Logs beim naechsten Start uebersprungen."""
         results = []
         for d in (os.path.join(app_dir, "logs", "crashes"), app_dir):
             results.extend(glob.glob(os.path.join(d, "crash_*.log")))
-        return sorted(set(results), reverse=True)
+        results = [p for p in set(results) if os.path.basename(p) > newer_than]
+        return sorted(results, key=os.path.basename, reverse=True)
 
 
 def setup(app_dir: str) -> CrashLogger:
