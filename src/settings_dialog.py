@@ -288,8 +288,7 @@ SETTINGS_META: dict[str, dict] = {
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
-        # choices werden zur Laufzeit i18n-uebersetzt (siehe _build_widget)
-        "choices": [("top", "Oben"), ("middle", "Mitte"), ("bottom", "Unten")],
+        "choices": [],          # zur Laufzeit (i18n) befuellt
         "default": "top",
         "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
     },
@@ -307,9 +306,10 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Automatische Breite",
         "widget": "checkbox",
         "default": False,
-        "tooltip": "Passt die Schriftgröße der Lyrics an die Fensterbreite an. "
-                   "Schließt die automatische Schriftgröße aus – ist beides an, "
-                   "gewinnt die Breite.",
+        "tooltip": ("Passt die Schriftgröße der Lyrics an die Fensterbreite an. "
+                    "Schließt die automatische Schriftgröße aus – ist beides an, "
+                    "gewinnt die Breite. Entspricht dem Button „Auto-Breite“ im "
+                    "Lyrics-Fenster."),
     },
     "lyrics/dynamic_enabled": {
         "label": "Dynamic Lyrics aktiv",

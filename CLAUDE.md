@@ -175,10 +175,10 @@ Die Details stehen in `1_Source/docs/`. **Vor jeder Arbeit den passenden Abschni
 | `00_projektuebersicht.md` | Scope, Zielgruppe, Projektziele | Neue Feature-Ideen einordnen |
 | `perf_logs/INDEX.md` | Sammelordner fuer alle Startup-Perf-Logs (alle Maschinen). Neue Logs einfach als `.txt` in `1_Source/docs/perf_logs/` ablegen und Zeile in INDEX.md ergaenzen — keine Nummerierung noetig. | Performance-Vergleich, Regression pruefen, neue Messung archivieren |
 
-## Übersetzungen (i18n)
+## Uebersetzungen (i18n)
 
-- Texte laufen über `_t("key")` aus `src/translations.json`, jeder Key mit `de`, `en` und `ja`. `_t()` fällt still auf Deutsch zurück — eine fehlende Sprache fällt also erst dem englischen oder japanischen Nutzer auf.
-- **Neuer INI-Schlüssel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` übersetzen (Muster `lyrics/dynamic_mode`). Test `tests/test_settings_i18n.py` prüft das.
+- Texte laufen ueber `_t("key")` aus `src/translations.json`, jeder Key mit `de`, `en` und `ja`. `_t()` faellt still auf Deutsch zurueck — eine fehlende Sprache faellt also erst dem englischen oder japanischen Nutzer auf.
+- **Neuer INI-Schluessel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` uebersetzen (Muster `lyrics/dynamic_mode`). Test `tests/test_settings_i18n.py` prueft das.
 
 ## Technische Konventionen
 

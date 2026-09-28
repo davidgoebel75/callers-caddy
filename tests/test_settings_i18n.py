@@ -55,8 +55,10 @@ def _fehlt(tr: dict, t_key: str) -> bool:
 
 
 def _sichtbare_keys() -> set:
-    """SETTINGS_META plus alle gelesenen, gesaeten, nicht versteckten Keys —
-    derselbe Begriff von 'sichtbar' wie in test_settings_reachable.py."""
+    """SETTINGS_META plus alle im Code gelesenen oder geschriebenen, gesaeten,
+    nicht versteckten Keys. Geschriebene zaehlen mit: was per setValue in der
+    INI landet, zeigt der Dialog auch dann, wenn es nur mit Default gelesen
+    wird oder gar nicht."""
     written, prefixes = _settings_calls("setValue")
     fixed = _defaults_table() | _default_ini_keys() | written
 
@@ -64,7 +66,7 @@ def _sichtbare_keys() -> set:
         return k in fixed or any(k.startswith(p) for p in prefixes)
 
     gelesen, _ = _settings_calls("value")
-    keys = set(SETTINGS_META) | {k for k in gelesen
+    keys = set(SETTINGS_META) | {k for k in gelesen | written
                                  if gesaet(k) and not _is_excluded(k)}
     return {k for k in keys if not _is_excluded_key(*k.split("/", 1))}
 
