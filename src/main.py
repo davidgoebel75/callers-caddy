@@ -972,6 +972,7 @@ class P29MainWindow(QMainWindow):
         self.sequences_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequences_widget.on_add_filter_to_notes = self._notes_add_seq_with_filters
         self.sequences_widget.on_sequences_deleted = self._on_sequences_deleted
+        self.sequences_widget.on_open_call_mapping = self._open_call_mapping
         self.sequence_view_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequence_view_widget.on_edit_sequence = self._on_sequence_editor
         self.sequence_view_widget.on_delete_sequence = self._on_sequence_view_delete
@@ -6009,6 +6010,11 @@ class P29MainWindow(QMainWindow):
 
     def _on_call_mapping(self):
         """Menue: Call-Mapping-Dialog oeffnen."""
+        self._open_call_mapping()
+
+    def _open_call_mapping(self, focus_texts=None):
+        """Call-Mapping-Dialog oeffnen; focus_texts filtert ihn beim Start auf
+        diese Call-Texte (intern#119, Doppelklick auf eine rote Sequenz)."""
         if self.db.get_teaching_order_count() == 0:
             QMessageBox.warning(
                 self, _t("call_mapping_title"),
@@ -6017,7 +6023,7 @@ class P29MainWindow(QMainWindow):
             return
         # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
         # Ergaenzen/Aendern ("Optimieren", intern#97).
-        dlg = CallMappingDialog(self.db, self)
+        dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
