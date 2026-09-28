@@ -5214,7 +5214,9 @@ class P29MainWindow(QMainWindow):
         except OSError:
             return None
         cached = self._alert_cache.get(path)
-        target_sr = self.engine.sample_rate if self.engine else 44100
+        # Ohne geladenen Song (Kaltstart) oeffnet play_alert den Stream mit
+        # ALERT_IDLE_SR — dorthin resamplen.
+        target_sr = (self.engine.sample_rate if self.engine else None) or 44100
         if cached and cached[0] == mtime and cached[1] == target_sr:
             return cached[2]
         try:

@@ -130,6 +130,8 @@ def _leerlauf_engine():
     eng._alert_data = None
     eng._alert_pos = 0
     eng._alert_volume = 1.0
+    eng.stream = object()        # Stream schon offen (es wurde schon gespielt)
+    eng.sample_rate = 44100
     return eng, np
 
 
@@ -150,3 +152,29 @@ def test_leerlauf_ohne_alert_bleibt_still():
     out = np.ones((128, 2), dtype=np.float32)
     eng._callback(out, 128, None, None)
     assert not out.any()
+
+
+def test_kaltstart_oeffnet_stream_fuer_alert():
+    """Noch nie gespielt, kein Song geladen: play_alert oeffnet den Stream
+    selbst im Alert-Standardformat, statt bis zum naechsten Play zu warten."""
+    from audio_engine import ALERT_IDLE_SR
+    eng, np = _leerlauf_engine()
+    eng.stream = None
+    eng.sample_rate = None
+    eng.channels = None
+    geoeffnet = []
+    eng._ensure_stream = lambda: geoeffnet.append((eng.sample_rate, eng.channels))
+    eng.play_alert(np.full(10, 0.5, dtype=np.float32))
+    assert geoeffnet == [(ALERT_IDLE_SR, 2)]
+    assert eng._alert_data.shape == (10, 2)
+
+
+def test_kaltstart_mit_geladenem_song_behaelt_songformat():
+    eng, np = _leerlauf_engine()
+    eng.stream = None
+    eng.sample_rate = 48000
+    eng.channels = 2
+    geoeffnet = []
+    eng._ensure_stream = lambda: geoeffnet.append((eng.sample_rate, eng.channels))
+    eng.play_alert(np.full(10, 0.5, dtype=np.float32))
+    assert geoeffnet == [(48000, 2)]

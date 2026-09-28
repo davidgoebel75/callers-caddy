@@ -338,6 +338,11 @@ def compute_loop_offset(audio_data, sample_rate, loop_in, loop_out):
     return (-best_offset, -offset_ms, best_corr)
 
 
+# Format fuer den Ausgabe-Stream, wenn ein Alert ohne geladenen Song kommt.
+# main._load_alert_sound resampelt dann auf diese Rate.
+ALERT_IDLE_SR = 44100
+
+
 class AudioEngine:
     """Audio-Engine mit Tempo, Pitch, Loop und Seek."""
 
@@ -484,6 +489,11 @@ class AudioEngine:
         """
         if samples is None or len(samples) == 0:
             return
+        # Kaltstart: noch nie gespielt -> kein Stream, der Ton wuerde bis zum
+        # naechsten Play warten (intern#110). Stream jetzt oeffnen; der Callback
+        # gibt im Leerlauf Stille + Alert aus.
+        if self.stream is None:
+            self._ensure_idle_stream()
         arr = np.asarray(samples, dtype=np.float32)
         if arr.ndim == 1:
             # Mono → auf Stream-Kanalzahl duplizieren
@@ -505,6 +515,22 @@ class AudioEngine:
         self._alert_data = arr
         self._alert_pos = 0
         self._alert_volume = max(0.0, float(volume))
+
+    def _ensure_idle_stream(self):
+        """Oeffnet den Ausgabe-Stream ohne geladenen Song (nur fuer Alerts).
+
+        Ohne Song gibt es noch kein Format — dann das Alert-Standardformat
+        (ALERT_IDLE_SR, Stereo). Laedt spaeter ein Song mit anderem Format,
+        baut _ensure_stream() den Stream beim Play ohnehin neu auf.
+        """
+        if self.sample_rate is None:
+            self.sample_rate = ALERT_IDLE_SR
+        if self.channels is None:
+            self.channels = 2
+        try:
+            self._ensure_stream()
+        except Exception as e:
+            _diag_log(f"[Diag] Alert-Stream konnte nicht geoeffnet werden: {e}")
 
     def _mix_alert(self, buf, frames):
         """Mischt den naechsten Block des Alert-Sounds in buf (in place,
