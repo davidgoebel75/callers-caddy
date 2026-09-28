@@ -35,3 +35,18 @@ def test_find_crash_logs_filters_already_notified(tmp_path):
 
     assert CrashLogger.find_crash_logs(
         str(tmp_path), newer_than="crash_20260925_080000.log") == []
+
+
+def test_new_name_with_microseconds_sorts_after_old_name_same_second(tmp_path):
+    """Neues Format crash_..._%f.log liegt hinter altem Namen derselben Sekunde."""
+    crashes = tmp_path / "logs" / "crashes"
+    _touch(crashes, "crash_20260925_080000.log")          # altes Format
+    _touch(crashes, "crash_20260925_080000_123456.log")   # neues Format
+
+    logs = CrashLogger.find_crash_logs(str(tmp_path))
+    assert os.path.basename(logs[0]) == "crash_20260925_080000_123456.log"
+
+    new = CrashLogger.find_crash_logs(
+        str(tmp_path), newer_than="crash_20260925_080000.log")
+    assert [os.path.basename(p) for p in new] == [
+        "crash_20260925_080000_123456.log"]

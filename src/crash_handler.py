@@ -21,6 +21,9 @@ from datetime import datetime
 
 _logger = None  # Singleton
 
+# INI-Key: Dateiname des zuletzt beim Start gemeldeten Crash-Logs
+LAST_NOTIFIED_KEY = "crash/last_notified"
+
 
 class CrashLogger:
     RING_SIZE = 25
@@ -112,7 +115,9 @@ class CrashLogger:
     def _write_log(self, reason: str, exc_type=None, exc_value=None, exc_tb=None,
                    extra_lines=None):
         """Schreibt sofort ein Crash-Logfile auf Disk."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Mikrosekunden: zwei Fehler in derselben Sekunde ueberschreiben sich
+        # nicht; sortiert trotzdem korrekt nach alten Namen ('.' < '_').
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         # Crash-Logs liegen in logs/crashes/. Ordner robust erzeugen.
         crash_dir = os.path.join(self._app_dir, "logs", "crashes")
         try:

@@ -7999,9 +7999,9 @@
     "ja": "エラーログがあります"
   },
   "crash_notice_text": {
-    "de": "Beim letzten Start wurden {count} Fehler protokolliert. Die Protokolle helfen uns bei der Fehlersuche.",
-    "en": "{count} error(s) were logged during the last session. The logs help us track down problems.",
-    "ja": "前回のセッション中に {count} 件のエラーが記録されました。ログは問題の調査に役立ちます。"
+    "de": "Es wurden {count} Fehler protokolliert. Die Protokolle helfen uns bei der Fehlersuche.",
+    "en": "{count} error(s) have been logged. The logs help us track down problems.",
+    "ja": "{count} 件のエラーが記録されました。ログは問題の調査に役立ちます。"
   },
   "crash_notice_btn_show": {
     "de": "Protokoll anzeigen",

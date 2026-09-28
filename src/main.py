@@ -7446,16 +7446,15 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
-def _show_crash_log_notice(parent, crash_logs: list, settings=None):
+def _show_crash_log_notice(parent, crash_logs: list, settings):
     """Zeigt einen Hinweis-Dialog wenn neue Crash-Logs vorhanden sind.
 
-    Merkt sich den neuesten gezeigten Log in der INI (crash/last_notified),
+    Merkt sich den neuesten gezeigten Log in der INI (LAST_NOTIFIED_KEY),
     damit beim naechsten Start nur neu hinzugekommene Logs gemeldet werden."""
     count = len(crash_logs)
     newest = crash_logs[0]
-    if settings is not None:
-        settings.setValue("crash/last_notified", os.path.basename(newest))
-        settings.sync()
+    settings.setValue(_crash_handler.LAST_NOTIFIED_KEY, os.path.basename(newest))
+    settings.sync()
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("crash_notice_title"))
     msg.setIcon(QMessageBox.Information)
@@ -7651,7 +7650,7 @@ def main():
 
     # Neue Crash-Logs seit dem letzten Hinweis pruefen und Hinweis anzeigen
     crash_logs = _crash_handler.CrashLogger.find_crash_logs(
-        app_dir, newer_than=str(settings.value("crash/last_notified", "") or ""))
+        app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
     if crash_logs:
         QTimer.singleShot(
             800, lambda: _show_crash_log_notice(window, crash_logs, settings))
