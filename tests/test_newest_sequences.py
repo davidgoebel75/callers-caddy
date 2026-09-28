@@ -4,7 +4,7 @@ Frisch importierte Sequenzen verschwinden, wenn ihre Call-Texte keine Zuordnung
 haben: mit Tanzprogramm-Wahl fehlen Sequenzen ganz ohne gemappte Figur, mit Limit
 jede Sequenz mit auch nur einem ungemappten Call-Text. Abhilfe:
 
-- Rechtsklick "Neueste Sequenzen anzeigen": hebt Enthaelt, Limit und Nur-Filter
+- Rechtsklick "Auch ausgeblendete Sequenzen anzeigen": hebt Enthaelt, Limit und Nur-Filter
   auf, setzt die Tanzprogramm-Wahl NUR fuer die Liste aus (Typ, Schwierigkeit,
   Tags bleiben), laedt alles und springt ans Ende.
 - Sequenzen mit Call-Texten ohne Zuordnung sind rot; Rechtsklick "Call-Mapping
@@ -153,7 +153,7 @@ def test_kontextmenue_auch_in_leerer_liste(widget, monkeypatch):
 
     monkeypatch.setattr(sequences_widget, "QMenu", _StummesMenue)
     table.customContextMenuRequested.emit(table.rect().center())
-    assert _t("ctx_show_newest_sequences") in gesehen
+    assert _t("ctx_show_hidden_sequences") in gesehen
 
 
 # ----------------------------------------------- Rot + Doppelklick --

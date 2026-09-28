@@ -9813,10 +9813,10 @@
     "en": "Pilot Square",
     "ja": "Pilot Square"
   },
-  "ctx_show_newest_sequences": {
-    "de": "Neueste Sequenzen anzeigen",
-    "en": "Show newest sequences",
-    "ja": "最新のシーケンスを表示"
+  "ctx_show_hidden_sequences": {
+    "de": "Auch ausgeblendete Sequenzen anzeigen",
+    "en": "Also show hidden sequences",
+    "ja": "非表示のシーケンスも表示"
   },
   "sequences_unmapped_tooltip": {
     "de": "Enthält Call-Texte ohne Zuordnung – taucht deshalb nicht bei jeder Tanzprogramm-Wahl auf. Rechtsklick → „Call-Mapping für diese Sequenz öffnen“.",

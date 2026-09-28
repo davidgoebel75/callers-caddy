@@ -581,7 +581,7 @@ class SequencesWidget(QWidget):
         self.on_sequences_deleted = None      # callback(seq_ids) → SequenceView informieren
         self.on_open_call_mapping = None      # callback(call_texts) → Call-Mapping mit Fokus
         self._loading = False      # Schutz gegen Endlos-Nachladen
-        # intern#119: "Neueste Sequenzen anzeigen" setzt die Tanzprogramm-Wahl NUR
+        # intern#119: "Auch ausgeblendete Sequenzen anzeigen" setzt die Tanzprogramm-Wahl NUR
         # fuer diese Liste aus (Session/Player bleiben unberuehrt). Der naechste
         # Filter- oder Programmwechsel hebt das wieder auf.
         self._bands_suspended = False
@@ -1215,7 +1215,7 @@ class SequencesWidget(QWidget):
         menu = QMenu(self)
         # intern#119: auch ohne Zeile unter der Maus (leere Liste = genau der Fall,
         # in dem man seine frisch importierten Sequenzen sucht).
-        act_newest = menu.addAction(_t("ctx_show_newest_sequences"))
+        act_newest = menu.addAction(_t("ctx_show_hidden_sequences"))
         act_newest.triggered.connect(self.show_newest_sequences)
         item = self._table.itemAt(pos)
         id_item = self._table.item(self._table.row(item), 0) if item else None
