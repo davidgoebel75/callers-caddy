@@ -148,8 +148,8 @@ def bestaetigung(monkeypatch):
     antwort = {"ok": True, "gruppen": {"new", "extend", "change"}}
 
     class _Bestaetigung:
-        def __init__(self, new, extend, change, parent=None):
-            aufrufe.append({"new": new, "extend": extend, "change": change})
+        def __init__(self, counts, parent=None):
+            aufrufe.append(dict(counts))
 
         def exec(self):
             return QDialog.Accepted if antwort["ok"] else QDialog.Rejected
@@ -286,7 +286,7 @@ def test_nach_optimieren_ist_der_abweichungsfilter_leer_und_meldet_anzahl(
 
     assert table.rowCount() == 0
     assert any(_t("call_mapping_optimize_done", count=4) in a for a in infos)
-    assert mapping.optimized is True
+    assert mapping.wrote_assignments is True
 
 
 def test_ohne_abweichung_nur_hinweis_keine_rueckfrage(mapping, bestaetigung, infos):
@@ -306,7 +306,7 @@ def test_abbrechen_setzt_kein_optimiert_kennzeichen(mapping, bestaetigung):
 
     _klick(mapping, "call_mapping_optimize")
 
-    assert mapping.optimized is False
+    assert mapping.wrote_assignments is False
 
 
 # ---------------------------------------------------------- SongDatabase --
@@ -399,3 +399,21 @@ def test_nach_optimieren_zeigt_die_tabelle_den_neuen_stand(mapping, bestaetigung
     zeile = _zelle(table, SPLIT_TEXT).row()
     assert table.item(zeile, 3).text() == "inferred"
     assert set(table.item(zeile, 2).data(Qt.UserRole)) == {PASS_THE_OCEAN, SWING_THRU}
+
+
+# ------------------------------------------------ echtes Bestaetigungsfenster --
+
+def test_bestaetigungsfenster_zeigt_anzahlen_und_hakt_alle_gruppen_an(qapp):
+    from PySide6.QtWidgets import QCheckBox
+    import sequences_widget
+
+    dlg = sequences_widget.CallMappingOptimizeDialog(
+        {"new": 1, "extend": 2, "change": 3})
+    try:
+        texte = [cb.text() for cb in dlg.findChildren(QCheckBox)]
+        assert texte == [_t("call_mapping_optimize_new", count=1),
+                         _t("call_mapping_optimize_extend", count=2),
+                         _t("call_mapping_optimize_change", count=3)]
+        assert dlg.chosen_groups() == {"new", "extend", "change"}
+    finally:
+        dlg.deleteLater()

@@ -6018,11 +6018,14 @@ class P29MainWindow(QMainWindow):
         # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
         # Ergaenzen/Aendern ("Optimieren", intern#97).
         dlg = CallMappingDialog(self.db, self)
-        # "Optimieren" (intern#97) schreibt schon vor dem Schliessen -> auch
-        # bei Abbrechen neu mappen, sonst zeigt die Sequenzansicht alte Baender.
-        if dlg.exec() == QDialog.Accepted or dlg.optimized:
+        if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
+        elif dlg.wrote_assignments:
+            # "Optimieren" (intern#97) hat schon geschrieben und die Baender
+            # nachgerechnet -> bei Abbrechen nur die Sequenzansicht neu laden,
+            # nicht noch einmal rechnen (~120 ms auf dem Main-Thread).
+            self.sequences_widget.load_sequences()
 
     def _on_mapping_export(self):
         """Menue: Call-Text-Mappings als JSON-Datei exportieren."""

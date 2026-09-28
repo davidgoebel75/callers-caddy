@@ -3306,9 +3306,9 @@
     "ja": "{count} 件の割り当てを補完（図形が不足）"
   },
   "call_mapping_optimize_change": {
-    "de": "{count} Zuordnungen ändern (andere Figuren als bisher)",
-    "en": "Change {count} assignments (different figures than before)",
-    "ja": "{count} 件の割り当てを変更（これまでと異なる図形）"
+    "de": "{count} Zuordnungen ändern (Figuren werden ersetzt oder entfernt)",
+    "en": "Change {count} assignments (figures are replaced or removed)",
+    "ja": "{count} 件の割り当てを変更（図形を置換または削除）"
   },
   "call_mapping_optimize_discard": {
     "de": "Es gibt ungespeicherte Änderungen in der Tabelle. Beim Optimieren gehen sie verloren. Trotzdem fortfahren?",

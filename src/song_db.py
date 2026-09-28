@@ -3372,14 +3372,6 @@ class SongDatabase:
         )
         return [row[0] for row in cur.fetchall()]
 
-    def get_unmapped_call_texts(self) -> list[str]:
-        """Gibt alle Sequenz-Call-Texte zurueck die noch kein Mapping haben.
-
-        Sammelt alle einzigartigen Texte aus den 15 Feldern und filtert
-        die ohne Eintrag in call_text_mappings.
-        """
-        return [text for text, _cnt in self.get_unmapped_call_texts_by_frequency()]
-
     def get_unmapped_call_texts_by_frequency(self) -> list[tuple]:
         """Gibt ungemappte Call-Texte sortiert nach Haeufigkeit zurueck.
 

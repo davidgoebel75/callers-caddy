@@ -172,10 +172,9 @@ _EN_: Figure Set Suggestion
 _Avoid_: Automapping
 
 **Abgeleitete Zuordnung**:
-Zuordnung, die der Caller per "Optimieren" gesammelt aus Mengen-Vorschlaegen
-uebernommen hat (Quelle `inferred`). Getrennt von der automatischen (`auto`) und
-der von Hand gesetzten (`manual`) Zuordnung, damit sie sich gezielt pruefen oder
-wieder entfernen laesst.
+Zuordnung, die aus einem Mengen-Vorschlag gesammelt uebernommen wurde, statt vom
+Caller einzeln bestaetigt. Bleibt von automatischen und von Hand gesetzten
+Zuordnungen unterscheidbar.
 _EN_: Inferred Assignment
 
 **Teilung**:
