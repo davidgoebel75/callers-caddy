@@ -7446,13 +7446,19 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
-def _show_crash_log_notice(parent, crash_logs: list):
-    """Zeigt einen Hinweis-Dialog wenn Crash-Logs vom letzten Start vorhanden sind."""
+def _show_crash_log_notice(parent, crash_logs: list, settings=None):
+    """Zeigt einen Hinweis-Dialog wenn neue Crash-Logs vorhanden sind.
+
+    Merkt sich den neuesten gezeigten Log in der INI (crash/last_notified),
+    damit beim naechsten Start nur neu hinzugekommene Logs gemeldet werden."""
     count = len(crash_logs)
     newest = crash_logs[0]
+    if settings is not None:
+        settings.setValue("crash/last_notified", os.path.basename(newest))
+        settings.sync()
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("crash_notice_title"))
-    msg.setIcon(QMessageBox.Warning)
+    msg.setIcon(QMessageBox.Information)
     msg.setText(_t("crash_notice_text", count=count))
     msg.setInformativeText(os.path.basename(newest))
     btn_show = msg.addButton(_t("crash_notice_btn_show"), QMessageBox.ActionRole)
@@ -7643,10 +7649,12 @@ def main():
         _visible_total_ms = (_startup_time.time() - _T_PROCESS_CREATE_EPOCH) * 1000.0
         perf.perf_write(f"[Perf] === GESAMT ab Prozessstart bis SICHTBAR: {_visible_total_ms:.0f}ms ===")
 
-    # Crash-Logs vom letzten Start pruefen und Hinweis anzeigen
-    crash_logs = _crash_handler.CrashLogger.find_crash_logs(app_dir)
+    # Neue Crash-Logs seit dem letzten Hinweis pruefen und Hinweis anzeigen
+    crash_logs = _crash_handler.CrashLogger.find_crash_logs(
+        app_dir, newer_than=str(settings.value("crash/last_notified", "") or ""))
     if crash_logs:
-        QTimer.singleShot(800, lambda: _show_crash_log_notice(window, crash_logs))
+        QTimer.singleShot(
+            800, lambda: _show_crash_log_notice(window, crash_logs, settings))
 
     # Update-Pruefung im Hintergrund (scheitert lautlos bei Offline/Fehler).
     # Verzoegert, damit sie nicht mit dem Start konkurriert.

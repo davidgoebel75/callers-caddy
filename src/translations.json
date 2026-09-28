@@ -7994,14 +7994,14 @@
     "ja": "プレイリストから削除"
   },
   "crash_notice_title": {
-    "de": "Absturz-Protokoll vorhanden",
-    "en": "Crash log found",
-    "ja": "クラッシュログが見つかりました"
+    "de": "Fehlerprotokoll vorhanden",
+    "en": "Error log found",
+    "ja": "エラーログがあります"
   },
   "crash_notice_text": {
-    "de": "Beim letzten Start ist Callers Caddy {count}× abgestürzt. Ein Absturz-Protokoll wurde gespeichert.",
-    "en": "Callers Caddy crashed {count} time(s) during the last session. A crash log has been saved.",
-    "ja": "前回のセッション中に Callers Caddy が {count} 回クラッシュしました。クラッシュログが保存されました。"
+    "de": "Beim letzten Start wurden {count} Fehler protokolliert. Die Protokolle helfen uns bei der Fehlersuche.",
+    "en": "{count} error(s) were logged during the last session. The logs help us track down problems.",
+    "ja": "前回のセッション中に {count} 件のエラーが記録されました。ログは問題の調査に役立ちます。"
   },
   "crash_notice_btn_show": {
     "de": "Protokoll anzeigen",
