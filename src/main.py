@@ -160,6 +160,8 @@ from notes_widget import NotesWidget
 from stats_widget import StatsWidget
 from evening_planner_widget import EveningPlannerWidget
 import zip_import
+import song_catalog
+import song_match
 from zip_import_dialog import ZipImportPreviewDialog
 
 
@@ -1922,11 +1924,19 @@ class P29MainWindow(QMainWindow):
 
         # 3) Dateiname parsen + DB-Eintrag
         title, label = self._parse_filename(basename)
+        # intern#126: sicherer Katalogtreffer -> Katalog-Schreibweise + Caller
+        cat_entry = self._catalog_entry_for_import(basename, title, label)
+        if cat_entry is not None:
+            title = song_catalog.canonical_title(title, cat_entry.title)
+            label = cat_entry.label_field
         song = Song(filename=store_name, title=title, label=label,
+                    artist=cat_entry.caller if cat_entry else "",
                     is_pattern=is_pattern, is_singing=is_singing)
         song = self.db.insert(song)
         print(f"[Import] Neu: #{song.id} '{title}'"
               f"{f' [{label}]' if label else ''}")
+        if cat_entry is not None:
+            self._apply_catalog_metadata(song.id, cat_entry)
 
         # 3b) Lyrics-Co-Import (gleichnamig, tolerant) — beim ZIP abgeschaltet
         if auto_lyrics:
@@ -1968,6 +1978,47 @@ class P29MainWindow(QMainWindow):
 
         return {"song": song, "store_name": store_name,
                 "dest": dest, "status": "new"}
+
+    def _catalog_entry_for_import(self, basename: str, title: str, label: str):
+        """intern#126: Katalogeintrag fuer eine neue Datei, nur bei "sicher".
+
+        Der Katalog ist eine weitere Datenquelle fuer den vorhandenen Abgleich
+        (song_match): bewertet wird der Dateiname in beiden Zerlegungen (Import-
+        Parser und zip_import-Parser), der bessere Treffer zaehlt. Unterhalb von
+        IMPORT_MIN_SCORE wird nichts uebernommen (Potential zeigt es an)."""
+        try:
+            catalog = song_catalog.get_catalog(self.paths.app_dir)
+            if catalog is None:
+                return None
+            pn = song_match.parse_name(os.path.splitext(basename)[0])
+            matches = [m for m in (catalog.identify(title, label),
+                                   catalog.identify(pn.title, pn.label_full)) if m]
+        except Exception as e:  # noqa: BLE001 — Import darf daran nie scheitern
+            print(f"[Import] Katalog-Abgleich uebersprungen: {e}")
+            return None
+        best = max(matches, key=lambda m: m.score, default=None)
+        if best is None or not best.is_sure:
+            return None
+        print(f"[Import] Katalog: '{best.entry.title}' [{best.entry.label_field}] "
+              f"(Score {best.score})")
+        return best.entry
+
+    def _apply_catalog_metadata(self, song_id: int, entry):
+        """Fuellt Original-Interpret, Erscheinungsjahr und bekannte Genres aus
+        dem Katalog (neuer Song, Felder sind leer). Additiv, NEW bleibt."""
+        try:
+            if entry.original_artist:
+                self.db.set_property(song_id, "original_artist", entry.original_artist)
+            if entry.release_year:
+                self.db.set_property(song_id, "release_year", entry.release_year)
+            # Nur bekannte Genres, Gross-/Kleinschreibung egal (wie Potential)
+            known = {name.lower(): gid for gid, name in self.db.get_all_genres()}
+            for gname in entry.genres:
+                gid = known.get(gname.lower())
+                if gid:
+                    self.db.add_song_genre(song_id, gid)
+        except Exception as e:  # noqa: BLE001
+            print(f"[Import] Katalog-Metadaten uebersprungen (#{song_id}): {e}")
 
     def _import_files(self, filepaths: list, copy_mode: bool = True,
                       import_root: str = "", genre_ids: list = None):

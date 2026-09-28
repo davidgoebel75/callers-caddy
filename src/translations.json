@@ -9767,5 +9767,20 @@
     "de": "Pilot Square",
     "en": "Pilot Square",
     "ja": "Pilot Square"
+  },
+  "pot_meta_csv_source_text": {
+    "de": "Mitgelieferten Song-Katalog verwenden ({count} Songs) oder eine andere CSV-Datei wählen?",
+    "en": "Use the bundled song catalog ({count} songs) or choose another CSV file?",
+    "ja": "付属の楽曲カタログ（{count} 曲）を使用しますか？それとも別の CSV ファイルを選択しますか？"
+  },
+  "pot_meta_csv_use_catalog": {
+    "de": "Song-Katalog verwenden",
+    "en": "Use song catalog",
+    "ja": "楽曲カタログを使用"
+  },
+  "pot_meta_csv_other_file": {
+    "de": "Andere CSV-Datei …",
+    "en": "Other CSV file …",
+    "ja": "別の CSV ファイル …"
   }
 }
