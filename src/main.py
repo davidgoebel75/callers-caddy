@@ -50,7 +50,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QProgressDialog,
 )
-from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject
+from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject, QRect
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QCursor
 
 # --- Frühest möglicher Crash-Handler -----------------------------------------
@@ -1379,6 +1379,10 @@ class P29MainWindow(QMainWindow):
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
         self._wire_dock_context_menus()
+        # #121: Floating-Geometrie-Handler auch ohne gespeichertes Layout
+        # (Erststart) verbinden, sonst merkt sich kein Dock seine Position
+        # innerhalb der Sitzung. Idempotent.
+        self._connect_float_geom_handlers()
 
         # Layout wiederherstellen
         self._restore_layout()
@@ -2333,17 +2337,15 @@ class P29MainWindow(QMainWindow):
         if not dock.isVisible():
             # Als loses Fenster in der Mitte des Hauptfensters platzieren
             t = perf_split(f"_toggle_dock({name}): branch=open", t0)
+            # #121: vorgemerkte Position darf das Zentrieren nicht ueberschreiben
+            geom = (self._drop_pending_float_geom(dock)
+                    if open_position == "centered" else None)
             dock.setFloating(True)
             t = perf_split(f"_toggle_dock({name}): setFloating(True)", t)
             dock.show()
             t = perf_split(f"_toggle_dock({name}): show()", t)
             if open_position == "centered":
-                # Zentrieren ueber dem Hauptfenster
-                main_geo = self.geometry()
-                dock_size = dock.size()
-                x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
-                y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
-                dock.move(x, y)
+                self._center_float_dock(dock, geom)
                 perf_split(f"_toggle_dock({name}): move()", t)
             # "last": kein move() -> floatgeom-System stellt die letzte Position her
             perf_log(f"_toggle_dock({name}): TOTAL open", t0)
@@ -4064,14 +4066,31 @@ class P29MainWindow(QMainWindow):
     def _toggle_dock_open_centered(self, dock):
         """Oeffnet ein Dock als zentriertes Floating-Fenster (gemeinsame Logik
         fuer _toggle_dock 'centered' und die Regelaktion dock_open 'centered')."""
+        # #121: vorgemerkte Position darf das Zentrieren nicht ueberschreiben
+        geom = self._drop_pending_float_geom(dock)
         dock.setFloating(True)
         dock.show()
-        main_geo = self.geometry()
-        dock_size = dock.size()
-        x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
-        y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
-        dock.move(x, y)
+        self._center_float_dock(dock, geom)
         dock.raise_()
+
+    def _center_float_dock(self, dock, geom=None):
+        """Zentriert ein schwebendes Dock ueber dem Hauptfenster.
+
+        geom: vorgemerkte Floating-Geometrie (#121). Sie liefert nur noch die
+        Groesse — deferred angewandt (restoreGeometry fuer INI-Werte greift erst
+        auf dem sichtbaren Dock), danach wird erneut zentriert."""
+        def center():
+            main_geo = self.geometry()
+            dock_size = dock.size()
+            x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
+            y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
+            dock.move(x, y)
+        center()
+        if geom is not None:
+            def apply_and_center():
+                self._apply_float_geom(dock, geom)
+                center()
+            QTimer.singleShot(0, apply_and_center)
 
     def _rule_dock_close(self, params: dict):
         dock = self._dock_map().get(params.get("dock_name", ""))
@@ -4130,6 +4149,8 @@ class P29MainWindow(QMainWindow):
             "dock_name": target_name,  # Merken welches Dock fullsize ist
         }
         # Dock floating machen und auf ~90% des Screens vergroessern
+        # (#121: eine vorgemerkte Floating-Position darf das nicht ueberschreiben)
+        self._drop_pending_float_geom(target)
         target.setVisible(True)
         target.setFloating(True)
         screen = self.screen()
@@ -4174,6 +4195,7 @@ class P29MainWindow(QMainWindow):
             "geometry": self.saveGeometry(),
             "dock_name": target_name,
         }
+        self._drop_pending_float_geom(target)  # #121, wie bei Fullsize
         target.setVisible(True)
         target.setFloating(True)
         screen = self.screen()
@@ -4219,6 +4241,9 @@ class P29MainWindow(QMainWindow):
         left_w  = int(total_w * left_frac) - gap // 2
         right_w = total_w - left_w - gap
 
+        # #121: vorgemerkte Floating-Positionen duerfen das nicht ueberschreiben
+        self._drop_pending_float_geom(left_dock)
+        self._drop_pending_float_geom(right_dock)
         left_dock.setVisible(True)
         left_dock.setFloating(True)
         left_dock.setGeometry(x0, y0, left_w, h)
@@ -6359,6 +6384,7 @@ class P29MainWindow(QMainWindow):
         "dock_manager", "dock_loop_finder", "dock_photo", "dock_evening_planner",
         "dock_break", "dock_rules", "dock_reports", "dock_potential", "dock_stats",
         "dock_lyrics",  # #66: letzte Floating-Position auch ueber Neustart halten
+        "dock_to_call",  # #121: frei schwebend oft fast bildschirmfuellend
     )
 
     def _floating_tool_docks(self):
@@ -6403,13 +6429,47 @@ class P29MainWindow(QMainWindow):
                 lambda visible, d=dock: self._on_float_dock_visible(d, visible))
 
     def _on_float_dock_visible(self, dock, visible):
-        """Wendet die vorgemerkte Floating-Geometrie beim ersten Sichtbar-
-        werden an (einmalig pro Dock, deferred bis nach dem Show)."""
+        """Wendet die vorgemerkte Floating-Geometrie beim Sichtbarwerden an.
+
+        #121: Beim Schliessen eines schwebenden Docks wird seine aktuelle
+        Geometrie (QRect) vorgemerkt, damit es innerhalb der Sitzung exakt dort
+        wieder aufgeht. Beim Andocken/Abdocken feuert das Verstecken, solange
+        das Dock noch angedockt ist (isFloating() False) -> nichts vormerken.
+        Minimieren des Hauptfensters loest kein visibilityChanged aus.
+        Der QRect wird SOFORT gesetzt (nicht deferred): Aufrufer, die direkt
+        nach dem Show selbst positionieren (Zentrieren, Fullsize, Dual View),
+        behalten so das letzte Wort.
+        """
+        name = dock.objectName()
         if not visible:
+            if name and dock.isFloating():
+                self._pending_float_geom[name] = dock.geometry()
             return
-        geom = self._pending_float_geom.pop(dock.objectName(), None)
-        if geom is not None:
-            QTimer.singleShot(0, lambda: dock.restoreGeometry(geom))
+        geom = self._pending_float_geom.pop(name, None)
+        if geom is None:
+            return
+        if isinstance(geom, QRect):
+            self._apply_float_geom(dock, geom)
+        else:
+            QTimer.singleShot(0, lambda: self._apply_float_geom(dock, geom))
+
+    def _drop_pending_float_geom(self, dock):
+        """Verwirft die vorgemerkte Floating-Geometrie eines Docks und gibt sie
+        zurueck — fuer Aufrufer, die das Dock gleich selbst positionieren."""
+        return self._pending_float_geom.pop(dock.objectName(), None)
+
+    @staticmethod
+    def _apply_float_geom(dock, geom):
+        """Setzt vorgemerkte Floating-Geometrie: QByteArray aus der INI per
+        restoreGeometry(), QRect aus der laufenden Sitzung (#121) per
+        setGeometry(). setGeometry bewusst: restoreGeometry() schiebt ein
+        Fenster mit Titelleiste am oberen Bildschirmrand nach unten (gemessen:
+        bis ~30 px) — genau der Fall aus #121."""
+        if isinstance(geom, QRect):
+            if dock.isFloating():  # inzwischen angedockt -> nicht anfassen
+                dock.setGeometry(geom)
+        else:
+            dock.restoreGeometry(geom)
 
     def _save_layout(self):
         """Speichert Layout in die INI (automatisch bei Programmende)."""
@@ -6483,6 +6543,11 @@ class P29MainWindow(QMainWindow):
         s = QSettings(path, QSettings.IniFormat)
         geometry = s.value("geometry")
         state = s.value("windowState")
+        # #121: In der Sitzung gemerkte Schliess-Positionen verwerfen — sonst
+        # ueberschreiben sie beim Einblenden die Position aus der Layout-Datei.
+        self._pending_float_geom = {
+            k: v for k, v in self._pending_float_geom.items()
+            if not isinstance(v, QRect)}
         if geometry is not None:
             self.restoreGeometry(geometry)
         if state is not None:
