@@ -3095,7 +3095,7 @@ class SongDatabase:
         """Loescht Mappings. Ohne Parameter: alle. Mit: nur die angegebene Quelle.
 
         Args:
-            mapped_by: 'auto' oder 'manual' — None loescht alle
+            mapped_by: 'auto', 'manual' oder 'inferred' — None loescht alle
         """
         # BL-210: weitere Figuren zuerst, solange die Hauptzeilen noch sagen,
         # zu welcher Quelle sie gehoeren (nie Zusatzzeile ohne Hauptzeile).
@@ -3371,14 +3371,6 @@ class SongDatabase:
             (ct,)
         )
         return [row[0] for row in cur.fetchall()]
-
-    def get_unmapped_call_texts(self) -> list[str]:
-        """Gibt alle Sequenz-Call-Texte zurueck die noch kein Mapping haben.
-
-        Sammelt alle einzigartigen Texte aus den 15 Feldern und filtert
-        die ohne Eintrag in call_text_mappings.
-        """
-        return [text for text, _cnt in self.get_unmapped_call_texts_by_frequency()]
 
     def get_unmapped_call_texts_by_frequency(self) -> list[tuple]:
         """Gibt ungemappte Call-Texte sortiert nach Haeufigkeit zurueck.
@@ -3666,18 +3658,18 @@ class SongDatabase:
         cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE entity_id IS NOT NULL")
         mapped_count = cur.fetchone()[0]
 
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'auto'")
-        auto_count = cur.fetchone()[0]
-
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'manual'")
-        manual_count = cur.fetchone()[0]
+        # Zaehlung je Quelle in EINER Abfrage; 'inferred' = per "Optimieren"
+        # aus Mengen-Vorschlaegen uebernommen (intern#97)
+        by_source = dict(self._conn.execute(
+            "SELECT mapped_by, COUNT(*) FROM call_text_mappings GROUP BY mapped_by"))
 
         return {
             "total_unique_texts": len(all_texts),
             "mapped": mapped_count,
             "unmapped": len(all_texts) - mapped_count,
-            "auto": auto_count,
-            "manual": manual_count,
+            "auto": by_source.get("auto", 0),
+            "manual": by_source.get("manual", 0),
+            "inferred": by_source.get("inferred", 0),
         }
 
     def backfill_auto_mappings(self) -> int:

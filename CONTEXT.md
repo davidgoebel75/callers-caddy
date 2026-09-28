@@ -171,6 +171,17 @@ ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zu
 _EN_: Figure Set Suggestion
 _Avoid_: Automapping
 
+**Optimieren**:
+Aktion im Call-Mapping, die alle abweichenden Mengen-Vorschlaege auf einen Schlag
+uebernimmt, nach Rueckfrage je Art der Abweichung. Ergebnis sind abgeleitete Zuordnungen.
+_EN_: Optimize
+
+**Abgeleitete Zuordnung**:
+Zuordnung, die aus einem Mengen-Vorschlag gesammelt uebernommen wurde, statt vom
+Caller einzeln bestaetigt. Bleibt von automatischen und von Hand gesetzten
+Zuordnungen unterscheidbar.
+_EN_: Inferred Assignment
+
 **Teilung**:
 Zerlegen eines zusammengesetzten Call-Texts in zwei eigenstaendige Call-Texte.
 Alternative zur Figuren-Menge, der Caller entscheidet je Call-Text.

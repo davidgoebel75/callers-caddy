@@ -6015,17 +6015,17 @@ class P29MainWindow(QMainWindow):
                 _t("call_mapping_no_to_calls")
             )
             return
-        unmapped = self.db.get_unmapped_call_texts()
-        if not unmapped:
-            QMessageBox.information(
-                self, _t("call_mapping_title"),
-                _t("call_mapping_all_mapped")
-            )
-            return
+        # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
+        # Ergaenzen/Aendern ("Optimieren", intern#97).
         dlg = CallMappingDialog(self.db, self)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
+        elif dlg.wrote_assignments:
+            # "Optimieren" (intern#97) hat schon geschrieben und die Baender
+            # nachgerechnet -> bei Abbrechen nur die Sequenzansicht neu laden,
+            # nicht noch einmal rechnen (~120 ms auf dem Main-Thread).
+            self.sequences_widget.load_sequences()
 
     def _on_mapping_export(self):
         """Menue: Call-Text-Mappings als JSON-Datei exportieren."""
