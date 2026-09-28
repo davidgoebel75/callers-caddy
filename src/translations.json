@@ -3286,9 +3286,9 @@
     "ja": "割り当てと異なる図形セット提案（フィルター「提案相違」）をまとめて適用します。事前に確認します。"
   },
   "call_mapping_optimize_title": {
-    "de": "Vorschläge übernehmen",
-    "en": "Adopt suggestions",
-    "ja": "提案を適用"
+    "de": "Optimieren",
+    "en": "Optimize",
+    "ja": "最適化"
   },
   "call_mapping_optimize_intro": {
     "de": "Welche Mengen-Vorschläge sollen übernommen werden?",

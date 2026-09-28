@@ -417,3 +417,22 @@ def test_bestaetigungsfenster_zeigt_anzahlen_und_hakt_alle_gruppen_an(qapp):
         assert dlg.chosen_groups() == {"new", "extend", "change"}
     finally:
         dlg.deleteLater()
+
+
+def test_optimieren_erst_nach_dem_laden_bedienbar(qapp, db, infos):
+    import sequences_widget
+
+    dlg = sequences_widget.CallMappingDialog(db)
+    try:
+        (knopf,) = [b for b in dlg.findChildren(QPushButton)
+                    if b.text() == _t("call_mapping_optimize")]
+        assert not knopf.isEnabled()   # vor dem Laden: keine Vorschlaege
+
+        dlg.show()
+        table = dlg.findChild(QTableWidget)
+        _warte_bis(lambda: _zelle(table, SPLIT_TEXT) is not None)
+
+        assert knopf.isEnabled()
+    finally:
+        dlg.close()
+        dlg.deleteLater()

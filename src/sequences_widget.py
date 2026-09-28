@@ -2638,6 +2638,7 @@ class CallMappingDialog(QDialog):
             self._prepare_data()
             _t1 = time.perf_counter()
             self._load_table()
+            self._btn_optimize.setEnabled(True)
             _t2 = time.perf_counter()
         finally:
             QApplication.restoreOverrideCursor()
@@ -2799,6 +2800,9 @@ class CallMappingDialog(QDialog):
         self._btn_optimize = QPushButton(_t("call_mapping_optimize"))
         self._btn_optimize.setToolTip(_t("call_mapping_optimize_tip"))
         self._btn_optimize.clicked.connect(self._on_optimize)
+        # Erst nach dem Laden bedienbar (_load_deferred) -- vorher gibt es
+        # noch keine Mengen-Vorschlaege.
+        self._btn_optimize.setEnabled(False)
         btn_layout.addWidget(self._btn_optimize)
         btn_layout.addStretch()
         self._btn_save = QPushButton(_t("call_mapping_save"))
@@ -3216,6 +3220,16 @@ class CallMappingDialog(QDialog):
 
     # ------------------------------------------------------------ Speichern --
 
+    def _patch_written(self, written: dict, mapped_by: str):
+        """Zieht frisch geschriebene Zuordnungen im In-Memory-Modell nach, statt
+        alles neu aus der DB zu lesen. written: {call_text: [Figuren, hoechste
+        zuerst]}; in _all_data (call_text, count, entity_id, mapped_by) wird
+        entity_id die hoechste Figur (wie call_text_mappings)."""
+        self._all_data = [
+            (r[0], r[1], written[r[0]][0], mapped_by) if r[0] in written else r
+            for r in self._all_data]
+        self._figure_sets.update(written)
+
     def _on_confirm_selected(self):
         """Bestaetigt die Auto-Vorschlaege fuer alle markierten Zeilen.
 
@@ -3257,17 +3271,7 @@ class CallMappingDialog(QDialog):
             # KEIN Voll-Requery + Voll-Reload mehr (frueher ~3 s: die suggest()-
             # Schleife lief ueber alle ~10k ungemappten Texte neu). Stattdessen
             # das In-Memory-Modell fuer die bestaetigten Texte aktualisieren ...
-            new_all = []
-            for r in self._all_data:
-                figures = confirmed_texts.get(r[0])
-                if figures is not None:
-                    # (call_text, count, entity_id, mapped_by)
-                    # entity_id = hoechste Figur (wie call_text_mappings).
-                    new_all.append((r[0], r[1], figures[0], "manual"))
-                else:
-                    new_all.append(r)
-            self._all_data = new_all
-            self._figure_sets.update(confirmed_texts)
+            self._patch_written(confirmed_texts, "manual")
 
             if self._combo_filter.currentData() == self._F_UNMAPPED:
                 # Im "Nicht gemappt"-Filter fallen die bestaetigten Zeilen nur weg
@@ -3381,12 +3385,7 @@ class CallMappingDialog(QDialog):
         # KEIN Voll-Requery (wie _on_confirm_selected): nur die geschriebenen
         # Texte im In-Memory-Modell nachziehen. Die Mengen-Vorschlaege bleiben,
         # die uebernommenen Zeilen fallen so aus "Vorschlag weicht ab" heraus.
-        # (call_text, count, entity_id, mapped_by); entity_id = hoechste Figur.
-        self._all_data = [
-            (r[0], r[1], written_sets[r[0]][0], "inferred")
-            if r[0] in written_sets else r
-            for r in self._all_data]
-        self._figure_sets.update(written_sets)
+        self._patch_written(written_sets, "inferred")
         self._load_table()
         _t_reload = time.perf_counter()
         print(f"[Call-Mapping] Optimieren: {written} Zeilen | "
