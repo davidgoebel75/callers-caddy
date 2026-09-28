@@ -24,8 +24,9 @@ import time
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QPushButton, QTableWidget,
+    QApplication, QComboBox, QDialog, QMessageBox, QPushButton, QTableWidget,
 )
 
 from i18n import _t
@@ -82,6 +83,15 @@ def _zelle(table, call_text):
 def _klick(dlg, key):
     (knopf,) = [b for b in dlg.findChildren(QPushButton) if b.text() == _t(key)]
     knopf.click()
+
+
+def _doppelklick(table, item):
+    # Wie beim Nutzer: erst Klick, dann Doppelklick (sonst verwirft
+    # QAbstractItemView den Doppelklick ohne pressedIndex).
+    table.scrollToItem(item)
+    pos = table.visualItemRect(item).center()
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    QTest.mouseDClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
 
 
 def _filter(dlg, wert):
@@ -150,6 +160,50 @@ def bestaetigung(monkeypatch):
     monkeypatch.setattr(sequences_widget, "CallMappingOptimizeDialog",
                         _Bestaetigung)
     return aufrufe, antwort
+
+
+@pytest.fixture
+def picker_double(monkeypatch):
+    """Ersetzt den Figuren-Picker; ``antwort`` legt die Wahl des Nutzers fest."""
+    import sequences_widget
+
+    antwort = {"ids": []}
+
+    class _Picker:
+        def __init__(self, entities, selected=(), parent=None, allow_split=False,
+                     unknown_ids=()):
+            pass
+
+        def setWindowTitle(self, title):
+            pass
+
+        def exec(self):
+            return QDialog.Accepted
+
+        def selected_entity_ids(self):
+            return list(antwort["ids"])
+
+        def split_requested(self):
+            return False
+
+    monkeypatch.setattr(sequences_widget, "CallFiguresPickerDialog", _Picker)
+    return antwort
+
+
+@pytest.fixture
+def rueckfrage(monkeypatch):
+    """Ersetzt QMessageBox.question; ``antwort["knopf"]`` ist die Antwort."""
+    import sequences_widget
+
+    fragen = []
+    antwort = {"knopf": QMessageBox.No}
+
+    def _frage(*a, **k):
+        fragen.append(a)
+        return antwort["knopf"]
+
+    monkeypatch.setattr(sequences_widget.QMessageBox, "question", _frage)
+    return fragen, antwort
 
 
 # ------------------------------------------------------------------ Tests --
@@ -286,3 +340,62 @@ def test_clear_inferred_entfernt_nur_inferred_samt_zusatzfiguren(db):
         TOUCH_SPREAD_TEXT: ("manual", {TOUCH_A_QUARTER, ANYTHING_AND_SPREAD}),
         CHANGE_TEXT: ("manual", {PASS_THE_OCEAN}),
     }
+
+
+# ------------------------------------------- ungespeicherte Picker-Aenderung --
+
+def test_ungespeicherte_aenderung_nein_verwirft_nichts_und_schreibt_nichts(
+        mapping, bestaetigung, picker_double, rueckfrage, db):
+    aufrufe, _antwort = bestaetigung
+    fragen, _ = rueckfrage
+    _filter(mapping, "all")
+    table = mapping.findChild(QTableWidget)
+    picker_double["ids"] = [TOUCH_A_QUARTER]
+    _doppelklick(table, _zelle(table, CHANGE_TEXT))   # ungespeichert
+    vor = _zuordnungen(db)
+
+    _klick(mapping, "call_mapping_optimize")
+
+    assert len(fragen) == 1
+    assert aufrufe == []            # abgebrochen vor der Gruppen-Rueckfrage
+    assert _zuordnungen(db) == vor
+    # Die ungespeicherte Wahl steht noch in der Zelle
+    assert _zelle(table, CHANGE_TEXT).text() == "Touch a Quarter"
+
+
+def test_ungespeicherte_aenderung_ja_optimiert(
+        mapping, bestaetigung, picker_double, rueckfrage, db):
+    fragen, antwort = rueckfrage
+    antwort["knopf"] = QMessageBox.Yes
+    _filter(mapping, "all")
+    table = mapping.findChild(QTableWidget)
+    picker_double["ids"] = [TOUCH_A_QUARTER]
+    _doppelklick(table, _zelle(table, CHANGE_TEXT))
+
+    _klick(mapping, "call_mapping_optimize")
+
+    assert len(fragen) == 1
+    assert _zuordnungen(db)[CHANGE_TEXT] == (
+        "inferred", {SWING_THRU, ANYTHING_AND_SPREAD})
+
+
+def test_ohne_ungespeicherte_aenderung_keine_rueckfrage(
+        mapping, bestaetigung, rueckfrage):
+    fragen, _ = rueckfrage
+
+    _klick(mapping, "call_mapping_optimize")
+
+    assert fragen == []
+
+
+def test_nach_optimieren_zeigt_die_tabelle_den_neuen_stand(mapping, bestaetigung):
+    table = mapping.findChild(QTableWidget)
+
+    _klick(mapping, "call_mapping_optimize")
+
+    _filter(mapping, "unmapped")
+    assert _zelle(table, SPLIT_TEXT) is None
+    _filter(mapping, "mapped")
+    zeile = _zelle(table, SPLIT_TEXT).row()
+    assert table.item(zeile, 3).text() == "inferred"
+    assert set(table.item(zeile, 2).data(Qt.UserRole)) == {PASS_THE_OCEAN, SWING_THRU}

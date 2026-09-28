@@ -3666,23 +3666,18 @@ class SongDatabase:
         cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE entity_id IS NOT NULL")
         mapped_count = cur.fetchone()[0]
 
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'auto'")
-        auto_count = cur.fetchone()[0]
-
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'manual'")
-        manual_count = cur.fetchone()[0]
-
-        # intern#97: aus Mengen-Vorschlaegen uebernommen ("Optimieren")
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'inferred'")
-        inferred_count = cur.fetchone()[0]
+        # Zaehlung je Quelle in EINER Abfrage; 'inferred' = per "Optimieren"
+        # aus Mengen-Vorschlaegen uebernommen (intern#97)
+        by_source = dict(self._conn.execute(
+            "SELECT mapped_by, COUNT(*) FROM call_text_mappings GROUP BY mapped_by"))
 
         return {
             "total_unique_texts": len(all_texts),
             "mapped": mapped_count,
             "unmapped": len(all_texts) - mapped_count,
-            "auto": auto_count,
-            "manual": manual_count,
-            "inferred": inferred_count,
+            "auto": by_source.get("auto", 0),
+            "manual": by_source.get("manual", 0),
+            "inferred": by_source.get("inferred", 0),
         }
 
     def backfill_auto_mappings(self) -> int:

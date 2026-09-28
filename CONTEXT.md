@@ -171,6 +171,13 @@ ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zu
 _EN_: Figure Set Suggestion
 _Avoid_: Automapping
 
+**Abgeleitete Zuordnung**:
+Zuordnung, die der Caller per "Optimieren" gesammelt aus Mengen-Vorschlaegen
+uebernommen hat (Quelle `inferred`). Getrennt von der automatischen (`auto`) und
+der von Hand gesetzten (`manual`) Zuordnung, damit sie sich gezielt pruefen oder
+wieder entfernen laesst.
+_EN_: Inferred Assignment
+
 **Teilung**:
 Zerlegen eines zusammengesetzten Call-Texts in zwei eigenstaendige Call-Texte.
 Alternative zur Figuren-Menge, der Caller entscheidet je Call-Text.

@@ -6015,13 +6015,8 @@ class P29MainWindow(QMainWindow):
                 _t("call_mapping_no_to_calls")
             )
             return
-        unmapped = self.db.get_unmapped_call_texts()
-        if not unmapped:
-            QMessageBox.information(
-                self, _t("call_mapping_title"),
-                _t("call_mapping_all_mapped")
-            )
-            return
+        # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
+        # Ergaenzen/Aendern ("Optimieren", intern#97).
         dlg = CallMappingDialog(self.db, self)
         # "Optimieren" (intern#97) schreibt schon vor dem Schliessen -> auch
         # bei Abbrechen neu mappen, sonst zeigt die Sequenzansicht alte Baender.

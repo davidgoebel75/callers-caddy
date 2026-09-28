@@ -2868,10 +2868,7 @@ class CallMappingDialog(QDialog):
         elif fval == self._F_MAPPED:
             rows = [r for r in self._all_data if r[2] is not None]
         elif fval == self._F_MISMATCH:
-            rows = [r for r in self._all_data
-                    if r[0] in self._set_cache
-                    and set(self._figure_sets.get(r[0]) or ())
-                        != set(self._set_cache[r[0]])]
+            rows = [r for r in self._all_data if self._suggestion_differs(r[0])]
         else:
             rows = self._all_data
 
@@ -3304,6 +3301,12 @@ class CallMappingDialog(QDialog):
                 _t("call_mapping_confirmed_n", count=confirmed)
             )
 
+    def _suggestion_differs(self, call_text) -> bool:
+        """Filter "Vorschlag weicht ab": es gibt einen Mengen-Vorschlag, und er
+        weicht als MENGE von der Zuordnung ab (Reihenfolge egal)."""
+        sug = self._set_cache.get(call_text)
+        return bool(sug) and set(self._figure_sets.get(call_text) or ()) != set(sug)
+
     def _optimize_groups(self) -> dict:
         """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
         Filters "Vorschlag weicht ab") in drei Gruppen:
@@ -3313,12 +3316,10 @@ class CallMappingDialog(QDialog):
         Werte: {call_text: Vorschlag}."""
         groups = {"new": {}, "extend": {}, "change": {}}
         for call_text in dict.fromkeys(r[0] for r in self._all_data):
-            sug = self._set_cache.get(call_text)
-            if not sug:
+            if not self._suggestion_differs(call_text):
                 continue
+            sug = self._set_cache[call_text]
             current = set(self._figure_sets.get(call_text) or ())
-            if current == set(sug):
-                continue
             if not current:
                 key = "new"
             elif current < set(sug):
@@ -3328,9 +3329,27 @@ class CallMappingDialog(QDialog):
             groups[key][call_text] = sug
         return groups
 
+    def _has_unsaved_edits(self) -> bool:
+        """True, wenn eine Zeile eine ungespeicherte Figuren-Wahl hat (gleiche
+        Pruefung wie _on_save: aktuelle Menge != Lademenge)."""
+        for row in range(self._table.rowCount()):
+            item2 = self._table.item(row, 2)
+            if item2 is not None and (set(self._figures(item2, Qt.UserRole))
+                                      != set(self._figures(item2, Qt.UserRole + 1))):
+                return True
+        return False
+
     def _on_optimize(self):
         """Knopf "Optimieren" (intern#97): uebernimmt die Mengen-Vorschlaege der
         gewaehlten Gruppen nach Rueckfrage als mapped_by='inferred'."""
+        # Das Nachladen der Tabelle verwirft ungespeicherte Picker-Aenderungen
+        # -> vorher fragen.
+        if self._has_unsaved_edits() and QMessageBox.question(
+                self, _t("call_mapping_title"),
+                _t("call_mapping_optimize_discard"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No) != QMessageBox.Yes:
+            return
         groups = self._optimize_groups()
         if not any(groups.values()):
             QMessageBox.information(self, _t("call_mapping_title"),
@@ -3340,20 +3359,33 @@ class CallMappingDialog(QDialog):
                                         len(groups["change"]), parent=self)
         if dlg.exec() != QDialog.Accepted:
             return
-        pairs = [(ct, self._rank_figures(sug))
-                 for key in dlg.chosen_groups()
-                 for ct, sug in groups[key].items()]
-        if not pairs:
+        import time
+        _t_start = time.perf_counter()
+        written_sets = {ct: self._rank_figures(sug)
+                        for key in dlg.chosen_groups()
+                        for ct, sug in groups[key].items()}
+        if not written_sets:
             return
         # EINE Transaktion (TIC-0025: kurz genug fuer den Main-Thread)
-        written = self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
+        written = self.db.set_call_text_figures_bulk(written_sets.items(),
+                                                     mapped_by="inferred")
         self.db.recompute_sequence_max_to()
+        _t_write = time.perf_counter()
         self._optimized = True
-        # In-Memory-Stand aus der DB nachladen; die Mengen-Vorschlaege bleiben,
+        # KEIN Voll-Requery (wie _on_confirm_selected): nur die geschriebenen
+        # Texte im In-Memory-Modell nachziehen. Die Mengen-Vorschlaege bleiben,
         # die uebernommenen Zeilen fallen so aus "Vorschlag weicht ab" heraus.
-        self._all_data = self.db.get_all_call_texts_with_mapping()
-        self._figure_sets = self.db.get_all_call_text_figures()
+        # (call_text, count, entity_id, mapped_by); entity_id = hoechste Figur.
+        self._all_data = [
+            (r[0], r[1], written_sets[r[0]][0], "inferred")
+            if r[0] in written_sets else r
+            for r in self._all_data]
+        self._figure_sets.update(written_sets)
         self._load_table()
+        _t_reload = time.perf_counter()
+        print(f"[Call-Mapping] Optimieren: {written} Zeilen | "
+              f"schreiben+Baender {(_t_write-_t_start)*1000:.0f}ms, "
+              f"reload {(_t_reload-_t_write)*1000:.0f}ms")
         QMessageBox.information(self, _t("call_mapping_title"),
                                 _t("call_mapping_optimize_done", count=written))
 

@@ -3281,9 +3281,9 @@
     "ja": "最適化"
   },
   "call_mapping_optimize_tip": {
-    "de": "Übernimmt alle Mengen-Vorschläge, die von der Zuordnung abweichen (Filter \"Vorschlag weicht ab\"), auf einen Schlag. Vorher kommt eine Rückfrage.",
-    "en": "Adopts all set suggestions that differ from the mapping (filter \"Suggestion differs\") in one go. Asks for confirmation first.",
-    "ja": "マッピングと異なるセット提案（フィルター「提案が異なる」）をまとめて適用します。事前に確認します。"
+    "de": "Übernimmt alle Mengen-Vorschläge, die von der Zuordnung abweichen (Filter „Vorschlag weicht ab“), auf einen Schlag. Vorher kommt eine Rückfrage.",
+    "en": "Adopts all figure set suggestions that differ from the assignment (filter \"Suggestion differs\") in one go. Asks for confirmation first.",
+    "ja": "割り当てと異なる図形セット提案（フィルター「提案相違」）をまとめて適用します。事前に確認します。"
   },
   "call_mapping_optimize_title": {
     "de": "Vorschläge übernehmen",
@@ -3292,33 +3292,38 @@
   },
   "call_mapping_optimize_intro": {
     "de": "Welche Mengen-Vorschläge sollen übernommen werden?",
-    "en": "Which set suggestions should be adopted?",
-    "ja": "どのセット提案を適用しますか？"
+    "en": "Which figure set suggestions should be adopted?",
+    "ja": "どの図形セット提案を適用しますか？"
   },
   "call_mapping_optimize_new": {
     "de": "{count} Call-Texte neu zuordnen (bisher ohne Zuordnung)",
-    "en": "Map {count} call texts (currently unmapped)",
-    "ja": "{count} 件の Call テキストを新規マッピング（未マッピング）"
+    "en": "Assign {count} call texts (currently unassigned)",
+    "ja": "{count} 件の Call テキストを新規に割り当て（割り当てなし）"
   },
   "call_mapping_optimize_extend": {
     "de": "{count} Zuordnungen ergänzen (Figuren fehlen noch)",
-    "en": "Complete {count} mappings (figures missing)",
-    "ja": "{count} 件のマッピングを補完（フィギュア不足）"
+    "en": "Complete {count} assignments (figures missing)",
+    "ja": "{count} 件の割り当てを補完（図形が不足）"
   },
   "call_mapping_optimize_change": {
-    "de": "{count} Zuordnungen ändern (Vorschlag weicht anders ab)",
-    "en": "Change {count} mappings (suggestion differs otherwise)",
-    "ja": "{count} 件のマッピングを変更（提案が別の形で異なる）"
+    "de": "{count} Zuordnungen ändern (andere Figuren als bisher)",
+    "en": "Change {count} assignments (different figures than before)",
+    "ja": "{count} 件の割り当てを変更（これまでと異なる図形）"
+  },
+  "call_mapping_optimize_discard": {
+    "de": "Es gibt ungespeicherte Änderungen in der Tabelle. Beim Optimieren gehen sie verloren. Trotzdem fortfahren?",
+    "en": "The table has unsaved changes. Optimizing will discard them. Continue anyway?",
+    "ja": "表に未保存の変更があります。最適化すると失われます。続行しますか？"
   },
   "call_mapping_optimize_nothing": {
     "de": "Kein Vorschlag weicht von der Zuordnung ab – nichts zu optimieren.",
-    "en": "No suggestion differs from the mapping – nothing to optimize.",
-    "ja": "マッピングと異なる提案はありません。最適化するものはありません。"
+    "en": "No suggestion differs from the assignment – nothing to optimize.",
+    "ja": "割り当てと異なる提案はありません。最適化するものはありません。"
   },
   "call_mapping_optimize_done": {
     "de": "{count} Zuordnungen aus Vorschlägen übernommen.",
-    "en": "{count} mappings adopted from suggestions.",
-    "ja": "{count} 件のマッピングを提案から適用しました。"
+    "en": "{count} assignments adopted from suggestions.",
+    "ja": "{count} 件の割り当てを提案から適用しました。"
   },
   "call_mapping_saved": {
     "de": "{count} Zuordnungen gespeichert.",
@@ -3349,11 +3354,6 @@
     "de": "Keine Teaching-Order-Calls in der Datenbank. Bitte zuerst Calls importieren.",
     "en": "No teaching order calls in the database. Please import calls first.",
     "ja": "データベースに Teaching Order の Call がありません。まず Call をインポートしてください。"
-  },
-  "call_mapping_all_mapped": {
-    "de": "Alle Call-Texte sind bereits gemappt.",
-    "en": "All call texts are already mapped.",
-    "ja": "すべての Call テキストはすでにマッピング済みです。"
   },
   "menu_import_sequences_universal": {
     "de": "Sequenzen importieren...",
