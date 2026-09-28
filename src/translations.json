@@ -2630,6 +2630,16 @@
     "en": "First note factor",
     "ja": "最初のメモの係数"
   },
+  "setting_label_notes_insert_position": {
+    "de": "Neue Notizen einfügen",
+    "en": "Insert new notes",
+    "ja": "新しいメモの挿入位置"
+  },
+  "setting_tip_notes_insert_position": {
+    "de": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
+    "en": "Where new notes are placed — also when taking songs over from the playlist and the evening planner. “Middle” inserts above the topmost separator line (at the bottom if there is none). The toggle in the notes window changes this for the current session only.",
+    "ja": "新しいメモを追加する位置です(プレイリストやイブニングプランナーからの取り込みにも適用)。「中央」は一番上の区切り線の上に挿入します(区切り線がない場合は一番下)。メモウィンドウの切替ボタンは現在のセッションでのみ有効です。"
+  },
   "setting_label_lyrics_zoom_pct": {
     "de": "Zoom",
     "en": "Zoom",
@@ -2639,6 +2649,16 @@
     "de": "Automatische Schriftgrösse",
     "en": "Auto font size",
     "ja": "自動文字サイズ"
+  },
+  "setting_label_lyrics_auto_width": {
+    "de": "Automatische Breite",
+    "en": "Auto width",
+    "ja": "自動幅調整"
+  },
+  "setting_tip_lyrics_auto_width": {
+    "de": "Passt die Schriftgröße der Lyrics an die Fensterbreite an. Schließt die automatische Schriftgröße aus – ist beides an, gewinnt die Breite. Entspricht dem Button „Auto-Breite“ im Lyrics-Fenster.",
+    "en": "Fits the lyrics font size to the window width. Excludes auto font size – if both are on, width wins. Same as the “Auto-Width” button in the lyrics window.",
+    "ja": "歌詞の文字サイズをウィンドウ幅に合わせます。自動文字サイズとは排他で、両方オンの場合は幅が優先されます。歌詞ウィンドウの「Auto-Width」ボタンと同じです。"
   },
   "setting_label_debug_performance_logging": {
     "de": "Performance-Logging",

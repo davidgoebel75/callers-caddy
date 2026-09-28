@@ -44,7 +44,6 @@ _UNGESAET_BEKANNT = {
 # passendem Bedienelement. Wer einen davon bewusst verstecken will, traegt ihn
 # in _EXCLUDED_KEYS ein (statt ihn hier stehen zu lassen).
 _OHNE_META_BEKANNT = {
-    "lyrics/auto_width",
     "rules/streamdeck_seeded_v1",   # interner Marker, kein Nutzer-Schalter
     "sequences/universal_import_dir",
     "sort/random_tiebreaker",

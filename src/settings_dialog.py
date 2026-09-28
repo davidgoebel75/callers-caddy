@@ -288,6 +288,7 @@ SETTINGS_META: dict[str, dict] = {
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
+        # choices werden zur Laufzeit i18n-uebersetzt (siehe _build_widget)
         "choices": [("top", "Oben"), ("middle", "Mitte"), ("bottom", "Unten")],
         "default": "top",
         "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
@@ -301,6 +302,14 @@ SETTINGS_META: dict[str, dict] = {
     "lyrics/auto_size": {
         "label": "Automatische Schriftgrösse",
         "widget": "checkbox",
+    },
+    "lyrics/auto_width": {
+        "label": "Automatische Breite",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": "Passt die Schriftgröße der Lyrics an die Fensterbreite an. "
+                   "Schließt die automatische Schriftgröße aus – ist beides an, "
+                   "gewinnt die Breite.",
     },
     "lyrics/dynamic_enabled": {
         "label": "Dynamic Lyrics aktiv",
@@ -598,6 +607,12 @@ class _SettingRow:
                 choices = [
                     ("1", _t("dynamic_mode_opt1")),
                     ("2", _t("dynamic_mode_opt2")),
+                ]
+            elif self.full_key == "notes/insert_position":
+                choices = [
+                    ("top",    _t("note.btn_pos_top")),
+                    ("middle", _t("note.btn_pos_middle")),
+                    ("bottom", _t("note.btn_pos_bottom")),
                 ]
             for val, display in choices:
                 w.addItem(display, userData=val)
