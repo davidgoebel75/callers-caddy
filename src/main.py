@@ -1262,8 +1262,11 @@ class P29MainWindow(QMainWindow):
         self.break_widget = BreakWidget(self.skin_mgr)
         self.break_widget.on_play_last_song = self._on_break_play_last
         self.break_widget.on_stop_last_song = self._on_break_stop_last
+        self.break_widget.on_break_started = self._on_break_started
+        self.break_widget.on_break_finished = self._on_break_finished
         self._break_music_active = False
         self._break_music_timer = None
+        self._break_with_music = False  # Art der letzten Pause (Condition break_type)
         # Latch: unterdrueckt den Feedback-Dialog am Ende der Wartemusik. Wird in
         # _trigger_song_stopped einmalig gelesen und zurueckgesetzt (wie _in_audition).
         self._break_music_suppress_feedback = False
@@ -3661,6 +3664,29 @@ class P29MainWindow(QMainWindow):
         self._break_music_timer.start(int(max(1.0, duration_seconds) * 1000))
         return True
 
+    def _on_break_started(self, with_music: bool):
+        """Pausen-Uhr frisch gestartet -> Trigger 'break_started' (intern#110).
+
+        Deferred: kommt der Start aus einer Rule-Aktion (Start Break), laeuft
+        fire_trigger noch und der Loop-Schutz wuerde den Trigger blocken.
+        Die Wartemusik-Sperre gilt nicht fuer die Pausen-Trigger.
+        """
+        self._break_with_music = bool(with_music)
+        QTimer.singleShot(0, lambda: self.rule_engine.fire_trigger(
+            "break_started", bypass_suspend=("break_music",)))
+
+    def _on_break_finished(self):
+        """Countdown bei 0 -> Wartemusik beenden, dann 'break_finished' feuern.
+
+        Wartemusik und Countdown laufen ueber getrennte Timer; der Stopp hier
+        verhindert, dass die Folge-Rule (z.B. Auto-Advance -> Play) auf noch
+        laufende Wartemusik trifft.
+        """
+        if self._break_music_active:
+            self._on_break_stop_last()
+        QTimer.singleShot(0, lambda: self.rule_engine.fire_trigger(
+            "break_finished", bypass_suspend=("break_music",)))
+
     def _on_break_stop_last(self):
         """Stoppt die Wartemusik und stellt das Historie-Logging wieder her."""
         _t0 = perf_start()
@@ -3865,6 +3891,7 @@ class P29MainWindow(QMainWindow):
             "location_not_selected": loc is None,
             "play_elapsed_seconds": play_elapsed,
             "song_length_seconds": song_length,
+            "break_with_music": getattr(self, "_break_with_music", False),
         }
 
     def _register_rule_conditions(self):
@@ -3898,6 +3925,17 @@ class P29MainWindow(QMainWindow):
                               >= p.get("minutes", 5) * 60)
         # BL-205: Songlaenge über/unter Schwellwert (mm:ss)
         re.register_condition("song_length", self._eval_song_length)
+        # intern#110: Art der letzten Pause (all / without_music / with_music)
+        re.register_condition("break_type", self._eval_break_type)
+
+    @staticmethod
+    def _eval_break_type(ctx, p) -> bool:
+        kind = p.get("kind", "all")
+        if kind == "with_music":
+            return bool(ctx.get("break_with_music", False))
+        if kind == "without_music":
+            return not ctx.get("break_with_music", False)
+        return True
 
     @staticmethod
     def _eval_song_length(ctx, p) -> bool:
