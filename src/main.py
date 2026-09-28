@@ -6014,7 +6014,7 @@ class P29MainWindow(QMainWindow):
 
     def _open_call_mapping(self, focus_texts=None):
         """Call-Mapping-Dialog oeffnen; focus_texts filtert ihn beim Start auf
-        diese Call-Texte (intern#119, Doppelklick auf eine rote Sequenz)."""
+        diese Call-Texte (intern#119, Rechtsklick auf eine rote Sequenz)."""
         if self.db.get_teaching_order_count() == 0:
             QMessageBox.warning(
                 self, _t("call_mapping_title"),

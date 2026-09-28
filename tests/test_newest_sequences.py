@@ -7,8 +7,8 @@ jede Sequenz mit auch nur einem ungemappten Call-Text. Abhilfe:
 - Rechtsklick "Neueste Sequenzen anzeigen": hebt Enthaelt, Limit und Nur-Filter
   auf, setzt die Tanzprogramm-Wahl NUR fuer die Liste aus (Typ, Schwierigkeit,
   Tags bleiben), laedt alles und springt ans Ende.
-- Sequenzen mit Call-Texten ohne Zuordnung sind rot; Doppelklick oeffnet das
-  Call-Mapping, gefiltert auf genau diese Call-Texte.
+- Sequenzen mit Call-Texten ohne Zuordnung sind rot; Rechtsklick "Call-Mapping
+  fuer diese Sequenz oeffnen" filtert es auf genau diese Call-Texte.
 
 Nur oeffentliche Methoden und sichtbare Qt-Bausteine, keine privaten Attribute.
 Entity-IDs aus src/reference_calls.json.
@@ -171,29 +171,60 @@ def test_ungemappte_sequenzen_sind_rot(widget, db):
     assert rot == {_zeile(table, db.ids["teil"]), _zeile(table, db.ids["neu"])}
 
 
-def _doppelklick(table, row):
+def _rechtsklick(table, row, monkeypatch, waehle=None):
+    """Kontextmenue auf einer Zeile oeffnen; liefert die Eintraege und loest
+    optional den Eintrag mit Text `waehle` aus (statt blockierendem Popup)."""
+    import sequences_widget
+
+    gesehen = []
+
+    class _StummesMenue(QMenu):
+        def exec(self, *_a):
+            for act in self.actions():
+                gesehen.append(act.text())
+                if waehle and act.text() == waehle:
+                    act.trigger()
+
+    monkeypatch.setattr(sequences_widget, "QMenu", _StummesMenue)
     item = table.item(row, 0)
     table.scrollToItem(item)
-    pos = table.visualItemRect(item).center()
-    QTest.mouseClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
-    QTest.mouseDClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    table.customContextMenuRequested.emit(table.visualItemRect(item).center())
+    return gesehen
 
 
-def test_doppelklick_auf_rot_oeffnet_call_mapping_mit_fokus(widget, db):
+def test_rechtsklick_auf_rot_oeffnet_call_mapping_mit_fokus(widget, db, monkeypatch):
     table = widget.findChild(QTableWidget)
     widget.resize(600, 400)
     widget.show()
     widget.show_newest_sequences()
     aufrufe = []
     widget.on_open_call_mapping = aufrufe.append
+    eintrag = _t("ctx_open_call_mapping_for_sequence")
 
-    _doppelklick(table, _zeile(table, db.ids["ok"]))
-    assert aufrufe == []
+    # nicht-rote Sequenz: kein Call-Mapping-Eintrag
+    assert eintrag not in _rechtsklick(table, _zeile(table, db.ids["ok"]), monkeypatch)
 
-    _doppelklick(table, _zeile(table, db.ids["neu"]))
+    gesehen = _rechtsklick(table, _zeile(table, db.ids["neu"]), monkeypatch,
+                           waehle=eintrag)
+    assert eintrag in gesehen
     assert aufrufe == [[UNMAPPED_A, UNMAPPED_B]]
     # danach steht die Sequenz wieder markiert
     assert table.item(table.currentRow(), 0).data(Qt.UserRole) == db.ids["neu"]
+
+
+def test_doppelklick_oeffnet_kein_call_mapping(widget, db):
+    """Doppelklick bleibt beim bisherigen Verhalten (Sequenz-Detail)."""
+    table = widget.findChild(QTableWidget)
+    widget.resize(600, 400)
+    widget.show()
+    widget.show_newest_sequences()
+    aufrufe = []
+    widget.on_open_call_mapping = aufrufe.append
+    item = table.item(_zeile(table, db.ids["neu"]), 0)
+    pos = table.visualItemRect(item).center()
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    QTest.mouseDClick(table.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    assert aufrufe == []
 
 
 def test_call_mapping_startet_gefiltert_auf_fokus(qapp, db):

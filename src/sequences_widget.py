@@ -746,7 +746,6 @@ class SequencesWidget(QWidget):
         self._table.verticalHeader().setVisible(False)
         self._table.verticalScrollBar().valueChanged.connect(self._on_scroll)
         self._table.cellClicked.connect(self._on_cell_clicked)
-        self._table.cellDoubleClicked.connect(self._on_cell_double_clicked)
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_context_menu)
         layout.addWidget(self._table)
@@ -1122,7 +1121,7 @@ class SequencesWidget(QWidget):
         """Fuellt Tabellenzeilen ab start_idx."""
         from sequence_mapper import get_program_label
         # intern#119: Sequenzen mit Call-Texten ohne Zuordnung rot (Skin-Farbe),
-        # Doppelklick oeffnet das Call-Mapping. Einmal je Block statt je Zeile.
+        # Rechtsklick oeffnet das Call-Mapping. Einmal je Block statt je Zeile.
         unmapped_fg = QColor(self._skin_mgr.color("warning", "#ef4444")
                              if self._skin_mgr else "#ef4444")
         unmapped_tip = _t("sequences_unmapped_tooltip")
@@ -1229,6 +1228,11 @@ class SequencesWidget(QWidget):
         if seq_id not in selected_ids:
             selected_ids = [seq_id]
         menu.addSeparator()
+        # intern#119: rote Sequenz -> Call-Mapping auf ihre Call-Texte ohne Zuordnung
+        if id_item.data(self._ROLE_UNMAPPED) and self.on_open_call_mapping:
+            act_map = menu.addAction(_t("ctx_open_call_mapping_for_sequence"))
+            act_map.triggered.connect(
+                lambda: self._open_call_mapping_for_sequence(seq_id))
         act = menu.addAction(_t("ctx_add_to_notes"))
         act.triggered.connect(
             lambda: self.on_add_to_notes(seq_id) if self.on_add_to_notes else None)
@@ -1241,14 +1245,10 @@ class SequencesWidget(QWidget):
             lambda: self._delete_sequences_with_confirm(selected_ids))
         menu.exec(self._table.viewport().mapToGlobal(pos))
 
-    def _on_cell_double_clicked(self, row, _col):
-        """intern#119: Doppelklick auf eine rote Sequenz oeffnet das Call-Mapping,
-        gefiltert auf ihre Call-Texte ohne Zuordnung. Danach dieselbe Sequenz
-        wieder markieren — sie ist dann (hoffentlich) nicht mehr rot."""
-        item = self._table.item(row, 0)
-        if not item or not item.data(self._ROLE_UNMAPPED) or not self.on_open_call_mapping:
-            return
-        seq_id = item.data(Qt.UserRole)
+    def _open_call_mapping_for_sequence(self, seq_id):
+        """intern#119: Call-Mapping oeffnen, gefiltert auf die Call-Texte dieser
+        Sequenz ohne Zuordnung. Danach dieselbe Sequenz wieder markieren — sie
+        ist dann (hoffentlich) nicht mehr rot."""
         texts = self.db.get_unmapped_call_texts_of_sequence(seq_id)
         if not texts:
             return
@@ -2656,7 +2656,7 @@ class CallMappingDialog(QDialog):
 
     def __init__(self, db, parent=None, focus_texts=None):
         """focus_texts: Call-Texte, auf die der Dialog beim Oeffnen gefiltert
-        wird (intern#119, Doppelklick auf eine rote Sequenz). Der Filter bleibt
+        wird (intern#119, Rechtsklick auf eine rote Sequenz). Der Filter bleibt
         als eigener Eintrag waehlbar; None = normaler Start."""
         super().__init__(parent)
         self.db = db
