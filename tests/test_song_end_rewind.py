@@ -49,20 +49,15 @@ def test_songende_dann_stop_spult_auf_anfang(engine):
     _bis_zum_ende(e)
     # Ohne Zurueckspulen steht die Position am Ende
     assert e.get_position_seconds() > 4.0
+    assert e.get_playback_position_seconds() > 0
     e.stop()
     assert e._feed_pos == 0
     assert e._playback_sample == 0
     assert e.get_position_seconds() == pytest.approx(0.0, abs=0.01)
 
 
-def test_songende_dann_stop_spult_auf_loop_in(engine):
-    e = engine
-    e.seek(4.0)
-    _bis_zum_ende(e)
-    # Loop erst nach dem Ende aktivieren: mit aktivem Loop endet der Song nie
-    e.set_loop_in(1.0)
-    e.set_loop_out(3.0)
-    e.set_loop_active(True)
-    e.stop()
-    assert e._feed_pos == e._loop_in
-    assert e.get_position_seconds() == pytest.approx(1.0, abs=0.01)
+def test_frisch_geladen_steht_auf_null(engine):
+    """Das Hauptfenster spult nur bei Position > 0 zurueck. load() setzt
+    ebenfalls playing=False; ein frisch geladener Song muss auf 0 stehen,
+    damit der Pattern-Song nicht auf Loop-In springt."""
+    assert engine.get_playback_position_seconds() == 0

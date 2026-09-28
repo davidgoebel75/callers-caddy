@@ -7309,7 +7309,10 @@ class P29MainWindow(QMainWindow):
                 # (bzw. Loop-In) zurueckspulen. Stream bleibt offen (TIC-0025).
                 # VOR song_stopped, damit Auto-Advance danach den naechsten
                 # Song laedt und nicht vom Zurueckspulen ueberholt wird.
-                self.engine.stop()
+                # Position 0 = gerade neu geladen (load() setzt playing=False):
+                # nicht anfassen, sonst stuende ein Pattern-Song auf Loop-In.
+                if self.engine.get_playback_position_seconds() > 0:
+                    self.engine.stop()
                 self._trigger_song_stopped()
         self._was_playing = is_playing
 
