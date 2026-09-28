@@ -506,6 +506,34 @@ class AudioEngine:
         self._alert_pos = 0
         self._alert_volume = max(0.0, float(volume))
 
+    def _mix_alert(self, buf, frames):
+        """Mischt den naechsten Block des Alert-Sounds in buf (in place,
+        additiv, Clip-Schutz). Laeuft im Audio-Callback — nur Slicing/NumPy,
+        keine Allokation ueber den Block hinaus, kein Lock."""
+        alert = self._alert_data
+        if alert is None:
+            return
+        ap = self._alert_pos
+        remaining = len(alert) - ap
+        if remaining <= 0:
+            # Alert ausgespielt — Buffer freigeben
+            self._alert_data = None
+            self._alert_pos = 0
+            return
+        n = min(frames, remaining, len(buf))
+        try:
+            buf[:n] = np.clip(buf[:n] + alert[ap:ap + n] * self._alert_volume,
+                              -1.0, 1.0)
+        except ValueError:
+            # Kanal-Mismatch zum Stream: Alert verwerfen statt Callback-Crash
+            self._alert_data = None
+            self._alert_pos = 0
+            return
+        self._alert_pos = ap + n
+        if self._alert_pos >= len(alert):
+            self._alert_data = None
+            self._alert_pos = 0
+
     def stop_alert(self):
         """Aktiven Alert-Sound vorzeitig abbrechen."""
         self._alert_data = None
@@ -1236,6 +1264,9 @@ class AudioEngine:
 
         if not self.playing or self.paused or self.stretcher is None:
             outdata[:] = 0
+            # Alert auch ohne Musik hoerbar (z.B. Rule-Ton in der Pause, intern#110)
+            if self._alert_data is not None:
+                self._mix_alert(outdata, frames)
             return
 
         # Output-Buffer-Stand VOR retrieve() messen (in ms) — vorgezogen, damit der
@@ -1342,24 +1373,8 @@ class AudioEngine:
 
         # BL-137: Alert-Sound einmischen (additiv, mit Clip-Schutz).
         # Im Normalbetrieb: ein `is not None`-Check, sonst nichts.
-        alert = self._alert_data
-        if alert is not None:
-            ap = self._alert_pos
-            remaining = len(alert) - ap
-            if remaining <= 0:
-                # Alert ausgespielt — Buffer freigeben
-                self._alert_data = None
-                self._alert_pos = 0
-            else:
-                n = min(frames, remaining)
-                stretched[:n] = np.clip(
-                    stretched[:n] + alert[ap:ap + n] * self._alert_volume,
-                    -1.0, 1.0,
-                )
-                self._alert_pos = ap + n
-                if self._alert_pos >= len(alert):
-                    self._alert_data = None
-                    self._alert_pos = 0
+        if self._alert_data is not None:
+            self._mix_alert(stretched, frames)
 
         outdata[:] = stretched
         self._playback_sample += frames

@@ -112,3 +112,41 @@ def test_start_mit_wartemusik(uhr):
     uhr.on_play_last_song = lambda secs: True
     uhr.start_break_with_last_song(60)
     assert uhr.events == [("started", True)]
+
+
+# --- Rule-Ton (play_sound) auch ohne laufende Musik hoerbar -----------------
+
+def _leerlauf_engine():
+    """AudioEngine ohne __init__ (kein Geraet, kein Feeder-Thread) im Zustand
+    'Stream offen, keine Musik'."""
+    import numpy as np
+    from audio_engine import AudioEngine
+    eng = AudioEngine.__new__(AudioEngine)
+    eng._frame_samples_done = True
+    eng.playing = False
+    eng.paused = False
+    eng.stretcher = None
+    eng.channels = 2
+    eng._alert_data = None
+    eng._alert_pos = 0
+    eng._alert_volume = 1.0
+    return eng, np
+
+
+def test_alert_im_leerlauf_wird_ausgegeben_und_verbraucht():
+    eng, np = _leerlauf_engine()
+    eng.play_alert(np.full(300, 0.5, dtype=np.float32), volume=1.0)
+    out = np.zeros((256, 2), dtype=np.float32)
+    eng._callback(out, 256, None, None)
+    assert np.allclose(out, 0.5)                 # hoerbar statt Stille
+    out2 = np.zeros((256, 2), dtype=np.float32)
+    eng._callback(out2, 256, None, None)
+    assert np.allclose(out2[:44], 0.5) and np.allclose(out2[44:], 0.0)
+    assert eng._alert_data is None               # nicht fuer den naechsten Song aufgehoben
+
+
+def test_leerlauf_ohne_alert_bleibt_still():
+    eng, np = _leerlauf_engine()
+    out = np.ones((128, 2), dtype=np.float32)
+    eng._callback(out, 128, None, None)
+    assert not out.any()
