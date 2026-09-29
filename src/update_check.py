@@ -37,10 +37,11 @@ Nerv-Popup). Jeder Fehler (offline, Timeout, Markup-Aenderung) → stiller Abbru
 from __future__ import annotations
 
 import re
+import threading
 import urllib.request
 from datetime import date, timedelta
 
-from PySide6.QtCore import QObject, QThread, QUrl, Signal
+from PySide6.QtCore import QObject, Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QMessageBox
 
@@ -155,33 +156,15 @@ def find_latest_update(current_version):
     return None
 
 
-class _UpdateCheckWorker(QThread):
-    """Netzwerk-Abfrage im Hintergrund (Main-Thread bleibt frei)."""
-
-    # Emittiert (version, download_url, ok). ok=False NUR bei echtem Fehler
-    # (offline/Timeout/Markup) — damit die manuelle Pruefung "aktuell" von
-    # "nicht erreichbar" unterscheiden kann. ("", "", True) = aktuell.
-    finished_check = Signal(str, str, bool)
-
-    def __init__(self, current_version, parent=None):
-        super().__init__(parent)
-        self._current_version = current_version
-
-    def run(self):
-        try:
-            result = find_latest_update(self._current_version)
-        except Exception:
-            self.finished_check.emit("", "", False)
-            return
-        if result:
-            self.finished_check.emit(result[0], result[1], True)
-        else:
-            self.finished_check.emit("", "", True)
-
-
 class UpdateChecker(QObject):
     """Orchestriert Pruefung + Dialog. An das Hauptfenster haengen, damit der
     QObject im Main-Thread lebt (Dialog laeuft dann sicher im Main-Thread)."""
+
+    # Ergebnis der Hintergrund-Pruefung (version, download_url, ok). ok=False
+    # NUR bei echtem Fehler (offline/Timeout/Markup) -- damit die manuelle
+    # Pruefung "aktuell" von "nicht erreichbar" unterscheiden kann.
+    # ("", "", True) = aktuell.
+    _check_done = Signal(str, str, bool)
 
     def __init__(self, window, current_version):
         # parent=window -> Thread-Affinitaet Main-Thread; haelt uns zudem am Leben
@@ -190,8 +173,11 @@ class UpdateChecker(QObject):
         self._current_version = current_version
         # QSettings des Hauptfensters (callers_caddy.ini) fuer die Snooze-Persistenz.
         self._settings = getattr(window, "_settings", None)
-        self._worker = None
+        self._running = False
         self._manual = False
+        # Queued: emittiert wird im Hintergrund-Thread, der Slot laeuft im
+        # Main-Thread.
+        self._check_done.connect(self._on_result, Qt.QueuedConnection)
 
     def start(self):
         """Automatische Pruefung beim Start — still, wenn kein Update vorliegt,
@@ -204,14 +190,30 @@ class UpdateChecker(QObject):
         self._begin(manual=True)
 
     def _begin(self, manual):
-        # AutoConnection: Sender im Worker-Thread, Empfaenger (self) im
-        # Main-Thread -> Qt liefert den Slot queued im Main-Thread aus.
-        if self._worker is not None:
+        if self._running:
             return  # laeuft bereits — Doppelklick/Doppelstart ignorieren
+        self._running = True
         self._manual = manual
-        self._worker = _UpdateCheckWorker(self._current_version, self)
-        self._worker.finished_check.connect(self._on_result)
-        self._worker.start()
+        # intern#134: Daemon-Thread statt QThread. Ein QThread, der beim
+        # Beenden noch im Netz-Timeout haengt, wird mit dem Hauptfenster
+        # zerstoert -> Qt Fatal "QThread: Destroyed while thread is still
+        # running". Ein Daemon-Thread endet einfach mit dem Prozess.
+        threading.Thread(target=self._run_check, daemon=True,
+                         name="UpdateCheck").start()
+
+    def _run_check(self):
+        """Netzwerk-Abfrage im Daemon-Thread (Main-Thread bleibt frei)."""
+        try:
+            result = find_latest_update(self._current_version)
+        except Exception:
+            version, url, ok = "", "", False
+        else:
+            version, url = result if result else ("", "")
+            ok = True
+        try:
+            self._check_done.emit(version, url, ok)
+        except RuntimeError:
+            pass  # App wird gerade beendet, der Checker ist schon zerstoert
 
     def _is_snoozed(self, latest_version):
         """True, wenn die Erinnerung fuer `latest_version` noch ruht.
@@ -249,7 +251,7 @@ class UpdateChecker(QObject):
     def _on_result(self, latest_version, download_url, ok):
         # Laeuft im Main-Thread.
         manual = self._manual
-        self._worker = None  # Thread beendet, Referenz freigeben
+        self._running = False  # Pruefung beendet, neue wieder erlaubt
         if latest_version and download_url:
             current = _parse_version(self._current_version)
             newest = _parse_version(latest_version)
