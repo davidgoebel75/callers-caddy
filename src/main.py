@@ -25,6 +25,7 @@ import math
 import shutil
 import threading
 import random
+import struct
 from time import monotonic
 from datetime import date, datetime
 from PySide6.QtWidgets import (
@@ -6564,34 +6565,57 @@ class P29MainWindow(QMainWindow):
         #121: als QRect unter floatrect/<name> (per setGeometry wiederher-
         gestellt, ohne Versatz). Die alten floatgeom-Bytes werden entfernt.
         Ein noch vorgemerkter Wert (Dock in dieser Sitzung nie gezeigt) hat
-        Vorrang vor geometry(), die dann nur Qt-Defaults enthielte."""
+        Vorrang vor geometry(), die dann nur Qt-Defaults enthielte.
+
+        Angedockte Docks behalten ihre letzte Floating-Position: vorgemerkt
+        oder aus der INI (floatrect, sonst einmalig aus alten floatgeom-
+        Bytes umgerechnet). floatgeom wird erst entfernt, NACHDEM floatrect
+        geschrieben ist — sonst liefe der Fallback bei jedem Start erneut
+        bzw. ginge die Position verloren. Unlesbare Bytes bleiben stehen."""
         for dock in self._floating_tool_docks():
             name = dock.objectName()
-            if name and dock.isFloating():
+            if not name:
+                continue
+            if dock.isFloating():
                 rect = self._pending_float_geom.get(name) or dock.geometry()
-                settings.setValue(f"floatrect/{name}", rect)
-                settings.remove(f"floatgeom/{name}")
+            else:
+                rect = (self._pending_float_geom.get(name)
+                        or self._read_float_rect(settings, name))
+            if rect is None:
+                continue
+            settings.setValue(f"floatrect/{name}", rect)
+            settings.remove(f"floatgeom/{name}")
+
+    # QWidget.saveGeometry(): Magic, Major/Minor (uint16), dann frameGeometry
+    # und normalGeometry als je 4 x int32 (x1, y1, x2, y2), big-endian.
+    _SAVED_GEOMETRY_MAGIC = 0x1D9D0CB
+    _SAVED_GEOMETRY_HEAD = struct.Struct(">IHH8i")
 
     @staticmethod
     def _rect_from_saved_geometry(data):
         """Liest aus alten floatgeom-Bytes (QWidget.saveGeometry) das Client-
         Rechteck (normalGeometry). Nur Fallback fuer INIs von vor #121;
-        None, wenn das Format nicht passt."""
-        from PySide6.QtCore import QDataStream, QIODevice, QByteArray
+        None, wenn das Format nicht passt.
+
+        Bewusst per struct statt QDataStream: QDataStream(QByteArray(data))
+        haelt das temporaere QByteArray nicht am Leben und liest dann
+        freigegebenen Speicher (Muell-Rechteck, Absturz beim Start, #121)."""
+        head = P29MainWindow._SAVED_GEOMETRY_HEAD
         try:
-            stream = QDataStream(QByteArray(data), QIODevice.ReadOnly)
-            if stream.readUInt32() != 0x1D9D0CB:  # Magic von saveGeometry
+            raw = bytes(data)
+            if len(raw) < head.size:
                 return None
-            stream.readUInt16()  # Major-Version
-            stream.readUInt16()  # Minor-Version
-            frame, normal = QRect(), QRect()
-            stream >> frame
-            stream >> normal
-        except (TypeError, ValueError):
+            (magic, _major, _minor, _fx1, _fy1, _fx2, _fy2,
+             x1, y1, x2, y2) = head.unpack_from(raw)
+        except (TypeError, ValueError, struct.error):
             return None
-        if stream.status() != QDataStream.Ok or not normal.isValid():
+        if magic != P29MainWindow._SAVED_GEOMETRY_MAGIC:
             return None
-        return normal
+        # Unsinnige Werte (kaputte Bytes) nicht als Position uebernehmen
+        if any(abs(v) > 100000 for v in (x1, y1, x2, y2)):
+            return None
+        normal = QRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1)
+        return normal if normal.isValid() else None
 
     def _read_float_rect(self, settings, name):
         """floatrect/<name> (QRect); sonst Fallback auf alte floatgeom-Bytes."""
