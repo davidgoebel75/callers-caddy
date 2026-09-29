@@ -7,6 +7,10 @@ eingreifen, bevor importiert wird:
   editierbarer Bezeichnung der Variante
 - Lyrics-Liste mit An-/Abwahl, Primaer-Wahl und editierbarer Bezeichnung
 - Editor fuer die globale Abkuerzungs-Tabelle (Modifier -> Bezeichnung)
+- Mehrere Songs in einem ZIP (intern#125): Rueckfrage vorab (ask_split),
+  danach je ZIP umschaltbar ueber eine Hinweis-Leiste
+- Duplikat-Hinweis, wenn die Hauptspur schon in der DB steht, mit Angebot,
+  die neuen Spuren an den vorhandenen Song zu haengen
 """
 
 
@@ -16,7 +20,7 @@ from PySide6.QtWidgets import (
     QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QRadioButton, QButtonGroup, QPushButton, QDialogButtonBox, QGroupBox,
     QScrollArea, QWidget, QMessageBox, QTabWidget, QFileDialog,
-    QAbstractSpinBox, QSlider,
+    QAbstractSpinBox, QSlider, QCheckBox, QFrame,
 )
 
 import zip_import
@@ -263,10 +267,15 @@ class ImportListsDialog(QDialog):
 
 
 class ZipImportPreviewDialog(QDialog):
-    """Preview vor dem ZIP-Import: pro Bundle Titel/Label/Typ, Musik- und Lyrics-Liste."""
+    """Preview vor dem ZIP-Import: pro Bundle Titel/Label/Typ, Musik- und Lyrics-Liste.
+
+    Songs sind nach Herkunfts-ZIP gruppiert. Hat der Splitter in einem ZIP
+    mehrere Songs erkannt, steht darueber eine Hinweis-Leiste, mit der sich
+    die Aufteilung je ZIP noch umschalten laesst (intern#125).
+    """
 
     def __init__(self, result, lists, lists_path: str, parent=None,
-                 audition_cb=None):
+                 audition_cb=None, dup_lookup=None):
         super().__init__(parent)
         self.setWindowTitle(_t("zip_preview_title"))
         self._result = result
@@ -274,21 +283,20 @@ class ZipImportPreviewDialog(QDialog):
         self._lists_path = lists_path
         self._modmap = lists.modifiers.effective()
         self._audition_cb = audition_cb   # callable(path) -> 'playing'|'paused'
-        self._bundles_ui = []
+        # callable(filename) -> Titel des vorhandenen Songs oder None (Duplikat)
+        self._dup_lookup = dup_lookup
+        self._groups_ui = []   # je ZIP: {"group", "host", "bundles"}
         self.resize(760, 640)
 
         outer = QVBoxLayout(self)
-        intro = QLabel(_t("zip_preview_intro", count=len(result.bundles)))
-        intro.setWordWrap(True)
-        outer.addWidget(intro)
+        self._intro = QLabel()
+        self._intro.setWordWrap(True)
+        outer.addWidget(self._intro)
         # Vollstaendigkeits-Bilanz: jede Datei ist zugeordnet oder unten gelistet.
-        balance = QLabel(_t("zip_preview_balance",
-                            total=result.total_files,
-                            assigned=result.assigned_count,
-                            ignored=len(result.ignored)))
-        balance.setWordWrap(True)
-        balance.setStyleSheet("color: #888; font-size: 11px;")
-        outer.addWidget(balance)
+        self._balance = QLabel()
+        self._balance.setWordWrap(True)
+        self._balance.setStyleSheet("color: #888; font-size: 11px;")
+        outer.addWidget(self._balance)
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
@@ -297,19 +305,20 @@ class ZipImportPreviewDialog(QDialog):
         scroll.setWidget(container)
         outer.addWidget(scroll, 1)
 
-        for bundle in result.bundles:
-            self._vbox.addWidget(self._build_bundle(bundle))
-        if result.ignored:
-            box = QGroupBox(_t("zip_preview_others_title"))
-            bl = QVBoxLayout(box)
-            for name in result.ignored:
-                reason = result.ignored_reasons.get(name, "")
-                txt = f"• {name}  ({reason})" if reason else f"• {name}"
-                row_lbl = QLabel(txt)
-                row_lbl.setStyleSheet("color: #888;")
-                bl.addWidget(row_lbl)
-            self._vbox.addWidget(box)
+        for group in result.zips:
+            if group.is_multi:
+                self._vbox.addWidget(self._build_split_bar(group))
+            host = QVBoxLayout()
+            host.setContentsMargins(0, 0, 0, 0)
+            self._vbox.addLayout(host)
+            gui = {"group": group, "host": host, "bundles": []}
+            self._groups_ui.append(gui)
+            self._fill_group(gui)
+        self._others_box = QGroupBox(_t("zip_preview_others_title"))
+        self._others_layout = QVBoxLayout(self._others_box)
+        self._vbox.addWidget(self._others_box)
         self._vbox.addStretch(1)
+        self._refresh_summary()
 
         bottom = QHBoxLayout()
         btn_mods = QPushButton(_t("zip_lists_button"))
@@ -323,17 +332,74 @@ class ZipImportPreviewDialog(QDialog):
         bottom.addWidget(buttons)
         outer.addLayout(bottom)
 
-        # Mausrad-Schutz auf Fenster-Ebene: alle Combos/SpinBoxes/Slider
-        # ignorieren Wheel-Events, damit beim Scrollen durch den Dialog kein
-        # Auswahlfeld (z. B. Songtyp) versehentlich verstellt wird. Gleiches
-        # Muster wie im Settings-Dialog — auch zukuenftige Felder sind so
-        # automatisch geschuetzt.
-        for child in self.findChildren(QComboBox):
-            child.installEventFilter(self)
-        for child in self.findChildren(QAbstractSpinBox):
-            child.installEventFilter(self)
-        for child in self.findChildren(QSlider):
-            child.installEventFilter(self)
+        self._install_wheel_guard(self)
+
+    @property
+    def _bundles_ui(self) -> list:
+        return [b for g in self._groups_ui for b in g["bundles"]]
+
+    def _install_wheel_guard(self, root):
+        """Mausrad-Schutz: alle Combos/SpinBoxes/Slider unter root ignorieren
+        Wheel-Events, damit beim Scrollen durch den Dialog kein Auswahlfeld
+        (z. B. Songtyp) versehentlich verstellt wird. Gleiches Muster wie im
+        Settings-Dialog; laeuft auch nach jedem Umbau einer ZIP-Gruppe."""
+        for cls in (QComboBox, QAbstractSpinBox, QSlider):
+            for child in root.findChildren(cls):
+                child.installEventFilter(self)
+
+    def _build_split_bar(self, group) -> QFrame:
+        """Hinweis-Leiste ueber einem ZIP mit mehreren erkannten Songs."""
+        bar = QFrame()
+        bar.setFrameShape(QFrame.StyledPanel)
+        h = QHBoxLayout(bar)
+        lbl = QLabel(_t("zip_preview_split_bar", zip=group.zip_file,
+                        count=len(group.split)))
+        lbl.setWordWrap(True)
+        h.addWidget(lbl, 1)
+        chk = QCheckBox(_t("zip_preview_split_merge"))
+        chk.setChecked(not group.use_split)
+        chk.toggled.connect(lambda merged, g=group: self._on_split_toggled(g, merged))
+        h.addWidget(chk)
+        return bar
+
+    def _on_split_toggled(self, group, merged: bool):
+        group.use_split = not merged
+        self._result.refresh_bundles()
+        gui = next(g for g in self._groups_ui if g["group"] is group)
+        self._fill_group(gui)
+        self._install_wheel_guard(self)
+        self._refresh_summary()
+
+    def _fill_group(self, gui):
+        """(Neu-)Aufbau der Song-Kaesten einer ZIP-Gruppe. Eingaben in den alten
+        Kaesten gehen dabei verloren (bewusst: andere Aufteilung = andere Songs)."""
+        host = gui["host"]
+        while host.count():
+            w = host.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        gui["bundles"] = []
+        for bundle in gui["group"].bundles():
+            host.addWidget(self._build_bundle(bundle, gui["bundles"]))
+
+    def _refresh_summary(self):
+        """Intro, Bilanz und 'Sonstige Dateien' nach der aktuellen Aufteilung."""
+        res = self._result
+        others = res.other_files
+        self._intro.setText(_t("zip_preview_intro", count=len(res.bundles)))
+        self._balance.setText(_t("zip_preview_balance", total=res.total_files,
+                                 assigned=res.assigned_count, ignored=len(others)))
+        while self._others_layout.count():
+            w = self._others_layout.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        for name, reason in others:
+            if reason == zip_import.UNASSIGNED_LYRICS_REASON:
+                reason = _t("zip_preview_unassigned")
+            row_lbl = QLabel(f"• {name}  ({reason})" if reason else f"• {name}")
+            row_lbl.setStyleSheet("color: #888;")
+            self._others_layout.addWidget(row_lbl)
+        self._others_box.setVisible(bool(others))
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Wheel and isinstance(
@@ -342,7 +408,7 @@ class ZipImportPreviewDialog(QDialog):
             return True
         return super().eventFilter(obj, event)
 
-    def _build_bundle(self, bundle) -> QGroupBox:
+    def _build_bundle(self, bundle, target: list) -> QGroupBox:
         box = QGroupBox(bundle.title or bundle.base)
         v = QVBoxLayout(box)
 
@@ -353,11 +419,26 @@ class ZipImportPreviewDialog(QDialog):
         combo_type.addItems([_t("import_type_pattern"),
                              _t("import_type_singing"),
                              _t("import_type_both")])
-        combo_type.setCurrentIndex(1)  # Default: Singing (Label-Pakete sind meist Singing Calls)
+        # Singing nur mit passenden Lyrics im ZIP, sonst Patter (intern#125).
+        combo_type.setCurrentIndex(1 if bundle.singing_suggested else 0)
         form.addRow(_t("zip_preview_song_title"), edit_title)
         form.addRow(_t("zip_preview_label"), edit_label)
         form.addRow(_t("zip_preview_type"), combo_type)
         v.addLayout(form)
+
+        # ---- Duplikat-Hinweis (Hauptspur schon in der DB) ----
+        dup_row = QWidget()
+        dh = QHBoxLayout(dup_row)
+        dh.setContentsMargins(0, 0, 0, 0)
+        dup_lbl = QLabel()
+        dup_lbl.setWordWrap(True)
+        dup_lbl.setStyleSheet("color: #c77700;")
+        dh.addWidget(dup_lbl, 1)
+        dup_chk = QCheckBox(_t("zip_preview_dup_attach"))
+        dup_chk.setChecked(True)
+        dh.addWidget(dup_chk)
+        dup_row.setVisible(False)
+        v.addWidget(dup_row)
 
         # ---- Musik-Tabelle (Drag&Drop) ----
         v.addWidget(QLabel(_t("zip_preview_music_hint")))
@@ -375,10 +456,6 @@ class ZipImportPreviewDialog(QDialog):
             mp3.setItem(r, 1, _editable_item(ac.label_text))
             mp3.setItem(r, 2, _play_item())
         mp3.setMinimumHeight(min(34 * max(mp3.rowCount(), 1) + 30, 200))
-        mp3.on_reorder = lambda t=mp3: self._mark_primary(t)
-        mp3.cellClicked.connect(
-            lambda r, c, t=mp3: self._on_play_clicked(t, r, c))
-        self._mark_primary(mp3)
         v.addWidget(mp3)
 
         # ---- Lyrics-Tabelle ----
@@ -412,11 +489,36 @@ class ZipImportPreviewDialog(QDialog):
         lyr.setMinimumHeight(min(34 * max(lyr.rowCount(), 1) + 30, 180))
         v.addWidget(lyr)
 
-        self._bundles_ui.append({
+        ui = {
             "title": edit_title, "label": edit_label, "type": combo_type,
             "mp3": mp3, "lyr": lyr, "radios": radios,
-        })
+            "dup_row": dup_row, "dup_lbl": dup_lbl, "dup_chk": dup_chk,
+        }
+        target.append(ui)
+
+        def _primary_changed(t=mp3, u=ui):
+            self._mark_primary(t)
+            self._refresh_dup(u)
+        mp3.on_reorder = _primary_changed
+        mp3.cellClicked.connect(
+            lambda r, c, t=mp3: self._on_play_clicked(t, r, c))
+        _primary_changed()
         return box
+
+    def _refresh_dup(self, ui):
+        """Zeigt den Duplikat-Hinweis, wenn die Hauptspur (Zeile 0) schon als
+        Song in der DB steht. Aenderung der Reihenfolge prueft neu."""
+        title = None
+        item = ui["mp3"].item(0, 0)
+        if self._dup_lookup is not None and item is not None:
+            try:
+                title = self._dup_lookup(item.text())
+            except Exception:
+                title = None
+        ui["is_dup"] = title is not None
+        ui["dup_row"].setVisible(title is not None)
+        if title is not None:
+            ui["dup_lbl"].setText(_t("zip_preview_dup", title=title))
 
     def _mark_primary(self, table):
         """Hebt Zeile 0 (Hauptlied) optisch hervor."""
@@ -494,5 +596,46 @@ class ZipImportPreviewDialog(QDialog):
                 "label": ui["label"].text().strip(),
                 "is_pattern": is_pattern, "is_singing": is_singing,
                 "audio": audio, "lyrics": lyrics,
+                # Hauptspur existiert schon: neue Spuren an den vorhandenen
+                # Song haengen? (intern#125)
+                "attach_new": ui.get("is_dup", False) and ui["dup_chk"].isChecked(),
             })
         return out
+
+
+def ask_split(parent, groups) -> "bool | None":
+    """Rueckfrage vor der Vorschau, wenn ZIPs mehrere Songs enthalten (intern#125).
+
+    groups: ZipGroups mit is_multi. Zeigt je ZIP die erkannten Songs, im
+    Detailbereich zusaetzlich die Dateien je Song.
+    Rueckgabe: True = getrennt, False = je ZIP als ein Song, None = Abbruch.
+    """
+    dlg = QMessageBox(parent)
+    dlg.setWindowTitle(_t("zip_split_title"))
+    dlg.setIcon(QMessageBox.Question)
+    dlg.setText(_t("zip_split_text", count=len(groups)))
+    dlg.setInformativeText("\n".join(
+        _t("zip_split_zip_line", zip=g.zip_file,
+           songs=", ".join(b.title for b in g.split))
+        for g in groups))
+    details = []
+    for g in groups:
+        details.append(g.zip_file)
+        for b in g.split:
+            files = [a.filename for a in b.audio] + [lc.filename for lc in b.lyrics]
+            details.append(f"  {b.title}: {', '.join(files)}")
+        if g.unassigned:
+            details.append(f"  ({_t('zip_preview_unassigned')}: "
+                           f"{', '.join(g.unassigned)})")
+    dlg.setDetailedText("\n".join(details))
+    btn_split = dlg.addButton(_t("zip_split_separate"), QMessageBox.AcceptRole)
+    btn_merge = dlg.addButton(_t("zip_split_merged"), QMessageBox.ActionRole)
+    dlg.addButton(QMessageBox.Cancel)
+    dlg.setDefaultButton(btn_split)
+    dlg.exec()
+    clicked = dlg.clickedButton()
+    if clicked == btn_split:
+        return True
+    if clicked == btn_merge:
+        return False
+    return None

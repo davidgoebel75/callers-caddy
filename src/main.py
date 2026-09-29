@@ -147,7 +147,7 @@ _LOCK_FILE = _acquire_single_instance_lock()
 if _LOCK_FILE is None:
     _warn_already_running_and_exit()
 
-from audio_engine import AudioEngine
+from audio_engine import ALERT_IDLE_SR, AudioEngine
 from system_report import generate_report
 from song_db import SongDatabase, Song, Location
 from path_manager import PathManager
@@ -160,7 +160,9 @@ from notes_widget import NotesWidget
 from stats_widget import StatsWidget
 from evening_planner_widget import EveningPlannerWidget
 import zip_import
-from zip_import_dialog import ZipImportPreviewDialog
+import song_catalog
+import song_match
+from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
 
 # _ComboClickToOpen / install_combo_click_to_open -> sequences_widget.py (BL-201)
@@ -972,6 +974,7 @@ class P29MainWindow(QMainWindow):
         self.sequences_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequences_widget.on_add_filter_to_notes = self._notes_add_seq_with_filters
         self.sequences_widget.on_sequences_deleted = self._on_sequences_deleted
+        self.sequences_widget.on_open_call_mapping = self._open_call_mapping
         self.sequence_view_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequence_view_widget.on_edit_sequence = self._on_sequence_editor
         self.sequence_view_widget.on_delete_sequence = self._on_sequence_view_delete
@@ -985,6 +988,9 @@ class P29MainWindow(QMainWindow):
         # BL-182: Dynamic-Start mischt auch die ERSTE Sequenz, wenn Shuffle an ist.
         self.lyrics_widget.randomize_start_sequence_view = \
             self.sequence_view_widget.random_start
+        # intern#127: Spiegel-Button ohne gewaehlte Art -> Einstellungen dort oeffnen
+        self.lyrics_widget.open_settings_at = \
+            lambda key: self._show_settings_dialog(focus_key=key)
         self.sequence_view_widget.on_current_sequence_changed = \
             self.lyrics_widget.refresh_dynamic_from_sequence
         # Sequenzliste geaendert → Gating des Dynamic-Buttons neu bewerten.
@@ -1262,8 +1268,16 @@ class P29MainWindow(QMainWindow):
         self.break_widget = BreakWidget(self.skin_mgr)
         self.break_widget.on_play_last_song = self._on_break_play_last
         self.break_widget.on_stop_last_song = self._on_break_stop_last
+        self.break_widget.on_break_started = self._on_break_started
+        self.break_widget.on_break_finished = self._on_break_finished
         self._break_music_active = False
         self._break_music_timer = None
+        self._break_with_music = False  # Art der letzten Pause (Condition break_type)
+        # Zuletzt wirklich gestarteter Song dieser Sitzung (ohne Wartemusik,
+        # Audition, Beat Snap) — Quelle fuer "Letzten Song spielen"
+        self._last_logged_song_id = None
+        # Vor der Wartemusik geladener Song — wird nach der Pause wieder geladen
+        self._pre_break_song_id = None
         # Latch: unterdrueckt den Feedback-Dialog am Ende der Wartemusik. Wird in
         # _trigger_song_stopped einmalig gelesen und zurueckgesetzt (wie _in_audition).
         self._break_music_suppress_feedback = False
@@ -1922,11 +1936,19 @@ class P29MainWindow(QMainWindow):
 
         # 3) Dateiname parsen + DB-Eintrag
         title, label = self._parse_filename(basename)
+        # intern#126: sicherer Katalogtreffer -> Katalog-Schreibweise + Caller
+        cat_entry = self._catalog_entry_for_import(basename, title, label)
+        if cat_entry is not None:
+            title = song_catalog.canonical_title(title, cat_entry.title)
+            label = cat_entry.label_field
         song = Song(filename=store_name, title=title, label=label,
+                    artist=cat_entry.caller if cat_entry else "",
                     is_pattern=is_pattern, is_singing=is_singing)
         song = self.db.insert(song)
         print(f"[Import] Neu: #{song.id} '{title}'"
               f"{f' [{label}]' if label else ''}")
+        if cat_entry is not None:
+            self._apply_catalog_metadata(song.id, cat_entry)
 
         # 3b) Lyrics-Co-Import (gleichnamig, tolerant) — beim ZIP abgeschaltet
         if auto_lyrics:
@@ -1968,6 +1990,47 @@ class P29MainWindow(QMainWindow):
 
         return {"song": song, "store_name": store_name,
                 "dest": dest, "status": "new"}
+
+    def _catalog_entry_for_import(self, basename: str, title: str, label: str):
+        """intern#126: Katalogeintrag fuer eine neue Datei, nur bei "sicher".
+
+        Der Katalog ist eine weitere Datenquelle fuer den vorhandenen Abgleich
+        (song_match): bewertet wird der Dateiname in beiden Zerlegungen (Import-
+        Parser und zip_import-Parser), der bessere Treffer zaehlt. Unterhalb von
+        IMPORT_MIN_SCORE wird nichts uebernommen (Potential zeigt es an)."""
+        try:
+            catalog = song_catalog.get_catalog(self.paths.app_dir)
+            if catalog is None:
+                return None
+            pn = song_match.parse_name(os.path.splitext(basename)[0])
+            matches = [m for m in (catalog.identify(title, label),
+                                   catalog.identify(pn.title, pn.label_full)) if m]
+        except Exception as e:  # noqa: BLE001 — Import darf daran nie scheitern
+            print(f"[Import] Katalog-Abgleich uebersprungen: {e}")
+            return None
+        best = max(matches, key=lambda m: m.score, default=None)
+        if best is None or not best.is_sure:
+            return None
+        print(f"[Import] Katalog: '{best.entry.title}' [{best.entry.label_field}] "
+              f"(Score {best.score})")
+        return best.entry
+
+    def _apply_catalog_metadata(self, song_id: int, entry):
+        """Fuellt Original-Interpret, Erscheinungsjahr und bekannte Genres aus
+        dem Katalog (neuer Song, Felder sind leer). Additiv, NEW bleibt."""
+        try:
+            if entry.original_artist:
+                self.db.set_property(song_id, "original_artist", entry.original_artist)
+            if entry.release_year:
+                self.db.set_property(song_id, "release_year", entry.release_year)
+            # Nur bekannte Genres, Gross-/Kleinschreibung egal (wie Potential)
+            known = {name.lower(): gid for gid, name in self.db.get_all_genres()}
+            for gname in entry.genres:
+                gid = known.get(gname.lower())
+                if gid:
+                    self.db.add_song_genre(song_id, gid)
+        except Exception as e:  # noqa: BLE001
+            print(f"[Import] Katalog-Metadaten uebersprungen (#{song_id}): {e}")
 
     def _import_files(self, filepaths: list, copy_mode: bool = True,
                       import_root: str = "", genre_ids: list = None):
@@ -2175,10 +2238,20 @@ class P29MainWindow(QMainWindow):
             QMessageBox.information(self, _t("import_result_title"),
                                     _t("zip_no_songs"))
             return
+        # Mehrere Songs in einem ZIP: erst nachfragen, nicht still teilen (intern#125)
+        multi = result.multi_song_zips
         try:
+            if multi:
+                split = ask_zip_split(self, multi)
+                if split is None:
+                    return
+                for g in multi:
+                    g.use_split = split
+                result.refresh_bundles()
             dlg = ZipImportPreviewDialog(
                 result, lists, self._zip_lists_path(), self,
-                audition_cb=self._audition_zip_play)
+                audition_cb=self._audition_zip_play,
+                dup_lookup=self._zip_dup_title)
             accepted = dlg.exec() == QDialog.Accepted
             self._stop_zip_audition()  # vor Commit/Cleanup Probehören stoppen
             if accepted:
@@ -2212,7 +2285,9 @@ class P29MainWindow(QMainWindow):
             return os.path.basename(dest)
 
         imported = 0
-        skipped = 0
+        skipped = []    # Dateinamen, die schon existierten (intern#125)
+        not_attached = []   # Dateien eines Duplikats, die nicht angehaengt wurden
+        attached = 0    # neue Spuren an vorhandene Songs gehaengt
         errors = []
         last_dest = None
 
@@ -2231,8 +2306,26 @@ class P29MainWindow(QMainWindow):
                 if song is None:
                     continue
                 if r["status"] == "dup":
-                    # Song existiert bereits vollstaendig -> nicht erneut Varianten anhaengen
-                    skipped += 1
+                    # Hauptspur existiert schon. Auf Wunsch (Preview) nur die
+                    # Spuren anhaengen, die der Song noch nicht hat.
+                    skipped.append(os.path.basename(primary["path"]))
+                    # Lyrics haengt der Duplikat-Zweig nie an: nicht still verwerfen
+                    not_attached.extend(os.path.basename(l["path"])
+                                        for l in d.get("lyrics", []) if l["selected"])
+                    if not d.get("attach_new"):
+                        not_attached.extend(os.path.basename(a["path"]) for a in audio[1:])
+                        continue
+                    known = {os.path.basename(song.filename).lower()} | {
+                        os.path.basename(f).lower()
+                        for _i, _n, f in self.db.get_variants(song.id, "music")}
+                    for a in audio[1:]:
+                        name = os.path.basename(a["path"])
+                        if name.lower() in known or self.db.get_by_filename(name):
+                            skipped.append(name)
+                            continue
+                        fn = _copy_into(a["path"], music_dir)
+                        self.db.add_variant(song.id, "music", a["label_text"], fn)
+                        attached += 1
                     continue
                 # Titel/Label aus dem Preview uebernehmen (User kann editiert haben)
                 song.title = d["title"] or song.title
@@ -2287,14 +2380,30 @@ class P29MainWindow(QMainWindow):
             lines.append(_t("import_songs_imported", count=imported))
             lines.append("")
             lines.append(_t("import_result_hint_songlist"))
+        if attached:
+            lines.append(_t("zip_attached_tracks", count=attached))
         if skipped:
-            lines.append(_t("import_songs_skipped", count=skipped))
+            lines.append(_t("import_songs_skipped", count=len(skipped)))
+            lines.extend(_t("import_skipped_file", name=n) for n in skipped)
+        if not_attached:
+            lines.append(_t("zip_not_attached", count=len(not_attached)))
+            lines.extend(f"  • {n}" for n in not_attached)
         if errors:
             lines.append(_t("import_errors", count=len(errors)))
             lines.extend(f"  {e}" for e in errors)
         if lines:
             QMessageBox.information(self, _t("import_result_title"),
                                     "\n".join(lines))
+
+    def _zip_dup_title(self, filename: str):
+        """ZIP-Preview (intern#125): Titel des vorhandenen Songs, wenn die Datei
+        beim Import als Duplikat uebersprungen wuerde, sonst None. Gleiche
+        Pruefung wie _import_single_audio im Kopiermodus (Speichername =
+        Basename, Datei liegt schon im Musikordner)."""
+        song = self.db.get_by_filename(filename)
+        if song and os.path.exists(os.path.join(self.paths.music_dir, filename)):
+            return song.title or filename
+        return None
 
     # ---- Lokation-Auswahl ----
 
@@ -2615,6 +2724,7 @@ class P29MainWindow(QMainWindow):
         _ch.log_action(f"Play: {self._current_song.title or self._current_song.filename}")
         # Audition/Beat-Snap nicht in Historie loggen, aber Rules trotzdem feuern
         if not getattr(self, '_suppress_play_log', False):
+            self._last_logged_song_id = self._current_song.id
             location_id = self._current_location.id if self._current_location else None
             # Historie-Log ist "best effort": ist die DB gerade gesperrt (z.B.
             # laufende Bulk-Worker), darf das NICHT das Abspielen verhindern.
@@ -3611,7 +3721,15 @@ class P29MainWindow(QMainWindow):
     # ---- Break: Wartemusik (zuletzt gespielter Song, ohne Historie) ----
 
     def _last_played_song_id(self):
-        """Ermittelt die ID des zuletzt gespielten Songs (aus der Historie)."""
+        """Ermittelt die ID des zuletzt gespielten Songs.
+
+        Zuerst der in dieser Sitzung zuletzt gestartete Song, dann die Historie
+        der Lokation. Der geladene Song ist nur der letzte Ausweg: nach
+        Auto-Advance ist das schon der NAECHSTE Playlist-Song (ohne Lokation
+        ist die Historie leer, intern#110).
+        """
+        if getattr(self, "_last_logged_song_id", None):
+            return self._last_logged_song_id
         location_id = self._current_location.id if self._current_location else None
         lpm = self.db.get_last_played_map(location_id)
         if lpm:
@@ -3637,14 +3755,18 @@ class P29MainWindow(QMainWindow):
             return False
         _t1 = perf_split("_on_break_play_last: lookup+find_file", _t0)
         self._flush_player_values()
+        # Vorher geladenen Song merken (z.B. der per Auto-Advance vorgeladene
+        # naechste Playlist-Song) — _on_break_stop_last laedt ihn wieder.
+        prev = self._current_song
+        self._pre_break_song_id = prev.id if prev and prev.id != song.id else None
         self._current_song = song
         self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
         self._ensure_primary_channel()
         perf_split("_on_break_play_last: ensure_primary_channel", _t2)
         self._suppress_play_log = True      # NICHT in die Historie
-        # Kein Feedback-Dialog am Ende der Wartemusik (Latch, in _trigger_song_stopped
-        # konsumiert — robust gegen Stop-Timing, da nicht in _on_break_stop_last geloescht).
+        # Kein Feedback-Dialog am Ende der Wartemusik (Latch, zurueckgesetzt in
+        # _trigger_song_stopped oder _on_break_stop_last).
         self._break_music_suppress_feedback = True
         # Rules komplett sperren waehrend der Wartemusik (kein Auto-Advance etc.).
         # Nested-Counter: jedes suspend() braucht genau ein resume() (in _on_break_stop_last).
@@ -3661,6 +3783,29 @@ class P29MainWindow(QMainWindow):
         self._break_music_timer.start(int(max(1.0, duration_seconds) * 1000))
         return True
 
+    def _on_break_started(self, with_music: bool):
+        """Pausen-Uhr frisch gestartet -> Trigger 'break_started' (intern#110).
+
+        Deferred: kommt der Start aus einer Rule-Aktion (Start Break), laeuft
+        fire_trigger noch und der Loop-Schutz wuerde den Trigger blocken.
+        Die Wartemusik-Sperre gilt nicht fuer die Pausen-Trigger.
+        """
+        self._break_with_music = bool(with_music)
+        QTimer.singleShot(0, lambda: self.rule_engine.fire_trigger(
+            "break_started", bypass_suspend=("break_music",)))
+
+    def _on_break_finished(self):
+        """Countdown bei 0 -> Wartemusik beenden, dann 'break_finished' feuern.
+
+        Wartemusik und Countdown laufen ueber getrennte Timer; der Stopp hier
+        verhindert, dass die Folge-Rule (z.B. Auto-Advance -> Play) auf noch
+        laufende Wartemusik trifft.
+        """
+        if self._break_music_active:
+            self._on_break_stop_last()
+        QTimer.singleShot(0, lambda: self.rule_engine.fire_trigger(
+            "break_finished", bypass_suspend=("break_music",)))
+
     def _on_break_stop_last(self):
         """Stoppt die Wartemusik und stellt das Historie-Logging wieder her."""
         _t0 = perf_start()
@@ -3669,14 +3814,38 @@ class P29MainWindow(QMainWindow):
             self._break_music_timer = None
         if self._break_music_active:
             self.engine.stop()
+            # Das Ende der Wartemusik ist kein Songende: ohne diesen Reset
+            # erkennt _update_all im naechsten Tick "Song-Ende" und feuert
+            # song_stopped (dann schon ohne Sperre) -> Auto-Advance schaltet
+            # weiter, mit break_finished -> Auto-Advance sogar doppelt
+            # (intern#110). Der Feedback-Latch wird damit nicht mehr in
+            # _trigger_song_stopped konsumiert, also hier loeschen.
+            self._was_playing = False
+            self._break_music_suppress_feedback = False
             self._suppress_play_log = False
             # Rules wieder freigeben (genau ein resume() zum suspend() oben)
             self.rule_engine.resume("break_music")
             self._break_music_active = False
+            self._restore_pre_break_song()
         # Break-Widget-Button zuruecksetzen (Auto-Stop)
         if getattr(self, 'break_widget', None) is not None:
             self.break_widget.set_music_stopped()
         perf_log("_on_break_stop_last", _t0)
+
+    def _restore_pre_break_song(self):
+        """Laedt nach der Wartemusik wieder den Song, der vor der Pause geladen
+        war (intern#110). Ohne Abspielen; Laden ist synchron, eine Folge-Rule
+        "Play" (z.B. auf Break Finished) spielt also diesen Song."""
+        song_id, self._pre_break_song_id = self._pre_break_song_id, None
+        if not song_id:
+            return
+        song = self.db.get_by_id(song_id)
+        filepath = self.paths.find_song_file(song.filename) if song else None
+        if not filepath:
+            return
+        self._flush_player_values()
+        self._current_song = song
+        self._load_known_song(song.id, filepath)
 
     def _on_potential_navigate_beatsnap(self, song_id):
         """Laedt den Song und oeffnet Beat Snap."""
@@ -3865,6 +4034,7 @@ class P29MainWindow(QMainWindow):
             "location_not_selected": loc is None,
             "play_elapsed_seconds": play_elapsed,
             "song_length_seconds": song_length,
+            "break_with_music": getattr(self, "_break_with_music", False),
         }
 
     def _register_rule_conditions(self):
@@ -3898,6 +4068,17 @@ class P29MainWindow(QMainWindow):
                               >= p.get("minutes", 5) * 60)
         # BL-205: Songlaenge über/unter Schwellwert (mm:ss)
         re.register_condition("song_length", self._eval_song_length)
+        # intern#110: Art der letzten Pause (all / without_music / with_music)
+        re.register_condition("break_type", self._eval_break_type)
+
+    @staticmethod
+    def _eval_break_type(ctx, p) -> bool:
+        kind = p.get("kind", "all")
+        if kind == "with_music":
+            return bool(ctx.get("break_with_music", False))
+        if kind == "without_music":
+            return not ctx.get("break_with_music", False)
+        return True
 
     @staticmethod
     def _eval_song_length(ctx, p) -> bool:
@@ -5176,7 +5357,9 @@ class P29MainWindow(QMainWindow):
         except OSError:
             return None
         cached = self._alert_cache.get(path)
-        target_sr = self.engine.sample_rate if self.engine else 44100
+        # Ohne geladenen Song (Kaltstart) oeffnet play_alert den Stream mit
+        # ALERT_IDLE_SR — dorthin resamplen.
+        target_sr = (self.engine.sample_rate if self.engine else None) or ALERT_IDLE_SR
         if cached and cached[0] == mtime and cached[1] == target_sr:
             return cached[2]
         try:
@@ -6009,6 +6192,11 @@ class P29MainWindow(QMainWindow):
 
     def _on_call_mapping(self):
         """Menue: Call-Mapping-Dialog oeffnen."""
+        self._open_call_mapping()
+
+    def _open_call_mapping(self, focus_texts=None):
+        """Call-Mapping-Dialog oeffnen; focus_texts filtert ihn beim Start auf
+        diese Call-Texte (intern#119, Rechtsklick auf eine rote Sequenz)."""
         if self.db.get_teaching_order_count() == 0:
             QMessageBox.warning(
                 self, _t("call_mapping_title"),
@@ -6017,7 +6205,7 @@ class P29MainWindow(QMainWindow):
             return
         # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
         # Ergaenzen/Aendern ("Optimieren", intern#97).
-        dlg = CallMappingDialog(self.db, self)
+        dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
@@ -6605,6 +6793,10 @@ class P29MainWindow(QMainWindow):
             "feedback/enabled": "false",
             # intern#96: Einfuegeposition neuer Notizen (top/bottom)
             "notes/insert_position": "top",
+            # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
+            # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
+            "lyrics/dynamic_invert_enabled": "false",
+            "lyrics/dynamic_invert_mode": "",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6613,7 +6805,7 @@ class P29MainWindow(QMainWindow):
 
     # ---- Einstellungen-Dialog (BL-129) ----
 
-    def _show_settings_dialog(self):
+    def _show_settings_dialog(self, focus_key=None):
         dlg = SettingsDialog(
             self,
             self._settings,
@@ -6621,6 +6813,7 @@ class P29MainWindow(QMainWindow):
             on_apply=self._on_settings_applied,
             program_picker_cb=self._settings_pick_programs,
             program_label_cb=self._program_codes_label,
+            focus_key=focus_key,
         )
         dlg.exec()
 
@@ -6696,6 +6889,11 @@ class P29MainWindow(QMainWindow):
             elif key == "lyrics/dynamic_mode":
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.set_dynamic_mode_live(val)
+
+            elif key in ("lyrics/dynamic_invert_enabled",
+                         "lyrics/dynamic_invert_mode"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_invert_settings()
 
             elif key == "notes/zoom_pct":
                 try:
@@ -7662,6 +7860,12 @@ def main():
     if crash_logs:
         QTimer.singleShot(
             800, lambda: _show_crash_log_notice(window, crash_logs, settings))
+
+    # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
+    # nicht auf dem Main-Thread parsen (intern#126).
+    QTimer.singleShot(1000, lambda: threading.Thread(
+        target=song_catalog.get_catalog, args=(window.paths.app_dir,),
+        daemon=True, name="SongCatalogPreload").start())
 
     # Update-Pruefung im Hintergrund (scheitert lautlos bei Offline/Fehler).
     # Verzoegert, damit sie nicht mit dem Start konkurriert.
