@@ -6823,6 +6823,9 @@ class P29MainWindow(QMainWindow):
             # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
             "lyrics/dynamic_invert_enabled": "false",
             "lyrics/dynamic_invert_mode": "",
+            # intern#115: Timing-Parameter (Sekunden, negativ = frueher)
+            "lyrics/text_jump_offset": "0",
+            "lyrics/dynamic_swap_offset": "0",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6920,6 +6923,11 @@ class P29MainWindow(QMainWindow):
                          "lyrics/dynamic_invert_mode"):
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.reload_invert_settings()
+
+            elif key in ("lyrics/text_jump_offset",
+                         "lyrics/dynamic_swap_offset"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_timing_settings()
 
             elif key == "notes/zoom_pct":
                 try:

@@ -102,6 +102,7 @@ def stub(qapp):
     s._invert_mode = "HHSS"
     s._dyn_part_starts = [10.0, 40.0, 90.0, 120.0]   # Figure 1..4
     s._sync_last_pos = 0.0
+    s._dynamic_swap_offset = 0                      # intern#115
     return s
 
 

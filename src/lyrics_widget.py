@@ -683,6 +683,9 @@ class LyricsWidget(QWidget):
         self._sync_music_slot = 1         # 1 = Primaer, 2+ = Variante
         self._sync_lyric_slot = 1
         self._sync_last_pos = 0.0         # zuletzt gesehene Wiedergabeposition (Sek.)
+        # intern#115: Timing-Parameter in ganzen Sekunden, negativ = frueher
+        self._text_jump_offset = 0        # Auto-Scroll erreicht SyncPoints verschoben
+        self._dynamic_swap_offset = 0     # Figuren-Grenzen von Dynamic Lyrics verschoben
         self._scroll_last_val = -1        # letzter gesetzter Scroll-Wert (Anti-Jitter)
         self._manual_scroll_until = 0.0   # bis hierhin Auto-Scroll aussetzen (monotonic)
         self._sync_move_anchor = None     # gesetzter Anker, der per Klick verschoben wird
@@ -2277,6 +2280,7 @@ class LyricsWidget(QWidget):
             self._btn_dynamic.setChecked(bool(self._dynamic_wanted))
             self._btn_dynamic.blockSignals(False)
         self.reload_invert_settings()   # intern#127
+        self.reload_timing_settings()   # intern#115
         self.update_dynamic_button_state()
 
     def set_dynamic_wanted(self, enabled: bool):
@@ -2424,9 +2428,31 @@ class LyricsWidget(QWidget):
             tip = _t("tooltip_dynamic_invert", mode=self._invert_mode)
         self._btn_invert.setToolTip(tip)
 
+    # Grenzen der Timing-Parameter (Sekunden), siehe SETTINGS_META
+    _TIMING_OFFSET_LIMIT = 10
+
+    def reload_timing_settings(self):
+        """intern#115: "Textsprung timen" und "Texttausch timen" aus der INI
+        lesen (Start und Settings-Live-Apply). Unlesbare Werte gelten als 0."""
+        if self._settings is None:
+            return
+        lim = self._TIMING_OFFSET_LIMIT
+        for attr, key in (("_text_jump_offset", "lyrics/text_jump_offset"),
+                          ("_dynamic_swap_offset", "lyrics/dynamic_swap_offset")):
+            try:
+                val = int(float(self._settings.value(key, 0) or 0))
+            except (TypeError, ValueError):
+                val = 0
+            setattr(self, attr, max(-lim, min(lim, val)))
+
     def _dynamic_current_part(self, pos: float) -> int:
         """Index des gerade laufenden Figuren-Teils (letzter Teil, dessen
-        Startzeit <= pos). 0, solange noch kein Teil begonnen hat."""
+        Startzeit <= pos). 0, solange noch kein Teil begonnen hat.
+
+        intern#115: Die Grenzen wirken um "Texttausch timen" verschoben
+        (negativ = frueher). Daran haengen Sequenzwechsel und Heads/Sides-
+        Tausch gleichermassen."""
+        pos = pos - self._dynamic_swap_offset
         cur = 0
         for i, t in enumerate(self._dyn_part_starts):
             if t <= pos:
@@ -4444,11 +4470,16 @@ class LyricsWidget(QWidget):
         max_pos = doc.characterCount() - 1
         # Stuetzpunkte aufbauen (nach Zeit sortiert)
         points = [(0.0, 0)]
+        # intern#115: "Textsprung timen" verschiebt die Anker zeitlich (nur fuer
+        # die Anzeige, gespeichert bleibt die echte Zeit). Innerhalb des Songs
+        # halten, sonst ueberholt ein Anker die festen Endpunkte.
+        shift = float(self._text_jump_offset)
         for sec, p in sorted(self._active_anchors(), key=lambda a: a[0]):
             y = self._y_for_pos(int(p), doc, layout, max_pos)
             if y is None:
                 continue
-            points.append((float(sec), max(0, y - read_offset)))
+            t = max(0.0, min(float(dur), float(sec) + shift))
+            points.append((t, max(0, y - read_offset)))
         points.append((float(dur), max_val))
         # Doppelte/unsortierte Zeiten entschaerfen
         points.sort(key=lambda p: p[0])
