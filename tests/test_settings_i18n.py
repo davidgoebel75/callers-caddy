@@ -22,8 +22,7 @@ import pathlib
 import pytest
 
 from settings_dialog import SETTINGS_META, _is_excluded_key
-from test_settings_reachable import (_default_ini_keys, _defaults_table,
-                                     _is_excluded, _settings_calls)
+from test_settings_reachable import _is_excluded, _saat, _settings_calls
 
 _REPO = pathlib.Path(__file__).resolve().parent.parent
 _SRC = _REPO / "src"
@@ -51,11 +50,6 @@ def _fehlt(tr: dict, t_key: str) -> bool:
     return not all(entry.get(lang) for lang in _LANGS)
 
 
-# Steht in der Default-INI, wird aber beim Start von PathManager._migrate()
-# nach paths/music_dir_1 umgeschrieben - erscheint nie im Dialog.
-_NIE_IM_DIALOG = {"paths/music_dir"}
-
-
 def _sichtbare_keys() -> set:
     """SETTINGS_META, die ganze Saat (Default-INI, _write_ini_defaults) plus
     alle im Code gelesenen oder geschriebenen, gesaeten, nicht versteckten
@@ -64,7 +58,7 @@ def _sichtbare_keys() -> set:
     zaehlen mit: was per setValue in der INI landet, zeigt der Dialog auch
     dann, wenn es nur mit Default gelesen wird oder gar nicht."""
     written, prefixes = _settings_calls("setValue")
-    saat = _defaults_table() | _default_ini_keys()
+    saat = _saat()
     fixed = saat | written
 
     def gesaet(k):
@@ -72,8 +66,7 @@ def _sichtbare_keys() -> set:
 
     gelesen, _ = _settings_calls("value")
     keys = set(SETTINGS_META) | {k for k in saat | gelesen | written
-                                 if gesaet(k) and not _is_excluded(k)}
-    keys -= _NIE_IM_DIALOG
+                                  if gesaet(k) and not _is_excluded(k)}
     return {k for k in keys if not _is_excluded_key(*k.split("/", 1))}
 
 
