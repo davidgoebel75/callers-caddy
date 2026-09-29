@@ -9143,6 +9143,11 @@
     "en": "{count} new track(s) added to existing songs",
     "ja": "{count} 件の新しいトラックを既存の曲に追加しました"
   },
+  "zip_not_attached": {
+    "de": "{count} Datei(en) nicht angehängt:",
+    "en": "{count} file(s) not added:",
+    "ja": "{count} 件のファイルは追加されていません:"
+  },
   "import_skipped_file": {
     "de": "  • {name} (existiert schon)",
     "en": "  • {name} (already exists)",

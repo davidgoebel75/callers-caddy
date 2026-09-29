@@ -2177,15 +2177,14 @@ class P29MainWindow(QMainWindow):
             return
         # Mehrere Songs in einem ZIP: erst nachfragen, nicht still teilen (intern#125)
         multi = result.multi_song_zips
-        if multi:
-            split = ask_zip_split(self, multi)
-            if split is None:
-                zip_import.cleanup(result)
-                return
-            for g in multi:
-                g.use_split = split
-            result.refresh_bundles()
         try:
+            if multi:
+                split = ask_zip_split(self, multi)
+                if split is None:
+                    return
+                for g in multi:
+                    g.use_split = split
+                result.refresh_bundles()
             dlg = ZipImportPreviewDialog(
                 result, lists, self._zip_lists_path(), self,
                 audition_cb=self._audition_zip_play,
@@ -2224,6 +2223,7 @@ class P29MainWindow(QMainWindow):
 
         imported = 0
         skipped = []    # Dateinamen, die schon existierten (intern#125)
+        not_attached = []   # Dateien eines Duplikats, die nicht angehaengt wurden
         attached = 0    # neue Spuren an vorhandene Songs gehaengt
         errors = []
         last_dest = None
@@ -2246,8 +2246,11 @@ class P29MainWindow(QMainWindow):
                     # Hauptspur existiert schon. Auf Wunsch (Preview) nur die
                     # Spuren anhaengen, die der Song noch nicht hat.
                     skipped.append(os.path.basename(primary["path"]))
+                    # Lyrics haengt der Duplikat-Zweig nie an: nicht still verwerfen
+                    not_attached.extend(os.path.basename(l["path"])
+                                        for l in d.get("lyrics", []) if l["selected"])
                     if not d.get("attach_new"):
-                        skipped.extend(os.path.basename(a["path"]) for a in audio[1:])
+                        not_attached.extend(os.path.basename(a["path"]) for a in audio[1:])
                         continue
                     known = {os.path.basename(song.filename).lower()} | {
                         os.path.basename(f).lower()
@@ -2319,6 +2322,9 @@ class P29MainWindow(QMainWindow):
         if skipped:
             lines.append(_t("import_songs_skipped", count=len(skipped)))
             lines.extend(_t("import_skipped_file", name=n) for n in skipped)
+        if not_attached:
+            lines.append(_t("zip_not_attached", count=len(not_attached)))
+            lines.extend(f"  • {n}" for n in not_attached)
         if errors:
             lines.append(_t("import_errors", count=len(errors)))
             lines.extend(f"  {e}" for e in errors)

@@ -5,7 +5,6 @@ Extended-Version, landete als EIN Song. Die Tests pruefen den Splitter
 (Aufteilen nur mit eigener Hauptspur je Song), die Typ-Vorbelegung nach Lyrics
 und im Preview das Umschalten je ZIP sowie den Duplikat-Hinweis.
 """
-import os
 import zipfile
 
 import pytest
