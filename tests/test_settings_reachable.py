@@ -44,10 +44,7 @@ _UNGESAET_BEKANNT = {
 # passendem Bedienelement. Wer einen davon bewusst verstecken will, traegt ihn
 # in _EXCLUDED_KEYS ein (statt ihn hier stehen zu lassen).
 _OHNE_META_BEKANNT = {
-    "lyrics/auto_width",
     "rules/streamdeck_seeded_v1",   # interner Marker, kein Nutzer-Schalter
-    "sequences/universal_import_dir",
-    "sort/random_tiebreaker",
 }
 
 
@@ -102,6 +99,18 @@ def _is_excluded(full_key: str) -> bool:
             or key in _EXCLUDED_KEYS.get(section, set()))
 
 
+# Steht in der Default-INI, wird aber beim Start von PathManager._migrate()
+# nach paths/music_dir_1 umgeschrieben - erscheint nie im Dialog.
+_NIE_IM_DIALOG = {"paths/music_dir"}
+
+
+def _saat() -> set:
+    """Keys aus Default-INI und _write_ini_defaults() - stehen in der INI,
+    auch wenn der Code sie nicht als Literal liest (paths/playlist_dir ueber
+    PathManager._INI_KEYS)."""
+    return (_defaults_table() | _default_ini_keys()) - _NIE_IM_DIALOG
+
+
 @pytest.fixture(scope="module")
 def gesaet() -> set:
     """Keys, die auf einer frischen Installation in der INI landen."""
@@ -130,7 +139,8 @@ def test_jeder_meta_eintrag_landet_auch_in_der_ini(gesaet):
 
 def test_jeder_sichtbare_ini_key_hat_eine_beschriftung(gesaet):
     gelesen, _ = _settings_calls("value")
-    sichtbar = {k for k in gelesen if k in gesaet and not _is_excluded(k)}
+    sichtbar = {k for k in gelesen | _saat()
+                if k in gesaet and not _is_excluded(k)}
     fehlend = sichtbar - set(SETTINGS_META)
     neu = fehlend - _OHNE_META_BEKANNT
     assert not neu, (

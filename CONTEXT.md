@@ -90,6 +90,15 @@ _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
 
+**Pausen-Uhr**:
+Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
+_EN_: Break Clock
+
+**Wartemusik**:
+Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
+als gespielt und schaltet die Playlist nicht weiter.
+_EN_: Break Music
+
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
 Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
@@ -176,6 +185,17 @@ Automatisch erkannte Figuren-Menge fuer einen zusammengesetzten Call-Text. Ist n
 ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zuordnung.
 _EN_: Figure Set Suggestion
 _Avoid_: Automapping
+
+**Optimieren**:
+Aktion im Call-Mapping, die alle abweichenden Mengen-Vorschlaege auf einen Schlag
+uebernimmt, nach Rueckfrage je Art der Abweichung. Ergebnis sind abgeleitete Zuordnungen.
+_EN_: Optimize
+
+**Abgeleitete Zuordnung**:
+Zuordnung, die aus einem Mengen-Vorschlag gesammelt uebernommen wurde, statt vom
+Caller einzeln bestaetigt. Bleibt von automatischen und von Hand gesetzten
+Zuordnungen unterscheidbar.
+_EN_: Inferred Assignment
 
 **Teilung**:
 Zerlegen eines zusammengesetzten Call-Texts in zwei eigenstaendige Call-Texte.

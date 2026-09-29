@@ -1281,9 +1281,9 @@
     "ja": "Remapping 完了"
   },
   "remapping_done_msg": {
-    "de": "Ergebnis:\n  Einzigartige Call-Texte: {total}\n  Gemappt: {mapped}\n  Nicht gemappt: {unmapped}\n  Davon auto: {auto}, manuell: {manual}",
-    "en": "Result:\n  Unique call texts: {total}\n  Mapped: {mapped}\n  Unmapped: {unmapped}\n  Of which auto: {auto}, manual: {manual}",
-    "ja": "結果:\n  固有の Call テキスト: {total}\n  マッピング済み: {mapped}\n  未マッピング: {unmapped}\n  うち自動: {auto}、手動: {manual}"
+    "de": "Ergebnis:\n  Einzigartige Call-Texte: {total}\n  Gemappt: {mapped}\n  Nicht gemappt: {unmapped}\n  Davon auto: {auto}, manuell: {manual}, abgeleitet: {inferred}",
+    "en": "Result:\n  Unique call texts: {total}\n  Mapped: {mapped}\n  Unmapped: {unmapped}\n  Of which auto: {auto}, manual: {manual}, inferred: {inferred}",
+    "ja": "結果:\n  固有の Call テキスト: {total}\n  マッピング済み: {mapped}\n  未マッピング: {unmapped}\n  うち自動: {auto}、手動: {manual}、推定: {inferred}"
   },
   "btn_auto_scroll": {
     "de": "Auto-Scroll",
@@ -1379,6 +1379,51 @@
     "de": "Verteilung der im Sequence-View gewaehlten Sequenzen auf die vier Figuren-Abschnitte, wenn Dynamic Lyrics aktiv ist.",
     "en": "How the sequences selected in the Sequence View are distributed across the four figure sections when Dynamic Lyrics is active.",
     "ja": "Dynamic Lyrics 有効時に、Sequence View で選択したシーケンスを4つのフィギュアセクションにどう割り当てるか。"
+  },
+  "setting_label_lyrics_dynamic_invert_enabled": {
+    "de": "Heads / Sides invertieren",
+    "en": "Invert heads / sides",
+    "ja": "Heads / Sides を入れ替え"
+  },
+  "setting_tip_lyrics_dynamic_invert_enabled": {
+    "de": "Tauscht in den eingeblendeten Sequenzen Heads und Sides (samt Couple-Nummern) in den Figuren der gewählten Art. Wirkt nur zusammen mit Dynamic Lyrics. Entspricht dem Spiegel-Button im Lyric-Fenster.",
+    "en": "Swaps heads and sides (including couple numbers) in the displayed sequences for the figures of the selected pattern. Only works together with Dynamic Lyrics. Same as the mirror button in the lyrics window.",
+    "ja": "表示中のシーケンスで、選択したパターンのフィギュアの Heads と Sides（カップル番号を含む）を入れ替えます。Dynamic Lyrics と併用した場合のみ有効です。歌詞ウィンドウのミラーボタンと同じです。"
+  },
+  "setting_label_lyrics_dynamic_invert_mode": {
+    "de": "Art der Invertierung",
+    "en": "Inversion pattern",
+    "ja": "入れ替えパターン"
+  },
+  "setting_tip_lyrics_dynamic_invert_mode": {
+    "de": "In welchen Figures (Abschnitten) Heads und Sides getauscht werden.",
+    "en": "In which Figures (sections) heads and sides are swapped.",
+    "ja": "どのフィギュアで Heads と Sides を入れ替えるか。"
+  },
+  "dynamic_invert_opt_hhss": {
+    "de": "HHSS – Figure 3 und 4 tauschen",
+    "en": "HHSS – swap in Figures 3 and 4",
+    "ja": "HHSS – フィギュア 3 と 4 で入れ替え"
+  },
+  "dynamic_invert_opt_hssh": {
+    "de": "HSSH – Figure 2 und 3 tauschen",
+    "en": "HSSH – swap in Figures 2 and 3",
+    "ja": "HSSH – フィギュア 2 と 3 で入れ替え"
+  },
+  "dynamic_invert_opt_hshs": {
+    "de": "HSHS – Figure 2 und 4 tauschen",
+    "en": "HSHS – swap in Figures 2 and 4",
+    "ja": "HSHS – フィギュア 2 と 4 で入れ替え"
+  },
+  "tooltip_dynamic_invert_choose": {
+    "de": "Heads / Sides invertieren: zuerst die Art in den Einstellungen wählen (öffnet sie).",
+    "en": "Invert heads / sides: choose the pattern in Settings first (opens them).",
+    "ja": "Heads / Sides の入れ替え：まず設定でパターンを選択してください（設定を開きます）。"
+  },
+  "tooltip_dynamic_invert": {
+    "de": "Heads / Sides invertieren ({mode}) an/aus. Wirkt nur mit Dynamic Lyrics.",
+    "en": "Invert heads / sides ({mode}) on/off. Only works with Dynamic Lyrics.",
+    "ja": "Heads / Sides の入れ替え（{mode}）オン/オフ。Dynamic Lyrics 使用時のみ有効。"
   },
   "btn_lyric_sync": {
     "de": "Sync",
@@ -2525,6 +2570,11 @@
     "en": "Lyrics folder",
     "ja": "Lyrics フォルダ"
   },
+  "setting_label_paths_playlist_dir": {
+    "de": "Playlist-Ordner",
+    "en": "Playlist folder",
+    "ja": "プレイリストフォルダ"
+  },
   "setting_label_audio_primary_device": {
     "de": "Primärer Ausgang",
     "en": "Primary output",
@@ -2630,6 +2680,16 @@
     "en": "First note factor",
     "ja": "最初のメモの係数"
   },
+  "setting_label_notes_insert_position": {
+    "de": "Neue Notizen einfügen",
+    "en": "Insert new notes",
+    "ja": "新しいメモの挿入位置"
+  },
+  "setting_tip_notes_insert_position": {
+    "de": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
+    "en": "Where new notes are placed — also when taking songs over from the playlist and the evening planner. “Middle” inserts above the topmost separator line (at the bottom if there is none). The toggle in the notes window changes this for the current session only.",
+    "ja": "新しいメモを追加する位置です(プレイリストやイブニングプランナーからの取り込みにも適用)。「中」は一番上の区切り線の上に挿入します(区切り線がない場合は一番下)。メモウィンドウの切替ボタンは現在のセッションでのみ有効です。"
+  },
   "setting_label_lyrics_zoom_pct": {
     "de": "Zoom",
     "en": "Zoom",
@@ -2639,6 +2699,16 @@
     "de": "Automatische Schriftgrösse",
     "en": "Auto font size",
     "ja": "自動文字サイズ"
+  },
+  "setting_label_lyrics_auto_width": {
+    "de": "Automatische Breite",
+    "en": "Auto width",
+    "ja": "自動幅調整"
+  },
+  "setting_tip_lyrics_auto_width": {
+    "de": "Passt die Schriftgröße der Lyrics an die Fensterbreite an. Schließt die automatische Schriftgröße aus – ist beides an, gewinnt die Breite. Entspricht dem Button „Auto-Breite“ im Lyrics-Fenster.",
+    "en": "Fits the lyrics font size to the window width. Excludes auto font size – if both are on, width wins. Same as the “Auto-Width” button in the lyrics window.",
+    "ja": "歌詞の文字サイズをウィンドウ幅に合わせます。自動文字サイズとは排他で、両方オンの場合は幅が優先されます。歌詞ウィンドウの「Auto-Width」ボタンと同じです。"
   },
   "setting_label_debug_performance_logging": {
     "de": "Performance-Logging",
@@ -2699,6 +2769,11 @@
     "de": "Wird beim Importieren als Startordner verwendet.",
     "en": "Used as the starting folder when importing songs.",
     "ja": "曲をインポートする際の開始フォルダとして使用されます。"
+  },
+  "setting_tip_paths_playlist_dir": {
+    "de": "Ordner, in dem Playlists gespeichert und geladen werden.",
+    "en": "Folder where playlists are saved and loaded.",
+    "ja": "プレイリストを保存・読み込みするフォルダです。"
   },
   "setting_label_audio_alert_sound_path": {
     "de": "Hinweis-Sound (Timer-Überzug)",
@@ -3275,6 +3350,56 @@
     "en": "No rows selected, or no confirmable suggestions in selection.",
     "ja": "行が選択されていないか、選択内に確定可能な提案がありません。"
   },
+  "call_mapping_optimize": {
+    "de": "Optimieren",
+    "en": "Optimize",
+    "ja": "最適化"
+  },
+  "call_mapping_optimize_tip": {
+    "de": "Übernimmt alle Mengen-Vorschläge, die von der Zuordnung abweichen (Filter „Vorschlag weicht ab“), auf einen Schlag. Vorher kommt eine Rückfrage.",
+    "en": "Adopts all figure set suggestions that differ from the assignment (filter \"Suggestion differs\") in one go. Asks for confirmation first.",
+    "ja": "割り当てと異なる図形セット提案（フィルター「提案相違」）をまとめて適用します。事前に確認します。"
+  },
+  "call_mapping_optimize_title": {
+    "de": "Optimieren",
+    "en": "Optimize",
+    "ja": "最適化"
+  },
+  "call_mapping_optimize_intro": {
+    "de": "Welche Mengen-Vorschläge sollen übernommen werden?",
+    "en": "Which figure set suggestions should be adopted?",
+    "ja": "どの図形セット提案を適用しますか？"
+  },
+  "call_mapping_optimize_new": {
+    "de": "{count} Call-Texte neu zuordnen (bisher ohne Zuordnung)",
+    "en": "Assign {count} call texts (currently unassigned)",
+    "ja": "{count} 件の Call テキストを新規に割り当て（割り当てなし）"
+  },
+  "call_mapping_optimize_extend": {
+    "de": "{count} Zuordnungen ergänzen (Figuren fehlen noch)",
+    "en": "Complete {count} assignments (figures missing)",
+    "ja": "{count} 件の割り当てを補完（図形が不足）"
+  },
+  "call_mapping_optimize_change": {
+    "de": "{count} Zuordnungen ändern (Figuren werden ersetzt oder entfernt)",
+    "en": "Change {count} assignments (figures are replaced or removed)",
+    "ja": "{count} 件の割り当てを変更（図形を置換または削除）"
+  },
+  "call_mapping_optimize_discard": {
+    "de": "Es gibt ungespeicherte Änderungen in der Tabelle. Beim Optimieren gehen sie verloren. Trotzdem fortfahren?",
+    "en": "The table has unsaved changes. Optimizing will discard them. Continue anyway?",
+    "ja": "表に未保存の変更があります。最適化すると失われます。続行しますか？"
+  },
+  "call_mapping_optimize_nothing": {
+    "de": "Kein Vorschlag weicht von der Zuordnung ab – nichts zu optimieren.",
+    "en": "No suggestion differs from the assignment – nothing to optimize.",
+    "ja": "割り当てと異なる提案はありません。最適化するものはありません。"
+  },
+  "call_mapping_optimize_done": {
+    "de": "{count} Zuordnungen aus Vorschlägen übernommen.",
+    "en": "{count} assignments adopted from suggestions.",
+    "ja": "{count} 件の割り当てを提案から適用しました。"
+  },
   "call_mapping_saved": {
     "de": "{count} Zuordnungen gespeichert.",
     "en": "{count} assignments saved.",
@@ -3304,11 +3429,6 @@
     "de": "Keine Teaching-Order-Calls in der Datenbank. Bitte zuerst Calls importieren.",
     "en": "No teaching order calls in the database. Please import calls first.",
     "ja": "データベースに Teaching Order の Call がありません。まず Call をインポートしてください。"
-  },
-  "call_mapping_all_mapped": {
-    "de": "Alle Call-Texte sind bereits gemappt.",
-    "en": "All call texts are already mapped.",
-    "ja": "すべての Call テキストはすでにマッピング済みです。"
   },
   "menu_import_sequences_universal": {
     "de": "Sequenzen importieren...",
@@ -9013,6 +9133,71 @@
     "en": "Other files (not imported):",
     "ja": "その他のファイル（インポートされません）:"
   },
+  "zip_split_title": {
+    "de": "Mehrere Songs in einem ZIP",
+    "en": "Several songs in one ZIP",
+    "ja": "1つのZIPに複数の曲"
+  },
+  "zip_split_text": {
+    "de": "{count} ZIP-Datei(en) enthalten mehrere verschiedene Songs. Wie soll importiert werden?",
+    "en": "{count} ZIP file(s) contain several different songs. How should they be imported?",
+    "ja": "{count} 件のZIPファイルに異なる曲が複数含まれています。どのようにインポートしますか？"
+  },
+  "zip_split_zip_line": {
+    "de": "• {zip}: {songs}",
+    "en": "• {zip}: {songs}",
+    "ja": "• {zip}: {songs}"
+  },
+  "zip_split_separate": {
+    "de": "Getrennt importieren",
+    "en": "Import separately",
+    "ja": "別々にインポート"
+  },
+  "zip_split_merged": {
+    "de": "Je ZIP als einen Song",
+    "en": "One song per ZIP",
+    "ja": "ZIPごとに1曲"
+  },
+  "zip_preview_split_bar": {
+    "de": "Aus „{zip}“: {count} Songs erkannt.",
+    "en": "From “{zip}”: {count} songs detected.",
+    "ja": "「{zip}」から {count} 曲を検出しました。"
+  },
+  "zip_preview_split_merge": {
+    "de": "Als einen Song importieren",
+    "en": "Import as one song",
+    "ja": "1曲としてインポート"
+  },
+  "zip_preview_unassigned": {
+    "de": "keinem Song zuordenbar",
+    "en": "cannot be assigned to a song",
+    "ja": "どの曲にも割り当てられません"
+  },
+  "zip_preview_dup": {
+    "de": "Existiert schon als „{title}“.",
+    "en": "Already exists as “{title}”.",
+    "ja": "「{title}」として既に存在します。"
+  },
+  "zip_preview_dup_attach": {
+    "de": "Neue Spuren anhängen",
+    "en": "Add new tracks",
+    "ja": "新しいトラックを追加"
+  },
+  "zip_attached_tracks": {
+    "de": "{count} neue Spur(en) an vorhandene Songs angehängt",
+    "en": "{count} new track(s) added to existing songs",
+    "ja": "{count} 件の新しいトラックを既存の曲に追加しました"
+  },
+  "zip_not_attached": {
+    "de": "{count} Datei(en) nicht angehängt:",
+    "en": "{count} file(s) not added:",
+    "ja": "{count} 件のファイルは追加されていません:"
+  },
+  "import_skipped_file": {
+    "de": "  • {name} (existiert schon)",
+    "en": "  • {name} (already exists)",
+    "ja": "  • {name}（既に存在）"
+  },
   "setting_section_sort": {
     "de": "Sortierung",
     "en": "Sorting",
@@ -9023,20 +9208,40 @@
     "en": "Favourite sort order",
     "ja": "お気に入りの並び順"
   },
+  "setting_label_sort_random_tiebreaker": {
+    "de": "Gleichstand zufällig sortieren",
+    "en": "Shuffle ties",
+    "ja": "同点をシャッフル"
+  },
   "setting_tip_sort_default_mode": {
     "de": "Diese Sortierung ist beim App-Start in Songliste und Planner voreingestellt.",
     "en": "This sort order is preselected in the song list and the planner when the app starts.",
     "ja": "アプリ起動時に曲リストとプランナーでこの並び順が選択されます。"
+  },
+  "setting_tip_sort_random_tiebreaker": {
+    "de": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    "en": "Randomly order songs within equal-score groups (Quality / Recommendation only). Applies to the song list, Planner and Evening Planner.",
+    "ja": "同スコアのグループ内で曲をランダムに並べる（Quality / おすすめ時のみ）。ソングリスト、Planner、Evening Planner に適用されます。"
   },
   "setting_label_sequences_only_program_default": {
     "de": "\"Nur\"-Filter beim Start aktiv",
     "en": "\"Only\" filter active at startup",
     "ja": "起動時に「限定」フィルターを有効化"
   },
+  "setting_label_sequences_universal_import_dir": {
+    "de": "Letzter Sequenz-Import-Ordner",
+    "en": "Last sequence import folder",
+    "ja": "最後のシーケンスインポートフォルダ"
+  },
   "setting_tip_sequences_only_program_default": {
     "de": "Voreinstellung der \"Nur\"-Checkbox im Sequenzen-Fenster: nur Sequenzen, deren höchster Call im gewählten Programm liegt.",
     "en": "Default state of the \"Only\" checkbox in the sequences window: only sequences whose highest call is within the selected program.",
     "ja": "シーケンス画面の「限定」チェックボックスの初期状態：最上位コールが選択プログラム内にあるシーケンスのみ。"
+  },
+  "setting_tip_sequences_universal_import_dir": {
+    "de": "Wird beim Sequenz-Import als Startordner verwendet.",
+    "en": "Used as the starting folder when importing sequences.",
+    "ja": "シーケンスをインポートする際の開始フォルダとして使用されます。"
   },
   "pot_fix_every_sync": {
     "de": "ALLE Lieder mit Lyrics neu berechnen",
@@ -9782,5 +9987,30 @@
     "de": "Andere CSV-Datei …",
     "en": "Other CSV file …",
     "ja": "別の CSV ファイル …"
+  },
+  "ctx_show_hidden_sequences": {
+    "de": "Auch ausgeblendete Sequenzen anzeigen",
+    "en": "Also show hidden sequences",
+    "ja": "非表示のシーケンスも表示"
+  },
+  "sequences_unmapped_tooltip": {
+    "de": "Enthält Call-Texte ohne Zuordnung – taucht deshalb nicht bei jeder Tanzprogramm-Wahl auf. Rechtsklick → „Call-Mapping für diese Sequenz öffnen“.",
+    "en": "Contains call texts without an assignment, so it may not appear for every dance program selection. Right-click → “Open Call Mapping for this sequence”.",
+    "ja": "割り当てのない Call テキストを含むため、ダンスプログラムの選択によっては表示されません。右クリック →「このシーケンスの Call マッピングを開く」。"
+  },
+  "sequences_program_selection_suspended": {
+    "de": "Tanzprogramm-Wahl hier ausgesetzt",
+    "en": "Dance program selection suspended here",
+    "ja": "ここではダンスプログラムの選択を一時停止中"
+  },
+  "call_mapping_f_focus": {
+    "de": "Call-Texte der Sequenz ({count})",
+    "en": "Call texts of the sequence ({count})",
+    "ja": "シーケンスの Call テキスト ({count})"
+  },
+  "ctx_open_call_mapping_for_sequence": {
+    "de": "Call-Mapping für diese Sequenz öffnen",
+    "en": "Open Call Mapping for this sequence",
+    "ja": "このシーケンスの Call マッピングを開く"
   }
 }

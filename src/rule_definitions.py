@@ -26,6 +26,11 @@ def register_v1_definitions(engine: RuleEngine):
     reg.add_trigger("app_started",       "App Started")
     reg.add_trigger("manager_closed",    "Playlist Manager Closed")
     reg.add_trigger("play_timer",       "Play Timer (periodic)")
+    # intern#110: Pausen-Uhr. Started = frischer Countdown-Start (Button, Rule-
+    # Aktion, Wartemusik), nicht das Fortsetzen nach Anhalten. Finished = nur
+    # echter Ablauf bei 0, nicht Zuruecksetzen/Anhalten.
+    reg.add_trigger("break_started",    "Break Started")
+    reg.add_trigger("break_finished",   "Break Finished")
     # Keyboard-Trigger
     reg.add_trigger("key_f1",            "Key F1")
     reg.add_trigger("key_f2",            "Key F2")
@@ -86,6 +91,12 @@ def register_v1_definitions(engine: RuleEngine):
                                     "choices": ["above", "below"],
                                     "default": "above"},
                        "value": {"type": "mmss", "default": "3:00"}})
+    # intern#110: Art der zuletzt gestarteten Pause (mit/ohne Wartemusik).
+    # Gilt bis zum naechsten Pausenstart, also auch fuer "Break Finished".
+    reg.add_condition("break_type",             "Break Type",
+                      {"kind": {"type": "choice",
+                                "choices": ["all", "without_music", "with_music"],
+                                "default": "all"}})
 
     # --- Aktionen ---
 

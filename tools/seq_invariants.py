@@ -128,7 +128,7 @@ def capture(db_path: str) -> dict:
     snap["dup_to_delete"] = to_delete
 
     # --- 8./9. Mapping-Statistik ---
-    snap["unmapped_count"] = len(db.get_unmapped_call_texts())
+    snap["unmapped_count"] = len(db.get_unmapped_call_texts_by_frequency())
     snap["distinct_call_texts"] = len(db.get_all_call_texts_with_mapping())
 
     # --- 10. Mengengeruest je Tanzprogramm (Band-Modus, BL-210.1) ---

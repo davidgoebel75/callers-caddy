@@ -126,6 +126,11 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Wird beim Importieren als Startordner verwendet.",
     },
     "paths/lyrics_dir": {"label": "Lyrics-Ordner", "widget": "path"},
+    "paths/playlist_dir": {
+        "label": "Playlist-Ordner",
+        "widget": "path",
+        "tooltip": "Ordner, in dem Playlists gespeichert und geladen werden.",
+    },
     # --- audio ---
     "audio/primary_device": {
         "label": "Primärer Ausgang",
@@ -241,6 +246,11 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Diese Sortierung ist beim App-Start in Songliste und Planner voreingestellt.",
         "requires_restart": True,
     },
+    "sort/random_tiebreaker": {
+        "label": "Gleichstand zufällig sortieren",
+        "widget": "checkbox",
+        "tooltip": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    },
     # --- feedback ---
     "feedback/enabled": {
         "label": "Feedback-Dialog nach Songende",
@@ -274,6 +284,11 @@ SETTINGS_META: dict[str, dict] = {
         "default": True,
         "tooltip": "Wenn das Tanzprogramm wechselt (Lokation oder Player), wird der Level-Filter im Sequenzen-Fenster automatisch angepasst.",
     },
+    "sequences/universal_import_dir": {
+        "label": "Letzter Sequenz-Import-Ordner",
+        "widget": "path",
+        "tooltip": "Wird beim Sequenz-Import als Startordner verwendet.",
+    },
     # --- notes ---
     "notes/zoom_pct": {
         "label": "Zoom",
@@ -289,7 +304,7 @@ SETTINGS_META: dict[str, dict] = {
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
-        "choices": [("top", "Oben"), ("middle", "Mitte"), ("bottom", "Unten")],
+        "choices": [],          # zur Laufzeit (i18n) befuellt
         "default": "top",
         "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
     },
@@ -302,6 +317,15 @@ SETTINGS_META: dict[str, dict] = {
     "lyrics/auto_size": {
         "label": "Automatische Schriftgrösse",
         "widget": "checkbox",
+    },
+    "lyrics/auto_width": {
+        "label": "Automatische Breite",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": ("Passt die Schriftgröße der Lyrics an die Fensterbreite an. "
+                    "Schließt die automatische Schriftgröße aus – ist beides an, "
+                    "gewinnt die Breite. Entspricht dem Button „Auto-Breite“ im "
+                    "Lyrics-Fenster."),
     },
     "lyrics/dynamic_enabled": {
         "label": "Dynamic Lyrics aktiv",
@@ -322,6 +346,28 @@ SETTINGS_META: dict[str, dict] = {
         "default": "1",
         "tooltip": "Verteilung der im Sequence-View gewählten Sequenzen auf die "
                    "vier Figuren-Abschnitte, wenn Dynamic Lyrics aktiv ist.",
+    },
+    # intern#127: Heads/Sides in ausgewaehlten Figuren tauschen
+    "lyrics/dynamic_invert_enabled": {
+        "label": "Heads / Sides invertieren",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": "Tauscht in den eingeblendeten Sequenzen Heads und Sides "
+                   "(samt Couple-Nummern) in den Figuren der gewählten Art. "
+                   "Wirkt nur zusammen mit Dynamic Lyrics. Entspricht dem "
+                   "Spiegel-Button im Lyric-Fenster.",
+    },
+    "lyrics/dynamic_invert_mode": {
+        "label": "Art der Invertierung",
+        "widget": "combobox",
+        # choices werden zur Laufzeit i18n-uebersetzt (siehe _build_widget)
+        "choices": [
+            ("HHSS", "HHSS – Figure 3 und 4 tauschen"),
+            ("HSSH", "HSSH – Figure 2 und 3 tauschen"),
+            ("HSHS", "HSHS – Figure 2 und 4 tauschen"),
+        ],
+        "default": "",
+        "tooltip": "In welchen Figuren Heads und Sides getauscht werden.",
     },
     # --- debug ---
     "debug/performance_logging": {
@@ -600,12 +646,25 @@ class _SettingRow:
                     ("1", _t("dynamic_mode_opt1")),
                     ("2", _t("dynamic_mode_opt2")),
                 ]
+            elif self.full_key == "lyrics/dynamic_invert_mode":
+                choices = [(m, _t(f"dynamic_invert_opt_{m.lower()}"))
+                           for m in ("HHSS", "HSSH", "HSHS")]
+            elif self.full_key == "notes/insert_position":
+                choices = [
+                    ("top",    _t("note.btn_pos_top")),
+                    ("middle", _t("note.btn_pos_middle")),
+                    ("bottom", _t("note.btn_pos_bottom")),
+                ]
             for val, display in choices:
                 w.addItem(display, userData=val)
             # Aktuellen Wert vorauswaehlen
             idx = w.findData(raw_value)
             if idx >= 0:
                 w.setCurrentIndex(idx)
+            elif self.full_key == "lyrics/dynamic_invert_mode":
+                # Noch keine Art gewaehlt: leer lassen statt still die erste
+                # vorzuwaehlen, sonst speichert jedes OK ungefragt HHSS (intern#127)
+                w.setCurrentIndex(-1)
             return w
 
         if widget_type == "dateedit":
@@ -705,7 +764,7 @@ class SettingsDialog(QDialog):
     """
 
     def __init__(self, parent, settings: QSettings, skin_mgr=None, on_apply=None,
-                 program_picker_cb=None, program_label_cb=None):
+                 program_picker_cb=None, program_label_cb=None, focus_key=None):
         super().__init__(parent)
         self._settings = settings
         self._skin_mgr = skin_mgr
@@ -714,12 +773,25 @@ class SettingsDialog(QDialog):
         self._program_picker_cb = program_picker_cb
         self._program_label_cb = program_label_cb
         self._rows: list[_SettingRow] = []
+        # intern#127: nach dem (deferten) Aufbau zu dieser Zeile springen
+        self._focus_key = focus_key
 
         self.setWindowTitle(_t("settings_dialog_title"))
         self.setMinimumSize(560, 500)
         self.resize(660, 680)
 
         self._build_ui()
+
+    def focus_row(self, full_key: str) -> bool:
+        """Scrollt zur Zeile full_key und setzt den Fokus auf ihr Feld
+        (z. B. vom Spiegel-Button im Lyrics-Fenster, intern#127)."""
+        row = next((r for r in self._rows if r.full_key == full_key), None)
+        if row is None:
+            return False
+        self._inner_layout.activate()   # Geometrie der frisch gebauten Zeilen
+        self._scroll.ensureWidgetVisible(row.widget, 0, 80)
+        row.widget.setFocus()
+        return True
 
     # ------------------------------------------------------------------
     # UI aufbauen
@@ -734,6 +806,7 @@ class SettingsDialog(QDialog):
         # AlwaysOff: kein horizontaler Scrollbar — die innere Widget-Breite wird
         # auf die Viewport-Breite begrenzt, Combos wachsen/schrumpfen mit dem Fenster.
         scroll = QScrollArea()
+        self._scroll = scroll
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -766,6 +839,9 @@ class SettingsDialog(QDialog):
         """Wird per QTimer.singleShot(0) aufgerufen — haelt Main-Thread frei."""
         self._populate_groups()
         self._inner_layout.addStretch()
+        if self._focus_key:
+            # Erst wenn die Zeilen stehen; ein Takt spaeter hat das Layout Geometrie
+            QTimer.singleShot(0, lambda k=self._focus_key: self.focus_row(k))
         self._wire_audition_preview()
         # Mausrad-Schutz auf Fenster-Ebene: alle SpinBoxes/Combos/Date/Slider
         # ignorieren Wheel-Events. Damit sind auch zukuenftige Felder

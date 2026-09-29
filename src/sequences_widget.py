@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
     QMessageBox, QDialog, QMenu, QAbstractItemView,
     QTextBrowser, QTextEdit, QPlainTextEdit, QListWidget, QListWidgetItem,
+    QDialogButtonBox,
 )
 from PySide6.QtCore import Qt, QTimer, QSettings, QEvent, QObject
 from PySide6.QtGui import (
@@ -561,6 +562,8 @@ class SequencesWidget(QWidget):
     """
 
     _PAGE_SIZE = 50   # Lazy Loading: Bloecke a 50 Zeilen
+    _ALL_ROWS = float("inf")   # _load_sequences(until=...): alle Zeilen
+    _ROLE_UNMAPPED = Qt.UserRole + 1   # Spalte 0: Sequenz hat Call-Texte ohne Zuordnung
 
     def __init__(self, db, skin_mgr=None, settings=None):
         super().__init__()
@@ -576,7 +579,12 @@ class SequencesWidget(QWidget):
         self.on_add_to_notes = None           # callback(seq_id)
         self.on_add_filter_to_notes = None    # callback() → aktive Filter als Shortcode
         self.on_sequences_deleted = None      # callback(seq_ids) → SequenceView informieren
+        self.on_open_call_mapping = None      # callback(call_texts) → Call-Mapping mit Fokus
         self._loading = False      # Schutz gegen Endlos-Nachladen
+        # intern#119: "Auch ausgeblendete Sequenzen anzeigen" setzt die Tanzprogramm-Wahl NUR
+        # fuer diese Liste aus (Session/Player bleiben unberuehrt). Der naechste
+        # Filter- oder Programmwechsel hebt das wieder auf.
+        self._bands_suspended = False
         # BL-190: Teaching-Order-Grenze des aktuell gewaehlten Tanzprogramms.
         # Steuert nur die Sortierung der Contains-Vorschlaege (Programm-Calls
         # zuerst), kein harter Filter. None = keine Programm-Sortierung.
@@ -950,6 +958,7 @@ class SequencesWidget(QWidget):
             return
         _t0 = perf_start()
         self._program_bands = new
+        self._bands_suspended = False   # neue Tanzprogramm-Wahl greift wieder
         # MS50: Contains- und Limit-Liste an die neuen Baender knuepfen
         self._rebuild_contains_items()
         self._rebuild_limit_items()
@@ -960,6 +969,7 @@ class SequencesWidget(QWidget):
     def _on_filter_changed(self, _idx=None):
         """Filter geaendert: Tabelle neu laden und SequenceView zuruecksetzen."""
         _t0 = perf_start()
+        self._bands_suspended = False   # intern#119: Filterwechsel beendet das Aussetzen
         self._loaded_count = 0
         self._load_sequences(reset=True)
         _pt = perf_split("SeqFilter._on_filter_changed: load_sequences", _t0)
@@ -984,6 +994,34 @@ class SequencesWidget(QWidget):
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
 
+    def show_newest_sequences(self):
+        """intern#119: Frisch importierte Sequenzen finden.
+
+        Hebt nur die Filter auf, die an der Zuordnung haengen (Enthaelt, Limit,
+        Nur-Filter) und setzt die Tanzprogramm-Wahl fuer diese Liste aus. Typ,
+        Schwierigkeit und Tags bleiben — der Caller weiss selbst, welche Art
+        Sequenz er sucht. Laedt dann ALLE passenden Zeilen und springt ans Ende:
+        die Liste ist nach id sortiert, die neuesten stehen also unten.
+        """
+        _t0 = perf_start()
+        for combo in (self._combo_contains, self._combo_limit):
+            combo.blockSignals(True)
+            combo.setCurrentIndex(0)
+            combo.blockSignals(False)
+        self._check_only_program.blockSignals(True)
+        self._check_only_program.setChecked(False)
+        self._check_only_program.blockSignals(False)
+        # Nach dem Zuruecksetzen setzen: _on_filter_changed wuerde es aufheben.
+        self._bands_suspended = bool(self._program_bands)
+        self._load_sequences(reset=True, until=self._ALL_ROWS)
+        if self.on_filter_changed_detail:
+            self.on_filter_changed_detail()
+        last = self._table.rowCount() - 1
+        if last >= 0:
+            self._table.selectRow(last)
+            self._table.scrollToBottom()
+        perf_log(f"SeqFilter.show_newest_sequences: {last + 1} Zeilen", _t0)
+
     def select_sequence(self, seq_id: int):
         """Markiert eine Sequenz in der Tabelle (falls geladen) und oeffnet sie
         im SequenzView. Laedt bei Bedarf weitere Bloecke nach, bis sie sichtbar
@@ -993,10 +1031,9 @@ class SequencesWidget(QWidget):
             return
         target_idx = seq_ids.index(seq_id)
 
-        # Solange nachladen, bis die Zielzeile geladen ist
-        while (self._loaded_count <= target_idx
-               and self._loaded_count < self._total_count):
-            self._load_sequences(reset=False)
+        # Bis zur Zielzeile nachladen — in EINER Abfrage statt Block fuer Block
+        if self._loaded_count <= target_idx:
+            self._load_sequences(reset=False, until=target_idx + 1)
 
         for r in range(self._table.rowCount()):
             it = self._table.item(r, 0)
@@ -1019,7 +1056,7 @@ class SequencesWidget(QWidget):
             seq_type=self._get_type_filter(),
             difficulty=self._get_difficulty_filter(),
             tags=self._get_tags_filter(),
-            bands=self._program_bands,
+            bands=None if self._bands_suspended else self._program_bands,
         )
 
     # ---- Daten laden ----
@@ -1029,8 +1066,14 @@ class SequencesWidget(QWidget):
         self._loaded_count = 0
         self._load_sequences(reset=True)
 
-    def _load_sequences(self, reset=False):
-        """Laedt den naechsten Block Sequenzen (Lazy Loading)."""
+    def _load_sequences(self, reset=False, until=None):
+        """Laedt den naechsten Block Sequenzen (Lazy Loading).
+
+        until: statt eines Blocks in EINER Abfrage so viele Zeilen nachladen,
+        bis die Tabelle `until` Zeilen hat (_ALL_ROWS = alle). intern#119: ans
+        Ende bzw. zu einer weit unten liegenden Sequenz springen, ohne Block
+        fuer Block.
+        """
         if self._loading:
             return
         self._loading = True
@@ -1048,8 +1091,10 @@ class SequencesWidget(QWidget):
         if reset:
             self._loaded_count = 0
 
+        page = (self._PAGE_SIZE if until is None
+                else max(0, min(until, self._total_count) - self._loaded_count))
         rows = self.db.get_filtered_sequences(
-            limit=self._PAGE_SIZE, offset=self._loaded_count, **args)
+            limit=page, offset=self._loaded_count, **args)
         _pt = perf_split(f"SeqFilter._load: page_query -> {len(rows)} rows "
                         f"(offset={self._loaded_count})", _pt)
 
@@ -1075,6 +1120,11 @@ class SequencesWidget(QWidget):
     def _fill_rows(self, start_idx: int, rows: list):
         """Fuellt Tabellenzeilen ab start_idx."""
         from sequence_mapper import get_program_label
+        # intern#119: Sequenzen mit Call-Texten ohne Zuordnung rot (Skin-Farbe),
+        # Rechtsklick oeffnet das Call-Mapping. Einmal je Block statt je Zeile.
+        unmapped_fg = QColor(self._skin_mgr.color("warning", "#ef4444")
+                             if self._skin_mgr else "#ef4444")
+        unmapped_tip = _t("sequences_unmapped_tooltip")
         for i, row in enumerate(rows):
             table_idx = start_idx + i
             seq_id = row[0]
@@ -1088,6 +1138,11 @@ class SequencesWidget(QWidget):
             seq_text = " \u2192 ".join(call_texts)
             item_seq = QTableWidgetItem(seq_text)
             item_seq.setData(Qt.UserRole, seq_id)
+            # max_teaching_order NULL = mind. ein Call-Text ohne tanzbare Zuordnung
+            if max_to is None:
+                item_seq.setForeground(unmapped_fg)
+                item_seq.setToolTip(unmapped_tip)
+                item_seq.setData(self._ROLE_UNMAPPED, True)
             self._table.setItem(table_idx, 0, item_seq)
 
             # Level-Spalte
@@ -1107,13 +1162,12 @@ class SequencesWidget(QWidget):
         """Aktualisiert die Statuszeile."""
         total_db = self.db.get_sequence_count()
         if self._total_count == total_db:
-            self._label_status.setText(
-                _t("sequences_count", count=self._total_count)
-            )
+            text = _t("sequences_count", count=self._total_count)
         else:
-            self._label_status.setText(
-                _t("sequences_filtered", filtered=self._total_count, total=total_db)
-            )
+            text = _t("sequences_filtered", filtered=self._total_count, total=total_db)
+        if self._bands_suspended:
+            text += " · " + _t("sequences_program_selection_suspended")
+        self._label_status.setText(text)
 
     # ---- Lazy Loading ----
 
@@ -1158,21 +1212,30 @@ class SequencesWidget(QWidget):
             self.on_open_detail(seq_ids, current_idx)
 
     def _on_context_menu(self, pos):
+        menu = QMenu(self)
+        # intern#119: auch ohne Zeile unter der Maus (leere Liste = genau der Fall,
+        # in dem man seine frisch importierten Sequenzen sucht).
+        act_newest = menu.addAction(_t("ctx_show_hidden_sequences"))
+        act_newest.triggered.connect(self.show_newest_sequences)
         item = self._table.itemAt(pos)
-        if not item:
-            return
-        row = self._table.row(item)
-        id_item = self._table.item(row, 0)
-        if not id_item:
-            return
-        seq_id = id_item.data(Qt.UserRole)
+        id_item = self._table.item(self._table.row(item), 0) if item else None
+        seq_id = id_item.data(Qt.UserRole) if id_item else None
         if seq_id is None:
+            menu.exec(self._table.viewport().mapToGlobal(pos))
             return
         selected_ids = self._get_selected_seq_ids()
         # Wenn die Rechtsklick-Zeile nicht in der Selektion ist, nur sie nehmen
         if seq_id not in selected_ids:
             selected_ids = [seq_id]
-        menu = QMenu(self)
+        menu.addSeparator()
+        # intern#119: rote Sequenz -> Call-Mapping auf ihre Call-Texte ohne Zuordnung.
+        # Rot heisst nur max_to fehlt (auch ohne Call-Texte oder vor dem
+        # Remapping): Eintrag nur, wenn es wirklich etwas zuzuordnen gibt.
+        if (id_item.data(self._ROLE_UNMAPPED) and self.on_open_call_mapping
+                and self.db.get_unmapped_call_texts_of_sequence(seq_id)):
+            act_map = menu.addAction(_t("ctx_open_call_mapping_for_sequence"))
+            act_map.triggered.connect(
+                lambda: self._open_call_mapping_for_sequence(seq_id))
         act = menu.addAction(_t("ctx_add_to_notes"))
         act.triggered.connect(
             lambda: self.on_add_to_notes(seq_id) if self.on_add_to_notes else None)
@@ -1184,6 +1247,16 @@ class SequencesWidget(QWidget):
         del_act.triggered.connect(
             lambda: self._delete_sequences_with_confirm(selected_ids))
         menu.exec(self._table.viewport().mapToGlobal(pos))
+
+    def _open_call_mapping_for_sequence(self, seq_id):
+        """intern#119: Call-Mapping oeffnen, gefiltert auf die Call-Texte dieser
+        Sequenz ohne Zuordnung. Danach dieselbe Sequenz wieder markieren — sie
+        ist dann (hoffentlich) nicht mehr rot."""
+        texts = self.db.get_unmapped_call_texts_of_sequence(seq_id)
+        if not texts:
+            return
+        self.on_open_call_mapping(texts)
+        self.select_sequence(seq_id)
 
     # ---- Loeschen ----
 
@@ -1294,7 +1367,8 @@ class SequencesWidget(QWidget):
                mapped=stats['mapped'],
                unmapped=stats['unmapped'],
                auto=stats['auto'],
-               manual=stats['manual'])
+               manual=stats['manual'],
+               inferred=stats['inferred'])
         )
 
     def _do_remapping(self):
@@ -2528,6 +2602,39 @@ class _NumericItem(QTableWidgetItem):
             return super().__lt__(other)
 
 
+class CallMappingOptimizeDialog(QDialog):
+    """Rueckfrage zum Knopf "Optimieren" im Call-Mapping-Dialog (intern#97).
+
+    Zeigt die drei Gruppen (neu zuordnen / ergaenzen / aendern) mit ihrer
+    Anzahl, jede mit eigenem Haken (vorbelegt). counts: {Gruppe: Anzahl} mit
+    den Gruppen "new", "extend", "change". chosen_groups() liefert die
+    angehakten Gruppen als Menge.
+    """
+
+    GROUPS = ("new", "extend", "change")
+
+    def __init__(self, counts: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("call_mapping_optimize_title"))
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(_t("call_mapping_optimize_intro")))
+        self._checks = {}
+        for key in self.GROUPS:
+            count = counts.get(key, 0)
+            cb = QCheckBox(_t(f"call_mapping_optimize_{key}", count=count))
+            cb.setChecked(count > 0)
+            cb.setEnabled(count > 0)
+            layout.addWidget(cb)
+            self._checks[key] = cb
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def chosen_groups(self) -> set:
+        return {k for k, cb in self._checks.items() if cb.isChecked()}
+
+
 class CallMappingDialog(QDialog):
     """Dialog zum Verwalten des Call-Text-Mappings.
 
@@ -2545,13 +2652,18 @@ class CallMappingDialog(QDialog):
     _F_MAPPED   = "mapped"
     _F_ALL      = "all"
     _F_MISMATCH = "mismatch"
+    _F_FOCUS    = "focus"   # intern#119: nur die Call-Texte einer Sequenz
 
     # Rollenwert der Figur-Spalte fuer "An Komma aufteilen"
     _SPLIT = "__SPLIT_COMMA__"
 
-    def __init__(self, db, parent=None):
+    def __init__(self, db, parent=None, focus_texts=None):
+        """focus_texts: Call-Texte, auf die der Dialog beim Oeffnen gefiltert
+        wird (intern#119, Rechtsklick auf eine rote Sequenz). Der Filter bleibt
+        als eigener Eintrag waehlbar; None = normaler Start."""
         super().__init__(parent)
         self.db = db
+        self._focus_texts = set(focus_texts) if focus_texts else None
         self._all_data    = []   # [(call_text, count, eid, mapped_by), ...]
         self._entity_list = []   # [(label, entity_id), ...] — Figuren fuer den Picker
         self._eid_to_label = {}
@@ -2563,6 +2675,7 @@ class CallMappingDialog(QDialog):
         self._alive        = True   # False sobald der Dialog schliesst
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
         self._pending_pos   = 0
+        self._wrote_assignments = False  # intern#97: "Optimieren" hat geschrieben
         self.setWindowTitle(_t("call_mapping_title"))
         self.setMinimumSize(900, 600)
         self._build_ui()
@@ -2571,6 +2684,12 @@ class CallMappingDialog(QDialog):
         # Stattdessen: Fenster sofort mit Ladehinweis zeigen, dann laden.
         self._loaded_once = False
         self._label_info.setText(_t("call_mapping_loading"))
+
+    @property
+    def wrote_assignments(self) -> bool:
+        """True, sobald "Optimieren" Zuordnungen geschrieben hat -- dann muss
+        der Aufrufer die Sequenzen auch bei Abbrechen neu mappen."""
+        return self._wrote_assignments
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -2596,6 +2715,11 @@ class CallMappingDialog(QDialog):
             self._prepare_data()
             _t1 = time.perf_counter()
             self._load_table()
+            self._btn_optimize.setEnabled(True)
+            if self._focus_texts and self._table.rowCount():
+                # intern#119: gleich auf die erste Figur-Zelle -> Doppelklick/F2
+                self._table.setCurrentCell(0, 2)
+                self._table.scrollToItem(self._table.item(0, 2))
             _t2 = time.perf_counter()
         finally:
             QApplication.restoreOverrideCursor()
@@ -2669,6 +2793,12 @@ class CallMappingDialog(QDialog):
         self._combo_filter.addItem(_t("call_mapping_f_mapped"),   self._F_MAPPED)
         self._combo_filter.addItem(_t("call_mapping_f_all"),      self._F_ALL)
         self._combo_filter.addItem(_t("call_mapping_f_mismatch"), self._F_MISMATCH)
+        if self._focus_texts:
+            # Vor dem connect(): der Aufbau soll kein _load_table ausloesen.
+            self._combo_filter.insertItem(
+                0, _t("call_mapping_f_focus", count=len(self._focus_texts)),
+                self._F_FOCUS)
+            self._combo_filter.setCurrentIndex(0)
         self._combo_filter.currentIndexChanged.connect(self._load_table)
         filter_row.addWidget(self._combo_filter)
         filter_row.addStretch()
@@ -2753,6 +2883,14 @@ class CallMappingDialog(QDialog):
         self._btn_confirm_sel = QPushButton(_t("call_mapping_confirm_selected"))
         self._btn_confirm_sel.clicked.connect(self._on_confirm_selected)
         btn_layout.addWidget(self._btn_confirm_sel)
+        # intern#97: alle abweichenden Mengen-Vorschlaege auf einen Schlag
+        self._btn_optimize = QPushButton(_t("call_mapping_optimize"))
+        self._btn_optimize.setToolTip(_t("call_mapping_optimize_tip"))
+        self._btn_optimize.clicked.connect(self._on_optimize)
+        # Erst nach dem Laden bedienbar (_load_deferred) -- vorher gibt es
+        # noch keine Mengen-Vorschlaege.
+        self._btn_optimize.setEnabled(False)
+        btn_layout.addWidget(self._btn_optimize)
         btn_layout.addStretch()
         self._btn_save = QPushButton(_t("call_mapping_save"))
         self._btn_save.setDefault(True)
@@ -2823,10 +2961,9 @@ class CallMappingDialog(QDialog):
         elif fval == self._F_MAPPED:
             rows = [r for r in self._all_data if r[2] is not None]
         elif fval == self._F_MISMATCH:
-            rows = [r for r in self._all_data
-                    if r[0] in self._set_cache
-                    and set(self._figure_sets.get(r[0]) or ())
-                        != set(self._set_cache[r[0]])]
+            rows = [r for r in self._all_data if self._suggestion_differs(r[0])]
+        elif fval == self._F_FOCUS:
+            rows = [r for r in self._all_data if r[0] in self._focus_texts]
         else:
             rows = self._all_data
 
@@ -3172,6 +3309,16 @@ class CallMappingDialog(QDialog):
 
     # ------------------------------------------------------------ Speichern --
 
+    def _patch_written(self, written: dict, mapped_by: str):
+        """Zieht frisch geschriebene Zuordnungen im In-Memory-Modell nach, statt
+        alles neu aus der DB zu lesen. written: {call_text: [Figuren, hoechste
+        zuerst]}; in _all_data (call_text, count, entity_id, mapped_by) wird
+        entity_id die hoechste Figur (wie call_text_mappings)."""
+        self._all_data = [
+            (r[0], r[1], written[r[0]][0], mapped_by) if r[0] in written else r
+            for r in self._all_data]
+        self._figure_sets.update(written)
+
     def _on_confirm_selected(self):
         """Bestaetigt die Auto-Vorschlaege fuer alle markierten Zeilen.
 
@@ -3213,17 +3360,7 @@ class CallMappingDialog(QDialog):
             # KEIN Voll-Requery + Voll-Reload mehr (frueher ~3 s: die suggest()-
             # Schleife lief ueber alle ~10k ungemappten Texte neu). Stattdessen
             # das In-Memory-Modell fuer die bestaetigten Texte aktualisieren ...
-            new_all = []
-            for r in self._all_data:
-                figures = confirmed_texts.get(r[0])
-                if figures is not None:
-                    # (call_text, count, entity_id, mapped_by)
-                    # entity_id = hoechste Figur (wie call_text_mappings).
-                    new_all.append((r[0], r[1], figures[0], "manual"))
-                else:
-                    new_all.append(r)
-            self._all_data = new_all
-            self._figure_sets.update(confirmed_texts)
+            self._patch_written(confirmed_texts, "manual")
 
             if self._combo_filter.currentData() == self._F_UNMAPPED:
                 # Im "Nicht gemappt"-Filter fallen die bestaetigten Zeilen nur weg
@@ -3259,6 +3396,93 @@ class CallMappingDialog(QDialog):
                 _t("call_mapping_confirmed_n", count=confirmed)
             )
 
+    def _suggestion_differs(self, call_text) -> bool:
+        """Filter "Vorschlag weicht ab": es gibt einen Mengen-Vorschlag, und er
+        weicht als MENGE von der Zuordnung ab (Reihenfolge egal)."""
+        sug = self._set_cache.get(call_text)
+        return bool(sug) and set(self._figure_sets.get(call_text) or ()) != set(sug)
+
+    def _optimize_groups(self) -> dict:
+        """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
+        Filters "Vorschlag weicht ab") in drei Gruppen:
+        new    -> bisher ohne Zuordnung
+        extend -> Vorschlag ist echte Obermenge der Zuordnung (fehlende Figuren)
+        change -> Vorschlag weicht anders ab
+        Werte: {call_text: Vorschlag}."""
+        groups = {"new": {}, "extend": {}, "change": {}}
+        for call_text in dict.fromkeys(r[0] for r in self._all_data):
+            if not self._suggestion_differs(call_text):
+                continue
+            sug = self._set_cache[call_text]
+            current = set(self._figure_sets.get(call_text) or ())
+            if not current:
+                key = "new"
+            elif current < set(sug):
+                key = "extend"
+            else:
+                key = "change"
+            groups[key][call_text] = sug
+        return groups
+
+    def _is_changed(self, item2) -> bool:
+        """Ungespeicherte Figuren-Wahl in dieser Figur-Zelle: aktuelle Menge
+        != Lademenge (Menge, Reihenfolge egal)."""
+        return (set(self._figures(item2, Qt.UserRole))
+                != set(self._figures(item2, Qt.UserRole + 1)))
+
+    def _has_unsaved_edits(self) -> bool:
+        """True, wenn irgendeine Zeile eine ungespeicherte Figuren-Wahl hat."""
+        for row in range(self._table.rowCount()):
+            item2 = self._table.item(row, 2)
+            if item2 is not None and self._is_changed(item2):
+                return True
+        return False
+
+    def _on_optimize(self):
+        """Knopf "Optimieren" (intern#97): uebernimmt die Mengen-Vorschlaege der
+        gewaehlten Gruppen nach Rueckfrage als mapped_by='inferred'."""
+        # Das Nachladen der Tabelle verwirft ungespeicherte Picker-Aenderungen
+        # -> vorher fragen.
+        if self._has_unsaved_edits() and QMessageBox.question(
+                self, _t("call_mapping_title"),
+                _t("call_mapping_optimize_discard"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No) != QMessageBox.Yes:
+            return
+        groups = self._optimize_groups()
+        if not any(groups.values()):
+            QMessageBox.information(self, _t("call_mapping_title"),
+                                    _t("call_mapping_optimize_nothing"))
+            return
+        dlg = CallMappingOptimizeDialog(
+            {key: len(texts) for key, texts in groups.items()}, parent=self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        import time
+        _t_start = time.perf_counter()
+        written_sets = {ct: self._rank_figures(sug)
+                        for key in dlg.chosen_groups()
+                        for ct, sug in groups[key].items()}
+        if not written_sets:
+            return
+        # EINE Transaktion (TIC-0025: kurz genug fuer den Main-Thread)
+        written = self.db.set_call_text_figures_bulk(written_sets.items(),
+                                                     mapped_by="inferred")
+        self.db.recompute_sequence_max_to()
+        _t_write = time.perf_counter()
+        self._wrote_assignments = True
+        # KEIN Voll-Requery (wie _on_confirm_selected): nur die geschriebenen
+        # Texte im In-Memory-Modell nachziehen. Die Mengen-Vorschlaege bleiben,
+        # die uebernommenen Zeilen fallen so aus "Vorschlag weicht ab" heraus.
+        self._patch_written(written_sets, "inferred")
+        self._load_table()
+        _t_reload = time.perf_counter()
+        print(f"[Call-Mapping] Optimieren: {written} Zeilen | "
+              f"schreiben+Baender {(_t_write-_t_start)*1000:.0f}ms, "
+              f"reload {(_t_reload-_t_write)*1000:.0f}ms")
+        QMessageBox.information(self, _t("call_mapping_title"),
+                                _t("call_mapping_optimize_done", count=written))
+
     def _on_save(self):
         """Speichert geaenderte Zuordnungen; fuehrt Splits durch; loescht entfernte."""
         saved = 0
@@ -3272,12 +3496,10 @@ class CallMappingDialog(QDialog):
             if not item0 or not item2:
                 continue
 
+            if not self._is_changed(item2):
+                continue  # unveraendert (Menge, Reihenfolge egal)
             raw_text = item0.data(Qt.UserRole)
             current  = self._figures(item2, Qt.UserRole)
-            original = self._figures(item2, Qt.UserRole + 1)
-
-            if set(current) == set(original):
-                continue  # unveraendert (Menge, Reihenfolge egal)
 
             if current == (self._SPLIT,):
                 s, o = self.db.split_sequence_call_at_comma(raw_text)

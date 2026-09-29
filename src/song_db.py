@@ -470,6 +470,25 @@ _SELECT_CALL_TEXT_FIGURES_RANKED = (
     "ON r.entity_id = f.entity_id"
 )
 
+
+def _text_max_to(rows) -> dict:
+    """Verdichtet Zeilen aus _SELECT_CALL_TEXT_FIGURES_RANKED zu
+    {call_text: Teaching-Order}.
+
+    BL-210: mehrere Figuren eines Textes -> hoechste Teaching-Order zaehlt
+    (alle Figuren muessen tanzbar sein). Fehlt einer Figur die Teaching-Order,
+    gilt der Text als ungemappt (None).
+    """
+    text_to_to = {}
+    for text, _eid, to in rows:
+        if text not in text_to_to:
+            text_to_to[text] = to
+            continue
+        prev = text_to_to[text]
+        text_to_to[text] = None if prev is None or to is None else max(prev, to)
+    return text_to_to
+
+
 _CREATE_SEQ_MAX_TO_IDX = """
 CREATE INDEX IF NOT EXISTS idx_sequences_max_to
     ON sequences (max_teaching_order);
@@ -3095,7 +3114,7 @@ class SongDatabase:
         """Loescht Mappings. Ohne Parameter: alle. Mit: nur die angegebene Quelle.
 
         Args:
-            mapped_by: 'auto' oder 'manual' — None loescht alle
+            mapped_by: 'auto', 'manual' oder 'inferred' — None loescht alle
         """
         # BL-210: weitere Figuren zuerst, solange die Hauptzeilen noch sagen,
         # zu welcher Quelle sie gehoeren (nie Zusatzzeile ohne Hauptzeile).
@@ -3371,14 +3390,6 @@ class SongDatabase:
             (ct,)
         )
         return [row[0] for row in cur.fetchall()]
-
-    def get_unmapped_call_texts(self) -> list[str]:
-        """Gibt alle Sequenz-Call-Texte zurueck die noch kein Mapping haben.
-
-        Sammelt alle einzigartigen Texte aus den 15 Feldern und filtert
-        die ohne Eintrag in call_text_mappings.
-        """
-        return [text for text, _cnt in self.get_unmapped_call_texts_by_frequency()]
 
     def get_unmapped_call_texts_by_frequency(self) -> list[tuple]:
         """Gibt ungemappte Call-Texte sortiert nach Haeufigkeit zurueck.
@@ -3666,18 +3677,18 @@ class SongDatabase:
         cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE entity_id IS NOT NULL")
         mapped_count = cur.fetchone()[0]
 
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'auto'")
-        auto_count = cur.fetchone()[0]
-
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'manual'")
-        manual_count = cur.fetchone()[0]
+        # Zaehlung je Quelle in EINER Abfrage; 'inferred' = per "Optimieren"
+        # aus Mengen-Vorschlaegen uebernommen (intern#97)
+        by_source = dict(self._conn.execute(
+            "SELECT mapped_by, COUNT(*) FROM call_text_mappings GROUP BY mapped_by"))
 
         return {
             "total_unique_texts": len(all_texts),
             "mapped": mapped_count,
             "unmapped": len(all_texts) - mapped_count,
-            "auto": auto_count,
-            "manual": manual_count,
+            "auto": by_source.get("auto", 0),
+            "manual": by_source.get("manual", 0),
+            "inferred": by_source.get("inferred", 0),
         }
 
     def backfill_auto_mappings(self) -> int:
@@ -3797,16 +3808,8 @@ class SongDatabase:
         # Programm passt. min_to ist dieselbe Regel, nach der auch der Band-Filter
         # (_cover_ids) und der Figuren-Picker gehen.
         #
-        # BL-210: mehrere Figuren eines Textes -> hoechste Teaching-Order zaehlt
-        # (alle Figuren muessen tanzbar sein). Fehlt einer Figur die
-        # Teaching-Order, gilt der Text wie bisher als ungemappt.
-        text_to_to = {}
-        for text, _eid, to in self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED):
-            if text not in text_to_to:
-                text_to_to[text] = to
-                continue
-            prev = text_to_to[text]
-            text_to_to[text] = None if prev is None or to is None else max(prev, to)
+        text_to_to = _text_max_to(
+            self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED))
 
         updates = []
         for seq in sequences:
@@ -3834,6 +3837,31 @@ class SongDatabase:
             updates
         )
         self._conn.commit()
+
+    def get_unmapped_call_texts_of_sequence(self, sequence_id: int) -> list[str]:
+        """intern#119: Call-Texte einer Sequenz ohne (tanzbare) Zuordnung, in
+        Sequenz-Reihenfolge, ohne Doppelte.
+
+        Dieselbe Regel wie recompute_sequence_max_to(): ein Text zaehlt als
+        ungemappt, wenn er keine Zuordnung hat oder einer seiner Figuren die
+        Teaching-Order fehlt. Genau diese Texte machen max_teaching_order NULL.
+        """
+        row = self._conn.execute(
+            "SELECT calls_json, field_1, field_2, field_3, field_4, field_5, "
+            "field_6, field_7, field_8, field_9, field_10, "
+            "field_11, field_12, field_13, field_14, field_15 "
+            "FROM sequences WHERE id = ?", (sequence_id,)).fetchone()
+        if not row:
+            return []
+        calls = list(dict.fromkeys(
+            calls_from_json(row[0]) if row[0] else clean_calls(row[1:16])))
+        if not calls:
+            return []
+        marks = ",".join("?" * len(calls))
+        text_to_to = _text_max_to(self._conn.execute(
+            f"{_SELECT_CALL_TEXT_FIGURES_RANKED} WHERE f.call_text IN ({marks})",
+            calls))
+        return [t for t in calls if text_to_to.get(t) is None]
 
     def get_all_sequences_raw(self) -> list[tuple]:
         """Gibt alle Sequenzen mit Rohdaten zurueck (fuer Remapping).
