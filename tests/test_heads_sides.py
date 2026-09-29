@@ -158,3 +158,54 @@ def test_art_bleibt_leer_und_wird_nicht_still_gespeichert(qapp, tmp_path):
     assert dlg.focus_row("lyrics/dynamic_invert_mode")
     row.widget.setCurrentIndex(row.widget.findData("HSSH"))
     assert row.get_value() == "HSSH"
+
+
+# ---------------------------------------------------------------------------
+# Groessen-Stabilisator: Neu-Rendern darf den Zoom nicht zuruecksetzen
+# ---------------------------------------------------------------------------
+
+def test_tauschen_behaelt_aktuellen_zoom(qapp, tmp_path):
+    """Der Klon fuer das Neu-Rendern stammt vom Einschalt-Zeitpunkt. Nach einem
+    Zoom (Auto-Size, Auto-Breite, manuell) muss die aktuelle Groesse bleiben,
+    sonst schrumpft der Text beim Tausch an der Figuren-Grenze."""
+    from PySide6.QtCore import QSettings
+    from path_manager import PathManager
+    from lyrics_widget import LyricsWidget
+
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_mode", "HHSS")
+    ini.setValue("lyrics/dynamic_invert_enabled", "true")
+    w = LyricsWidget(PathManager(ini))
+    w._settings = ini
+    w.reload_invert_settings()
+    w._browser.setHtml('<p>OPENER</p><p>FIGURE</p>'
+                       '<p><span style="font-size:14pt">old call</span></p>'
+                       '<p>old 2</p><p>CLOSER</p>')
+    w._lyrics_loaded = True
+    w._rebuild_line_offsets()
+    w._cache_original_sizes()
+    w._lyric_sections = {n: (1, 3) for n in
+                         ("figure1", "figure2", "figure3", "figure4")}
+    w._sync_anchors = []
+    w.get_current_sequence_calls = lambda: ["Heads Square Thru 4"]
+    w._dynamic_enabled = True
+    w._apply_dynamic()
+
+    def sizes():
+        doc = w._browser.document()
+        frag = doc.findBlockByNumber(2).begin().fragment()
+        return (round(doc.defaultFont().pointSizeF(), 2),
+                round(frag.charFormat().fontPointSize(), 2))
+
+    w._set_font_size(26)
+    w._current_font_size = 26
+    zoomed = sizes()
+
+    w._dyn_part_starts = [0, 10, 20, 30]
+    w._sync_last_pos = 25          # Figur 3 -> HHSS tauscht
+    w._dynamic_build_document(w._current_sequence_calls())
+    assert w._browser.document().findBlockByNumber(2).text() == "Sides Square Thru 4"
+    assert sizes() == zoomed
+
+    w._revert_dynamic()
+    assert sizes() == zoomed

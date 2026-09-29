@@ -2561,6 +2561,11 @@ class LyricsWidget(QWidget):
         self._dynamic_anchors = dyn
 
         self._recache_original_sizes_scaled(self._dyn_factor)
+        # Groessen-Stabilisator: der Klon traegt die Schriftgroesse vom
+        # Einschalt-Zeitpunkt. Hat sich der Zoom seitdem geaendert (Auto-Size,
+        # Auto-Breite, manuell), die AKTUELLE Groesse wieder anwenden, sonst
+        # springt der Text bei jedem Neu-Rendern (Sequenz-/Tauschwechsel).
+        self._set_font_size(self._current_font_size)
         self._scroll_last_val = -1
         try:
             vp = self._browser.viewport().height()
@@ -2667,6 +2672,8 @@ class LyricsWidget(QWidget):
         self._original_sizes = snap["sizes"]
         self._lyric_sections = snap["sections"]
         self._line_offsets = snap["offsets"]
+        # Aktuellen Zoom behalten statt auf den Stand beim Einschalten zu springen
+        self._set_font_size(self._current_font_size)
         self._reset_dynamic_state()
         self._scroll_last_val = -1
         try:
