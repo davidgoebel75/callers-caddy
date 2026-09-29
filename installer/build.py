@@ -371,7 +371,8 @@ def main():
         d.mkdir(exist_ok=True)
         print(f"  {folder}/ angelegt")
 
-    # Music-Extended-Data (CSV-Datenbank fuer Metadaten-Abgleich)
+    # Music-Extended-Data: Song-Katalog (song_catalog.py, intern#126). Wird per
+    # tools/update_song_catalog.py aus dem Scraper-Projekt aktualisiert.
     med_src = SOURCE_DIR / "music-extended-data"
     med_dst = app_dir / "music-extended-data"
     if med_src.exists():
@@ -381,7 +382,7 @@ def main():
         files = list(med_dst.iterdir())
         print(f"  music-extended-data/ kopiert ({len(files)} Datei(en))")
     else:
-        print(f"  WARNUNG: music-extended-data/ nicht in 1_Source/ gefunden")
+        print(f"  WARNUNG: music-extended-data/ nicht im Repo gefunden ({med_src})")
 
     # Beispieldateien (first-steps/) kopieren
     first_steps_src = SOURCE_DIR / "first-steps"
