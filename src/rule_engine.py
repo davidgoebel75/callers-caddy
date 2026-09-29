@@ -594,13 +594,26 @@ class RuleEngine:
 
     # ------------------------------------------------------------------------
 
-    def fire_trigger(self, trigger: str):
+    def _blocking_suspends(self, bypass_suspend=()) -> int:
+        """Anzahl aktiver Suspends, die NICHT per bypass_suspend freigegeben sind.
+
+        Suspends ohne Grund lassen sich nie umgehen (sie fehlen in
+        _suspend_reasons und bleiben in der Differenz stehen).
+        """
+        passed = sum(1 for r in self._suspend_reasons if r in bypass_suspend)
+        return self._suspend_count - passed
+
+    def fire_trigger(self, trigger: str, bypass_suspend=()):
         """Haupteinstieg: Evaluiert Rules fuer diesen Trigger.
         All Match — alle passenden Rules werden ausgefuehrt.
+
+        bypass_suspend: Suspend-Gruende, die diesen Trigger NICHT schlucken
+        (z.B. ("break_music",) fuer die Pausen-Trigger — die Sperre gilt den
+        Ereignissen der Wartemusik, nicht der Pausen-Uhr).
         """
         # Suspend hat Vorrang vor Loop-Schutz — Trigger werden komplett
         # ignoriert (kein BLOCKED-Log fuer jede einzelne Aktion).
-        if self._suspend_count > 0:
+        if self._blocking_suspends(bypass_suspend) > 0:
             # play_timer ist haeufig (alle 100ms), nicht in jedem Tick loggen.
             if trigger != "play_timer":
                 self._log("SUSPENDED",
