@@ -2986,9 +2986,9 @@
     "ja": "{count} Calls が入力されましたが、最大は {max} です。短くしてください。"
   },
   "seq_editor_save_suggestions": {
-    "de": "{count} Zeilen haben Vorschläge mit noch fehlenden Figuren – jetzt übernehmen?",
-    "en": "{count} lines have suggestions with figures still missing – adopt them as assignments now?",
-    "ja": "{count} 行にまだ割り当てられていないフィギュアの提案があります。今すぐ適用しますか？"
+    "de": "{count} Call-Texte haben Vorschläge mit noch fehlenden Figuren – jetzt übernehmen?",
+    "en": "{count} call texts have suggestions with figures still missing – adopt them as assignments now?",
+    "ja": "{count} 件のコールテキストにまだ割り当てられていないフィギュアの提案があります。今すぐ適用しますか？"
   },
   "seq_editor_saved": {
     "de": "Sequenz gespeichert.",
