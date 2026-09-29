@@ -2530,16 +2530,6 @@
     "en": "Playlist folder",
     "ja": "プレイリストフォルダ"
   },
-  "setting_label_sequences_universal_import_dir": {
-    "de": "Letzter Sequenz-Import-Ordner",
-    "en": "Last sequence import folder",
-    "ja": "最後のシーケンスインポートフォルダ"
-  },
-  "setting_label_sort_random_tiebreaker": {
-    "de": "Gleichstand zufällig sortieren",
-    "en": "Shuffle ties",
-    "ja": "同点をシャッフル"
-  },
   "setting_label_audio_primary_device": {
     "de": "Primärer Ausgang",
     "en": "Primary output",
@@ -2739,16 +2729,6 @@
     "de": "Ordner, in dem Playlists gespeichert und geladen werden.",
     "en": "Folder where playlists are saved and loaded.",
     "ja": "プレイリストを保存・読み込みするフォルダです。"
-  },
-  "setting_tip_sequences_universal_import_dir": {
-    "de": "Wird beim Sequenz-Import als Startordner verwendet.",
-    "en": "Used as the starting folder when importing sequences.",
-    "ja": "シーケンスをインポートする際の開始フォルダとして使用されます。"
-  },
-  "setting_tip_sort_random_tiebreaker": {
-    "de": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
-    "en": "Randomly order songs within equal-score groups (Quality / Recommendation only). Applies to the song list, Planner and Evening Planner.",
-    "ja": "同スコアのグループ内で曲をランダムに並べる（Quality / おすすめ時のみ）。ソングリスト、Planner、Evening Planner に適用されます。"
   },
   "setting_label_audio_alert_sound_path": {
     "de": "Hinweis-Sound (Timer-Überzug)",
@@ -9073,20 +9053,40 @@
     "en": "Favourite sort order",
     "ja": "お気に入りの並び順"
   },
+  "setting_label_sort_random_tiebreaker": {
+    "de": "Gleichstand zufällig sortieren",
+    "en": "Shuffle ties",
+    "ja": "同点をシャッフル"
+  },
   "setting_tip_sort_default_mode": {
     "de": "Diese Sortierung ist beim App-Start in Songliste und Planner voreingestellt.",
     "en": "This sort order is preselected in the song list and the planner when the app starts.",
     "ja": "アプリ起動時に曲リストとプランナーでこの並び順が選択されます。"
+  },
+  "setting_tip_sort_random_tiebreaker": {
+    "de": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    "en": "Randomly order songs within equal-score groups (Quality / Recommendation only). Applies to the song list, Planner and Evening Planner.",
+    "ja": "同スコアのグループ内で曲をランダムに並べる（Quality / おすすめ時のみ）。ソングリスト、Planner、Evening Planner に適用されます。"
   },
   "setting_label_sequences_only_program_default": {
     "de": "\"Nur\"-Filter beim Start aktiv",
     "en": "\"Only\" filter active at startup",
     "ja": "起動時に「限定」フィルターを有効化"
   },
+  "setting_label_sequences_universal_import_dir": {
+    "de": "Letzter Sequenz-Import-Ordner",
+    "en": "Last sequence import folder",
+    "ja": "最後のシーケンスインポートフォルダ"
+  },
   "setting_tip_sequences_only_program_default": {
     "de": "Voreinstellung der \"Nur\"-Checkbox im Sequenzen-Fenster: nur Sequenzen, deren höchster Call im gewählten Programm liegt.",
     "en": "Default state of the \"Only\" checkbox in the sequences window: only sequences whose highest call is within the selected program.",
     "ja": "シーケンス画面の「限定」チェックボックスの初期状態：最上位コールが選択プログラム内にあるシーケンスのみ。"
+  },
+  "setting_tip_sequences_universal_import_dir": {
+    "de": "Wird beim Sequenz-Import als Startordner verwendet.",
+    "en": "Used as the starting folder when importing sequences.",
+    "ja": "シーケンスをインポートする際の開始フォルダとして使用されます。"
   },
   "pot_fix_every_sync": {
     "de": "ALLE Lieder mit Lyrics neu berechnen",

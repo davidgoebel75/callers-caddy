@@ -131,18 +131,6 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "path",
         "tooltip": "Ordner, in dem Playlists gespeichert und geladen werden.",
     },
-    # --- sequences ---
-    "sequences/universal_import_dir": {
-        "label": "Letzter Sequenz-Import-Ordner",
-        "widget": "path",
-        "tooltip": "Wird beim Sequenz-Import als Startordner verwendet.",
-    },
-    # --- sort ---
-    "sort/random_tiebreaker": {
-        "label": "Gleichstand zufällig sortieren",
-        "widget": "checkbox",
-        "tooltip": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
-    },
     # --- audio ---
     "audio/primary_device": {
         "label": "Primärer Ausgang",
@@ -258,6 +246,11 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Diese Sortierung ist beim App-Start in Songliste und Planner voreingestellt.",
         "requires_restart": True,
     },
+    "sort/random_tiebreaker": {
+        "label": "Gleichstand zufällig sortieren",
+        "widget": "checkbox",
+        "tooltip": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    },
     # --- feedback ---
     "feedback/enabled": {
         "label": "Feedback-Dialog nach Songende",
@@ -290,6 +283,11 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "checkbox",
         "default": True,
         "tooltip": "Wenn das Tanzprogramm wechselt (Lokation oder Player), wird der Level-Filter im Sequenzen-Fenster automatisch angepasst.",
+    },
+    "sequences/universal_import_dir": {
+        "label": "Letzter Sequenz-Import-Ordner",
+        "widget": "path",
+        "tooltip": "Wird beim Sequenz-Import als Startordner verwendet.",
     },
     # --- notes ---
     "notes/zoom_pct": {
