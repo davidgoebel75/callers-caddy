@@ -3020,6 +3020,16 @@
     "en": "{count} call texts have suggestions with figures still missing – adopt them as assignments now?",
     "ja": "{count} 件のコールテキストにまだ割り当てられていないフィギュアの提案があります。今すぐ適用しますか？"
   },
+  "seq_editor_save_suggestions_one": {
+    "de": "Ein Call-Text hat einen Vorschlag mit noch fehlenden Figuren – jetzt übernehmen?",
+    "en": "One call text has a suggestion with figures still missing – adopt it as an assignment now?",
+    "ja": "1 件のコールテキストにまだ割り当てられていないフィギュアの提案があります。今すぐ適用しますか？"
+  },
+  "seq_editor_save_suggestions_more": {
+    "de": "… und {count} weitere",
+    "en": "… and {count} more",
+    "ja": "… ほか {count} 件"
+  },
   "seq_editor_saved": {
     "de": "Sequenz gespeichert.",
     "en": "Sequence saved.",

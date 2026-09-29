@@ -343,11 +343,18 @@ def speichern(monkeypatch):
     fragen = []
     antwort = {"knopf": QMessageBox.Yes}
 
-    def _frage(*a, **k):
-        fragen.append(a)
+    # Beide Wege, eine Rueckfrage zu stellen: die statische question() und
+    # eine eigene Box mit exec(). Aufgezeichnet wird, was der Nutzer liest.
+    def _frage(_parent, _titel, text, *a, **k):
+        fragen.append({"text": text, "details": ""})
+        return antwort["knopf"]
+
+    def _exec(box):
+        fragen.append({"text": box.text(), "details": box.detailedText()})
         return antwort["knopf"]
 
     monkeypatch.setattr(sequences_widget.QMessageBox, "question", _frage)
+    monkeypatch.setattr(sequences_widget.QMessageBox, "exec", _exec)
     monkeypatch.setattr(sequences_widget.QMessageBox, "information",
                         lambda *a, **k: None)
 
@@ -421,14 +428,56 @@ def test_ohne_gelbe_zeile_kommt_keine_rueckfrage(editor, speichern, db):
     assert db.get_call_text_figures("All Eight Circulate") == [ALL_EIGHT_CIRCULATE]
 
 
-def test_rueckfrage_zaehlt_verschiedene_gelbe_call_texte(editor, speichern, db):
-    from i18n import _t
-
+def test_rueckfrage_listet_call_texte_mit_den_dazukommenden_figuren(
+        editor, speichern, db):
     klick, fragen, _antwort = speichern
     _halbe_zuordnungen(db)
     edit = editor([HALB_ROLL, "Allemande Thar", HALB_ROLL, HALB_SPREAD])
 
     klick(edit)
 
-    ((_parent, _titel, text, *_rest),) = fragen
-    assert text == _t("seq_editor_save_suggestions", count=2)
+    # je Call-Text einmal, nur die Figuren, die zur bisherigen Menge dazukommen
+    (frage,) = fragen
+    assert frage["text"] == (
+        "2 Call-Texte haben Vorschläge mit noch fehlenden Figuren – "
+        "jetzt übernehmen?\n\n"
+        "Heads Touch 1/4 & Roll  →  + (Anything) & Roll\n"
+        "Heads Touch 1/4 & Spread  →  + Touch a Quarter")
+
+
+def test_rueckfrage_zu_einem_call_text_im_singular(editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    _halbe_zuordnungen(db)
+    edit = editor([HALB_ROLL, "Allemande Thar"])
+
+    klick(edit)
+
+    (frage,) = fragen
+    assert frage["text"] == (
+        "Ein Call-Text hat einen Vorschlag mit noch fehlenden Figuren – "
+        "jetzt übernehmen?\n\n"
+        "Heads Touch 1/4 & Roll  →  + (Anything) & Roll")
+    assert frage["details"] == ""
+
+
+def test_rueckfrage_kuerzt_nach_zehn_call_texten(editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    # elf ungemappte Texte, alle mit Mengen-Vorschlag (Figur + Konzept)
+    edit = editor(["Swing Thru & Roll", "Scoot Back & Roll", "Zoom & Roll",
+                   "Swing Thru & Spread", "Trade & Roll", "Partner Trade & Roll",
+                   "Dosado & Roll", "Ferris Wheel & Roll", "Wheel Around & Roll",
+                   "Zoom & Spread", "Dosado & Spread"])
+
+    klick(edit)
+
+    (frage,) = fragen
+    zeilen = frage["text"].split("\n")
+    assert len(zeilen) == 2 + 10 + 1   # Frage, Leerzeile, zehn Texte, Rest
+    assert zeilen[-2:] == ["Zoom & Spread  →  + Zoom, (Anything) & Spread",
+                           "… und 1 weitere"]
+    assert "Dosado & Spread" not in frage["text"]
+    # die komplette Liste steht im Detailbereich
+    details = frage["details"].split("\n")
+    assert len(details) == 11
+    assert details[0] == "Swing Thru & Roll  →  + Swing Thru, (Anything) & Roll"
+    assert details[-1] == "Dosado & Spread  →  + Dosado, (Anything) & Spread"

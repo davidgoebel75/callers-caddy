@@ -1789,19 +1789,46 @@ class SequenceEditorDialog(QDialog):
                   if k and self._line_state(k) == "gelb"]
         if not yellow:
             return
-        if QMessageBox.question(
-                self, _t("seq_editor_title"),
-                _t("seq_editor_save_suggestions", count=len(yellow)),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes) != QMessageBox.Yes:
+        current = {k: self.db.get_call_text_figures(k) for k in yellow}
+        pairs = [(k, self._with_suggestion(k, current[k])) for k in yellow]
+        added = [(k, [eid for eid in figures if eid not in current[k]])
+                 for k, figures in pairs]
+        if not self._confirm_suggested_sets(added):
             return
-        pairs = [(k, self._with_suggestion(k, self.db.get_call_text_figures(k)))
-                 for k in yellow]
         self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
         # Die neuen Mengen koennen ueber rest_lookup andere Zeilen aendern
         self._lookups = None
         self._map_cache.clear()
         self._highlighter.rehighlight()
+
+    # Mehr Call-Texte stehen gekuerzt in der Rueckfrage, alle im Detailbereich
+    _SUGGESTION_LINES = 10
+
+    def _confirm_suggested_sets(self, added: list) -> bool:
+        """Rueckfrage zu _offer_suggested_sets: je Call-Text eine Zeile mit
+        den Figuren, die dazukommen (intern#88). Eine Zuordnung gilt fuer die
+        ganze Datenbank -- der Nutzer soll sehen, was er uebernimmt.
+
+        added: [(call_text, [entity_id, ...]), ...] -- nur die neuen Figuren.
+        """
+        # Namen wie im Picker (ein Lookup fuer alle Zeilen)
+        _entities, names, _min_to = picker_entities_from_to_calls(
+            self.db.get_teaching_order_calls())
+        lines = [f"{key}  →  + {', '.join(names.get(e, e) for e in eids)}"
+                 for key, eids in added]
+        shown = lines[:self._SUGGESTION_LINES]
+        if len(lines) > len(shown):
+            shown.append(_t("seq_editor_save_suggestions_more",
+                            count=len(lines) - len(shown)))
+        question = (_t("seq_editor_save_suggestions_one") if len(lines) == 1
+                    else _t("seq_editor_save_suggestions", count=len(lines)))
+        box = QMessageBox(QMessageBox.Question, _t("seq_editor_title"),
+                          question + "\n\n" + "\n".join(shown),
+                          QMessageBox.Yes | QMessageBox.No, self)
+        box.setDefaultButton(QMessageBox.Yes)
+        if len(lines) > self._SUGGESTION_LINES:
+            box.setDetailedText("\n".join(lines))
+        return box.exec() == QMessageBox.Yes
 
     def _handle_line_dblclick(self, line: str) -> bool:
         """Doppelklick auf eine Zeile: Figuren-Picker oeffnen (BL-210.5).
