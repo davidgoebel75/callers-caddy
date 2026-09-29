@@ -212,7 +212,8 @@ class BreakWidget(QWidget):
 
     def _start_countdown(self):
         """Countdown starten (von vorn, falls abgelaufen/leer)."""
-        # Frisch = volle Restzeit oder abgelaufen; Fortsetzen nach Anhalten nicht
+        # Frisch = volle Restzeit oder abgelaufen; Fortsetzen nach Anhalten nicht.
+        # Anhalten im ersten Tick oder neue Dauer per Klick zaehlt bewusst als frisch.
         fresh = (self._finished or self._remaining <= 0
                  or self._remaining >= self._total)
         if self._finished or self._remaining <= 0:

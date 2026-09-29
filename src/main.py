@@ -147,7 +147,7 @@ _LOCK_FILE = _acquire_single_instance_lock()
 if _LOCK_FILE is None:
     _warn_already_running_and_exit()
 
-from audio_engine import AudioEngine
+from audio_engine import ALERT_IDLE_SR, AudioEngine
 from system_report import generate_report
 from song_db import SongDatabase, Song, Location
 from path_manager import PathManager
@@ -3664,8 +3664,8 @@ class P29MainWindow(QMainWindow):
         self._ensure_primary_channel()
         perf_split("_on_break_play_last: ensure_primary_channel", _t2)
         self._suppress_play_log = True      # NICHT in die Historie
-        # Kein Feedback-Dialog am Ende der Wartemusik (Latch, in _trigger_song_stopped
-        # konsumiert — robust gegen Stop-Timing, da nicht in _on_break_stop_last geloescht).
+        # Kein Feedback-Dialog am Ende der Wartemusik (Latch, zurueckgesetzt in
+        # _trigger_song_stopped oder _on_break_stop_last).
         self._break_music_suppress_feedback = True
         # Rules komplett sperren waehrend der Wartemusik (kein Auto-Advance etc.).
         # Nested-Counter: jedes suspend() braucht genau ein resume() (in _on_break_stop_last).
@@ -5258,7 +5258,7 @@ class P29MainWindow(QMainWindow):
         cached = self._alert_cache.get(path)
         # Ohne geladenen Song (Kaltstart) oeffnet play_alert den Stream mit
         # ALERT_IDLE_SR — dorthin resamplen.
-        target_sr = (self.engine.sample_rate if self.engine else None) or 44100
+        target_sr = (self.engine.sample_rate if self.engine else None) or ALERT_IDLE_SR
         if cached and cached[0] == mtime and cached[1] == target_sr:
             return cached[2]
         try:
