@@ -3573,23 +3573,34 @@ class SongDatabase:
         """Vergleicht importierte Figuren-Mengen mit den lokalen (intern#79).
 
         imported: {call_text: obj mit .figures (list) und .mapped_by}
-        (mapping_io.ImportedMapping). Figuren ohne calls-Zeile fallen weg und
-        werden gemeldet; bleibt dadurch von einer Menge nichts uebrig, wird der
-        Call-Text uebersprungen (statt ihn zu "keine Figur" zu machen).
+        (mapping_io.ImportedMapping). Steht lokal schon genau dieselbe Menge,
+        ist der Text identisch, auch wenn sie verwaiste IDs enthaelt (Altbestand
+        ohne calls-Zeile) -- dann gibt es nichts zu melden. Sonst fallen Figuren
+        ohne calls-Zeile weg und werden gemeldet; bleibt dadurch von einer
+        Menge nichts uebrig, wird der Call-Text uebersprungen (statt ihn zu
+        "keine Figur" zu machen).
 
         Returns dict:
             new:        [(call_text, figuren, mapped_by)] lokal noch nicht da
             identical:  [call_text] gleiche Menge (Quelle egal)
             conflicts:  [(call_text, lokal, lokal_mb, import, import_mb)]
-            unknown_figures: sortierte entity_ids ohne calls-Zeile
+            unknown_figures: sortierte entity_ids ohne calls-Zeile, nur aus
+                        Texten, die geschrieben wuerden (neu/Konflikt)
             skipped:    [call_text] nur unbekannte Figuren
         """
         local = self._local_call_text_sets()
-        all_ids = [e for m in imported.values() for e in m.figures]
-        unknown = self.unknown_figures(all_ids)
         res = {"new": [], "identical": [], "conflicts": [],
-               "unknown_figures": sorted(unknown), "skipped": []}
+               "unknown_figures": [], "skipped": []}
+        pending = {}
         for ct, m in imported.items():
+            if ct in local and set(m.figures) == set(local[ct][0]):
+                res["identical"].append(ct)
+            else:
+                pending[ct] = m
+        unknown = self.unknown_figures(
+            [e for m in pending.values() for e in m.figures])
+        res["unknown_figures"] = sorted(unknown)
+        for ct, m in pending.items():
             figs = [e for e in m.figures if e not in unknown]
             if m.figures and not figs:
                 res["skipped"].append(ct)

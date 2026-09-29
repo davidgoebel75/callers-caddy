@@ -215,3 +215,24 @@ def test_ablauf_ohne_konflikte(qapp, db):
     res = dmc.run_mapping_import(None, db, data)
     assert res["new"] == 1 and res["identical"] == 1 and res["written"] == 1
     assert db.get_call_text_figures("Brand New") == [SWING]
+
+
+def test_identische_verwaiste_zuordnung_wird_nicht_gemeldet(db):
+    """Altbestand: lokale Zuordnung auf eine ID ohne calls-Zeile. Der Reimport
+    der eigenen Datei ist identisch und darf nichts als unbekannt melden."""
+    # Neu schreiben laesst die DB verwaiste IDs nicht mehr (Fremdschluessel);
+    # der Altbestand stammt von frueher -> fuer den Test kurz abschalten.
+    db._conn.execute("PRAGMA foreign_keys = OFF")
+    db._conn.execute("INSERT OR REPLACE INTO call_text_mappings "
+                     "(call_text, entity_id, mapped_by) VALUES (?, ?, 'auto')",
+                     ("Circulate", "call_circulate"))
+    db._conn.commit()
+    db._conn.execute("PRAGMA foreign_keys = ON")
+    diff = db.diff_call_text_figures(
+        mio.parse_import(_roundtrip(mio.build_export(db))))
+    assert "Circulate" in diff["identical"]
+    assert diff["unknown_figures"] == [] and diff["skipped"] == []
+    # Abweichend -> weiterhin gemeldet
+    diff = db.diff_call_text_figures(
+        {"Other": mio.ImportedMapping(["call_circulate"], "auto")})
+    assert diff["unknown_figures"] == ["call_circulate"] and diff["skipped"] == ["Other"]
