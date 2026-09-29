@@ -1769,6 +1769,15 @@ class SequenceEditorDialog(QDialog):
             if eid is not None:
                 self.db.set_call_text_mapping(key, eid, mapped_by="auto")
 
+    def _with_suggestion(self, key: str, current: list) -> list:
+        """Bisherige Menge plus Mengen-Vorschlag, ohne Doppelte (BL-210.12).
+
+        Vereinigung statt "Vorschlag nur ohne Zuordnung": eine halbe
+        Alt-Zuordnung darf den Vorschlag nicht blockieren. Gemeinsam fuer
+        Picker-Vorbelegung und Rueckfrage beim Speichern (intern#88).
+        """
+        return list(dict.fromkeys(current + self._suggest_set(key)))
+
     def _offer_suggested_sets(self, calls: list):
         """Rueckfrage beim Speichern (intern#88): Haben Zeilen noch einen
         Mengen-Vorschlag ('gelb'), fragt der Editor einmal, ob die Vorschlaege
@@ -1786,8 +1795,7 @@ class SequenceEditorDialog(QDialog):
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes) != QMessageBox.Yes:
             return
-        pairs = [(k, list(dict.fromkeys(self.db.get_call_text_figures(k)
-                                        + self._suggest_set(k))))
+        pairs = [(k, self._with_suggestion(k, self.db.get_call_text_figures(k)))
                  for k in yellow]
         self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
         # Die neuen Mengen koennen ueber rest_lookup andere Zeilen aendern
@@ -1815,10 +1823,8 @@ class SequenceEditorDialog(QDialog):
                                 _t("call_mapping_no_to_calls"))
             return True
         current = self.db.get_call_text_figures(key)
-        # Vereinigung statt "Vorschlag nur ohne Zuordnung": eine halbe
-        # Alt-Zuordnung darf den Mengen-Vorschlag nicht blockieren. Der Nutzer
-        # sieht im Picker, was dazukommt, und bestaetigt oder nicht.
-        selected = list(dict.fromkeys(current + self._suggest_set(key)))
+        # Der Nutzer sieht im Picker, was dazukommt, und bestaetigt oder nicht.
+        selected = self._with_suggestion(key, current)
         if not selected:
             # Ohne Zuordnung und ohne Muster den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
