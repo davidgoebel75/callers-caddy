@@ -1804,6 +1804,11 @@ class SequenceEditorDialog(QDialog):
     # Mehr Call-Texte stehen gekuerzt in der Rueckfrage, alle im Detailbereich
     _SUGGESTION_LINES = 10
 
+    def _picker_entities(self):
+        """(entity_list, eid_to_label, eid_min_to) wie im Picker -- siehe
+        picker_entities_from_to_calls()."""
+        return picker_entities_from_to_calls(self.db.get_teaching_order_calls())
+
     def _confirm_suggested_sets(self, added: list) -> bool:
         """Rueckfrage zu _offer_suggested_sets: je Call-Text eine Zeile mit
         den Figuren, die dazukommen (intern#88). Eine Zuordnung gilt fuer die
@@ -1812,12 +1817,14 @@ class SequenceEditorDialog(QDialog):
         added: [(call_text, [entity_id, ...]), ...] -- nur die neuen Figuren.
         """
         # Namen wie im Picker (ein Lookup fuer alle Zeilen)
-        _entities, names, _min_to = picker_entities_from_to_calls(
-            self.db.get_teaching_order_calls())
-        lines = [f"{key}  →  + {', '.join(names.get(e, e) for e in eids)}"
+        _entities, names, _min_to = self._picker_entities()
+        lines =[f"{key}  →  + {', '.join(names.get(e, e) for e in eids)}"
                  for key, eids in added]
-        shown = lines[:self._SUGGESTION_LINES]
-        if len(lines) > len(shown):
+        # Gekuerzt erst ab zwei ueberzaehligen Zeilen: "... und 1 weitere"
+        # waere so lang wie die Zeile selbst
+        truncate = len(lines) > self._SUGGESTION_LINES + 1
+        shown = lines[:self._SUGGESTION_LINES] if truncate else list(lines)
+        if truncate:
             shown.append(_t("seq_editor_save_suggestions_more",
                             count=len(lines) - len(shown)))
         question = (_t("seq_editor_save_suggestions_one") if len(lines) == 1
@@ -1825,8 +1832,10 @@ class SequenceEditorDialog(QDialog):
         box = QMessageBox(QMessageBox.Question, _t("seq_editor_title"),
                           question + "\n\n" + "\n".join(shown),
                           QMessageBox.Yes | QMessageBox.No, self)
+        # Call-Texte sind Nutzereingaben: '<...>' nie als Rich Text deuten
+        box.setTextFormat(Qt.PlainText)
         box.setDefaultButton(QMessageBox.Yes)
-        if len(lines) > self._SUGGESTION_LINES:
+        if truncate:
             box.setDetailedText("\n".join(lines))
         return box.exec() == QMessageBox.Yes
 
@@ -1858,8 +1867,7 @@ class SequenceEditorDialog(QDialog):
             selected = [suggested] if suggested is not None else []
         # intern#87: pro entity_id nur ein Eintrag, Label ohne [Programm] -
         # dieselbe Dedup wie im Call-Mapping-Dialog.
-        entities, _labels, _min_to = picker_entities_from_to_calls(
-            self.db.get_teaching_order_calls())
+        entities, _labels, _min_to = self._picker_entities()
         dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
                                       unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))

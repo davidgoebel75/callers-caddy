@@ -343,17 +343,13 @@ def speichern(monkeypatch):
     fragen = []
     antwort = {"knopf": QMessageBox.Yes}
 
-    # Beide Wege, eine Rueckfrage zu stellen: die statische question() und
-    # eine eigene Box mit exec(). Aufgezeichnet wird, was der Nutzer liest.
-    def _frage(_parent, _titel, text, *a, **k):
-        fragen.append({"text": text, "details": ""})
-        return antwort["knopf"]
-
+    # Aufgezeichnet wird, was der Nutzer liest -- "woertlich": die Box zeigt
+    # den Text als Klartext, nicht als Rich Text (dort verschwaenden <...>)
     def _exec(box):
-        fragen.append({"text": box.text(), "details": box.detailedText()})
+        fragen.append({"text": box.text(), "details": box.detailedText(),
+                       "woertlich": box.textFormat() == Qt.PlainText})
         return antwort["knopf"]
 
-    monkeypatch.setattr(sequences_widget.QMessageBox, "question", _frage)
     monkeypatch.setattr(sequences_widget.QMessageBox, "exec", _exec)
     monkeypatch.setattr(sequences_widget.QMessageBox, "information",
                         lambda *a, **k: None)
@@ -460,13 +456,30 @@ def test_rueckfrage_zu_einem_call_text_im_singular(editor, speichern, db):
     assert frage["details"] == ""
 
 
-def test_rueckfrage_kuerzt_nach_zehn_call_texten(editor, speichern, db):
+# elf ungemappte Texte, alle mit Mengen-Vorschlag (Figur + Konzept)
+ELF_TEXTE = ["Swing Thru & Roll", "Scoot Back & Roll", "Zoom & Roll",
+             "Swing Thru & Spread", "Trade & Roll", "Partner Trade & Roll",
+             "Dosado & Roll", "Ferris Wheel & Roll", "Wheel Around & Roll",
+             "Zoom & Spread", "Dosado & Spread"]
+
+
+def test_rueckfrage_zeigt_elf_call_texte_ungekuerzt(editor, speichern, db):
+    # "... und 1 weitere" spart keine Zeile -- gekuerzt wird erst ab zwei
     klick, fragen, _antwort = speichern
-    # elf ungemappte Texte, alle mit Mengen-Vorschlag (Figur + Konzept)
-    edit = editor(["Swing Thru & Roll", "Scoot Back & Roll", "Zoom & Roll",
-                   "Swing Thru & Spread", "Trade & Roll", "Partner Trade & Roll",
-                   "Dosado & Roll", "Ferris Wheel & Roll", "Wheel Around & Roll",
-                   "Zoom & Spread", "Dosado & Spread"])
+    edit = editor(ELF_TEXTE)
+
+    klick(edit)
+
+    (frage,) = fragen
+    zeilen = frage["text"].split("\n")
+    assert len(zeilen) == 2 + 11   # Frage, Leerzeile, elf Texte
+    assert zeilen[-1] == "Dosado & Spread  →  + Dosado, (Anything) & Spread"
+    assert frage["details"] == ""
+
+
+def test_rueckfrage_kuerzt_ab_zwoelf_call_texten(editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    edit = editor(ELF_TEXTE + ["Scoot Back & Spread"])
 
     klick(edit)
 
@@ -474,10 +487,41 @@ def test_rueckfrage_kuerzt_nach_zehn_call_texten(editor, speichern, db):
     zeilen = frage["text"].split("\n")
     assert len(zeilen) == 2 + 10 + 1   # Frage, Leerzeile, zehn Texte, Rest
     assert zeilen[-2:] == ["Zoom & Spread  →  + Zoom, (Anything) & Spread",
-                           "… und 1 weitere"]
+                           "… und 2 weitere"]
     assert "Dosado & Spread" not in frage["text"]
     # die komplette Liste steht im Detailbereich
     details = frage["details"].split("\n")
-    assert len(details) == 11
+    assert len(details) == 12
     assert details[0] == "Swing Thru & Roll  →  + Swing Thru, (Anything) & Roll"
-    assert details[-1] == "Dosado & Spread  →  + Dosado, (Anything) & Spread"
+    assert details[-1] == ("Scoot Back & Spread  →  + Scoot Back, "
+                           "(Anything) & Spread")
+
+
+def test_rueckfrage_zeigt_spitze_klammern_woertlich(editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    db.set_call_text_figures("<Zoom>", ["call_zoom"])
+    edit = editor(["<Zoom> & Roll"])
+
+    klick(edit)
+
+    (frage,) = fragen
+    assert frage["text"].split("\n")[-1] == (
+        "<Zoom> & Roll  →  + Zoom, (Anything) & Roll")
+    assert frage["woertlich"]
+
+
+def test_rueckfrage_zeigt_figur_ohne_namen_mit_ihrer_id(editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    # Altbestand wie in test_figur_ohne_programm_bleibt_beim_ok_erhalten: steht
+    # in calls, hat aber keine call_programs-Zeile -> kein Name im Katalog
+    legacy = "call_legacy_figure"
+    db.bulk_insert_teaching_order_calls([(legacy, "Legacy Figure", 10.5, "")])
+    db.reseed_reference_data(force=True)
+    db.set_call_text_figures("Legacy Thing", [legacy])
+    edit = editor(["Legacy Thing & Roll"])
+
+    klick(edit)
+
+    (frage,) = fragen
+    assert frage["text"].split("\n")[-1] == (
+        "Legacy Thing & Roll  →  + call_legacy_figure, (Anything) & Roll")
