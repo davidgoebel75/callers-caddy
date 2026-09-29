@@ -986,6 +986,9 @@ class P29MainWindow(QMainWindow):
         # BL-182: Dynamic-Start mischt auch die ERSTE Sequenz, wenn Shuffle an ist.
         self.lyrics_widget.randomize_start_sequence_view = \
             self.sequence_view_widget.random_start
+        # intern#127: Spiegel-Button ohne gewaehlte Art -> Einstellungen dort oeffnen
+        self.lyrics_widget.open_settings_at = \
+            lambda key: self._show_settings_dialog(focus_key=key)
         self.sequence_view_widget.on_current_sequence_changed = \
             self.lyrics_widget.refresh_dynamic_from_sequence
         # Sequenzliste geaendert → Gating des Dynamic-Buttons neu bewerten.
@@ -6739,6 +6742,10 @@ class P29MainWindow(QMainWindow):
             "feedback/enabled": "false",
             # intern#96: Einfuegeposition neuer Notizen (top/bottom)
             "notes/insert_position": "top",
+            # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
+            # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
+            "lyrics/dynamic_invert_enabled": "false",
+            "lyrics/dynamic_invert_mode": "",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6747,7 +6754,7 @@ class P29MainWindow(QMainWindow):
 
     # ---- Einstellungen-Dialog (BL-129) ----
 
-    def _show_settings_dialog(self):
+    def _show_settings_dialog(self, focus_key=None):
         dlg = SettingsDialog(
             self,
             self._settings,
@@ -6755,6 +6762,7 @@ class P29MainWindow(QMainWindow):
             on_apply=self._on_settings_applied,
             program_picker_cb=self._settings_pick_programs,
             program_label_cb=self._program_codes_label,
+            focus_key=focus_key,
         )
         dlg.exec()
 
@@ -6830,6 +6838,11 @@ class P29MainWindow(QMainWindow):
             elif key == "lyrics/dynamic_mode":
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.set_dynamic_mode_live(val)
+
+            elif key in ("lyrics/dynamic_invert_enabled",
+                         "lyrics/dynamic_invert_mode"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_invert_settings()
 
             elif key == "notes/zoom_pct":
                 try:
