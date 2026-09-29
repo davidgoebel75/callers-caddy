@@ -2985,6 +2985,11 @@
     "en": "{count} calls entered, but the maximum is {max}. Please shorten.",
     "ja": "{count} Calls が入力されましたが、最大は {max} です。短くしてください。"
   },
+  "seq_editor_save_suggestions": {
+    "de": "{count} Zeilen haben Vorschläge mit noch fehlenden Figuren – jetzt übernehmen?",
+    "en": "{count} lines have suggestions with figures still missing – adopt them as assignments now?",
+    "ja": "{count} 行にまだ割り当てられていないフィギュアの提案があります。今すぐ適用しますか？"
+  },
   "seq_editor_saved": {
     "de": "Sequenz gespeichert.",
     "en": "Sequence saved.",
@@ -3214,6 +3219,21 @@
     "de": "Quelle",
     "en": "Source",
     "ja": "ソース"
+  },
+  "call_mapping_source_auto": {
+    "de": "auto",
+    "en": "auto",
+    "ja": "自動"
+  },
+  "call_mapping_source_manual": {
+    "de": "manuell",
+    "en": "manual",
+    "ja": "手動"
+  },
+  "call_mapping_source_inferred": {
+    "de": "abgeleitet",
+    "en": "inferred",
+    "ja": "推定"
   },
   "call_mapping_none": {
     "de": "(keine Zuordnung)",

@@ -1769,6 +1769,32 @@ class SequenceEditorDialog(QDialog):
             if eid is not None:
                 self.db.set_call_text_mapping(key, eid, mapped_by="auto")
 
+    def _offer_suggested_sets(self, calls: list):
+        """Rueckfrage beim Speichern (intern#88): Haben Zeilen noch einen
+        Mengen-Vorschlag ('gelb'), fragt der Editor einmal, ob die Vorschlaege
+        uebernommen werden. Ja schreibt je Call-Text die bisherige Menge plus
+        den Vorschlag als mapped_by='inferred' (eine Transaktion); Nein
+        schreibt nichts. Ohne gelbe Zeile keine Rueckfrage.
+        """
+        yellow = [k for k in dict.fromkeys(c.strip() for c in calls)
+                  if k and self._line_state(k) == "gelb"]
+        if not yellow:
+            return
+        if QMessageBox.question(
+                self, _t("seq_editor_title"),
+                _t("seq_editor_save_suggestions", count=len(yellow)),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes) != QMessageBox.Yes:
+            return
+        pairs = [(k, list(dict.fromkeys(self.db.get_call_text_figures(k)
+                                        + self._suggest_set(k))))
+                 for k in yellow]
+        self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
+        # Die neuen Mengen koennen ueber rest_lookup andere Zeilen aendern
+        self._lookups = None
+        self._map_cache.clear()
+        self._highlighter.rehighlight()
+
     def _handle_line_dblclick(self, line: str) -> bool:
         """Doppelklick auf eine Zeile: Figuren-Picker oeffnen (BL-210.5).
 
@@ -1877,6 +1903,9 @@ class SequenceEditorDialog(QDialog):
             self._combo_type.setFocus()
             return
 
+        # Gelbe Zeilen: Mengen-Vorschlaege nach Rueckfrage uebernehmen
+        # (intern#88) -- vor dem Speichern, damit das Level sie schon sieht
+        self._offer_suggested_sets(calls)
         # Exakte Treffer als 'auto'-Mapping sichern, damit das Level berechnet wird
         self._persist_auto_mappings(calls)
 
@@ -2887,6 +2916,10 @@ class CallMappingDialog(QDialog):
         self._table.setRowCount(0)
         self._table.setRowCount(len(rows))
         none_label = _t("call_mapping_none")   # einmal statt je Zeile
+        # Spalte "Quelle" uebersetzt (intern#88); der interne Wert bleibt
+        # englisch und steht in _all_data, die Anzeige wird nie zurueckgelesen.
+        source_labels = {mb: _t(f"call_mapping_source_{mb}")
+                         for mb in ("auto", "manual", "inferred")}
 
         for i, (call_text, count, entity_id, mapped_by) in enumerate(rows):
 
@@ -2949,7 +2982,7 @@ class CallMappingDialog(QDialog):
             self._table.setItem(i, 2, item2)
 
             # Col 3: Quelle
-            source = mapped_by if mapped_by else "—"
+            source = source_labels.get(mapped_by, mapped_by) if mapped_by else "—"
             item3 = QTableWidgetItem(source)
             item3.setFlags(item3.flags() & ~Qt.ItemIsEditable)
             self._table.setItem(i, 3, item3)

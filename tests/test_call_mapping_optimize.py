@@ -397,7 +397,8 @@ def test_nach_optimieren_zeigt_die_tabelle_den_neuen_stand(mapping, bestaetigung
     assert _zelle(table, SPLIT_TEXT) is None
     _filter(mapping, "mapped")
     zeile = _zelle(table, SPLIT_TEXT).row()
-    assert table.item(zeile, 3).text() == "inferred"
+    # angezeigt uebersetzt, intern bleibt "inferred" (intern#88)
+    assert table.item(zeile, 3).text() == _t("call_mapping_source_inferred")
     assert set(table.item(zeile, 2).data(Qt.UserRole)) == {PASS_THE_OCEAN, SWING_THRU}
 
 
@@ -436,3 +437,23 @@ def test_optimieren_erst_nach_dem_laden_bedienbar(qapp, db, infos):
     finally:
         dlg.close()
         dlg.deleteLater()
+
+
+def _quelle(table, call_text):
+    (treffer,) = [it for it in table.findItems(call_text, Qt.MatchExactly)
+                  if it.column() == 0]
+    return table.item(treffer.row(), 3).text()
+
+
+def test_spalte_quelle_zeigt_uebersetzte_werte(mapping, bestaetigung, monkeypatch):
+    import i18n
+
+    # intern#88: interner Wert bleibt englisch, angezeigt wird uebersetzt
+    monkeypatch.setattr(i18n, "_current_language", "de")
+
+    _klick(mapping, "call_mapping_optimize")
+    _filter(mapping, "all")
+
+    table = mapping.findChild(QTableWidget)
+    assert _quelle(table, MISMATCH_TEXT) == "abgeleitet"
+    assert _quelle(table, TOUCH_QUARTER_TEXT) == "manuell"

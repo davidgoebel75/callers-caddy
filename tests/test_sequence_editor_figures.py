@@ -327,3 +327,108 @@ def test_neue_zuordnung_faerbt_andere_zeilen_neu(editor, picker_double, db):
 
     # die neue Zuordnung loest den Rest auf, der Vorschlag erscheint sofort
     assert _zustand(edit, 0) == "gelb"
+
+
+# --- intern#88: Rueckfrage beim Speichern -----------------------------------
+
+@pytest.fixture
+def speichern(monkeypatch):
+    """Ersetzt Rueckfrage und Erfolgsmeldung; ``antwort["knopf"]`` ist die
+    Antwort auf die Rueckfrage. Liefert eine Funktion, die wie der Nutzer
+    einen Typ waehlt und auf Speichern klickt."""
+    import sequences_widget
+    from PySide6.QtWidgets import QComboBox, QMessageBox, QPushButton
+    from i18n import _t
+
+    fragen = []
+    antwort = {"knopf": QMessageBox.Yes}
+
+    def _frage(*a, **k):
+        fragen.append(a)
+        return antwort["knopf"]
+
+    monkeypatch.setattr(sequences_widget.QMessageBox, "question", _frage)
+    monkeypatch.setattr(sequences_widget.QMessageBox, "information",
+                        lambda *a, **k: None)
+
+    def _klick(edit):
+        dlg = edit.window()
+        dlg.findChild(QComboBox).setCurrentText("Singing Call")   # Typ
+        (knopf,) = [b for b in dlg.findChildren(QPushButton)
+                    if b.text() == _t("seq_editor_btn_save")]
+        knopf.click()
+
+    return _klick, fragen, antwort
+
+
+def _max_to(db, erster_call):
+    """max_teaching_order der Sequenz mit diesem ersten Call (field_1) --
+    ueber die oeffentliche Listen-Abfrage (Index 1 = field_1, 17 = max_to)."""
+    (wert,) = [r[17] for r in db.get_filtered_sequences(limit=100)
+               if r[1] == erster_call]
+    return wert
+
+
+def test_ja_beim_speichern_uebernimmt_die_vorgeschlagene_menge(
+        editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    _halbe_zuordnungen(db)
+    edit = editor([HALB_ROLL, "Allemande Thar"])
+
+    klick(edit)
+
+    assert len(fragen) == 1
+    zeilen = {(m["entity_id"], m["mapped_by"])
+              for m in db.get_all_call_text_mappings() if m["call_text"] == HALB_ROLL}
+    assert zeilen == {(TOUCH_A_QUARTER, "inferred"), (ANYTHING_AND_ROLL, "inferred")}
+    # Level wie nach dem Speichern in der App (main._after_save rechnet die
+    # Baender nach): (Anything) & Roll ist Plus
+    db.recompute_sequence_max_to()
+    assert _max_to(db, HALB_ROLL) == pytest.approx(39.0012)
+
+
+def test_nein_beim_speichern_laesst_die_zuordnung_und_speichert(
+        editor, speichern, db):
+    from PySide6.QtWidgets import QMessageBox
+
+    klick, fragen, antwort = speichern
+    antwort["knopf"] = QMessageBox.No
+    _halbe_zuordnungen(db)
+    edit = editor([HALB_ROLL, "Allemande Thar"])
+
+    klick(edit)
+
+    assert len(fragen) == 1
+    zeilen = {(m["entity_id"], m["mapped_by"])
+              for m in db.get_all_call_text_mappings() if m["call_text"] == HALB_ROLL}
+    assert zeilen == {(TOUCH_A_QUARTER, "auto")}
+    db.recompute_sequence_max_to()
+    # ohne (Anything) & Roll bleibt Allemande Thar die hoechste Figur
+    assert _max_to(db, HALB_ROLL) == pytest.approx(29.005301)
+
+
+def test_ohne_gelbe_zeile_kommt_keine_rueckfrage(editor, speichern, db):
+    klick, fragen, _antwort = speichern
+    # K1: eigene Figur, kein Mengen-Vorschlag; dazu eine unbekannte Zeile
+    db.set_call_text_figures("All Eight Circulate", [ALL_EIGHT_CIRCULATE])
+    edit = editor(["All Eight Circulate", "Zzqx Blorp"])
+
+    klick(edit)
+
+    assert fragen == []
+    assert [r[1] for r in db.get_filtered_sequences(limit=100)] == [
+        "All Eight Circulate"]   # trotzdem gespeichert
+    assert db.get_call_text_figures("All Eight Circulate") == [ALL_EIGHT_CIRCULATE]
+
+
+def test_rueckfrage_zaehlt_verschiedene_gelbe_call_texte(editor, speichern, db):
+    from i18n import _t
+
+    klick, fragen, _antwort = speichern
+    _halbe_zuordnungen(db)
+    edit = editor([HALB_ROLL, "Allemande Thar", HALB_ROLL, HALB_SPREAD])
+
+    klick(edit)
+
+    ((_parent, _titel, text, *_rest),) = fragen
+    assert text == _t("seq_editor_save_suggestions", count=2)
