@@ -959,7 +959,18 @@ class SettingsDialog(QDialog):
     def _check_restart_needed(self, changed_keys: list[str]) -> bool:
         return any(k in _RESTART_KEYS for k in changed_keys)
 
+    def _enable_invert_on_first_mode(self):
+        """intern#133: Wer zum ersten Mal eine Heads/Sides-Art waehlt, will sie
+        benutzen -> Tausch mit einschalten. Ein spaeterer Artwechsel laesst
+        An/Aus in Ruhe."""
+        rows = {r.full_key: r for r in self._rows}
+        mode = rows.get("lyrics/dynamic_invert_mode")
+        enabled = rows.get("lyrics/dynamic_invert_enabled")
+        if mode and enabled and not mode.original and mode.get_value():
+            enabled.widget.setChecked(True)
+
     def _on_apply_btn(self):
+        self._enable_invert_on_first_mode()
         changed = self._collect_changes()
         if not changed:
             return
