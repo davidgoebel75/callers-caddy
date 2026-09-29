@@ -3560,6 +3560,81 @@ class SongDatabase:
         self._conn.commit()
         return neu, len(groups) - neu
 
+    def _local_call_text_sets(self) -> dict:
+        """{call_text: (figuren, mapped_by)} inkl. "keine Figur" ([])."""
+        out = {}
+        for r in self.get_all_call_text_mappings():
+            figs, _mb = out.setdefault(r["call_text"], ([], r["mapped_by"]))
+            if r["entity_id"]:
+                figs.append(r["entity_id"])
+        return out
+
+    def diff_call_text_figures(self, imported: dict) -> dict:
+        """Vergleicht importierte Figuren-Mengen mit den lokalen (intern#79).
+
+        imported: {call_text: obj mit .figures (list) und .mapped_by}
+        (mapping_io.ImportedMapping). Figuren ohne calls-Zeile fallen weg und
+        werden gemeldet; bleibt dadurch von einer Menge nichts uebrig, wird der
+        Call-Text uebersprungen (statt ihn zu "keine Figur" zu machen).
+
+        Returns dict:
+            new:        [(call_text, figuren, mapped_by)] lokal noch nicht da
+            identical:  [call_text] gleiche Menge (Quelle egal)
+            conflicts:  [(call_text, lokal, lokal_mb, import, import_mb)]
+            unknown_figures: sortierte entity_ids ohne calls-Zeile
+            skipped:    [call_text] nur unbekannte Figuren
+        """
+        local = self._local_call_text_sets()
+        all_ids = [e for m in imported.values() for e in m.figures]
+        unknown = self.unknown_figures(all_ids)
+        res = {"new": [], "identical": [], "conflicts": [],
+               "unknown_figures": sorted(unknown), "skipped": []}
+        for ct, m in imported.items():
+            figs = [e for e in m.figures if e not in unknown]
+            if m.figures and not figs:
+                res["skipped"].append(ct)
+                continue
+            if ct not in local:
+                res["new"].append((ct, figs, m.mapped_by))
+                continue
+            loc_figs, loc_mb = local[ct]
+            if set(figs) == set(loc_figs):
+                res["identical"].append(ct)
+            else:
+                res["conflicts"].append((ct, loc_figs, loc_mb, figs, m.mapped_by))
+        return res
+
+    def apply_call_text_figures_decisions(self, decisions) -> int:
+        """Schreibt geklaerte Zuordnungen in EINER Transaktion (intern#79).
+
+        decisions: Iterable von (call_text, figuren, mapped_by). figuren
+        None entfernt die Zuordnung, [] setzt bewusst "keine Figur"
+        (entity_id NULL), sonst die Menge. Rueckgabe: Anzahl Call-Texte.
+        """
+        written = 0
+        try:
+            for call_text, figs, mapped_by in decisions:
+                if not call_text:
+                    continue
+                if figs is None:
+                    self._write_call_text_figures(call_text, [], mapped_by)
+                elif not figs:
+                    self._conn.execute(
+                        "DELETE FROM call_text_figures_extra WHERE call_text = ?",
+                        (call_text,))
+                    self._conn.execute(
+                        "INSERT OR REPLACE INTO call_text_mappings "
+                        "(call_text, entity_id, mapped_by) VALUES (?, NULL, ?)",
+                        (call_text, mapped_by))
+                else:
+                    self._write_call_text_figures(call_text, figs, mapped_by)
+                written += 1
+        except Exception:
+            self._conn.rollback()
+            raise
+        self._conn.commit()
+        return written
+
     def delete_call_text_mapping(self, call_text: str):
         """Loescht ein bestehendes Mapping fuer den gegebenen Call-Text
         (BL-210: samt der weiteren Figuren seiner Menge)."""
