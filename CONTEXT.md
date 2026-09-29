@@ -84,6 +84,15 @@ _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
 
+**Pausen-Uhr**:
+Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
+_EN_: Break Clock
+
+**Wartemusik**:
+Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
+als gespielt und schaltet die Playlist nicht weiter.
+_EN_: Break Music
+
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
 Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.

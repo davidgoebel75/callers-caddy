@@ -9907,5 +9907,30 @@
     "de": "Pilot Square",
     "en": "Pilot Square",
     "ja": "Pilot Square"
+  },
+  "ctx_show_hidden_sequences": {
+    "de": "Auch ausgeblendete Sequenzen anzeigen",
+    "en": "Also show hidden sequences",
+    "ja": "非表示のシーケンスも表示"
+  },
+  "sequences_unmapped_tooltip": {
+    "de": "Enthält Call-Texte ohne Zuordnung – taucht deshalb nicht bei jeder Tanzprogramm-Wahl auf. Rechtsklick → „Call-Mapping für diese Sequenz öffnen“.",
+    "en": "Contains call texts without an assignment, so it may not appear for every dance program selection. Right-click → “Open Call Mapping for this sequence”.",
+    "ja": "割り当てのない Call テキストを含むため、ダンスプログラムの選択によっては表示されません。右クリック →「このシーケンスの Call マッピングを開く」。"
+  },
+  "sequences_program_selection_suspended": {
+    "de": "Tanzprogramm-Wahl hier ausgesetzt",
+    "en": "Dance program selection suspended here",
+    "ja": "ここではダンスプログラムの選択を一時停止中"
+  },
+  "call_mapping_f_focus": {
+    "de": "Call-Texte der Sequenz ({count})",
+    "en": "Call texts of the sequence ({count})",
+    "ja": "シーケンスの Call テキスト ({count})"
+  },
+  "ctx_open_call_mapping_for_sequence": {
+    "de": "Call-Mapping für diese Sequenz öffnen",
+    "en": "Open Call Mapping for this sequence",
+    "ja": "このシーケンスの Call マッピングを開く"
   }
 }
