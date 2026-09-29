@@ -126,6 +126,23 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Wird beim Importieren als Startordner verwendet.",
     },
     "paths/lyrics_dir": {"label": "Lyrics-Ordner", "widget": "path"},
+    "paths/playlist_dir": {
+        "label": "Playlist-Ordner",
+        "widget": "path",
+        "tooltip": "Ordner, in dem Playlists gespeichert und geladen werden.",
+    },
+    # --- sequences ---
+    "sequences/universal_import_dir": {
+        "label": "Letzter Sequenz-Import-Ordner",
+        "widget": "path",
+        "tooltip": "Wird beim Sequenz-Import als Startordner verwendet.",
+    },
+    # --- sort ---
+    "sort/random_tiebreaker": {
+        "label": "Gleichstand zufällig sortieren",
+        "widget": "checkbox",
+        "tooltip": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    },
     # --- audio ---
     "audio/primary_device": {
         "label": "Primärer Ausgang",

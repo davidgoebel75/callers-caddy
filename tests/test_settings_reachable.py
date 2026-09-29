@@ -45,8 +45,6 @@ _UNGESAET_BEKANNT = {
 # in _EXCLUDED_KEYS ein (statt ihn hier stehen zu lassen).
 _OHNE_META_BEKANNT = {
     "rules/streamdeck_seeded_v1",   # interner Marker, kein Nutzer-Schalter
-    "sequences/universal_import_dir",
-    "sort/random_tiebreaker",
 }
 
 
