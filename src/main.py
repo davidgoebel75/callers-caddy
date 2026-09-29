@@ -160,7 +160,7 @@ from notes_widget import NotesWidget
 from stats_widget import StatsWidget
 from evening_planner_widget import EveningPlannerWidget
 import zip_import
-from zip_import_dialog import ZipImportPreviewDialog
+from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
 
 # _ComboClickToOpen / install_combo_click_to_open -> sequences_widget.py (BL-201)
@@ -2175,10 +2175,21 @@ class P29MainWindow(QMainWindow):
             QMessageBox.information(self, _t("import_result_title"),
                                     _t("zip_no_songs"))
             return
+        # Mehrere Songs in einem ZIP: erst nachfragen, nicht still teilen (intern#125)
+        multi = result.multi_song_zips
+        if multi:
+            split = ask_zip_split(self, multi)
+            if split is None:
+                zip_import.cleanup(result)
+                return
+            for g in multi:
+                g.use_split = split
+            result.refresh_bundles()
         try:
             dlg = ZipImportPreviewDialog(
                 result, lists, self._zip_lists_path(), self,
-                audition_cb=self._audition_zip_play)
+                audition_cb=self._audition_zip_play,
+                dup_lookup=self._zip_dup_title)
             accepted = dlg.exec() == QDialog.Accepted
             self._stop_zip_audition()  # vor Commit/Cleanup Probehören stoppen
             if accepted:
@@ -2212,7 +2223,8 @@ class P29MainWindow(QMainWindow):
             return os.path.basename(dest)
 
         imported = 0
-        skipped = 0
+        skipped = []    # Dateinamen, die schon existierten (intern#125)
+        attached = 0    # neue Spuren an vorhandene Songs gehaengt
         errors = []
         last_dest = None
 
@@ -2231,8 +2243,23 @@ class P29MainWindow(QMainWindow):
                 if song is None:
                     continue
                 if r["status"] == "dup":
-                    # Song existiert bereits vollstaendig -> nicht erneut Varianten anhaengen
-                    skipped += 1
+                    # Hauptspur existiert schon. Auf Wunsch (Preview) nur die
+                    # Spuren anhaengen, die der Song noch nicht hat.
+                    skipped.append(os.path.basename(primary["path"]))
+                    if not d.get("attach_new"):
+                        skipped.extend(os.path.basename(a["path"]) for a in audio[1:])
+                        continue
+                    known = {os.path.basename(song.filename).lower()} | {
+                        os.path.basename(f).lower()
+                        for _i, _n, f in self.db.get_variants(song.id, "music")}
+                    for a in audio[1:]:
+                        name = os.path.basename(a["path"])
+                        if name.lower() in known or self.db.get_by_filename(name):
+                            skipped.append(name)
+                            continue
+                        fn = _copy_into(a["path"], music_dir)
+                        self.db.add_variant(song.id, "music", a["label_text"], fn)
+                        attached += 1
                     continue
                 # Titel/Label aus dem Preview uebernehmen (User kann editiert haben)
                 song.title = d["title"] or song.title
@@ -2287,14 +2314,27 @@ class P29MainWindow(QMainWindow):
             lines.append(_t("import_songs_imported", count=imported))
             lines.append("")
             lines.append(_t("import_result_hint_songlist"))
+        if attached:
+            lines.append(_t("zip_attached_tracks", count=attached))
         if skipped:
-            lines.append(_t("import_songs_skipped", count=skipped))
+            lines.append(_t("import_songs_skipped", count=len(skipped)))
+            lines.extend(_t("import_skipped_file", name=n) for n in skipped)
         if errors:
             lines.append(_t("import_errors", count=len(errors)))
             lines.extend(f"  {e}" for e in errors)
         if lines:
             QMessageBox.information(self, _t("import_result_title"),
                                     "\n".join(lines))
+
+    def _zip_dup_title(self, filename: str):
+        """ZIP-Preview (intern#125): Titel des vorhandenen Songs, wenn die Datei
+        beim Import als Duplikat uebersprungen wuerde, sonst None. Gleiche
+        Pruefung wie _import_single_audio im Kopiermodus (Speichername =
+        Basename, Datei liegt schon im Musikordner)."""
+        song = self.db.get_by_filename(filename)
+        if song and os.path.exists(os.path.join(self.paths.music_dir, filename)):
+            return song.title or filename
+        return None
 
     # ---- Lokation-Auswahl ----
 

@@ -9088,6 +9088,66 @@
     "en": "Other files (not imported):",
     "ja": "その他のファイル（インポートされません）:"
   },
+  "zip_split_title": {
+    "de": "Mehrere Songs in einem ZIP",
+    "en": "Several songs in one ZIP",
+    "ja": "1つのZIPに複数の曲"
+  },
+  "zip_split_text": {
+    "de": "{count} ZIP-Datei(en) enthalten mehrere verschiedene Songs. Wie soll importiert werden?",
+    "en": "{count} ZIP file(s) contain several different songs. How should they be imported?",
+    "ja": "{count} 件のZIPファイルに異なる曲が複数含まれています。どのようにインポートしますか？"
+  },
+  "zip_split_zip_line": {
+    "de": "• {zip}: {songs}",
+    "en": "• {zip}: {songs}",
+    "ja": "• {zip}: {songs}"
+  },
+  "zip_split_separate": {
+    "de": "Getrennt importieren",
+    "en": "Import separately",
+    "ja": "別々にインポート"
+  },
+  "zip_split_merged": {
+    "de": "Je ZIP als einen Song",
+    "en": "One song per ZIP",
+    "ja": "ZIPごとに1曲"
+  },
+  "zip_preview_split_bar": {
+    "de": "Aus „{zip}“: {count} Songs erkannt.",
+    "en": "From “{zip}”: {count} songs detected.",
+    "ja": "「{zip}」から {count} 曲を検出しました。"
+  },
+  "zip_preview_split_merge": {
+    "de": "Als einen Song importieren",
+    "en": "Import as one song",
+    "ja": "1曲としてインポート"
+  },
+  "zip_preview_unassigned": {
+    "de": "keinem Song zuordenbar",
+    "en": "cannot be assigned to a song",
+    "ja": "どの曲にも割り当てられません"
+  },
+  "zip_preview_dup": {
+    "de": "Existiert schon als „{title}“.",
+    "en": "Already exists as “{title}”.",
+    "ja": "「{title}」として既に存在します。"
+  },
+  "zip_preview_dup_attach": {
+    "de": "Neue Spuren anhängen",
+    "en": "Add new tracks",
+    "ja": "新しいトラックを追加"
+  },
+  "zip_attached_tracks": {
+    "de": "{count} neue Spur(en) an vorhandene Songs angehängt",
+    "en": "{count} new track(s) added to existing songs",
+    "ja": "{count} 件の新しいトラックを既存の曲に追加しました"
+  },
+  "import_skipped_file": {
+    "de": "  • {name} (existiert schon)",
+    "en": "  • {name} (already exists)",
+    "ja": "  • {name}（既に存在）"
+  },
   "setting_section_sort": {
     "de": "Sortierung",
     "en": "Sorting",
