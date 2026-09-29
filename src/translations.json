@@ -2525,6 +2525,11 @@
     "en": "Lyrics folder",
     "ja": "Lyrics フォルダ"
   },
+  "setting_label_paths_playlist_dir": {
+    "de": "Playlist-Ordner",
+    "en": "Playlist folder",
+    "ja": "プレイリストフォルダ"
+  },
   "setting_label_audio_primary_device": {
     "de": "Primärer Ausgang",
     "en": "Primary output",
@@ -2630,6 +2635,16 @@
     "en": "First note factor",
     "ja": "最初のメモの係数"
   },
+  "setting_label_notes_insert_position": {
+    "de": "Neue Notizen einfügen",
+    "en": "Insert new notes",
+    "ja": "新しいメモの挿入位置"
+  },
+  "setting_tip_notes_insert_position": {
+    "de": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
+    "en": "Where new notes are placed — also when taking songs over from the playlist and the evening planner. “Middle” inserts above the topmost separator line (at the bottom if there is none). The toggle in the notes window changes this for the current session only.",
+    "ja": "新しいメモを追加する位置です(プレイリストやイブニングプランナーからの取り込みにも適用)。「中」は一番上の区切り線の上に挿入します(区切り線がない場合は一番下)。メモウィンドウの切替ボタンは現在のセッションでのみ有効です。"
+  },
   "setting_label_lyrics_zoom_pct": {
     "de": "Zoom",
     "en": "Zoom",
@@ -2639,6 +2654,16 @@
     "de": "Automatische Schriftgrösse",
     "en": "Auto font size",
     "ja": "自動文字サイズ"
+  },
+  "setting_label_lyrics_auto_width": {
+    "de": "Automatische Breite",
+    "en": "Auto width",
+    "ja": "自動幅調整"
+  },
+  "setting_tip_lyrics_auto_width": {
+    "de": "Passt die Schriftgröße der Lyrics an die Fensterbreite an. Schließt die automatische Schriftgröße aus – ist beides an, gewinnt die Breite. Entspricht dem Button „Auto-Breite“ im Lyrics-Fenster.",
+    "en": "Fits the lyrics font size to the window width. Excludes auto font size – if both are on, width wins. Same as the “Auto-Width” button in the lyrics window.",
+    "ja": "歌詞の文字サイズをウィンドウ幅に合わせます。自動文字サイズとは排他で、両方オンの場合は幅が優先されます。歌詞ウィンドウの「Auto-Width」ボタンと同じです。"
   },
   "setting_label_debug_performance_logging": {
     "de": "Performance-Logging",
@@ -2699,6 +2724,11 @@
     "de": "Wird beim Importieren als Startordner verwendet.",
     "en": "Used as the starting folder when importing songs.",
     "ja": "曲をインポートする際の開始フォルダとして使用されます。"
+  },
+  "setting_tip_paths_playlist_dir": {
+    "de": "Ordner, in dem Playlists gespeichert und geladen werden.",
+    "en": "Folder where playlists are saved and loaded.",
+    "ja": "プレイリストを保存・読み込みするフォルダです。"
   },
   "setting_label_audio_alert_sound_path": {
     "de": "Hinweis-Sound (Timer-Überzug)",
@@ -9088,20 +9118,40 @@
     "en": "Favourite sort order",
     "ja": "お気に入りの並び順"
   },
+  "setting_label_sort_random_tiebreaker": {
+    "de": "Gleichstand zufällig sortieren",
+    "en": "Shuffle ties",
+    "ja": "同点をシャッフル"
+  },
   "setting_tip_sort_default_mode": {
     "de": "Diese Sortierung ist beim App-Start in Songliste und Planner voreingestellt.",
     "en": "This sort order is preselected in the song list and the planner when the app starts.",
     "ja": "アプリ起動時に曲リストとプランナーでこの並び順が選択されます。"
+  },
+  "setting_tip_sort_random_tiebreaker": {
+    "de": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    "en": "Randomly order songs within equal-score groups (Quality / Recommendation only). Applies to the song list, Planner and Evening Planner.",
+    "ja": "同スコアのグループ内で曲をランダムに並べる（Quality / おすすめ時のみ）。ソングリスト、Planner、Evening Planner に適用されます。"
   },
   "setting_label_sequences_only_program_default": {
     "de": "\"Nur\"-Filter beim Start aktiv",
     "en": "\"Only\" filter active at startup",
     "ja": "起動時に「限定」フィルターを有効化"
   },
+  "setting_label_sequences_universal_import_dir": {
+    "de": "Letzter Sequenz-Import-Ordner",
+    "en": "Last sequence import folder",
+    "ja": "最後のシーケンスインポートフォルダ"
+  },
   "setting_tip_sequences_only_program_default": {
     "de": "Voreinstellung der \"Nur\"-Checkbox im Sequenzen-Fenster: nur Sequenzen, deren höchster Call im gewählten Programm liegt.",
     "en": "Default state of the \"Only\" checkbox in the sequences window: only sequences whose highest call is within the selected program.",
     "ja": "シーケンス画面の「限定」チェックボックスの初期状態：最上位コールが選択プログラム内にあるシーケンスのみ。"
+  },
+  "setting_tip_sequences_universal_import_dir": {
+    "de": "Wird beim Sequenz-Import als Startordner verwendet.",
+    "en": "Used as the starting folder when importing sequences.",
+    "ja": "シーケンスをインポートする際の開始フォルダとして使用されます。"
   },
   "pot_fix_every_sync": {
     "de": "ALLE Lieder mit Lyrics neu berechnen",

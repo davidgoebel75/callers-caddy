@@ -126,6 +126,11 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Wird beim Importieren als Startordner verwendet.",
     },
     "paths/lyrics_dir": {"label": "Lyrics-Ordner", "widget": "path"},
+    "paths/playlist_dir": {
+        "label": "Playlist-Ordner",
+        "widget": "path",
+        "tooltip": "Ordner, in dem Playlists gespeichert und geladen werden.",
+    },
     # --- audio ---
     "audio/primary_device": {
         "label": "Primärer Ausgang",
@@ -241,6 +246,11 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Diese Sortierung ist beim App-Start in Songliste und Planner voreingestellt.",
         "requires_restart": True,
     },
+    "sort/random_tiebreaker": {
+        "label": "Gleichstand zufällig sortieren",
+        "widget": "checkbox",
+        "tooltip": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
+    },
     # --- feedback ---
     "feedback/enabled": {
         "label": "Feedback-Dialog nach Songende",
@@ -274,6 +284,11 @@ SETTINGS_META: dict[str, dict] = {
         "default": True,
         "tooltip": "Wenn das Tanzprogramm wechselt (Lokation oder Player), wird der Level-Filter im Sequenzen-Fenster automatisch angepasst.",
     },
+    "sequences/universal_import_dir": {
+        "label": "Letzter Sequenz-Import-Ordner",
+        "widget": "path",
+        "tooltip": "Wird beim Sequenz-Import als Startordner verwendet.",
+    },
     # --- notes ---
     "notes/zoom_pct": {
         "label": "Zoom",
@@ -289,7 +304,7 @@ SETTINGS_META: dict[str, dict] = {
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
-        "choices": [("top", "Oben"), ("middle", "Mitte"), ("bottom", "Unten")],
+        "choices": [],          # zur Laufzeit (i18n) befuellt
         "default": "top",
         "tooltip": "Wo neue Notizen landen — auch beim Übernehmen aus Playlist und Abendplaner. „Mitte“ fügt über der obersten Trennlinie ein (ohne Trennlinie ganz unten). Der Umschalter im Notizen-Fenster ändert das nur für die laufende Sitzung.",
     },
@@ -302,6 +317,15 @@ SETTINGS_META: dict[str, dict] = {
     "lyrics/auto_size": {
         "label": "Automatische Schriftgrösse",
         "widget": "checkbox",
+    },
+    "lyrics/auto_width": {
+        "label": "Automatische Breite",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": ("Passt die Schriftgröße der Lyrics an die Fensterbreite an. "
+                    "Schließt die automatische Schriftgröße aus – ist beides an, "
+                    "gewinnt die Breite. Entspricht dem Button „Auto-Breite“ im "
+                    "Lyrics-Fenster."),
     },
     "lyrics/dynamic_enabled": {
         "label": "Dynamic Lyrics aktiv",
@@ -599,6 +623,12 @@ class _SettingRow:
                 choices = [
                     ("1", _t("dynamic_mode_opt1")),
                     ("2", _t("dynamic_mode_opt2")),
+                ]
+            elif self.full_key == "notes/insert_position":
+                choices = [
+                    ("top",    _t("note.btn_pos_top")),
+                    ("middle", _t("note.btn_pos_middle")),
+                    ("bottom", _t("note.btn_pos_bottom")),
                 ]
             for val, display in choices:
                 w.addItem(display, userData=val)
