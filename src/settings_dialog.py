@@ -362,9 +362,9 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "combobox",
         # choices werden zur Laufzeit i18n-uebersetzt (siehe _build_widget)
         "choices": [
-            ("HHSS", "HHSS – Figur 3 und 4 tauschen"),
-            ("HSSH", "HSSH – Figur 2 und 3 tauschen"),
-            ("HSHS", "HSHS – Figur 2 und 4 tauschen"),
+            ("HHSS", "HHSS – Figure 3 und 4 tauschen"),
+            ("HSSH", "HSSH – Figure 2 und 3 tauschen"),
+            ("HSHS", "HSHS – Figure 2 und 4 tauschen"),
         ],
         "default": "",
         "tooltip": "In welchen Figuren Heads und Sides getauscht werden.",

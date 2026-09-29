@@ -1396,23 +1396,23 @@
     "ja": "入れ替えパターン"
   },
   "setting_tip_lyrics_dynamic_invert_mode": {
-    "de": "In welchen Figuren Heads und Sides getauscht werden.",
-    "en": "In which figures heads and sides are swapped.",
+    "de": "In welchen Figures (Abschnitten) Heads und Sides getauscht werden.",
+    "en": "In which Figures (sections) heads and sides are swapped.",
     "ja": "どのフィギュアで Heads と Sides を入れ替えるか。"
   },
   "dynamic_invert_opt_hhss": {
-    "de": "HHSS – Figur 3 und 4 tauschen",
-    "en": "HHSS – swap in figures 3 and 4",
+    "de": "HHSS – Figure 3 und 4 tauschen",
+    "en": "HHSS – swap in Figures 3 and 4",
     "ja": "HHSS – フィギュア 3 と 4 で入れ替え"
   },
   "dynamic_invert_opt_hssh": {
-    "de": "HSSH – Figur 2 und 3 tauschen",
-    "en": "HSSH – swap in figures 2 and 3",
+    "de": "HSSH – Figure 2 und 3 tauschen",
+    "en": "HSSH – swap in Figures 2 and 3",
     "ja": "HSSH – フィギュア 2 と 3 で入れ替え"
   },
   "dynamic_invert_opt_hshs": {
-    "de": "HSHS – Figur 2 und 4 tauschen",
-    "en": "HSHS – swap in figures 2 and 4",
+    "de": "HSHS – Figure 2 und 4 tauschen",
+    "en": "HSHS – swap in Figures 2 and 4",
     "ja": "HSHS – フィギュア 2 と 4 で入れ替え"
   },
   "tooltip_dynamic_invert_choose": {

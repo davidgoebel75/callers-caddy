@@ -2370,7 +2370,11 @@ class LyricsWidget(QWidget):
         Modus 1, wo sonst nichts neu gerendert wird). Billig ohne Wechsel."""
         if not self._dynamic_enabled or not self._invert_active():
             return
-        if self._dyn_invert_flags() != self._dyn_invert_state:
+        flags = self._dyn_invert_flags()
+        if flags != self._dyn_invert_state:
+            # Vorab merken: ohne Sequenz setzt der Render den Zustand nicht,
+            # sonst liefe hier jeder Tick einen neuen Render an.
+            self._dyn_invert_state = flags
             self.refresh_dynamic_from_sequence()
 
     def _on_invert_clicked(self, checked: bool):
