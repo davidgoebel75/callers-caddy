@@ -14,6 +14,7 @@ import difflib
 
 import perf
 import singing_sections
+import heads_sides
 from i18n import _t
 from path_manager import PathManager
 from skin_manager import SkinManager
@@ -539,6 +540,22 @@ class LyricsWidget(QWidget):
         self._btn_dynamic.toggled.connect(self._on_dynamic_toggled)
         toolbar.add(self._btn_dynamic)
 
+        # intern#127: Spiegel-Button direkt hinter "Dynamic Lyrics" — tauscht
+        # Heads/Sides in den Figuren der gewaehlten Art. Ohne gewaehlte Art
+        # fuehrt der Klick in die Einstellungen (siehe _on_invert_clicked).
+        self._btn_invert = QPushButton()
+        self._btn_invert.setFixedSize(28, 28)
+        mark_toggle(self._btn_invert, active=True)
+        _inv_icon_dir = (skin_mgr.icon_dir.replace("\\", "/")
+                         if skin_mgr and skin_mgr.icon_dir else "")
+        if _inv_icon_dir:
+            self._btn_invert.setIcon(QIcon(f"{_inv_icon_dir}/mirror-hs.svg"))
+        else:
+            self._btn_invert.setText("⇄")
+        self._btn_invert.setToolTip(_t("tooltip_dynamic_invert_choose"))
+        self._btn_invert.clicked.connect(self._on_invert_clicked)
+        toolbar.add(self._btn_invert)
+
         # BL-171: Songstart (und damit alle SyncPoints + Ende) um ∓1 s verschieben.
         # Nur im Sync-Modus sichtbar (Toggle in _on_sync_toggled). Rufen dieselbe
         # Logik wie das Kontextmenue "Alle verschieben" (_shift_all_anchors) auf —
@@ -704,6 +721,13 @@ class LyricsWidget(QWidget):
         self._dyn_render_pending = False   # deferter Re-Render eingeplant
         self._dyn_advance_pending = False  # defertes Weiterblaettern eingeplant
         self._dynamic_wanted = False       # Wunschzustand, ueberlebt Songwechsel
+        # intern#127: Heads/Sides invertieren (INI lyrics/dynamic_invert_*)
+        self._invert_enabled = False
+        self._invert_mode = ""             # "" = noch keine Art gewaehlt
+        self._dyn_block_figs = []          # je Block (wie _dyn_block_keys): Figur-Nummern
+        self._dyn_invert_state = ()        # je Block: zuletzt invertiert gerendert?
+        # Callback(full_key) -> Einstellungen an dieser Zeile oeffnen (MainWindow)
+        self.open_settings_at = None
         # Modus ("1"/"2") wird lazy aus der App-INI gelesen (self._settings, vom
         # Hauptfenster gesetzt) — NICHT aus einem bare QSettings(), das auf einen
         # anderen Store zeigen wuerde. Leer = beim ersten Einschalten fragen.
@@ -2252,6 +2276,7 @@ class LyricsWidget(QWidget):
             self._btn_dynamic.blockSignals(True)
             self._btn_dynamic.setChecked(bool(self._dynamic_wanted))
             self._btn_dynamic.blockSignals(False)
+        self.reload_invert_settings()   # intern#127
         self.update_dynamic_button_state()
 
     def set_dynamic_wanted(self, enabled: bool):
@@ -2310,6 +2335,91 @@ class LyricsWidget(QWidget):
             return "2"
         return None
 
+    # ---- intern#127: Heads / Sides invertieren ----
+
+    def _invert_active(self) -> bool:
+        return self._invert_enabled and bool(
+            heads_sides.inverted_figures(self._invert_mode))
+
+    def _dyn_block_figure(self, figs: tuple):
+        """Figur (1..4), die ein Block gerade darstellt. Ein eigener Block je
+        Figur steht fest; ein gemeinsamer FIGURE-Block zeigt die laufende Figur
+        (aus der Teil-Zeitachse), vorher die naechste. Ohne verlaessliche
+        Zeitachse (nicht genau 4 Teile) None -> nicht tauschen."""
+        if len(figs) == 1:
+            return figs[0]
+        if len(self._dyn_part_starts) != 4:
+            return None
+        cur = self._dynamic_current_part(self._sync_last_pos) + 1
+        if cur in figs:
+            return cur
+        upcoming = [f for f in figs if f > cur]
+        return upcoming[0] if upcoming else figs[-1]
+
+    def _dyn_invert_flags(self) -> tuple:
+        """Je Figuren-Block: soll dort invertiert angezeigt werden?"""
+        if not self._invert_active():
+            return tuple(False for _ in self._dyn_block_keys)
+        swap = heads_sides.inverted_figures(self._invert_mode)
+        return tuple(self._dyn_block_figure(figs) in swap
+                     for figs in self._dyn_block_figs)
+
+    def _invert_tick(self):
+        """Im Scroll-Takt: wechselt die Tauschrichtung eines gemeinsamen
+        Blocks an einer Figuren-Grenze, wird deferred neu gerendert (auch in
+        Modus 1, wo sonst nichts neu gerendert wird). Billig ohne Wechsel."""
+        if not self._dynamic_enabled or not self._invert_active():
+            return
+        if self._dyn_invert_flags() != self._dyn_invert_state:
+            self.refresh_dynamic_from_sequence()
+
+    def _on_invert_clicked(self, checked: bool):
+        """Spiegel-Button. Ohne gewaehlte Art: in die Einstellungen an die
+        Art-Auswahl (Button bleibt aus). Sonst An/Aus-Toggle, synchron mit
+        lyrics/dynamic_invert_enabled."""
+        if not heads_sides.inverted_figures(self._invert_mode):
+            self._btn_invert.blockSignals(True)
+            self._btn_invert.setChecked(False)
+            self._btn_invert.blockSignals(False)
+            if callable(self.open_settings_at):
+                self.open_settings_at("lyrics/dynamic_invert_mode")
+            return
+        self._invert_enabled = bool(checked)
+        settings = self._settings if self._settings is not None else QSettings()
+        try:
+            settings.setValue("lyrics/dynamic_invert_enabled", bool(checked))
+            settings.sync()
+        except Exception:
+            pass
+        self._update_invert_tooltip()
+        self.refresh_dynamic_from_sequence()
+
+    def reload_invert_settings(self):
+        """Art und An/Aus aus der INI lesen (Start und Settings-Live-Apply) und
+        Button + Anzeige nachziehen."""
+        if self._settings is None:
+            return
+        try:
+            self._invert_enabled = self._settings.value(
+                "lyrics/dynamic_invert_enabled", False, type=bool)
+            self._invert_mode = str(
+                self._settings.value("lyrics/dynamic_invert_mode") or "").upper()
+        except Exception:
+            return
+        if hasattr(self, "_btn_invert"):
+            self._btn_invert.blockSignals(True)
+            self._btn_invert.setChecked(self._invert_active())
+            self._btn_invert.blockSignals(False)
+            self._update_invert_tooltip()
+        self.refresh_dynamic_from_sequence()
+
+    def _update_invert_tooltip(self):
+        if not heads_sides.inverted_figures(self._invert_mode):
+            tip = _t("tooltip_dynamic_invert_choose")
+        else:
+            tip = _t("tooltip_dynamic_invert", mode=self._invert_mode)
+        self._btn_invert.setToolTip(tip)
+
     def _dynamic_current_part(self, pos: float) -> int:
         """Index des gerade laufenden Figuren-Teils (letzter Teil, dessen
         Startzeit <= pos). 0, solange noch kein Teil begonnen hat."""
@@ -2325,6 +2435,7 @@ class LyricsWidget(QWidget):
         (deferred, audio-sicher). Das Sequence-View meldet die Aenderung zurueck
         und das Lyric-Feld spiegelt sie (refresh_dynamic_from_sequence).
         Nach dem letzten Figuren-Teil wird nicht weiter geblaettert."""
+        self._invert_tick()
         if (not self._dynamic_enabled or self._dynamic_mode != "2"
                 or self._dyn_advance_pending or not self._dyn_part_starts):
             return
@@ -2395,13 +2506,17 @@ class LyricsWidget(QWidget):
         # (Option B: nur der ersetzte Textbereich wird kuerzer, nicht das Timing).
         base_lines = pristine.toPlainText().split("\n")  # alte Zeilen == old_offsets
         edits = []  # (content_l0, call_end, calls) — Original-Zeilen
-        for key in self._dyn_block_keys:
+        # intern#127: je Block normal oder mit getauschten Heads/Sides
+        flags = self._dyn_invert_flags()
+        self._dyn_invert_state = flags
+        inverted = heads_sides.invert_sequence(calls) if any(flags) else calls
+        for key, inv in zip(self._dyn_block_keys, flags):
             cl0 = key[0] + 1
             if cl0 > key[1]:
                 continue  # Block ist nur die Ueberschrift → nichts zu ersetzen
             call_end = self._resolve_block_cut(key[0], key[1], base_lines,
                                                base_sections)
-            edits.append((cl0, call_end, calls))
+            edits.append((cl0, call_end, inverted if inv else calls))
 
         clone = pristine.clone(self._browser)
         for cl0, l1, calls in sorted(edits, key=lambda e: e[0], reverse=True):
@@ -2498,12 +2613,16 @@ class LyricsWidget(QWidget):
         # Eindeutige Figuren-Bloecke (Doppelungen aus einem gemeinsamen
         # FIGURE-Block zusammenfassen), Reihenfolge nach Textzeile.
         self._dyn_block_keys = []
-        seen = set()
+        figs_by_key = {}
         for name, rng in figures:
             key = (int(rng[0]), int(rng[1]))
-            if key not in seen:
-                seen.add(key)
+            if key not in figs_by_key:
+                figs_by_key[key] = []
                 self._dyn_block_keys.append(key)
+            figs_by_key[key].append(self._DYNAMIC_FIGURES.index(name) + 1)
+        # intern#127: welche Figuren (1..4) ein Block darstellt
+        self._dyn_block_figs = [tuple(sorted(figs_by_key[k]))
+                                for k in self._dyn_block_keys]
 
         # Figuren-Teil-Startzeiten aus den SyncPoints ableiten. Der Auto-Sync
         # legt pro Teil ZWEI Anker an (Block-Anfang bei s_char, Block-Ende bei
@@ -2569,6 +2688,8 @@ class LyricsWidget(QWidget):
         self._pre_dynamic = None
         self._dyn_part_starts = []
         self._dyn_block_keys = []
+        self._dyn_block_figs = []
+        self._dyn_invert_state = ()
         self._dyn_rendered_part = 0
         self._dyn_render_pending = False
         self._dyn_advance_pending = False

@@ -1380,6 +1380,51 @@
     "en": "How the sequences selected in the Sequence View are distributed across the four figure sections when Dynamic Lyrics is active.",
     "ja": "Dynamic Lyrics 有効時に、Sequence View で選択したシーケンスを4つのフィギュアセクションにどう割り当てるか。"
   },
+  "setting_label_lyrics_dynamic_invert_enabled": {
+    "de": "Heads / Sides invertieren",
+    "en": "Invert heads / sides",
+    "ja": "Heads / Sides を入れ替え"
+  },
+  "setting_tip_lyrics_dynamic_invert_enabled": {
+    "de": "Tauscht in den eingeblendeten Sequenzen Heads und Sides (samt Couple-Nummern) in den Figuren der gewählten Art. Wirkt nur zusammen mit Dynamic Lyrics. Entspricht dem Spiegel-Button im Lyric-Fenster.",
+    "en": "Swaps heads and sides (including couple numbers) in the displayed sequences for the figures of the selected pattern. Only works together with Dynamic Lyrics. Same as the mirror button in the lyrics window.",
+    "ja": "表示中のシーケンスで、選択したパターンのフィギュアの Heads と Sides（カップル番号を含む）を入れ替えます。Dynamic Lyrics と併用した場合のみ有効です。歌詞ウィンドウのミラーボタンと同じです。"
+  },
+  "setting_label_lyrics_dynamic_invert_mode": {
+    "de": "Art der Invertierung",
+    "en": "Inversion pattern",
+    "ja": "入れ替えパターン"
+  },
+  "setting_tip_lyrics_dynamic_invert_mode": {
+    "de": "In welchen Figuren Heads und Sides getauscht werden.",
+    "en": "In which figures heads and sides are swapped.",
+    "ja": "どのフィギュアで Heads と Sides を入れ替えるか。"
+  },
+  "dynamic_invert_opt_hhss": {
+    "de": "HHSS – Figur 3 und 4 tauschen",
+    "en": "HHSS – swap in figures 3 and 4",
+    "ja": "HHSS – フィギュア 3 と 4 で入れ替え"
+  },
+  "dynamic_invert_opt_hssh": {
+    "de": "HSSH – Figur 2 und 3 tauschen",
+    "en": "HSSH – swap in figures 2 and 3",
+    "ja": "HSSH – フィギュア 2 と 3 で入れ替え"
+  },
+  "dynamic_invert_opt_hshs": {
+    "de": "HSHS – Figur 2 und 4 tauschen",
+    "en": "HSHS – swap in figures 2 and 4",
+    "ja": "HSHS – フィギュア 2 と 4 で入れ替え"
+  },
+  "tooltip_dynamic_invert_choose": {
+    "de": "Heads / Sides invertieren: zuerst die Art in den Einstellungen wählen (öffnet sie).",
+    "en": "Invert heads / sides: choose the pattern in Settings first (opens them).",
+    "ja": "Heads / Sides の入れ替え：まず設定でパターンを選択してください（設定を開きます）。"
+  },
+  "tooltip_dynamic_invert": {
+    "de": "Heads / Sides invertieren ({mode}) an/aus. Wirkt nur mit Dynamic Lyrics.",
+    "en": "Invert heads / sides ({mode}) on/off. Only works with Dynamic Lyrics.",
+    "ja": "Heads / Sides の入れ替え（{mode}）オン/オフ。Dynamic Lyrics 使用時のみ有効。"
+  },
   "btn_lyric_sync": {
     "de": "Sync",
     "en": "Sync",
