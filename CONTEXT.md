@@ -72,6 +72,12 @@ Plattenlabel eines Square-Dance-Songs (z. B. ESP, Global). Zusammen mit der
 Plattennummer identifiziert es die Aufnahme — u. a. fuer Cue-Sheet-Suche und
 GEMA-Musikfolgeliste.
 
+**Song-Katalog**:
+Mitgelieferte Liste veroeffentlichter Square-Dance-Songs mit Titel, Label und
+Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
+_EN_: Song Catalog
+_Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.
@@ -83,6 +89,15 @@ _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
+
+**Pausen-Uhr**:
+Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
+_EN_: Break Clock
+
+**Wartemusik**:
+Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
+als gespielt und schaltet die Playlist nicht weiter.
+_EN_: Break Music
 
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden

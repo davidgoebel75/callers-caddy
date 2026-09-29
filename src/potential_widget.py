@@ -7,10 +7,8 @@ Zirkelfrei: keine Import-Zeit-Rueckbezuege auf main.py (Version lazy).
 
 import os
 import re
-import csv
 import json
 import shutil
-import difflib
 from datetime import date
 
 from PySide6.QtWidgets import (
@@ -34,6 +32,7 @@ import singing_sections
 import ceder_lookup
 import song_data_io
 import song_match
+import song_catalog
 
 
 def _app_version():
@@ -1133,7 +1132,9 @@ class _KrabbelkisteWorker(QThread):
         super().__init__(parent)
         self._folder = folder
         self._recursive = recursive
-        self._songs = songs     # Liste (id, title, label, filename)
+        # Liste (id, title, label, filename[, such_label]); such_label = Label
+        # fuer den Abgleich (ggf. aus dem Katalog), label bleibt die Anzeige
+        self._songs = songs
         self._lists = lists
         self._cancel = False
 
@@ -1167,17 +1168,18 @@ class _KrabbelkisteWorker(QThread):
             # die grosse Mehrheit klar unpassender Dateien (grosse Krabbelkiste x
             # viele No-Lyrics-Songs waere sonst quadratisch teuer).
             results = []
-            for sid, title, label, filename in self._songs:
+            for sid, title, label, filename, *extra in self._songs:
                 if self._cancel:
                     break
+                search_label = extra[0] if extra else label
                 words = self._title_words(title)
-                _lname, wnumber = song_match.split_label_number(label or "")
+                _lname, wnumber = song_match.split_label_number(search_label or "")
                 wnumber = (wnumber or "").lstrip("0").lower()
                 best, best_file = None, None
                 for (path, fn, stem, head_lines, haystack) in parsed:
                     if not self._passes_gate(words, wnumber, haystack):
                         continue
-                    m = song_match.best_match(title or "", label or "",
+                    m = song_match.best_match(title or "", search_label or "",
                                               stem, head_lines, self._lists)
                     if best is None or m.score > best.score:
                         best, best_file = m, (path, fn)
@@ -2864,6 +2866,11 @@ class PotentialWidget(QWidget):
         self._show_progress(_t('krabbel_scanning'),
                             cancel_fn=self._krabbel_cancel,
                             title=_t('krabbel_btn_search'))
+        # intern#126: Songs ohne Label bekommen das eindeutige Katalog-Label als
+        # zusaetzliches Kriterium (nur Bonus im 'lyric'-Profil)
+        app_dir = self.paths.app_dir if self.paths else ""
+        songs = [(sid, t, lbl, fn, song_catalog.label_hint(t or "", lbl or "", app_dir))
+                 for sid, t, lbl, fn in songs]
         self._krabbel_worker = _KrabbelkisteWorker(
             folder, recursive, songs, lists)
         self._krabbel_worker.progress.connect(
@@ -3789,6 +3796,9 @@ class PotentialWidget(QWidget):
             return
         self._show_progress(_t('ceder_searching').format(title=title),
                             title=_t('pot_lyrics_fill'))
+        # intern#126: ohne eigenes Label das eindeutige Katalog-Label mitsuchen
+        label = song_catalog.label_hint(
+            title, label, self.paths.app_dir if self.paths else "")
         self._ceder_worker = _CederLookupWorker(
             title, label, self._ceder_labels_path())
         self._ceder_worker.finished_ok.connect(self._ceder_on_results)
@@ -4261,13 +4271,6 @@ class PotentialWidget(QWidget):
 
     # ---- CSV-Abgleich (BL-114) ----
 
-    @staticmethod
-    def _csv_normalize(t):
-        """Titel normalisieren fuer Vergleich: lowercase, Satzzeichen → Leerzeichen."""
-        t = t.lower().strip()
-        t = re.sub(r"[^\w\s]", " ", t)
-        return re.sub(r"\s+", " ", t).strip()
-
     def _on_meta_csv(self):
         # 1. Feld-Auswahl
         dlg_fields = _MetaFieldSelectDialog(self)
@@ -4277,55 +4280,35 @@ class PotentialWidget(QWidget):
         if not selected:
             return
 
-        # 2. CSV-Datei auswählen
-        med_dir = os.path.join(self.paths.app_dir, "music-extended-data") if self.paths else ""
-        default_dir = med_dir if os.path.isdir(med_dir) else ""
-        filepath, _ = QFileDialog.getOpenFileName(
-            self, _t('pot_meta_csv'), default_dir, "CSV-Dateien (*.csv);;Alle Dateien (*)")
-        if not filepath:
-            return
-
-        # 3. CSV laden und indizieren
-        # Format: Song Title, Label, Label Code, Number, Type, Caller, Genre, Original Artist, Released
-        csv_rows = []
-        try:
-            with open(filepath, newline='', encoding='utf-8', errors='replace') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    title = row.get('Song Title', '').strip()
-                    if not title:
-                        continue
-                    year_raw = row.get('Released', '').strip()
-                    year_m = re.search(r'\b(\d{4})\b', year_raw)
-                    csv_rows.append({
-                        'title_norm': self._csv_normalize(title),
-                        'title_raw': title,
-                        'label_name': row.get('Label', '').strip(),
-                        'label_code': row.get('Label Code', '').strip(),
-                        'number': row.get('Number', '').strip(),
-                        'caller': row.get('Caller', '').strip(),
-                        'genre': row.get('Genre', '').strip(),
-                        'original_artist': row.get('Original Artist', '').strip(),
-                        'release_year': year_m.group(1) if year_m else '',
-                    })
-        except Exception as e:
-            QMessageBox.warning(self, _t('error'), str(e))
-            return
-
-        # Schnell-Index: normierter Titel → [csv_rows]
-        csv_title_index = {}
-        for cr in csv_rows:
-            csv_title_index.setdefault(cr['title_norm'], []).append(cr)
-
-        # Index: Nummer → [csv_rows] (Label wird beim Treffer mitgeprueft)
-        csv_number_index = {}
-        for cr in csv_rows:
-            if cr['number']:
-                csv_number_index.setdefault(
-                    cr['number'].lstrip('0').lower(), []).append(cr)
-
-        # Alle normierten CSV-Titel für Fuzzy-Suche
-        all_csv_norms = list(csv_title_index.keys())
+        # 2. Quelle: mitgelieferter Song-Katalog (intern#126) oder andere CSV
+        app_dir = self.paths.app_dir if self.paths else ""
+        catalog = song_catalog.get_catalog(app_dir)
+        use_other = catalog is None
+        if catalog is not None:
+            box = QMessageBox(self)
+            box.setWindowTitle(_t('pot_meta_csv_title'))
+            box.setText(_t('pot_meta_csv_source_text', count=len(catalog)))
+            btn_cat = box.addButton(_t('pot_meta_csv_use_catalog'), QMessageBox.AcceptRole)
+            btn_other = box.addButton(_t('pot_meta_csv_other_file'), QMessageBox.ActionRole)
+            box.addButton(QMessageBox.Cancel)
+            box.setDefaultButton(btn_cat)
+            box.exec()
+            if box.clickedButton() not in (btn_cat, btn_other):
+                return
+            use_other = box.clickedButton() is btn_other
+        if use_other:
+            med_dir = os.path.join(app_dir, song_catalog.CATALOG_DIR) if app_dir else ""
+            default_dir = med_dir if os.path.isdir(med_dir) else ""
+            filepath, _ = QFileDialog.getOpenFileName(
+                self, _t('pot_meta_csv'), default_dir, "CSV-Dateien (*.csv);;Alle Dateien (*)")
+            if not filepath:
+                return
+            # 3. CSV laden und indizieren (Format wie song_catalog.COLUMNS)
+            try:
+                catalog = song_catalog.SongCatalog.from_csv(filepath)
+            except Exception as e:
+                QMessageBox.warning(self, _t('error'), str(e))
+                return
 
         # 4. DB-Songs mit fehlenden Feldern laden
         missing_map = {}   # song_id → {title, label_db, missing_keys}
@@ -4356,60 +4339,39 @@ class PotentialWidget(QWidget):
         known_genres = {name.lower(): name for _, name in self.db.get_all_genres()}
 
         def _csv_field_value(cr, key):
-            """Liefert den relevanten Wert eines CSV-Eintrags fuer ein Feld."""
+            """Liefert den relevanten Wert eines Katalogeintrags fuer ein Feld."""
             if key == 'artist':
-                return cr['caller']
+                return cr.caller
             if key == 'genre':
                 # Kommaseparierte Genres → nur bekannte behalten
-                raw = [g.strip() for g in cr['genre'].split(',') if g.strip()]
-                matched = [known_genres[g.lower()] for g in raw if g.lower() in known_genres]
+                matched = [known_genres[g.lower()] for g in cr.genres
+                           if g.lower() in known_genres]
                 return ', '.join(matched)
             if key == 'original_artist':
-                return cr['original_artist']
+                return cr.original_artist
             if key == 'release_year':
-                return cr['release_year']
+                return cr.release_year
             if key == 'label':
-                code = cr['label_code']
-                num = cr['number']
-                if code and num:
-                    return f"{code} {num}"
-                return code or num
+                return cr.label_field
             return ''
 
         match_rows = []
         for entry in missing_map.values():
             sid = entry['song_id']
-            db_title_norm = self._csv_normalize(entry['title'])
-
             # Exakter Titel-Treffer
-            hits = csv_title_index.get(db_title_norm)
+            hits = catalog.by_title(entry['title'])
             score = 1.0
 
             # Label+Nummer als Alternative, wenn der Titel nicht exakt trifft.
-            # intern#108: Nummer UND Label muessen zusammen passen -- frueher
-            # reichte die Nummer allein (beliebiges Label) oder das Kuerzel
-            # allein (beliebige Nummer), das traf fremde Aufnahmen.
-            _, db_num = song_match.split_label_number(entry['label_db'])
-            label_hits = [
-                cr for cr in csv_number_index.get(db_num.lstrip('0').lower(), [])
-                if song_match.label_number_matches(
-                    entry['label_db'], cr['label_name'], cr['label_code'],
-                    cr['number'])
-            ] if db_num else []
+            # intern#108: Nummer UND Label muessen zusammen passen.
+            label_hits = catalog.by_label_number(entry['label_db'])
             if label_hits and not hits:
                 hits = label_hits
                 score = 0.95
 
             # Fuzzy-Suche falls noch kein Treffer
-            if not hits and all_csv_norms:
-                close = difflib.get_close_matches(
-                    db_title_norm, all_csv_norms, n=3, cutoff=0.80)
-                if close:
-                    hits = []
-                    for norm in close:
-                        hits.extend(csv_title_index[norm])
-                    score = difflib.SequenceMatcher(
-                        None, db_title_norm, close[0]).ratio()
+            if not hits:
+                hits, score = catalog.by_title_fuzzy(entry['title'])
 
             if not hits:
                 continue

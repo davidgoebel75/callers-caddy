@@ -183,6 +183,7 @@ Die Details stehen in `1_Source/docs/`. **Vor jeder Arbeit den passenden Abschni
 ## Technische Konventionen
 
 - Sprache im Code: Englisch (Variablen, Methoden), Deutsch (Kommentare, UI-Texte)
+- **Song-Katalog** (`music-extended-data/music_extended_data.csv`, geladen über `song_catalog.py`): nicht von Hand editieren. Aktualisiert wird er per `tools/update_song_catalog.py`, das Davids Scraper-Update aufruft und als Auto-PR `chore/song-catalog-*` einreicht. Match-Verbesserungen gehören nach `song_match.py`.
 - UI-Framework: PySide6 (Qt 6 Widgets), kein WebView
 - DB: SQLite via built-in sqlite3
 - Audio: Eigener Streaming-WSOLA (kein Rubber Band/SoundTouch)
