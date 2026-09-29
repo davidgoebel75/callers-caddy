@@ -7706,6 +7706,12 @@ def main():
         QTimer.singleShot(
             800, lambda: _show_crash_log_notice(window, crash_logs, settings))
 
+    # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
+    # nicht auf dem Main-Thread parsen (intern#126).
+    QTimer.singleShot(1000, lambda: threading.Thread(
+        target=song_catalog.get_catalog, args=(window.paths.app_dir,),
+        daemon=True, name="SongCatalogPreload").start())
+
     # Update-Pruefung im Hintergrund (scheitert lautlos bei Offline/Fehler).
     # Verzoegert, damit sie nicht mit dem Start konkurriert.
     try:

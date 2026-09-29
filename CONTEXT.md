@@ -72,6 +72,12 @@ Plattenlabel eines Square-Dance-Songs (z. B. ESP, Global). Zusammen mit der
 Plattennummer identifiziert es die Aufnahme — u. a. fuer Cue-Sheet-Suche und
 GEMA-Musikfolgeliste.
 
+**Song-Katalog**:
+Mitgelieferte Liste veroeffentlichter Square-Dance-Songs mit Titel, Label und
+Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
+_EN_: Song Catalog
+_Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.

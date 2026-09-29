@@ -152,9 +152,13 @@ def main() -> int:
                   f"({REPO_ROOT}). Erst committen/stashen, dann erneut starten.")
             return 2
         start = _git("rev-parse", "--abbrev-ref", "HEAD")
+        if start == "HEAD":
+            print("[Katalog] ABBRUCH: detached HEAD. Erst einen Branch auschecken.")
+            return 2
         _git("fetch", "origin", BASE_BRANCH)
         branch = _branch_name()
-        _git("switch", "-c", branch, f"origin/{BASE_BRANCH}")
+        # --no-track: sonst waere origin/develop der Upstream (intern#121)
+        _git("switch", "-c", branch, "--no-track", f"origin/{BASE_BRANCH}")
         try:
             # Mit LF schreiben (.gitattributes: eol=lf), sonst meldet der
             # naechste Lauf / git status eine Scheinaenderung
@@ -175,6 +179,10 @@ def main() -> int:
                 print(f"[Katalog] Push ok, PR fehlgeschlagen: {res.stderr.strip()}")
                 return 2
             print(f"[Katalog] PR: {res.stdout.strip()}")
+        except RuntimeError:
+            # Geschriebene CSV nicht im Arbeitsbaum liegen lassen
+            _git("checkout", "HEAD", "--", str(TARGET.relative_to(REPO_ROOT)), check=False)
+            raise
         finally:
             _git("switch", start, check=False)
     except RuntimeError as e:
