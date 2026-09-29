@@ -6568,7 +6568,7 @@ class P29MainWindow(QMainWindow):
         Vorrang vor geometry(), die dann nur Qt-Defaults enthielte.
 
         Angedockte Docks behalten ihre letzte Floating-Position: vorgemerkt
-        oder aus der INI (floatrect, sonst einmalig aus alten floatgeom-
+        oder aus der App-INI (floatrect, sonst einmalig aus alten floatgeom-
         Bytes umgerechnet). floatgeom wird erst entfernt, NACHDEM floatrect
         geschrieben ist — sonst liefe der Fallback bei jedem Start erneut
         bzw. ginge die Position verloren. Unlesbare Bytes bleiben stehen."""
@@ -6579,8 +6579,10 @@ class P29MainWindow(QMainWindow):
             if dock.isFloating():
                 rect = self._pending_float_geom.get(name) or dock.geometry()
             else:
+                # Quelle ist immer die App-INI, nicht das Ziel: beim Layout-
+                # Export ist settings eine neue oder alte fremde Datei.
                 rect = (self._pending_float_geom.get(name)
-                        or self._read_float_rect(settings, name))
+                        or self._read_float_rect(self._settings, name))
             if rect is None:
                 continue
             settings.setValue(f"floatrect/{name}", rect)

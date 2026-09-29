@@ -87,6 +87,12 @@ def _neu_laden(s):
     return QSettings(s.fileName(), QSettings.IniFormat)
 
 
+def _beenden(f, s):
+    """Beenden wie _save_layout: s ist die App-INI und zugleich das Ziel."""
+    f._settings = s
+    f._save_float_geoms(s)
+
+
 # ---- Lesen der alten Bytes -------------------------------------------------
 
 def test_davids_bytes_ergeben_normal_geometry():
@@ -138,7 +144,7 @@ def test_angedocktes_dock_wird_umgestellt(fenster, tmp_path):
     f, angedockt, _ = fenster
     s = _ini(tmp_path, dock_reports=DAVID_BYTES)
     f._restore_float_geoms(s)
-    f._save_float_geoms(s)
+    _beenden(f, s)
     s = _neu_laden(s)
     assert s.value("floatrect/dock_reports") == DAVID_RECT
     assert s.value("floatgeom/dock_reports") is None
@@ -153,7 +159,7 @@ def test_angedocktes_dock_nach_sichtbarwerden(fenster, tmp_path):
     f._restore_float_geoms(s)
     f._on_float_dock_visible(angedockt, True)
     assert "dock_reports" not in f._pending_float_geom
-    f._save_float_geoms(s)
+    _beenden(f, s)
     s = _neu_laden(s)
     assert s.value("floatrect/dock_reports") == DAVID_RECT
     assert s.value("floatgeom/dock_reports") is None
@@ -162,7 +168,7 @@ def test_angedocktes_dock_nach_sichtbarwerden(fenster, tmp_path):
 def test_schwebendes_dock_wird_umgestellt(fenster, tmp_path):
     f, _, schwebend = fenster
     s = _ini(tmp_path, dock_rules=DAVID_BYTES)
-    f._save_float_geoms(s)
+    _beenden(f, s)
     s = _neu_laden(s)
     assert s.value("floatrect/dock_rules") == schwebend.geometry()
     assert s.value("floatgeom/dock_rules") is None
@@ -173,7 +179,7 @@ def test_kaputte_bytes_bleiben_stehen(fenster, tmp_path):
     kaputt = b"\x00" * 66
     s = _ini(tmp_path, dock_reports=kaputt)
     f._restore_float_geoms(s)
-    f._save_float_geoms(s)
+    _beenden(f, s)
     s = _neu_laden(s)
     assert s.value("floatrect/dock_reports") is None
     assert bytes(s.value("floatgeom/dock_reports")) == kaputt
@@ -184,10 +190,43 @@ def test_vorhandenes_floatrect_hat_vorrang(fenster, tmp_path):
     s = _ini(tmp_path, dock_reports=DAVID_BYTES)
     s.setValue("floatrect/dock_reports", QRect(10, 20, 300, 400))
     f._restore_float_geoms(s)
-    f._save_float_geoms(s)
+    _beenden(f, s)
     s = _neu_laden(s)
     assert s.value("floatrect/dock_reports") == QRect(10, 20, 300, 400)
     assert s.value("floatgeom/dock_reports") is None
+
+
+def _export(f, pfad):
+    """Wie _save_layout_to_file: Ziel ist eine eigene Layout-Datei."""
+    ziel = QSettings(str(pfad), QSettings.IniFormat)
+    f._save_float_geoms(ziel)
+    return _neu_laden(ziel)
+
+
+def test_export_nimmt_position_aus_app_ini(fenster, tmp_path):
+    """Angedocktes Dock ohne Vormerk-Wert: die Position kommt aus der
+    App-INI, nicht aus der (neuen) Zieldatei."""
+    f, _, _ = fenster
+    app = _ini(tmp_path)
+    app.setValue("floatrect/dock_reports", QRect(10, 20, 300, 400))
+    f._settings = app
+    ziel = _export(f, tmp_path / "layout_neu.ini")
+    assert ziel.value("floatrect/dock_reports") == QRect(10, 20, 300, 400)
+
+
+def test_export_ueberschreibt_alte_layout_datei(fenster, tmp_path):
+    """Eine alte Layout-Datei mit veraltetem floatgeom bekommt die aktuelle
+    Position aus der App-INI; das alte floatgeom verschwindet danach."""
+    f, _, _ = fenster
+    alt = QSettings(str(tmp_path / "layout_alt.ini"), QSettings.IniFormat)
+    alt.setValue("floatgeom/dock_reports", QByteArray(DAVID_BYTES))
+    alt.sync()
+    app = _ini(tmp_path)
+    app.setValue("floatrect/dock_reports", QRect(10, 20, 300, 400))
+    f._settings = app
+    ziel = _export(f, tmp_path / "layout_alt.ini")
+    assert ziel.value("floatrect/dock_reports") == QRect(10, 20, 300, 400)
+    assert ziel.value("floatgeom/dock_reports") is None
 
 
 def test_mehrfacher_start_mit_alter_ini(fenster, tmp_path, monkeypatch):
@@ -208,7 +247,7 @@ def test_mehrfacher_start_mit_alter_ini(fenster, tmp_path, monkeypatch):
         f._pending_float_geom.clear()
         f._restore_float_geoms(s)
         assert f._pending_float_geom["dock_reports"] == DAVID_RECT
-        f._save_float_geoms(s)
+        _beenden(f, s)
         s = _neu_laden(s)
         assert s.value("floatrect/dock_reports") == DAVID_RECT
         assert s.value("floatgeom/dock_reports") is None
