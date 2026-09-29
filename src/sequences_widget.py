@@ -1228,8 +1228,11 @@ class SequencesWidget(QWidget):
         if seq_id not in selected_ids:
             selected_ids = [seq_id]
         menu.addSeparator()
-        # intern#119: rote Sequenz -> Call-Mapping auf ihre Call-Texte ohne Zuordnung
-        if id_item.data(self._ROLE_UNMAPPED) and self.on_open_call_mapping:
+        # intern#119: rote Sequenz -> Call-Mapping auf ihre Call-Texte ohne Zuordnung.
+        # Rot heisst nur max_to fehlt (auch ohne Call-Texte oder vor dem
+        # Remapping): Eintrag nur, wenn es wirklich etwas zuzuordnen gibt.
+        if (id_item.data(self._ROLE_UNMAPPED) and self.on_open_call_mapping
+                and self.db.get_unmapped_call_texts_of_sequence(seq_id)):
             act_map = menu.addAction(_t("ctx_open_call_mapping_for_sequence"))
             act_map.triggered.connect(
                 lambda: self._open_call_mapping_for_sequence(seq_id))
