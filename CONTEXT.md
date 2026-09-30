@@ -86,6 +86,17 @@ Wird als Lyrics-Datei beim Song abgelegt.
 Die dem Song zugeordnete Textdatei im Programm, egal woher sie stammt.
 _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 
+**Textsprung**:
+Moment, in dem der Auto-Scroll der Lyrics an einem SyncPoint die naechste
+Sprungmarke erreicht. "Textsprung timen" verschiebt ihn um ganze Sekunden.
+_EN_: Text Jump
+
+**Texttausch**:
+Moment, in dem Dynamic Lyrics an einer Figure-Grenze die eingeblendete Sequenz
+wechselt oder Heads und Sides tauscht. "Texttausch timen" verschiebt ihn um ganze
+Sekunden.
+_EN_: Text Swap
+
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.

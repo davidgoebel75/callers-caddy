@@ -369,6 +369,24 @@ SETTINGS_META: dict[str, dict] = {
         "default": "",
         "tooltip": "In welchen Figuren Heads und Sides getauscht werden.",
     },
+    # intern#115: Timing-Parameter (ganze Sekunden, negativ = frueher)
+    "lyrics/text_jump_offset": {
+        "label": "Textsprung timen",
+        "widget": "spinbox",
+        "min": -10, "max": 10, "step": 1, "suffix": " s",
+        "default": -4,
+        "tooltip": "Verschiebt, wann der Auto-Scroll die Zeile eines "
+                   "SyncPoints erreicht. Negativ = früher, empfohlen -4. "
+                   "Im SyncPoint-Modus ohne Wirkung.",
+    },
+    "lyrics/dynamic_swap_offset": {
+        "label": "Texttausch timen",
+        "widget": "spinbox",
+        "min": -10, "max": 10, "step": 1, "suffix": " s",
+        "default": -4,
+        "tooltip": "Verschiebt bei Dynamic Lyrics den Sequenzwechsel und den "
+                   "Heads/Sides-Tausch. Negativ = früher, empfohlen -4.",
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",
