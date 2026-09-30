@@ -1406,9 +1406,9 @@
     "ja": "テキストジャンプのタイミング"
   },
   "setting_tip_lyrics_text_jump_offset": {
-    "de": "Verschiebt, wann der Auto-Scroll die Zeile eines SyncPoints erreicht, in Sekunden. Negativ = früher, empfohlen -2. Die SyncPoints selbst bleiben unverändert.",
-    "en": "Shifts when auto-scroll reaches the line of a SyncPoint, in seconds. Negative = earlier, -2 recommended. The SyncPoints themselves stay unchanged.",
-    "ja": "自動スクロールが SyncPoint の行に到達するタイミングを秒単位でずらします。マイナス = 早く、推奨は -2。SyncPoint 自体は変更されません。"
+    "de": "Verschiebt, wann der Auto-Scroll die Zeile eines SyncPoints erreicht, in Sekunden. Negativ = früher, empfohlen -4. Die SyncPoints selbst bleiben unverändert; im SyncPoint-Modus wirkt die Verschiebung nicht.",
+    "en": "Shifts when auto-scroll reaches the line of a SyncPoint, in seconds. Negative = earlier, -4 recommended. The SyncPoints themselves stay unchanged; the shift has no effect in SyncPoint mode.",
+    "ja": "自動スクロールが SyncPoint の行に到達するタイミングを秒単位でずらします。マイナス = 早く、推奨は -4。SyncPoint 自体は変更されません。SyncPoint モードではずれは適用されません。"
   },
   "setting_label_lyrics_dynamic_swap_offset": {
     "de": "Texttausch timen",
@@ -1416,9 +1416,9 @@
     "ja": "テキスト入れ替えのタイミング"
   },
   "setting_tip_lyrics_dynamic_swap_offset": {
-    "de": "Verschiebt bei Dynamic Lyrics den Sequenzwechsel und den Heads/Sides-Tausch, in Sekunden. Negativ = früher, empfohlen -2 (passt dann zum Textsprung).",
-    "en": "Shifts the sequence change and the heads/sides swap of Dynamic Lyrics, in seconds. Negative = earlier, -2 recommended (then it matches the text jump).",
-    "ja": "Dynamic Lyrics のシーケンス切り替えと Heads/Sides の入れ替えを秒単位でずらします。マイナス = 早く、推奨は -2（テキストジャンプと揃います）。"
+    "de": "Verschiebt bei Dynamic Lyrics den Sequenzwechsel und den Heads/Sides-Tausch, in Sekunden. Negativ = früher, empfohlen -4 (passt dann zum Textsprung).",
+    "en": "Shifts the sequence change and the heads/sides swap of Dynamic Lyrics, in seconds. Negative = earlier, -4 recommended (then it matches the text jump).",
+    "ja": "Dynamic Lyrics のシーケンス切り替えと Heads/Sides の入れ替えを秒単位でずらします。マイナス = 早く、推奨は -4（テキストジャンプと揃います）。"
   },
   "dynamic_invert_opt_hhss": {
     "de": "HHSS – Figure 3 und 4 tauschen",

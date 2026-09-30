@@ -6824,8 +6824,8 @@ class P29MainWindow(QMainWindow):
             "lyrics/dynamic_invert_enabled": "false",
             "lyrics/dynamic_invert_mode": "",
             # intern#115: Timing-Parameter (Sekunden, negativ = frueher)
-            "lyrics/text_jump_offset": "0",
-            "lyrics/dynamic_swap_offset": "0",
+            "lyrics/text_jump_offset": "-4",
+            "lyrics/dynamic_swap_offset": "-4",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:

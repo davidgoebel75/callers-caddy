@@ -4472,8 +4472,9 @@ class LyricsWidget(QWidget):
         points = [(0.0, 0)]
         # intern#115: "Textsprung timen" verschiebt die Anker zeitlich (nur fuer
         # die Anzeige, gespeichert bleibt die echte Zeit). Innerhalb des Songs
-        # halten, sonst ueberholt ein Anker die festen Endpunkte.
-        shift = float(self._text_jump_offset)
+        # halten, sonst ueberholt ein Anker die festen Endpunkte. Im SyncPoint-
+        # Modus nicht: Dort prueft und setzt man SyncPoints gegen die echte Zeit.
+        shift = 0.0 if self._sync_mode else float(self._text_jump_offset)
         for sec, p in sorted(self._active_anchors(), key=lambda a: a[0]):
             y = self._y_for_pos(int(p), doc, layout, max_pos)
             if y is None:

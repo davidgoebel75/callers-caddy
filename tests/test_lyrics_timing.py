@@ -103,3 +103,10 @@ def test_textsprung_offset_vor_songanfang_wird_begrenzt(widget):
     widget._text_jump_offset = -10
     # Anker bei 3 s rutscht auf 0 s, nicht davor: kein Absturz, Ziel >= 0
     assert _ziel(widget, 1.0, anker_sek=3.0) >= 0
+
+
+def test_textsprung_offset_wirkt_nicht_im_syncpoint_modus(widget):
+    am_syncpoint = _ziel(widget, 60.0)
+    widget._text_jump_offset = -4
+    widget._sync_mode = True
+    assert _ziel(widget, 60.0) == am_syncpoint
