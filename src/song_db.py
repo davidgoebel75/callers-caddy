@@ -3527,8 +3527,9 @@ class SongDatabase:
         """Gibt alle Zuordnungen als Liste von Dicts zurueck (Export).
 
         BL-210: eine Zeile je Figur, hoechste Figur zuerst; weitere Figuren
-        tragen das mapped_by der Hauptzeile. Aeltere Versionen importieren per
-        INSERT OR IGNORE und uebernehmen so genau die hoechste Figur.
+        tragen das mapped_by der Hauptzeile. "Keine Figur" ist eine Zeile mit
+        entity_id None. Grundlage fuer den v2-Export (mapping_io.build_export)
+        und den Vergleich beim Import; 0.159 und aelter lesen v2 nicht.
         """
         figures = self.get_all_call_text_figures()
         cur = self._conn.execute(
@@ -3540,44 +3541,98 @@ class SongDatabase:
             for fig in (figures.get(call_text) or [entity_id])
         ]
 
-    def import_call_text_mappings(self, rows: list[dict]) -> tuple[int, int]:
-        """Importiert Zuordnungen; vorhandene Call-Texte werden uebersprungen
-        (Semantik wie INSERT OR IGNORE).
-
-        BL-210: Zeilen werden je Call-Text gesammelt (eine Zeile je Figur) und
-        als Menge geschrieben — die hoechste Figur wird neu bestimmt, nicht der
-        Dateireihenfolge entnommen. mapped_by kommt aus der ersten Zeile des
-        Texts. Eine Transaktion.
-
-        Returns:
-            (neu_eingefuegt, bereits_vorhanden) — gezaehlt in Call-Texten
-            (Zuordnungen), nicht in Figuren-Zeilen
-        """
-        groups: dict[str, tuple[str, list]] = {}
-        for r in rows:
-            _mb, ids = groups.setdefault(r["call_text"], (r["mapped_by"], []))
+    def _local_call_text_sets(self) -> dict:
+        """{call_text: (figuren, mapped_by)} inkl. "keine Figur" ([])."""
+        out = {}
+        for r in self.get_all_call_text_mappings():
+            figs, _mb = out.setdefault(r["call_text"], ([], r["mapped_by"]))
             if r["entity_id"]:
-                ids.append(r["entity_id"])
-        existing = {ct for (ct,) in self._conn.execute(
-            "SELECT call_text FROM call_text_mappings")}
-        neu = 0
+                figs.append(r["entity_id"])
+        return out
+
+    def diff_call_text_figures(self, imported: dict) -> dict:
+        """Vergleicht importierte Figuren-Mengen mit den lokalen (intern#79).
+
+        imported: {call_text: obj mit .figures (list) und .mapped_by}
+        (mapping_io.ImportedMapping). Steht lokal schon genau dieselbe Menge,
+        ist der Text identisch, auch wenn sie verwaiste IDs enthaelt (Altbestand
+        ohne calls-Zeile) -- dann gibt es nichts zu melden. Sonst fallen Figuren
+        ohne calls-Zeile weg und werden gemeldet; bleibt dadurch von einer
+        Menge nichts uebrig, wird der Call-Text uebersprungen (statt ihn zu
+        "keine Figur" zu machen).
+
+        Returns dict:
+            new:        [(call_text, figuren, mapped_by)] lokal noch nicht da
+            identical:  [call_text] gleiche Menge (Quelle egal)
+            conflicts:  [(call_text, lokal, lokal_mb, import, import_mb)]
+            unknown_figures: sortierte entity_ids ohne calls-Zeile, nur aus
+                        Texten, die geschrieben wuerden (neu/Konflikt)
+            skipped:    [call_text] nur unbekannte Figuren
+        """
+        local = self._local_call_text_sets()
+        res = {"new": [], "identical": [], "conflicts": [],
+               "unknown_figures": [], "skipped": []}
+        pending = {}
+        for ct, m in imported.items():
+            if ct in local and set(m.figures) == set(local[ct][0]):
+                res["identical"].append(ct)
+            else:
+                pending[ct] = m
+        unknown = self.unknown_figures(
+            [e for m in pending.values() for e in m.figures])
+        reported = set()
+        for ct, m in pending.items():
+            figs = [e for e in m.figures if e not in unknown]
+            dropped = set(m.figures) - set(figs)
+            if m.figures and not figs:
+                res["skipped"].append(ct)
+                reported |= dropped
+                continue
+            if ct not in local:
+                res["new"].append((ct, figs, m.mapped_by))
+                reported |= dropped
+                continue
+            loc_figs, loc_mb = local[ct]
+            if set(figs) == set(loc_figs):
+                # nach dem Filtern identisch: wird nicht geschrieben, also
+                # auch nichts melden
+                res["identical"].append(ct)
+            else:
+                res["conflicts"].append((ct, loc_figs, loc_mb, figs, m.mapped_by))
+                reported |= dropped
+        res["unknown_figures"] = sorted(reported)
+        return res
+
+    def apply_call_text_figures_decisions(self, decisions) -> int:
+        """Schreibt geklaerte Zuordnungen in EINER Transaktion (intern#79).
+
+        decisions: Iterable von (call_text, figuren, mapped_by). figuren
+        None entfernt die Zuordnung, [] setzt bewusst "keine Figur"
+        (entity_id NULL), sonst die Menge. Rueckgabe: Anzahl Call-Texte.
+        """
+        written = 0
         try:
-            for call_text, (mapped_by, ids) in groups.items():
-                if call_text in existing:
+            for call_text, figs, mapped_by in decisions:
+                if not call_text:
                     continue
-                if ids:
-                    self._write_call_text_figures(call_text, ids, mapped_by)
-                else:
-                    # bewusst "keine Figur" (entity_id NULL) wie bisher uebernehmen
+                if figs is None:
+                    self._write_call_text_figures(call_text, [], mapped_by)
+                elif not figs:
                     self._conn.execute(
-                        "INSERT INTO call_text_mappings (call_text, entity_id, mapped_by) "
-                        "VALUES (?, NULL, ?)", (call_text, mapped_by))
-                neu += 1
+                        "DELETE FROM call_text_figures_extra WHERE call_text = ?",
+                        (call_text,))
+                    self._conn.execute(
+                        "INSERT OR REPLACE INTO call_text_mappings "
+                        "(call_text, entity_id, mapped_by) VALUES (?, NULL, ?)",
+                        (call_text, mapped_by))
+                else:
+                    self._write_call_text_figures(call_text, figs, mapped_by)
+                written += 1
         except Exception:
             self._conn.rollback()
             raise
         self._conn.commit()
-        return neu, len(groups) - neu
+        return written
 
     def delete_call_text_mapping(self, call_text: str):
         """Loescht ein bestehendes Mapping fuer den gegebenen Call-Text

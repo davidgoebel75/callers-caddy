@@ -3176,44 +3176,164 @@
     "ja": "データベースにシーケンスがありません。"
   },
   "menu_mapping_export": {
-    "de": "Mapping exportieren...",
+    "de": "Zuordnungen exportieren...",
     "en": "Export Mapping...",
     "ja": "マッピングをエクスポート..."
   },
   "menu_mapping_import": {
-    "de": "Mapping importieren...",
+    "de": "Zuordnungen importieren...",
     "en": "Import Mapping...",
     "ja": "マッピングをインポート..."
   },
   "mapping_export_title": {
-    "de": "Mapping exportieren",
+    "de": "Zuordnungen exportieren",
     "en": "Export Mapping",
     "ja": "マッピングをエクスポート"
   },
   "mapping_export_ok": {
-    "de": "{count} Mappings exportiert.",
+    "de": "{count} Zuordnungen exportiert.",
     "en": "{count} mappings exported.",
     "ja": "{count} 件のマッピングをエクスポートしました。"
   },
   "mapping_export_empty": {
-    "de": "Keine Mappings vorhanden.",
+    "de": "Keine Zuordnungen vorhanden.",
     "en": "No mappings available.",
     "ja": "マッピングがありません。"
   },
   "mapping_import_title": {
-    "de": "Mapping importieren",
+    "de": "Zuordnungen importieren",
     "en": "Import Mapping",
     "ja": "マッピングをインポート"
-  },
-  "mapping_import_ok": {
-    "de": "{neu} neue Mappings importiert, {bereits} bereits vorhanden (uebersprungen).",
-    "en": "{neu} new mappings imported, {bereits} already present (skipped).",
-    "ja": "{neu} 件の新しいマッピングをインポートしました。{bereits} 件はすでに存在します（スキップ）。"
   },
   "mapping_import_error": {
     "de": "Fehler beim Importieren: {msg}",
     "en": "Import error: {msg}",
     "ja": "インポートエラー: {msg}"
+  },
+  "mapping_import_error_unknown_format": {
+    "de": "Die Datei ist keine Zuordnungs-Datei von Callers Caddy.",
+    "en": "The file is not a Callers Caddy mapping file.",
+    "ja": "このファイルは Callers Caddy のマッピングファイルではありません。"
+  },
+  "mapping_import_error_newer_version": {
+    "de": "Die Datei hat Format-Version {version}. Diese Programmversion liest bis Version {supported}. Bitte Callers Caddy aktualisieren.",
+    "en": "The file has format version {version}. This program version reads up to version {supported}. Please update Callers Caddy.",
+    "ja": "このファイルの形式バージョンは {version} です。このプログラムはバージョン {supported} まで読み込めます。Callers Caddy を更新してください。"
+  },
+  "mapping_conflict_title": {
+    "de": "Zuordnungen importieren – Konflikte klären",
+    "en": "Mapping import – resolve conflicts",
+    "ja": "コールマップのインポート – 競合の解決"
+  },
+  "mapping_conflict_intro": {
+    "de": "{count} Call-Texte sind lokal anders zugeordnet als in der Datei. Wähle je Zeile: A behält die lokale Zuordnung, B übernimmt die aus der Datei, C lässt dich die Figuren selbst wählen. Vorausgewählt ist die Empfehlung (mehr Figuren, dann die verlässlichere Quelle).",
+    "en": "{count} call texts are assigned differently here than in the file. Choose for each row: A keeps the local assignment, B takes the one from the file, C lets you pick the figures yourself. The recommendation is preselected (more figures first, then the more reliable source).",
+    "ja": "{count} 件のコールテキストで、ローカルとファイルの割り当てが異なります。行ごとに選択してください：A はローカルを保持、B はファイルの割り当てを採用、C はフィギュアを自分で選択します。推奨（フィギュアが多い方、次に信頼性の高いソース）が事前に選択されています。"
+  },
+  "mapping_conflict_col_text": {
+    "de": "Call-Text",
+    "en": "Call text",
+    "ja": "コールテキスト"
+  },
+  "mapping_conflict_col_local": {
+    "de": "Lokal (A)",
+    "en": "Local (A)",
+    "ja": "ローカル (A)"
+  },
+  "mapping_conflict_col_import": {
+    "de": "Import (B)",
+    "en": "Import (B)",
+    "ja": "インポート (B)"
+  },
+  "mapping_conflict_col_choice": {
+    "de": "Auswahl",
+    "en": "Choice",
+    "ja": "選択"
+  },
+  "mapping_conflict_col_result": {
+    "de": "Ergebnis",
+    "en": "Result",
+    "ja": "結果"
+  },
+  "mapping_conflict_choice_a": {
+    "de": "A – lokal behalten",
+    "en": "A – keep local",
+    "ja": "A – ローカルを保持"
+  },
+  "mapping_conflict_choice_b": {
+    "de": "B – Import übernehmen",
+    "en": "B – take import",
+    "ja": "B – インポートを採用"
+  },
+  "mapping_conflict_choice_c": {
+    "de": "C – selbst wählen …",
+    "en": "C – choose myself …",
+    "ja": "C – 自分で選択 …"
+  },
+  "mapping_conflict_recommended": {
+    "de": "(empfohlen)",
+    "en": "(recommended)",
+    "ja": "（推奨）"
+  },
+  "mapping_conflict_no_figure": {
+    "de": "keine Figur",
+    "en": "no figure",
+    "ja": "フィギュアなし"
+  },
+  "mapping_conflict_all_left": {
+    "de": "Linke Seite bevorzugen",
+    "en": "Prefer left side",
+    "ja": "左側を優先"
+  },
+  "mapping_conflict_all_left_tip": {
+    "de": "Setzt alle Zeilen auf A (lokal). Selbst gewählte Zeilen (C) bleiben.",
+    "en": "Sets all rows to A (local). Rows chosen manually (C) stay.",
+    "ja": "すべての行を A（ローカル）にします。自分で選択した行（C）はそのままです。"
+  },
+  "mapping_conflict_all_right": {
+    "de": "Rechte Seite bevorzugen",
+    "en": "Prefer right side",
+    "ja": "右側を優先"
+  },
+  "mapping_conflict_all_right_tip": {
+    "de": "Setzt alle Zeilen auf B (Import). Selbst gewählte Zeilen (C) bleiben.",
+    "en": "Sets all rows to B (import). Rows chosen manually (C) stay.",
+    "ja": "すべての行を B（インポート）にします。自分で選択した行（C）はそのままです。"
+  },
+  "mapping_conflict_closer_pattern": {
+    "de": "Näher am Mengen-Vorschlag",
+    "en": "Closer to the figure set suggestion",
+    "ja": "図形セット提案に近い方"
+  },
+  "mapping_conflict_closer_pattern_tip": {
+    "de": "Nimmt je Zeile die Seite, die dem Mengen-Vorschlag näher kommt. Ohne Vorschlag oder bei Gleichstand bleibt die Empfehlung.",
+    "en": "Takes for each row the side closer to the figure set suggestion. Without a suggestion or on a tie, the recommendation stays.",
+    "ja": "各行で図形セット提案に近い方を選びます。提案がない場合や同点の場合は推奨のままです。"
+  },
+  "mapping_conflict_closer_manual": {
+    "de": "Näher an manuell",
+    "en": "Closer to manual",
+    "ja": "手動に近い方"
+  },
+  "mapping_conflict_closer_manual_tip": {
+    "de": "Nimmt je Zeile die Seite, die von Hand zugeordnet wurde. Sind beide oder keine manuell, bleibt die Empfehlung.",
+    "en": "Takes for each row the side that was assigned by hand. If both or neither are manual, the recommendation stays.",
+    "ja": "各行で手動で割り当てられた方を選びます。両方または どちらも手動でない場合は推奨のままです。"
+  },
+  "mapping_conflict_apply": {
+    "de": "Übernehmen",
+    "en": "Apply",
+    "ja": "適用"
+  },
+  "mapping_import_summary": {
+    "de": "Import abgeschlossen:\n• {new} neue Call-Texte übernommen\n• {identical} bereits identisch\n• Konflikte: {kept} lokal behalten, {taken} aus dem Import übernommen, {custom} selbst gewählt",
+    "en": "Import finished:\n• {new} new call texts added\n• {identical} already identical\n• Conflicts: {kept} kept local, {taken} taken from import, {custom} chosen manually",
+    "ja": "インポート完了：\n• 新しいコールテキスト {new} 件を追加\n• {identical} 件は既に同一\n• 競合：ローカル保持 {kept} 件、インポート採用 {taken} 件、手動選択 {custom} 件"
+  },
+  "mapping_import_unknown": {
+    "de": "Unbekannte Figuren übersprungen (hier nicht vorhanden): {figures}\n{skipped} Call-Texte hatten nur solche Figuren und wurden nicht übernommen.",
+    "en": "Unknown figures skipped (not present here): {figures}\n{skipped} call texts had only such figures and were not imported.",
+    "ja": "不明なフィギュアをスキップしました（ここには存在しません）：{figures}\n{skipped} 件のコールテキストはそのようなフィギュアのみのため、取り込まれませんでした。"
   },
   "call_mapping_title": {
     "de": "Call-Mapping",
