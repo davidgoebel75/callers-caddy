@@ -234,6 +234,9 @@ from dialogs_location_program import (
     LocationDialog, _DanceProgramManagerDialog, _MultiProgramPickerDialog,
     _GenreManagerDialog, _ImportGenreDialog, DeduplicationDialog,
 )
+# --- Call-Map Export/Import mit Konfliktklaerung (intern#79)
+import mapping_io
+from dialogs_mapping_conflict import run_mapping_import
 
 
 # ===========================================================================
@@ -6255,10 +6258,10 @@ class P29MainWindow(QMainWindow):
             self.sequences_widget.load_sequences()
 
     def _on_mapping_export(self):
-        """Menue: Call-Text-Mappings als JSON-Datei exportieren."""
+        """Menue: Call-Maps als JSON exportieren (v2 mit Header, intern#79)."""
         import json as _json
-        rows = self.db.get_all_call_text_mappings()
-        if not rows:
+        data = mapping_io.build_export(self.db)
+        if not data["mappings"]:
             QMessageBox.information(
                 self, _t("mapping_export_title"), _t("mapping_export_empty")
             )
@@ -6275,15 +6278,15 @@ class P29MainWindow(QMainWindow):
         self._settings.setValue("sequences/mapping_export_dir",
                                 str(os.path.dirname(path)))
         with open(path, "w", encoding="utf-8") as f:
-            _json.dump(rows, f, ensure_ascii=False, indent=2)
+            _json.dump(data, f, ensure_ascii=False, indent=2)
         QMessageBox.information(
             self, _t("mapping_export_title"),
-            # BL-210: eine Zeile je Figur -> Zuordnungen = Call-Texte zaehlen
-            _t("mapping_export_ok", count=len({r["call_text"] for r in rows}))
+            _t("mapping_export_ok", count=len(data["mappings"]))
         )
 
     def _on_mapping_import(self):
-        """Menue: Call-Text-Mappings aus JSON-Datei importieren (INSERT OR IGNORE)."""
+        """Menue: Call-Maps importieren (v1 + v2), Konflikte klaeren lassen
+        (intern#79). Ablauf in dialogs_mapping_conflict.run_mapping_import."""
         import json as _json
         last_dir = str(self._settings.value("sequences/mapping_export_dir", ""))
         path, _ = QFileDialog.getOpenFileName(
@@ -6292,34 +6295,38 @@ class P29MainWindow(QMainWindow):
         )
         if not path:
             return
+        self._settings.setValue("sequences/mapping_export_dir",
+                                str(os.path.dirname(path)))
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = _json.load(f)
-            if not isinstance(data, list):
-                raise ValueError("Erwartet eine JSON-Liste.")
-            # Nur gueltige Eintraege mit call_text
-            rows = [
-                {"call_text": str(r["call_text"]),
-                 "entity_id": r.get("entity_id"),
-                 "mapped_by": str(r.get("mapped_by", "import"))}
-                for r in data
-                if isinstance(r, dict) and r.get("call_text")
-            ]
-            neu, bereits = self.db.import_call_text_mappings(rows)
-            self._settings.setValue("sequences/mapping_export_dir",
-                                    str(os.path.dirname(path)))
-            QMessageBox.information(
+            res = run_mapping_import(self, self.db, data)
+        except mapping_io.CallMapFormatError as e:
+            QMessageBox.warning(
                 self, _t("mapping_import_title"),
-                _t("mapping_import_ok", neu=neu, bereits=bereits)
+                _t("mapping_import_error", msg=_t(e.key, **e.params))
             )
-            if neu > 0:
-                # Remapping anstossen damit max_teaching_order aktualisiert wird
-                self.sequences_widget._do_remapping()
+            return
         except Exception as e:
             QMessageBox.warning(
                 self, _t("mapping_import_title"),
                 _t("mapping_import_error", msg=str(e))
             )
+            return
+        if res is None:
+            return   # Konfliktklaerung abgebrochen: nichts geschrieben
+        if res["written"]:
+            # Remapping anstossen damit max_teaching_order aktualisiert wird
+            self.sequences_widget._do_remapping()
+        lines = [_t("mapping_import_summary", new=res["new"],
+                    identical=res["identical"], kept=res["kept"],
+                    taken=res["taken"], custom=res["custom"])]
+        if res["unknown_figures"]:
+            lines.append(_t("mapping_import_unknown",
+                            figures=", ".join(res["unknown_figures"]),
+                            skipped=len(res["skipped"])))
+        QMessageBox.information(self, _t("mapping_import_title"),
+                                "\n\n".join(lines))
 
     def _on_import_sequences_universal(self):
         """Universeller Sequenz-Import (BL-098): erkennt MDB/JSON/CSDS/Freitext."""
@@ -6861,6 +6868,9 @@ class P29MainWindow(QMainWindow):
             # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
             "lyrics/dynamic_invert_enabled": "false",
             "lyrics/dynamic_invert_mode": "",
+            # intern#115: Timing-Parameter (Sekunden, negativ = frueher)
+            "lyrics/text_jump_offset": "-4",
+            "lyrics/dynamic_swap_offset": "-4",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6958,6 +6968,11 @@ class P29MainWindow(QMainWindow):
                          "lyrics/dynamic_invert_mode"):
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.reload_invert_settings()
+
+            elif key in ("lyrics/text_jump_offset",
+                         "lyrics/dynamic_swap_offset"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_timing_settings()
 
             elif key == "notes/zoom_pct":
                 try:

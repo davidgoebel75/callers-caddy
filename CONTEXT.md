@@ -86,6 +86,17 @@ Wird als Lyrics-Datei beim Song abgelegt.
 Die dem Song zugeordnete Textdatei im Programm, egal woher sie stammt.
 _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 
+**Textsprung**:
+Moment, in dem der Auto-Scroll der Lyrics an einem SyncPoint die naechste
+Sprungmarke erreicht. "Textsprung timen" verschiebt ihn um ganze Sekunden.
+_EN_: Text Jump
+
+**Texttausch**:
+Moment, in dem Dynamic Lyrics an einer Figure-Grenze die eingeblendete Sequenz
+wechselt oder Heads und Sides tauscht. "Texttausch timen" verschiebt ihn um ganze
+Sekunden.
+_EN_: Text Swap
+
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
@@ -184,7 +195,15 @@ _Avoid_: Tags, Figurenliste
 Automatisch erkannte Figuren-Menge fuer einen zusammengesetzten Call-Text. Ist nur
 ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zuordnung.
 _EN_: Figure Set Suggestion
-_Avoid_: Automapping
+_Avoid_: Automapping, Mustererkennung
+
+**Zuordnungs-Datei**:
+JSON-Datei, mit der Caller ihre Zuordnungen exportieren und bei anderen importieren
+(Menue „Zuordnungen exportieren/importieren“). Weicht eine importierte Figuren-Menge
+von der lokalen ab, klaert der Caller je Call-Text: A lokal behalten, B aus der Datei
+uebernehmen, C selbst waehlen.
+_EN_: Mapping File
+_Avoid_: Call-Map, Mapping (im Deutschen)
 
 **Optimieren**:
 Aktion im Call-Mapping, die alle abweichenden Mengen-Vorschlaege auf einen Schlag
