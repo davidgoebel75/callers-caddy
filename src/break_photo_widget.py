@@ -235,6 +235,16 @@ class BreakWidget(QWidget):
         self._update_buttons()
         self._refresh_views()
 
+    def end_break(self) -> bool:
+        """Laufende Pause von aussen beenden (intern#130: manuelles Play des
+        Callers). Setzt den Countdown zurueck wie der Reset-Knopf und feuert
+        bewusst KEIN on_break_finished (abgebrochen, nicht abgelaufen).
+        False, wenn die Pausen-Uhr gar nicht lief."""
+        if not self._running:
+            return False
+        self._reset()
+        return True
+
     def _edit_duration(self):
         """Klick auf die Uhr: Countdown pausieren und Dauer neu setzen."""
         self._running = False

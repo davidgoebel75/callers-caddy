@@ -1282,6 +1282,9 @@ class P29MainWindow(QMainWindow):
         self._last_logged_song_id = None
         # Vor der Wartemusik geladener Song — wird nach der Pause wieder geladen
         self._pre_break_song_id = None
+        # Song, der gerade als Wartemusik laeuft (intern#130: ein manuelles Play
+        # eines ANDEREN Songs beendet den Pausenzustand)
+        self._break_music_song_id = None
         # Latch: unterdrueckt den Feedback-Dialog am Ende der Wartemusik. Wird in
         # _trigger_song_stopped einmalig gelesen und zurueckgesetzt (wie _in_audition).
         self._break_music_suppress_feedback = False
@@ -2724,6 +2727,9 @@ class P29MainWindow(QMainWindow):
         _on_play_started (nur ohne das Trigger-Feuern selbst)."""
         if not self._current_song or not self._current_song.id:
             return False
+        # Vor dem Historie-Log und dem song_started-Trigger: beides soll fuer
+        # den von Hand gestarteten Song wieder ganz normal laufen.
+        self._end_break_on_manual_play()
         import crash_handler as _ch
         _ch.log_action(f"Play: {self._current_song.title or self._current_song.filename}")
         # Audition/Beat-Snap nicht in Historie loggen, aber Rules trotzdem feuern
@@ -3764,6 +3770,7 @@ class P29MainWindow(QMainWindow):
         prev = self._current_song
         self._pre_break_song_id = prev.id if prev and prev.id != song.id else None
         self._current_song = song
+        self._break_music_song_id = song.id
         self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
         self._ensure_primary_channel()
@@ -3813,28 +3820,62 @@ class P29MainWindow(QMainWindow):
     def _on_break_stop_last(self):
         """Stoppt die Wartemusik und stellt das Historie-Logging wieder her."""
         _t0 = perf_start()
-        if self._break_music_timer is not None:
-            self._break_music_timer.stop()
-            self._break_music_timer = None
         if self._break_music_active:
             self.engine.stop()
             # Das Ende der Wartemusik ist kein Songende: ohne diesen Reset
             # erkennt _update_all im naechsten Tick "Song-Ende" und feuert
             # song_stopped (dann schon ohne Sperre) -> Auto-Advance schaltet
             # weiter, mit break_finished -> Auto-Advance sogar doppelt
-            # (intern#110). Der Feedback-Latch wird damit nicht mehr in
-            # _trigger_song_stopped konsumiert, also hier loeschen.
+            # (intern#110).
             self._was_playing = False
+            self._leave_break_music()
+            self._restore_pre_break_song()
+        else:
+            self._leave_break_music()
+        perf_log("_on_break_stop_last", _t0)
+
+    def _end_break_on_manual_play(self):
+        """Startet der Caller waehrend der Pause von Hand einen Song, ist das
+        ein eindeutiges Signal: Die Pause ist vorbei (intern#130, Entscheidung
+        David). Laeuft Wartemusik und startet ein ANDERER Song, wird der
+        Pausenzustand verworfen (nichts stoppen, nichts nachladen). Eine
+        laufende Pausen-Uhr wird zurueckgesetzt, auch ohne Wartemusik.
+        'break_finished' feuert dabei NICHT: Die Pause ist abgebrochen, nicht
+        abgelaufen, und eine Rule wie "Break Finished -> Play" wuerde sonst
+        den gerade gestarteten Song ueberfahren.
+
+        Vorhoeren und Testlaeufe (Audition, Loop-Finder, Sync-Modus,
+        ZIP-Vorhoeren) zaehlen nicht als manuelles Play."""
+        if getattr(self, "_in_audition", False) or (
+                self._suppress_play_log and not self._break_music_active):
+            return
+        if self._break_music_active:
+            if self._current_song.id == self._break_music_song_id:
+                return      # Play auf die Wartemusik selbst (z. B. Fortsetzen)
+            self._pre_break_song_id = None
+            self._leave_break_music()
+        if getattr(self, "break_widget", None) is not None:
+            self.break_widget.end_break()
+
+    def _leave_break_music(self):
+        """Gemeinsamer Ausstieg aus der Wartemusik (Stopp oder manuelles Play):
+        Auto-Stop-Timer weg, Historie-Log und Rules wieder frei, Button im
+        Break-Widget zuruecksetzen. Stoppt selbst KEIN Audio."""
+        if self._break_music_timer is not None:
+            self._break_music_timer.stop()
+            self._break_music_timer = None
+        if self._break_music_active:
+            # Der Feedback-Latch wird nicht mehr in _trigger_song_stopped
+            # konsumiert, also hier loeschen.
             self._break_music_suppress_feedback = False
             self._suppress_play_log = False
-            # Rules wieder freigeben (genau ein resume() zum suspend() oben)
+            # Rules wieder freigeben (genau ein resume() zum suspend() in
+            # _on_break_play_last)
             self.rule_engine.resume("break_music")
             self._break_music_active = False
-            self._restore_pre_break_song()
-        # Break-Widget-Button zuruecksetzen (Auto-Stop)
+            self._break_music_song_id = None
         if getattr(self, 'break_widget', None) is not None:
             self.break_widget.set_music_stopped()
-        perf_log("_on_break_stop_last", _t0)
 
     def _restore_pre_break_song(self):
         """Laedt nach der Wartemusik wieder den Song, der vor der Pause geladen
