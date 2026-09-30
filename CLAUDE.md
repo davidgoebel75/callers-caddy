@@ -77,6 +77,7 @@ Callers-Caddy/
 - **3 ZIP-Typen**: Vollpaket (Neuinstallation), Update (ohne DB/INI/User-Ordner), Source-Code
 - Prototypen-Ordner in `_archive/` sind nicht mehr aktiv
 - Nach Abnahme: CHANGELOG.md aktualisieren
+- **Pre-Commit-Hook** (`.githooks/pre-commit`): Steckt `src/*.py` oder `src/*.json` im Commit, laufen `tests/test_settings_i18n.py` und `tests/test_settings_reachable.py` (fehlende Uebersetzungen bzw. `SETTINGS_META`-Eintraege); schlaegt einer fehl, bricht der Commit ab. Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`. Nimmt `.venv` sonst `python` aus dem PATH. Notfall: `git commit --no-verify`.
 
 ## Fallback-Sicherung (PFLICHT)
 

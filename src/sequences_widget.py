@@ -994,7 +994,7 @@ class SequencesWidget(QWidget):
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
 
-    def show_newest_sequences(self):
+    def show_hidden_sequences(self):
         """intern#119: Frisch importierte Sequenzen finden.
 
         Hebt nur die Filter auf, die an der Zuordnung haengen (Enthaelt, Limit,
@@ -1020,7 +1020,7 @@ class SequencesWidget(QWidget):
         if last >= 0:
             self._table.selectRow(last)
             self._table.scrollToBottom()
-        perf_log(f"SeqFilter.show_newest_sequences: {last + 1} Zeilen", _t0)
+        perf_log(f"SeqFilter.show_hidden_sequences: {last + 1} Zeilen", _t0)
 
     def select_sequence(self, seq_id: int):
         """Markiert eine Sequenz in der Tabelle (falls geladen) und oeffnet sie
@@ -1215,8 +1215,8 @@ class SequencesWidget(QWidget):
         menu = QMenu(self)
         # intern#119: auch ohne Zeile unter der Maus (leere Liste = genau der Fall,
         # in dem man seine frisch importierten Sequenzen sucht).
-        act_newest = menu.addAction(_t("ctx_show_hidden_sequences"))
-        act_newest.triggered.connect(self.show_newest_sequences)
+        act_hidden = menu.addAction(_t("ctx_show_hidden_sequences"))
+        act_hidden.triggered.connect(self.show_hidden_sequences)
         item = self._table.itemAt(pos)
         id_item = self._table.item(self._table.row(item), 0) if item else None
         seq_id = id_item.data(Qt.UserRole) if id_item else None
@@ -1499,44 +1499,32 @@ class SequencesWidget(QWidget):
         self._rebuild_contains_items()
         self._rebuild_limit_items()
 
-        # --- Type-Dropdown ---
-        _DEFAULT_TYPE = "Singer (Corner progression)"
-        self._combo_type.blockSignals(True)
-        self._combo_type.clear()
-        self._combo_type.addItem(_t("type_all"))
-        default_type_idx = 0
-        for t in self.db.get_sequence_type_values():
-            self._combo_type.addItem(t)
-            if t == _DEFAULT_TYPE:
-                default_type_idx = self._combo_type.count() - 1
-        self._combo_type.setCurrentIndex(default_type_idx)
-        self._combo_type.blockSignals(False)
+        # Typ, Schwierigkeit und Tags behalten ihre Auswahl (intern#131: nach
+        # "OK" im Call-Mapping muss dieselbe Sequenz wieder auffindbar sein).
+        # Nur beim allerersten Aufbau greift der Vorgabe-Typ "Singer".
+        self._refill_combo(self._combo_type, _t("type_all"),
+                           self.db.get_sequence_type_values(),
+                           fallback="Singer (Corner progression)")
+        self._refill_combo(self._combo_difficulty, _t("difficulty_all"),
+                           self.db.get_sequence_difficulty_values())
+        self._refill_combo(self._combo_tags, _t("tags_all"),
+                           self.db.get_sequence_tags_values())
 
-        # --- Difficulty-Dropdown ---
-        self._combo_difficulty.blockSignals(True)
-        self._combo_difficulty.clear()
-        self._combo_difficulty.addItem(_t("difficulty_all"))
-        for d in self.db.get_sequence_difficulty_values():
-            self._combo_difficulty.addItem(d)
-        self._combo_difficulty.blockSignals(False)
-
-        # --- Tags-Dropdown (BL-191) ---
-        self._combo_tags.blockSignals(True)
-        prev_tag = self._get_tags_filter()
-        self._combo_tags.clear()
-        self._combo_tags.addItem(_t("tags_all"))
-        for tg in self.db.get_sequence_tags_values():
-            self._combo_tags.addItem(tg)
-        # Vorherige Auswahl beibehalten (z.B. nach Editor-Speichern), sonst "Alle".
-        restore_idx = 0
-        if prev_tag:
-            for i in range(1, self._combo_tags.count()):
-                if self._combo_tags.itemText(i) == prev_tag:
-                    restore_idx = i
-                    break
-        self._combo_tags.setCurrentIndex(restore_idx)
-        self._combo_tags.blockSignals(False)
-
+    @staticmethod
+    def _refill_combo(combo, all_text, values, fallback=None):
+        """Fuellt ein Filter-Dropdown neu ("Alle" + values) und stellt die
+        vorige Auswahl wieder her. Gibt es sie nicht mehr (oder ist das
+        Dropdown noch leer), gilt fallback, sonst "Alle"."""
+        prev = combo.currentText() if combo.count() else fallback
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(all_text)
+        combo.addItems(list(values))
+        idx = combo.findText(prev) if prev else -1
+        if idx < 0 and fallback:
+            idx = combo.findText(fallback)
+        combo.setCurrentIndex(max(idx, 0))
+        combo.blockSignals(False)
 
 class _MappingHighlighter(QSyntaxHighlighter):
     """Faerbt jede Zeile (Block) nach ihrem Mapping-Zustand: gruen = gemappt,

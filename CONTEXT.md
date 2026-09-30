@@ -195,7 +195,15 @@ _Avoid_: Tags, Figurenliste
 Automatisch erkannte Figuren-Menge fuer einen zusammengesetzten Call-Text. Ist nur
 ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zuordnung.
 _EN_: Figure Set Suggestion
-_Avoid_: Automapping
+_Avoid_: Automapping, Mustererkennung
+
+**Zuordnungs-Datei**:
+JSON-Datei, mit der Caller ihre Zuordnungen exportieren und bei anderen importieren
+(Menue „Zuordnungen exportieren/importieren“). Weicht eine importierte Figuren-Menge
+von der lokalen ab, klaert der Caller je Call-Text: A lokal behalten, B aus der Datei
+uebernehmen, C selbst waehlen.
+_EN_: Mapping File
+_Avoid_: Call-Map, Mapping (im Deutschen)
 
 **Optimieren**:
 Aktion im Call-Mapping, die alle abweichenden Mengen-Vorschlaege auf einen Schlag
@@ -224,3 +232,10 @@ Zeigt nur Sequenzen, die das oberste gewaehlte Programm wirklich brauchen, also 
 den tieferen Programmen der Tanzprogramm-Wahl allein nicht tanzbar sind. Ohne
 Tanzprogramm-Wahl gilt das Programm des Limits.
 _EN_: Only Filter
+
+**Ausgeblendete Sequenz**:
+Sequenz, die nur wegen fehlender Zuordnungen ihrer Call-Texte nicht in der Liste
+erscheint, typischerweise frisch importiert. "Auch ausgeblendete Sequenzen anzeigen"
+holt sie zurueck, ohne Typ, Schwierigkeit oder Tags anzutasten.
+_EN_: Hidden Sequence
+_Avoid_: Neueste Sequenz, versteckte Sequenz

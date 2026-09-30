@@ -239,31 +239,6 @@ def test_export_eine_zeile_je_figur_hoechste_zuerst(db):
     ]
 
 
-def test_export_import_runde_erhaelt_menge(db, tmp_path):
-    from song_db import SongDatabase
-
-    db.set_call_text_figures("Chase Right & Roll", [CHASE_RIGHT, ANYTHING_AND_ROLL])
-    db.set_call_text_mapping("Swing Thru", "call_swing_thru", mapped_by="auto")
-    rows = db.get_all_call_text_mappings()
-
-    ziel = SongDatabase(str(tmp_path / "ziel.db"))
-    try:
-        # vorhandene Zuordnung im Ziel bleibt unangetastet (wie INSERT OR IGNORE)
-        ziel.set_call_text_mapping("Swing Thru", "call_circle_left")
-
-        # Dateireihenfolge umgedreht: hoechste Figur wird neu bestimmt
-        neu, bereits = ziel.import_call_text_mappings(list(reversed(rows)))
-
-        assert ziel.get_call_text_figures("Chase Right & Roll") == [
-            CHASE_RIGHT, ANYTHING_AND_ROLL]
-        assert ziel.get_entity_for_call_text("Chase Right & Roll") == CHASE_RIGHT
-        assert ziel.get_call_text_figures("Swing Thru") == ["call_circle_left"]
-        # gezaehlt werden Zuordnungen (Call-Texte), nicht Figuren-Zeilen
-        assert (neu, bereits) == (1, 1)
-    finally:
-        ziel.close()
-
-
 def test_schreiben_weiterer_figuren_erhoeht_cache_zaehler(db):
     # Ausnahme vom Nur-API-Grundsatz: _band_cache_ver ist der Vertrag zwischen
     # Schreibern und Cover-Cache. Der Verhaltens-Test ueber Trefferzahlen folgt

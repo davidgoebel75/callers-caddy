@@ -161,6 +161,73 @@ def test_art_bleibt_leer_und_wird_nicht_still_gespeichert(qapp, tmp_path):
     assert row.get_value() == "HSSH"
 
 
+def test_spiegel_button_springt_zur_art_auswahl(qapp, tmp_path):
+    """intern#133 (Handtest David): Die Einstellungen oeffnen sich vom
+    Spiegel-Button aus direkt an der Art-Auswahl. Bisher lief der Sprung ins
+    Leere, weil die Scroll-Flaeche beim deferten Aufbau noch keine Hoehe
+    hatte, und man landete ganz oben."""
+    import time
+    from PySide6.QtCore import QCoreApplication, QPoint, QSettings
+    from settings_dialog import SettingsDialog
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_mode", "")
+    dlg = SettingsDialog(None, ini, focus_key="lyrics/dynamic_invert_mode")
+    dlg.show()
+    bar = dlg._scroll.verticalScrollBar()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and bar.value() == 0:
+        QCoreApplication.processEvents()
+        time.sleep(0.01)
+    try:
+        row = next(r for r in dlg._rows
+                   if r.full_key == "lyrics/dynamic_invert_mode")
+        top = row.widget.mapTo(dlg._scroll.viewport(), QPoint(0, 0)).y()
+        assert bar.value() > 0
+        # ganz sichtbar (ins obere Drittel, soweit die Liste so weit reicht)
+        assert 0 <= top <= dlg._scroll.viewport().height() - row.widget.height()
+    finally:
+        dlg.close()
+
+
+def _invert_dialog(tmp_path, monkeypatch, enabled, mode):
+    from PySide6.QtCore import QSettings
+    import settings_dialog
+    from settings_dialog import SettingsDialog
+    # Frische INI: andere Zeilen gelten als geaendert -> Neustart-Hinweis
+    monkeypatch.setattr(settings_dialog.QMessageBox, "information",
+                        lambda *a, **k: None)
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_enabled", enabled)
+    ini.setValue("lyrics/dynamic_invert_mode", mode)
+    dlg = SettingsDialog(None, ini, focus_key="lyrics/dynamic_invert_mode")
+    dlg._populate_groups_deferred()
+    row = next(r for r in dlg._rows if r.full_key == "lyrics/dynamic_invert_mode")
+    return ini, dlg, row
+
+
+def test_erste_art_schaltet_tausch_ein(qapp, tmp_path, monkeypatch):
+    """intern#133: Wer eine Art waehlt, will sie benutzen. Das erste
+    Speichern einer Art schaltet den Tausch ein, und die Live-Uebernahme
+    bekommt den Schalter mit."""
+    ini, dlg, row = _invert_dialog(tmp_path, monkeypatch, "false", "")
+    applied = []
+    dlg._on_apply = applied.extend
+    row.widget.setCurrentIndex(row.widget.findData("HHSS"))
+    dlg._on_apply_btn()
+    assert ini.value("lyrics/dynamic_invert_mode") == "HHSS"
+    assert ini.value("lyrics/dynamic_invert_enabled", type=bool) is True
+    assert "lyrics/dynamic_invert_enabled" in applied
+
+
+def test_artwechsel_laesst_schalter_aus(qapp, tmp_path, monkeypatch):
+    """intern#133: Ein spaeterer Wechsel der Art aendert An/Aus nicht."""
+    ini, dlg, row = _invert_dialog(tmp_path, monkeypatch, "false", "HHSS")
+    row.widget.setCurrentIndex(row.widget.findData("HSSH"))
+    dlg._on_apply_btn()
+    assert ini.value("lyrics/dynamic_invert_mode") == "HSSH"
+    assert ini.value("lyrics/dynamic_invert_enabled", type=bool) is False
+
+
 # ---------------------------------------------------------------------------
 # Groessen-Stabilisator: Neu-Rendern darf den Zoom nicht zuruecksetzen
 # ---------------------------------------------------------------------------

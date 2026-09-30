@@ -31,6 +31,7 @@ UNMAPPED_A = "Heads Frobnicate"         # bewusst ohne Zuordnung
 UNMAPPED_B = "Sides Wiggle Around"      # bewusst ohne Zuordnung
 SINGER = "Singer (Corner progression)"
 PATTER = "Patter"
+HARD = "Hard"
 
 
 @pytest.fixture
@@ -47,8 +48,9 @@ def db(tmp_path):
                                   seq_type=SINGER),
         # "frisch importiert": gar nichts gemappt -> bei Tanzprogramm-Wahl weg
         "neu": d.insert_sequence([UNMAPPED_A, UNMAPPED_B], seq_type=SINGER),
-        # anderer Typ -> vom Typ-Filter ausgeblendet, auch bei "Neueste"
-        "patter": d.insert_sequence([UNMAPPED_B], seq_type=PATTER),
+        # anderer Typ -> vom Typ-Filter ausgeblendet, auch bei "Auch ausgeblendete Sequenzen anzeigen"
+        "patter": d.insert_sequence([UNMAPPED_B], seq_type=PATTER,
+                                    difficulty=HARD),
     }
     d.recompute_sequence_max_to()
     d.ids = ids
@@ -95,16 +97,16 @@ def test_ungemappte_call_texte_einer_sequenz(db):
     assert db.get_unmapped_call_texts_of_sequence(999999) == []
 
 
-# ------------------------------------------------------ Neueste zeigen --
+# --------------------------------- Ausgeblendete zeigen --
 
 def test_tanzprogramm_wahl_versteckt_frisch_importierte(widget, db):
     table = widget.findChild(QTableWidget)
     assert db.ids["neu"] not in _ids(table)
 
 
-def test_neueste_zeigt_alle_und_springt_ans_ende(widget, db):
+def test_ausgeblendete_zeigt_alle_und_springt_ans_ende(widget, db):
     table = widget.findChild(QTableWidget)
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
 
     # Typ-Filter bleibt: Patter-Sequenz weiter ausgeblendet
     assert _ids(table) == [db.ids["ok"], db.ids["teil"], db.ids["neu"]]
@@ -113,10 +115,10 @@ def test_neueste_zeigt_alle_und_springt_ans_ende(widget, db):
     assert _t("sequences_program_selection_suspended") in _status(widget)
 
 
-def test_neueste_hebt_nur_zuordnungs_filter_auf(widget):
+def test_ausgeblendete_hebt_nur_zuordnungs_filter_auf(widget):
     only = widget.findChild(QCheckBox)
     only.setChecked(True)
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
     assert not only.isChecked()
     assert widget.get_limit_filter_text() == ""
     assert widget.get_contains_filter_text() == ""
@@ -124,7 +126,7 @@ def test_neueste_hebt_nur_zuordnungs_filter_auf(widget):
 
 def test_filterwechsel_beendet_das_aussetzen(widget, db):
     table = widget.findChild(QTableWidget)
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
     widget.set_type_filter("")          # Typ "Alle" -> normaler Filterwechsel
     assert db.ids["neu"] not in _ids(table)
     assert _t("sequences_program_selection_suspended") not in _status(widget)
@@ -132,7 +134,7 @@ def test_filterwechsel_beendet_das_aussetzen(widget, db):
 
 def test_programmwechsel_beendet_das_aussetzen(widget, db):
     table = widget.findChild(QTableWidget)
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
     widget.set_program_bands({20, 30})
     assert db.ids["neu"] not in _ids(table)
 
@@ -165,7 +167,7 @@ def _zeile(table, seq_id):
 
 def test_ungemappte_sequenzen_sind_rot(widget, db):
     table = widget.findChild(QTableWidget)
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
     rot = {r for r in range(table.rowCount())
            if table.item(r, 0).toolTip() == _t("sequences_unmapped_tooltip")}
     assert rot == {_zeile(table, db.ids["teil"]), _zeile(table, db.ids["neu"])}
@@ -196,7 +198,7 @@ def test_rechtsklick_auf_rot_oeffnet_call_mapping_mit_fokus(widget, db, monkeypa
     table = widget.findChild(QTableWidget)
     widget.resize(600, 400)
     widget.show()
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
     aufrufe = []
     widget.on_open_call_mapping = aufrufe.append
     eintrag = _t("ctx_open_call_mapping_for_sequence")
@@ -217,7 +219,7 @@ def test_doppelklick_oeffnet_kein_call_mapping(widget, db):
     table = widget.findChild(QTableWidget)
     widget.resize(600, 400)
     widget.show()
-    widget.show_newest_sequences()
+    widget.show_hidden_sequences()
     aufrufe = []
     widget.on_open_call_mapping = aufrufe.append
     item = table.item(_zeile(table, db.ids["neu"]), 0)
@@ -245,3 +247,23 @@ def test_call_mapping_startet_gefiltert_auf_fokus(qapp, db):
         assert table.rowCount() == 3
     finally:
         dlg.close()
+
+
+def test_call_mapping_ok_behaelt_typ_und_markierung(widget, db, monkeypatch):
+    """intern#131: Nach "OK" im Call-Mapping (Remapping baut die Dropdowns
+    neu) bleiben Typ und Schwierigkeit stehen, und dieselbe Sequenz ist
+    wieder markiert. Bisher sprang der Typ auf "Singer" zurueck."""
+    table = widget.findChild(QTableWidget)
+    widget.resize(600, 400)
+    widget.show()
+    assert widget.set_type_filter(PATTER)
+    diff = next(c for c in widget.findChildren(QComboBox) if c.findText(HARD) > 0)
+    diff.setCurrentIndex(diff.findText(HARD))
+    widget.show_hidden_sequences()
+    # Wie P29MainWindow._open_call_mapping nach Accept
+    widget.on_open_call_mapping = lambda _texts: widget._do_remapping()
+    _rechtsklick(table, _zeile(table, db.ids["patter"]), monkeypatch,
+                 waehle=_t("ctx_open_call_mapping_for_sequence"))
+    texte = [c.currentText() for c in widget.findChildren(QComboBox)]
+    assert PATTER in texte and HARD in texte
+    assert table.item(table.currentRow(), 0).data(Qt.UserRole) == db.ids["patter"]
