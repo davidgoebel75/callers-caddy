@@ -702,6 +702,9 @@ class LyricsWidget(QWidget):
         # intern#76: Lesebalken. _band_doc_y = Dokument-Y des gesungenen Texts
         # (None = nichts anzeigen); Werte aus der INI (reload_reading_settings).
         self._band_doc_y = None
+        self._last_dur = 0.0              # zuletzt gesehene Songdauer (Neuaufbau)
+        self._interp_snapping = False     # letzte Interpolation im Ruecksprung?
+        self._heading_kw = None           # Keyword-Woerter (lazy, singing_sections)
         self._reading_band_enabled = True
         self._reading_band_height_pct = 12
         self._reading_band_opacity_pct = 30
@@ -2685,6 +2688,7 @@ class LyricsWidget(QWidget):
         except Exception:
             pass
         self.refresh_section_overlay()
+        self._refresh_band_after_render()
 
     @staticmethod
     def _char_to_line_in(offsets: list, char_pos: int) -> int:
@@ -2794,6 +2798,7 @@ class LyricsWidget(QWidget):
         except Exception:
             pass
         self.refresh_section_overlay()
+        self._refresh_band_after_render()
 
     def _reset_dynamic_state(self):
         """Setzt nur die Dynamic-Flags/Referenzen zurueck (ohne Dokumentwechsel).
@@ -4489,6 +4494,7 @@ class LyricsWidget(QWidget):
         # unten (max_val <= 0) verlaesslich — das heilt den Start-Fall selbst.
         if not self._lyrics_loaded or dur <= 0:
             return
+        self._last_dur = dur
         anchors = self._anchor_doc_points() if self._active_anchors() else []
         # intern#76: Lesebalken folgt dem gesungenen Text (ohne Textsprung-
         # Verschiebung), auch waehrend manuellen Scrollens; gemalt wird relativ
@@ -4509,8 +4515,10 @@ class LyricsWidget(QWidget):
         if max_val <= 0:
             return
 
+        snapping = False
         if anchors:
             target = self._sync_scroll_target(pos, dur, max_val, anchors)
+            snapping = self._interp_snapping
         else:
             # Ohne Anker proportional, der gesungene Text steht dabei auf der
             # Leseposition (intern#76; vorher lief er oben am Fenster).
@@ -4520,10 +4528,25 @@ class LyricsWidget(QWidget):
         # Kleines Rueckwaerts-Zittern durch Audio-Positions-Jitter unterdruecken.
         # Echter Ruecksprung (Figur-Wiederholung, Loop) ist groesser als 5 % des
         # Scrollbereichs und wird durchgelassen.
-        if target < self._scroll_last_val and self._scroll_last_val - target < max_val * 0.05:
+        # intern#76: Beim gewollten Ruecksprung (Figur-Wiederholung) nicht
+        # bremsen, sonst ruckelt der Text in Stuecken, waehrend der Lesebalken
+        # glatt zurueckgleitet.
+        if (not snapping and target < self._scroll_last_val
+                and self._scroll_last_val - target < max_val * 0.05):
             return
         self._scroll_last_val = target
         scrollbar.setValue(target)
+
+    def _refresh_band_after_render(self):
+        """intern#76: Nach einem Neuaufbau des Dokuments (Dynamic Lyrics) den
+        Lesebalken sofort am neuen Layout ausrichten, statt ihn bis zum
+        naechsten Takt an der alten Stelle stehen zu lassen (Huepfen)."""
+        dur = self._last_dur or 0
+        if not (self._lyrics_loaded and self._reading_band_enabled and dur > 0):
+            self._update_reading_band(None)
+            return
+        anchors = self._anchor_doc_points() if self._active_anchors() else []
+        self._update_reading_band(self._sung_doc_y(self._sync_last_pos, dur, anchors))
 
     def _update_reading_band(self, doc_y):
         """intern#76: Neue Position des Lesebalkens, neu malen nur bei Aenderung."""
@@ -4553,17 +4576,98 @@ class LyricsWidget(QWidget):
                 y += line.y()
         return int(y)
 
+    # Folgt der naechste SyncPoint innerhalb dieser Zeit, beendet der Anker
+    # einen Abschnitt (danach springt der Text woanders hin), intern#76.
+    _SECTION_END_GAP_SEC = 2.0
+
+    def _line_geom(self, pristine_pos: int, doc, layout, max_pos: int):
+        """(block, Zeilenindex im Block) der sichtbaren Zeile an pristine_pos."""
+        dpos = self._pristine_to_display(int(pristine_pos))
+        dpos = max(0, min(dpos, max_pos))
+        cursor = QTextCursor(doc)
+        cursor.setPosition(dpos)
+        block = cursor.block()
+        if not block.isValid():
+            return None
+        blay = block.layout()
+        idx = 0
+        if blay is not None:
+            line = blay.lineForTextPosition(dpos - block.position())
+            if line.isValid():
+                idx = line.lineNumber()
+        return block, idx
+
+    @staticmethod
+    def _line_box(block, idx, layout):
+        """(Dokument-Y oben, Hoehe, Text) der Zeile idx im Block."""
+        top = layout.blockBoundingRect(block).top()
+        blay = block.layout()
+        if blay is None or blay.lineCount() == 0:
+            return top, layout.blockBoundingRect(block).height(), block.text()
+        line = blay.lineAt(idx)
+        text = block.text()[line.textStart():line.textStart() + line.textLength()]
+        return top + line.y(), line.height(), text
+
+    @staticmethod
+    def _next_line(block, idx):
+        """Naechste Zeile (block, idx) im Dokument oder None."""
+        blay = block.layout()
+        if blay is not None and idx + 1 < blay.lineCount():
+            return block, idx + 1
+        nxt = block.next()
+        return (nxt, 0) if nxt.isValid() else None
+
+    def _is_heading_text(self, text: str) -> bool:
+        """Abschnitts-Ueberschrift ohne Inhalt auf derselben Zeile (OPENER,
+        FIGURE, ...). "(Opener): Calls" zaehlt nicht, dort steht schon Text."""
+        import singing_sections as _ss
+        if self._heading_kw is None:
+            self._heading_kw = _ss._keyword_words(_ss.DEFAULT_SECTIONS)
+        raw = (text or "").strip()
+        if not raw or _ss.PAREN_LABEL_RE.match(raw.upper()):
+            return False
+        return _ss.classify_heading(raw, _ss.DEFAULT_SECTIONS, self._heading_kw) is not None
+
     def _anchor_doc_points(self):
-        """Anker als [(Sekunde, Dokument-Y der Ankerzeile)], nach Zeit sortiert.
-        Echte Zeiten, ohne "Textsprung timen" und ohne Leseposition."""
+        """Anker als [(Sekunde, Dokument-Y der gesungenen Stelle)], nach Zeit.
+
+        Echte Zeiten, ohne "Textsprung timen" und ohne Leseposition. Die
+        gespeicherten SyncPoints bleiben unveraendert; nur fuer Scroll und
+        Lesebalken gilt (intern#76, Regel David): Ein Abschnitt laeuft von der
+        ersten Zeile NACH dem Schluesselwort bis zum Ende der Zeile VOR dem
+        naechsten Schluesselwort.
+        - Anker auf einer Ueberschrift -> Oberkante der ersten Textzeile danach
+        - Anker, der einen Abschnitt beendet (naechster Anker folgt binnen
+          _SECTION_END_GAP_SEC, oder letzter Anker) -> Unterkante seiner Zeile
+        - sonst -> Oberkante seiner Zeile (dort beginnt der Gesang)
+        """
         doc = self._browser.document()
         layout = doc.documentLayout()
         max_pos = doc.characterCount() - 1
+        raw = sorted(((float(a[0]), int(a[1])) for a in self._active_anchors()),
+                     key=lambda a: a[0])
         out = []
-        for sec, p in sorted(self._active_anchors(), key=lambda a: a[0]):
-            y = self._y_for_pos(int(p), doc, layout, max_pos)
-            if y is not None:
-                out.append((float(sec), y))
+        for i, (sec, p) in enumerate(raw):
+            geom = self._line_geom(p, doc, layout, max_pos)
+            if geom is None:
+                continue
+            block, idx = geom
+            top, height, text = self._line_box(block, idx, layout)
+            if self._is_heading_text(text):
+                nxt = self._next_line(block, idx)
+                for _ in range(5):       # Leerzeilen nach der Ueberschrift ueberspringen
+                    if nxt is None:
+                        break
+                    n_top, _n_h, n_text = self._line_box(nxt[0], nxt[1], layout)
+                    if n_text.strip():
+                        top = n_top
+                        break
+                    nxt = self._next_line(*nxt)
+                out.append((sec, float(top)))
+                continue
+            is_end = (i == len(raw) - 1
+                      or raw[i + 1][0] - sec <= self._SECTION_END_GAP_SEC)
+            out.append((sec, float(top + height) if is_end else float(top)))
         return out
 
     def _interpolate(self, pos: float, points) -> float:
@@ -4573,6 +4677,7 @@ class LyricsWidget(QWidget):
         Position und springen erst kurz vor dem Ziel schnell zurueck.
         """
         points = sorted(points, key=lambda p: p[0])
+        self._interp_snapping = False
         for i in range(len(points) - 1):
             t0, y0 = points[i]
             t1, y1 = points[i + 1]
@@ -4584,6 +4689,7 @@ class LyricsWidget(QWidget):
                     snap_start = t1 - snap
                     if pos <= snap_start:
                         return float(y0)
+                    self._interp_snapping = True
                     frac = max(0.0, min(1.0, (pos - snap_start) / snap))
                     return y0 + frac * (y1 - y0)
                 frac = max(0.0, min(1.0, (pos - t0) / (t1 - t0)))

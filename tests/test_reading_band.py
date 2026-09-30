@@ -127,3 +127,71 @@ def test_balkenhoehe_in_prozent_der_fensterhoehe(widget):
     widget._reading_band_height_pct = 20
     h = widget._reading_band.height()
     assert widget._reading_band.band_rect().height() == int(h * 0.20)
+
+
+# ---------------------------------------------------------------------------
+# Regel David: Abschnitt = erste Zeile NACH dem Schluesselwort bis Ende der
+# Zeile VOR dem naechsten Schluesselwort (nur Anzeige, SyncPoints unveraendert)
+# ---------------------------------------------------------------------------
+
+SONG = ["Titel", "OPENER", "Circle left", "Was I right", "Last line",
+        "FIGURE", "Heads square thru", "Swing thru", "Promenade home"]
+
+
+@pytest.fixture
+def song(widget, qapp):
+    widget._browser.setPlainText("\n".join(SONG))
+    qapp.processEvents()
+    doc = widget._browser.document()
+
+    def pos(line):
+        return doc.findBlockByNumber(line).position()
+
+    def box(line):
+        b = doc.findBlockByNumber(line)
+        r = doc.documentLayout().blockBoundingRect(b)
+        return r.top(), r.bottom()
+    return widget, pos, box
+
+
+def test_anker_auf_ueberschrift_zeigt_auf_erste_textzeile(song):
+    w, pos, box = song
+    w._active_anchors = lambda: [(8.0, pos(1)), (60.0, pos(6))]
+    ys = dict(w._anchor_doc_points())
+    assert ys[8.0] == pytest.approx(box(2)[0])      # OPENER -> "Circle left"
+
+
+def test_abschnittsende_zeigt_auf_unterkante_der_letzten_zeile(song):
+    w, pos, box = song
+    # 36 s: letzte Opener-Zeile, 37 s: FIGURE -> 36 s beendet den Abschnitt
+    w._active_anchors = lambda: [(8.0, pos(1)), (36.0, pos(4)), (37.0, pos(5)),
+                                 (60.0, pos(8)), (90.0, pos(3)), (120.0, pos(8))]
+    ys = dict(w._anchor_doc_points())
+    assert ys[36.0] == pytest.approx(box(4)[1])     # Ende von "Last line"
+    assert ys[37.0] == pytest.approx(box(6)[0])     # FIGURE -> "Heads square thru"
+    assert ys[90.0] == pytest.approx(box(3)[0])     # normaler Anker: Oberkante
+
+
+def test_letzter_anker_zeigt_auf_unterkante(song):
+    w, pos, box = song
+    w._active_anchors = lambda: [(8.0, pos(2)), (60.0, pos(8))]
+    ys = dict(w._anchor_doc_points())
+    assert ys[60.0] == pytest.approx(box(8)[1])
+
+
+def test_ruecksprung_wird_vom_zitterschutz_nicht_gebremst(widget):
+    """Beim Ruecksprung an den Figur-Anfang gleiten Text und Balken gemeinsam
+    zurueck; der Balken bleibt dabei an der Leseposition statt zu huepfen."""
+    doc = widget._browser.document()
+    a = doc.findBlockByNumber(60).position()
+    b = doc.findBlockByNumber(80).position()
+    widget._active_anchors = lambda: [(20.0, a), (60.0, b), (61.0, a), (100.0, b)]
+    widget._text_jump_offset = 0
+    screen = []
+    t = 58.0
+    while t < 62.0:
+        widget.update_scroll(t, DUR)
+        screen.append(_band_center_on_screen(widget))
+        t += 0.05
+    steps = [abs(screen[i] - screen[i - 1]) for i in range(1, len(screen))]
+    assert max(steps) <= 3
