@@ -236,3 +236,44 @@ def test_identische_verwaiste_zuordnung_wird_nicht_gemeldet(db):
     diff = db.diff_call_text_figures(
         {"Other": mio.ImportedMapping(["call_circulate"], "auto")})
     assert diff["unknown_figures"] == ["call_circulate"] and diff["skipped"] == ["Other"]
+
+
+def test_nach_filtern_identisch_meldet_keine_unbekannte_figur(db):
+    """Review #60: Import {X, verwaist} gegen lokal {X} wird nach dem Filtern
+    identisch und nicht geschrieben -> auch nicht als unbekannt melden."""
+    diff = db.diff_call_text_figures(
+        {T_SWING: mio.ImportedMapping([SWING, "action_bogus"], "auto")})
+    assert diff["identical"] == [T_SWING]
+    assert diff["unknown_figures"] == [] and not diff["conflicts"]
+    # Wird der Text geschrieben (Konflikt), bleibt die Meldung
+    diff = db.diff_call_text_figures(
+        {T_SWING: mio.ImportedMapping([OCEAN, "action_bogus"], "auto")})
+    assert diff["conflicts"] and diff["unknown_figures"] == ["action_bogus"]
+
+
+def test_c_mit_leerer_auswahl_schreibt_keine_figur(qapp, db, monkeypatch):
+    """Review #60: C ohne Figur zeigt "keine Figur" und schreibt es auch als
+    manual, statt die Zuordnung zu loeschen."""
+    diff = db.diff_call_text_figures({T_SWING: mio.ImportedMapping([OCEAN], "auto")})
+    dlg = _conflict_dialog(db, diff["conflicts"])
+    monkeypatch.setattr(dlg, "_pick", lambda row: [])
+    dlg._combos[0].setCurrentIndex(2)
+    dlg._on_choice(0)
+    assert dlg.choices()[0] == "C"
+    assert dlg._result_figs(0) == []
+    db.apply_call_text_figures_decisions(dlg.decisions())
+    rows = [r for r in db.get_all_call_text_mappings() if r["call_text"] == T_SWING]
+    assert rows == [{"call_text": T_SWING, "entity_id": None, "mapped_by": "manual"}]
+
+
+@pytest.mark.parametrize("data, key", [
+    ({"foo": 1}, "mapping_import_error_unknown_format"),
+    ({"format": mio.FORMAT_NAME, "version": 99, "mappings": []},
+     "mapping_import_error_newer_version"),
+])
+def test_formatfehler_tragen_uebersetzbaren_schluessel(data, key):
+    from i18n import _t
+    with pytest.raises(mio.CallMapFormatError) as exc:
+        mio.parse_import(data)
+    assert exc.value.key == key
+    assert _t(exc.value.key, **exc.value.params) != key   # Schluessel existiert

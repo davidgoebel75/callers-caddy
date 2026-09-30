@@ -184,7 +184,15 @@ _Avoid_: Tags, Figurenliste
 Automatisch erkannte Figuren-Menge fuer einen zusammengesetzten Call-Text. Ist nur
 ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zuordnung.
 _EN_: Figure Set Suggestion
-_Avoid_: Automapping
+_Avoid_: Automapping, Mustererkennung
+
+**Zuordnungs-Datei**:
+JSON-Datei, mit der Caller ihre Zuordnungen exportieren und bei anderen importieren
+(Menue „Zuordnungen exportieren/importieren“). Weicht eine importierte Figuren-Menge
+von der lokalen ab, klaert der Caller je Call-Text: A lokal behalten, B aus der Datei
+uebernehmen, C selbst waehlen.
+_EN_: Mapping File
+_Avoid_: Call-Map, Mapping (im Deutschen)
 
 **Optimieren**:
 Aktion im Call-Mapping, die alle abweichenden Mengen-Vorschlaege auf einen Schlag

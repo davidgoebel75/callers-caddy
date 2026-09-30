@@ -33,6 +33,17 @@ def source_rank(mapped_by) -> int:
     return _SOURCE_RANK.get(str(mapped_by or "").lower(), 0)
 
 
+class CallMapFormatError(ValueError):
+    """Datei ist keine lesbare Zuordnungs-Datei. key/params sind ein
+    Uebersetzungsschluessel fuer _t (die Oberflaeche uebersetzt, dieses Modul
+    bleibt Qt- und i18n-frei)."""
+
+    def __init__(self, key: str, **params):
+        super().__init__(key)
+        self.key = key
+        self.params = params
+
+
 @dataclass
 class ImportedMapping:
     figures: list = field(default_factory=list)   # [] = "keine Figur"
@@ -72,18 +83,18 @@ def build_export(db) -> dict:
 def parse_import(data) -> dict:
     """Liest v1 (flache Liste) und v2 (Objekt mit Header).
 
-    Rueckgabe {call_text: ImportedMapping}. Wirft ValueError bei unbekanntem
-    Format.
+    Rueckgabe {call_text: ImportedMapping}. Wirft CallMapFormatError bei
+    unbekanntem Format oder zu neuer Version.
     """
     if isinstance(data, list):
         return _parse_v1(data)
     if isinstance(data, dict) and data.get("format") == FORMAT_NAME:
         if int(data.get("version", 0)) > FORMAT_VERSION:
-            raise ValueError(
-                f"Call-Map-Version {data.get('version')} ist neuer als diese "
-                f"Programmversion ({FORMAT_VERSION}).")
+            raise CallMapFormatError(
+                "mapping_import_error_newer_version",
+                version=data.get("version"), supported=FORMAT_VERSION)
         return _parse_v2(data.get("mappings") or [])
-    raise ValueError("Unbekanntes Call-Map-Format.")
+    raise CallMapFormatError("mapping_import_error_unknown_format")
 
 
 def _parse_v1(rows: list) -> dict:

@@ -3176,48 +3176,53 @@
     "ja": "データベースにシーケンスがありません。"
   },
   "menu_mapping_export": {
-    "de": "Mapping exportieren...",
+    "de": "Zuordnungen exportieren...",
     "en": "Export Mapping...",
     "ja": "マッピングをエクスポート..."
   },
   "menu_mapping_import": {
-    "de": "Mapping importieren...",
+    "de": "Zuordnungen importieren...",
     "en": "Import Mapping...",
     "ja": "マッピングをインポート..."
   },
   "mapping_export_title": {
-    "de": "Mapping exportieren",
+    "de": "Zuordnungen exportieren",
     "en": "Export Mapping",
     "ja": "マッピングをエクスポート"
   },
   "mapping_export_ok": {
-    "de": "{count} Mappings exportiert.",
+    "de": "{count} Zuordnungen exportiert.",
     "en": "{count} mappings exported.",
     "ja": "{count} 件のマッピングをエクスポートしました。"
   },
   "mapping_export_empty": {
-    "de": "Keine Mappings vorhanden.",
+    "de": "Keine Zuordnungen vorhanden.",
     "en": "No mappings available.",
     "ja": "マッピングがありません。"
   },
   "mapping_import_title": {
-    "de": "Mapping importieren",
+    "de": "Zuordnungen importieren",
     "en": "Import Mapping",
     "ja": "マッピングをインポート"
-  },
-  "mapping_import_ok": {
-    "de": "{neu} neue Mappings importiert, {bereits} bereits vorhanden (uebersprungen).",
-    "en": "{neu} new mappings imported, {bereits} already present (skipped).",
-    "ja": "{neu} 件の新しいマッピングをインポートしました。{bereits} 件はすでに存在します（スキップ）。"
   },
   "mapping_import_error": {
     "de": "Fehler beim Importieren: {msg}",
     "en": "Import error: {msg}",
     "ja": "インポートエラー: {msg}"
   },
+  "mapping_import_error_unknown_format": {
+    "de": "Die Datei ist keine Zuordnungs-Datei von Callers Caddy.",
+    "en": "The file is not a Callers Caddy mapping file.",
+    "ja": "このファイルは Callers Caddy のマッピングファイルではありません。"
+  },
+  "mapping_import_error_newer_version": {
+    "de": "Die Datei hat Format-Version {version}. Diese Programmversion liest bis Version {supported}. Bitte Callers Caddy aktualisieren.",
+    "en": "The file has format version {version}. This program version reads up to version {supported}. Please update Callers Caddy.",
+    "ja": "このファイルの形式バージョンは {version} です。このプログラムはバージョン {supported} まで読み込めます。Callers Caddy を更新してください。"
+  },
   "mapping_conflict_title": {
-    "de": "Call-Map-Import – Konflikte klären",
-    "en": "Call map import – resolve conflicts",
+    "de": "Zuordnungen importieren – Konflikte klären",
+    "en": "Mapping import – resolve conflicts",
     "ja": "コールマップのインポート – 競合の解決"
   },
   "mapping_conflict_intro": {
@@ -3296,14 +3301,14 @@
     "ja": "すべての行を B（インポート）にします。自分で選択した行（C）はそのままです。"
   },
   "mapping_conflict_closer_pattern": {
-    "de": "Näher an der Mustererkennung",
-    "en": "Closer to pattern recognition",
-    "ja": "パターン認識に近い方"
+    "de": "Näher am Mengen-Vorschlag",
+    "en": "Closer to the figure set suggestion",
+    "ja": "図形セット提案に近い方"
   },
   "mapping_conflict_closer_pattern_tip": {
-    "de": "Nimmt je Zeile die Seite, die dem Vorschlag der Mustererkennung näher kommt. Ohne Vorschlag oder bei Gleichstand bleibt die Empfehlung.",
-    "en": "Takes for each row the side closer to the pattern recognition's suggestion. Without a suggestion or on a tie, the recommendation stays.",
-    "ja": "各行でパターン認識の提案に近い方を選びます。提案がない場合や同点の場合は推奨のままです。"
+    "de": "Nimmt je Zeile die Seite, die dem Mengen-Vorschlag näher kommt. Ohne Vorschlag oder bei Gleichstand bleibt die Empfehlung.",
+    "en": "Takes for each row the side closer to the figure set suggestion. Without a suggestion or on a tie, the recommendation stays.",
+    "ja": "各行で図形セット提案に近い方を選びます。提案がない場合や同点の場合は推奨のままです。"
   },
   "mapping_conflict_closer_manual": {
     "de": "Näher an manuell",

@@ -199,15 +199,16 @@ class MappingConflictDialog(QDialog):
         """(call_text, figuren, mapped_by) fuer apply_call_text_figures_decisions.
 
         A schreibt nichts (fehlt hier). B uebernimmt Menge und Quelle aus dem
-        Import, C schreibt die gewaehlte Menge als 'manual' (leere Auswahl
-        entfernt die Zuordnung, wie im Picker)."""
+        Import, C schreibt die gewaehlte Menge als 'manual'. Eine leere
+        Auswahl bei C ist bewusst "keine Figur" ([]), wie in der Spalte
+        Ergebnis angezeigt; sie entfernt die Zuordnung nicht."""
         out = []
         for row, (ct, _loc, _lmb, imp, imb) in enumerate(self._conflicts):
             c = self._choice[row]
             if c == "B":
                 out.append((ct, imp, imb))
             elif c == "C":
-                out.append((ct, self._custom[row] or None, "manual"))
+                out.append((ct, list(self._custom[row] or []), "manual"))
         return out
 
 

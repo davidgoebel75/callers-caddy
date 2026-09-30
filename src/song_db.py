@@ -3527,8 +3527,9 @@ class SongDatabase:
         """Gibt alle Zuordnungen als Liste von Dicts zurueck (Export).
 
         BL-210: eine Zeile je Figur, hoechste Figur zuerst; weitere Figuren
-        tragen das mapped_by der Hauptzeile. Aeltere Versionen importieren per
-        INSERT OR IGNORE und uebernehmen so genau die hoechste Figur.
+        tragen das mapped_by der Hauptzeile. "Keine Figur" ist eine Zeile mit
+        entity_id None. Grundlage fuer den v2-Export (mapping_io.build_export)
+        und den Vergleich beim Import; 0.159 und aelter lesen v2 nicht.
         """
         figures = self.get_all_call_text_figures()
         cur = self._conn.execute(
@@ -3539,45 +3540,6 @@ class SongDatabase:
             for call_text, entity_id, mapped_by in cur.fetchall()
             for fig in (figures.get(call_text) or [entity_id])
         ]
-
-    def import_call_text_mappings(self, rows: list[dict]) -> tuple[int, int]:
-        """Importiert Zuordnungen; vorhandene Call-Texte werden uebersprungen
-        (Semantik wie INSERT OR IGNORE).
-
-        BL-210: Zeilen werden je Call-Text gesammelt (eine Zeile je Figur) und
-        als Menge geschrieben — die hoechste Figur wird neu bestimmt, nicht der
-        Dateireihenfolge entnommen. mapped_by kommt aus der ersten Zeile des
-        Texts. Eine Transaktion.
-
-        Returns:
-            (neu_eingefuegt, bereits_vorhanden) — gezaehlt in Call-Texten
-            (Zuordnungen), nicht in Figuren-Zeilen
-        """
-        groups: dict[str, tuple[str, list]] = {}
-        for r in rows:
-            _mb, ids = groups.setdefault(r["call_text"], (r["mapped_by"], []))
-            if r["entity_id"]:
-                ids.append(r["entity_id"])
-        existing = {ct for (ct,) in self._conn.execute(
-            "SELECT call_text FROM call_text_mappings")}
-        neu = 0
-        try:
-            for call_text, (mapped_by, ids) in groups.items():
-                if call_text in existing:
-                    continue
-                if ids:
-                    self._write_call_text_figures(call_text, ids, mapped_by)
-                else:
-                    # bewusst "keine Figur" (entity_id NULL) wie bisher uebernehmen
-                    self._conn.execute(
-                        "INSERT INTO call_text_mappings (call_text, entity_id, mapped_by) "
-                        "VALUES (?, NULL, ?)", (call_text, mapped_by))
-                neu += 1
-        except Exception:
-            self._conn.rollback()
-            raise
-        self._conn.commit()
-        return neu, len(groups) - neu
 
     def _local_call_text_sets(self) -> dict:
         """{call_text: (figuren, mapped_by)} inkl. "keine Figur" ([])."""
@@ -3618,20 +3580,27 @@ class SongDatabase:
                 pending[ct] = m
         unknown = self.unknown_figures(
             [e for m in pending.values() for e in m.figures])
-        res["unknown_figures"] = sorted(unknown)
+        reported = set()
         for ct, m in pending.items():
             figs = [e for e in m.figures if e not in unknown]
+            dropped = set(m.figures) - set(figs)
             if m.figures and not figs:
                 res["skipped"].append(ct)
+                reported |= dropped
                 continue
             if ct not in local:
                 res["new"].append((ct, figs, m.mapped_by))
+                reported |= dropped
                 continue
             loc_figs, loc_mb = local[ct]
             if set(figs) == set(loc_figs):
+                # nach dem Filtern identisch: wird nicht geschrieben, also
+                # auch nichts melden
                 res["identical"].append(ct)
             else:
                 res["conflicts"].append((ct, loc_figs, loc_mb, figs, m.mapped_by))
+                reported |= dropped
+        res["unknown_figures"] = sorted(reported)
         return res
 
     def apply_call_text_figures_decisions(self, decisions) -> int:

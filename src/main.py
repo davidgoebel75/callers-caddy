@@ -6263,6 +6263,12 @@ class P29MainWindow(QMainWindow):
             with open(path, "r", encoding="utf-8") as f:
                 data = _json.load(f)
             res = run_mapping_import(self, self.db, data)
+        except mapping_io.CallMapFormatError as e:
+            QMessageBox.warning(
+                self, _t("mapping_import_title"),
+                _t("mapping_import_error", msg=_t(e.key, **e.params))
+            )
+            return
         except Exception as e:
             QMessageBox.warning(
                 self, _t("mapping_import_title"),
