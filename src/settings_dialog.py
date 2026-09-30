@@ -407,7 +407,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Lesebalken-Höhe",
         "widget": "spinbox",
         "min": 2, "max": 60, "step": 1, "suffix": " %",
-        "default": 12,
+        "default": 20,
         "tooltip": "Höhe des Lesebalkens in Prozent der Fensterhöhe.",
     },
     "lyrics/reading_band_opacity": {

@@ -49,7 +49,7 @@ def _band_center_on_screen(w):
 def test_standardwerte(widget):
     assert widget._SYNC_ANCHOR_VIEWPORT_FRAC == pytest.approx(0.30)
     assert widget._reading_band_enabled is True
-    assert widget._reading_band_height_pct == 12
+    assert widget._reading_band_height_pct == 20
     assert widget._reading_band_opacity_pct == 30
 
 
@@ -61,7 +61,7 @@ def test_einstellungen_werden_gelesen_und_begrenzt(widget, ini):
     widget.reload_reading_settings()
     assert widget._SYNC_ANCHOR_VIEWPORT_FRAC == 1.0
     assert widget._reading_band_enabled is False
-    assert widget._reading_band_height_pct == 12      # unlesbar -> Standard
+    assert widget._reading_band_height_pct == 20      # unlesbar -> Standard
     assert widget._reading_band_opacity_pct == 55
 
 
@@ -150,7 +150,7 @@ def song(widget, qapp):
     def box(line):
         b = doc.findBlockByNumber(line)
         r = doc.documentLayout().blockBoundingRect(b)
-        return r.top(), r.bottom()
+        return r.top(), r.bottom(), r.center().y()
     return widget, pos, box
 
 
@@ -158,7 +158,7 @@ def test_anker_auf_ueberschrift_zeigt_auf_erste_textzeile(song):
     w, pos, box = song
     w._active_anchors = lambda: [(8.0, pos(1)), (60.0, pos(6))]
     ys = dict(w._anchor_doc_points())
-    assert ys[8.0] == pytest.approx(box(2)[0])      # OPENER -> "Circle left"
+    assert ys[8.0] == pytest.approx(box(2)[2])      # OPENER -> Mitte "Circle left"
 
 
 def test_abschnittsende_zeigt_auf_unterkante_der_letzten_zeile(song):
@@ -168,8 +168,8 @@ def test_abschnittsende_zeigt_auf_unterkante_der_letzten_zeile(song):
                                  (60.0, pos(8)), (90.0, pos(3)), (120.0, pos(8))]
     ys = dict(w._anchor_doc_points())
     assert ys[36.0] == pytest.approx(box(4)[1])     # Ende von "Last line"
-    assert ys[37.0] == pytest.approx(box(6)[0])     # FIGURE -> "Heads square thru"
-    assert ys[90.0] == pytest.approx(box(3)[0])     # normaler Anker: Oberkante
+    assert ys[37.0] == pytest.approx(box(6)[2])     # FIGURE -> Mitte "Heads square thru"
+    assert ys[90.0] == pytest.approx(box(3)[2])     # normaler Anker: Zeilenmitte
 
 
 def test_letzter_anker_zeigt_auf_unterkante(song):

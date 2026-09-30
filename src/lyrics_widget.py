@@ -706,7 +706,7 @@ class LyricsWidget(QWidget):
         self._interp_snapping = False     # letzte Interpolation im Ruecksprung?
         self._heading_kw = None           # Keyword-Woerter (lazy, singing_sections)
         self._reading_band_enabled = True
-        self._reading_band_height_pct = 12
+        self._reading_band_height_pct = 20
         self._reading_band_opacity_pct = 30
         self._reading_band = _ReadingBandOverlay(self)
         self._browser.verticalScrollBar().valueChanged.connect(
@@ -2524,7 +2524,7 @@ class LyricsWidget(QWidget):
         raw = self._settings.value("lyrics/reading_band_enabled", True)
         self._reading_band_enabled = str(raw).strip().lower() not in (
             "false", "0", "no", "off", "")
-        self._reading_band_height_pct = _num("lyrics/reading_band_height", 12, 1, 100)
+        self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 1, 100)
         self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 0, 100)
         self._scroll_last_val = -1
         if getattr(self, "_reading_band", None) is not None:
@@ -4636,10 +4636,11 @@ class LyricsWidget(QWidget):
         Lesebalken gilt (intern#76, Regel David): Ein Abschnitt laeuft von der
         ersten Zeile NACH dem Schluesselwort bis zum Ende der Zeile VOR dem
         naechsten Schluesselwort.
-        - Anker auf einer Ueberschrift -> Oberkante der ersten Textzeile danach
+        - Anker auf einer Ueberschrift -> Mitte der ersten Textzeile danach
         - Anker, der einen Abschnitt beendet (naechster Anker folgt binnen
           _SECTION_END_GAP_SEC, oder letzter Anker) -> Unterkante seiner Zeile
-        - sonst -> Oberkante seiner Zeile (dort beginnt der Gesang)
+        - sonst -> Mitte seiner Zeile (dort wird gerade gesungen)
+        Der Lesebalken ist um diesen Punkt zentriert.
         """
         doc = self._browser.document()
         layout = doc.documentLayout()
@@ -4658,16 +4659,16 @@ class LyricsWidget(QWidget):
                 for _ in range(5):       # Leerzeilen nach der Ueberschrift ueberspringen
                     if nxt is None:
                         break
-                    n_top, _n_h, n_text = self._line_box(nxt[0], nxt[1], layout)
+                    n_top, n_h, n_text = self._line_box(nxt[0], nxt[1], layout)
                     if n_text.strip():
-                        top = n_top
+                        top, height = n_top, n_h
                         break
                     nxt = self._next_line(*nxt)
-                out.append((sec, float(top)))
+                out.append((sec, float(top + height / 2)))
                 continue
             is_end = (i == len(raw) - 1
                       or raw[i + 1][0] - sec <= self._SECTION_END_GAP_SEC)
-            out.append((sec, float(top + height) if is_end else float(top)))
+            out.append((sec, float(top + height) if is_end else float(top + height / 2)))
         return out
 
     def _interpolate(self, pos: float, points) -> float:

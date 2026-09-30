@@ -6874,7 +6874,7 @@ class P29MainWindow(QMainWindow):
             # intern#76: Leseposition (% von oben) und Lesebalken
             "lyrics/reading_position_pct": "30",
             "lyrics/reading_band_enabled": "true",
-            "lyrics/reading_band_height": "12",
+            "lyrics/reading_band_height": "20",
             "lyrics/reading_band_opacity": "30",
         }
         for key, value in defaults.items():
