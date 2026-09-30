@@ -994,7 +994,7 @@ class SequencesWidget(QWidget):
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
 
-    def show_newest_sequences(self):
+    def show_hidden_sequences(self):
         """intern#119: Frisch importierte Sequenzen finden.
 
         Hebt nur die Filter auf, die an der Zuordnung haengen (Enthaelt, Limit,
@@ -1020,7 +1020,7 @@ class SequencesWidget(QWidget):
         if last >= 0:
             self._table.selectRow(last)
             self._table.scrollToBottom()
-        perf_log(f"SeqFilter.show_newest_sequences: {last + 1} Zeilen", _t0)
+        perf_log(f"SeqFilter.show_hidden_sequences: {last + 1} Zeilen", _t0)
 
     def select_sequence(self, seq_id: int):
         """Markiert eine Sequenz in der Tabelle (falls geladen) und oeffnet sie
@@ -1215,8 +1215,8 @@ class SequencesWidget(QWidget):
         menu = QMenu(self)
         # intern#119: auch ohne Zeile unter der Maus (leere Liste = genau der Fall,
         # in dem man seine frisch importierten Sequenzen sucht).
-        act_newest = menu.addAction(_t("ctx_show_hidden_sequences"))
-        act_newest.triggered.connect(self.show_newest_sequences)
+        act_hidden = menu.addAction(_t("ctx_show_hidden_sequences"))
+        act_hidden.triggered.connect(self.show_hidden_sequences)
         item = self._table.itemAt(pos)
         id_item = self._table.item(self._table.row(item), 0) if item else None
         seq_id = id_item.data(Qt.UserRole) if id_item else None
@@ -1499,44 +1499,32 @@ class SequencesWidget(QWidget):
         self._rebuild_contains_items()
         self._rebuild_limit_items()
 
-        # --- Type-Dropdown ---
-        _DEFAULT_TYPE = "Singer (Corner progression)"
-        self._combo_type.blockSignals(True)
-        self._combo_type.clear()
-        self._combo_type.addItem(_t("type_all"))
-        default_type_idx = 0
-        for t in self.db.get_sequence_type_values():
-            self._combo_type.addItem(t)
-            if t == _DEFAULT_TYPE:
-                default_type_idx = self._combo_type.count() - 1
-        self._combo_type.setCurrentIndex(default_type_idx)
-        self._combo_type.blockSignals(False)
+        # Typ, Schwierigkeit und Tags behalten ihre Auswahl (intern#131: nach
+        # "OK" im Call-Mapping muss dieselbe Sequenz wieder auffindbar sein).
+        # Nur beim allerersten Aufbau greift der Vorgabe-Typ "Singer".
+        self._refill_combo(self._combo_type, _t("type_all"),
+                           self.db.get_sequence_type_values(),
+                           fallback="Singer (Corner progression)")
+        self._refill_combo(self._combo_difficulty, _t("difficulty_all"),
+                           self.db.get_sequence_difficulty_values())
+        self._refill_combo(self._combo_tags, _t("tags_all"),
+                           self.db.get_sequence_tags_values())
 
-        # --- Difficulty-Dropdown ---
-        self._combo_difficulty.blockSignals(True)
-        self._combo_difficulty.clear()
-        self._combo_difficulty.addItem(_t("difficulty_all"))
-        for d in self.db.get_sequence_difficulty_values():
-            self._combo_difficulty.addItem(d)
-        self._combo_difficulty.blockSignals(False)
-
-        # --- Tags-Dropdown (BL-191) ---
-        self._combo_tags.blockSignals(True)
-        prev_tag = self._get_tags_filter()
-        self._combo_tags.clear()
-        self._combo_tags.addItem(_t("tags_all"))
-        for tg in self.db.get_sequence_tags_values():
-            self._combo_tags.addItem(tg)
-        # Vorherige Auswahl beibehalten (z.B. nach Editor-Speichern), sonst "Alle".
-        restore_idx = 0
-        if prev_tag:
-            for i in range(1, self._combo_tags.count()):
-                if self._combo_tags.itemText(i) == prev_tag:
-                    restore_idx = i
-                    break
-        self._combo_tags.setCurrentIndex(restore_idx)
-        self._combo_tags.blockSignals(False)
-
+    @staticmethod
+    def _refill_combo(combo, all_text, values, fallback=None):
+        """Fuellt ein Filter-Dropdown neu ("Alle" + values) und stellt die
+        vorige Auswahl wieder her. Gibt es sie nicht mehr (oder ist das
+        Dropdown noch leer), gilt fallback, sonst "Alle"."""
+        prev = combo.currentText() if combo.count() else fallback
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(all_text)
+        combo.addItems(list(values))
+        idx = combo.findText(prev) if prev else -1
+        if idx < 0 and fallback:
+            idx = combo.findText(fallback)
+        combo.setCurrentIndex(max(idx, 0))
+        combo.blockSignals(False)
 
 class _MappingHighlighter(QSyntaxHighlighter):
     """Faerbt jede Zeile (Block) nach ihrem Mapping-Zustand: gruen = gemappt,
@@ -1841,6 +1829,76 @@ class SequenceEditorDialog(QDialog):
             if eid is not None:
                 self.db.set_call_text_mapping(key, eid, mapped_by="auto")
 
+    def _with_suggestion(self, key: str, current: list) -> list:
+        """Bisherige Menge plus Mengen-Vorschlag, ohne Doppelte (BL-210.12).
+
+        Vereinigung statt "Vorschlag nur ohne Zuordnung": eine halbe
+        Alt-Zuordnung darf den Vorschlag nicht blockieren. Gemeinsam fuer
+        Picker-Vorbelegung und Rueckfrage beim Speichern (intern#88).
+        """
+        return list(dict.fromkeys(current + self._suggest_set(key)))
+
+    def _offer_suggested_sets(self, calls: list):
+        """Rueckfrage beim Speichern (intern#88): Haben Zeilen noch einen
+        Mengen-Vorschlag ('gelb'), fragt der Editor einmal, ob die Vorschlaege
+        uebernommen werden. Ja schreibt je Call-Text die bisherige Menge plus
+        den Vorschlag als mapped_by='inferred' (eine Transaktion); Nein
+        schreibt nichts. Ohne gelbe Zeile keine Rueckfrage.
+        """
+        yellow = [k for k in dict.fromkeys(c.strip() for c in calls)
+                  if k and self._line_state(k) == "gelb"]
+        if not yellow:
+            return
+        current = {k: self.db.get_call_text_figures(k) for k in yellow}
+        pairs = [(k, self._with_suggestion(k, current[k])) for k in yellow]
+        added = [(k, [eid for eid in figures if eid not in current[k]])
+                 for k, figures in pairs]
+        if not self._confirm_suggested_sets(added):
+            return
+        self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
+        # Die neuen Mengen koennen ueber rest_lookup andere Zeilen aendern
+        self._lookups = None
+        self._map_cache.clear()
+        self._highlighter.rehighlight()
+
+    # Mehr Call-Texte stehen gekuerzt in der Rueckfrage, alle im Detailbereich
+    _SUGGESTION_LINES = 10
+
+    def _picker_entities(self):
+        """(entity_list, eid_to_label, eid_min_to) wie im Picker -- siehe
+        picker_entities_from_to_calls()."""
+        return picker_entities_from_to_calls(self.db.get_teaching_order_calls())
+
+    def _confirm_suggested_sets(self, added: list) -> bool:
+        """Rueckfrage zu _offer_suggested_sets: je Call-Text eine Zeile mit
+        den Figuren, die dazukommen (intern#88). Eine Zuordnung gilt fuer die
+        ganze Datenbank -- der Nutzer soll sehen, was er uebernimmt.
+
+        added: [(call_text, [entity_id, ...]), ...] -- nur die neuen Figuren.
+        """
+        # Namen wie im Picker (ein Lookup fuer alle Zeilen)
+        _entities, names, _min_to = self._picker_entities()
+        lines =[f"{key}  →  + {', '.join(names.get(e, e) for e in eids)}"
+                 for key, eids in added]
+        # Gekuerzt erst ab zwei ueberzaehligen Zeilen: "... und 1 weitere"
+        # waere so lang wie die Zeile selbst
+        truncate = len(lines) > self._SUGGESTION_LINES + 1
+        shown = lines[:self._SUGGESTION_LINES] if truncate else list(lines)
+        if truncate:
+            shown.append(_t("seq_editor_save_suggestions_more",
+                            count=len(lines) - len(shown)))
+        question = (_t("seq_editor_save_suggestions_one") if len(lines) == 1
+                    else _t("seq_editor_save_suggestions", count=len(lines)))
+        box = QMessageBox(QMessageBox.Question, _t("seq_editor_title"),
+                          question + "\n\n" + "\n".join(shown),
+                          QMessageBox.Yes | QMessageBox.No, self)
+        # Call-Texte sind Nutzereingaben: '<...>' nie als Rich Text deuten
+        box.setTextFormat(Qt.PlainText)
+        box.setDefaultButton(QMessageBox.Yes)
+        if truncate:
+            box.setDetailedText("\n".join(lines))
+        return box.exec() == QMessageBox.Yes
+
     def _handle_line_dblclick(self, line: str) -> bool:
         """Doppelklick auf eine Zeile: Figuren-Picker oeffnen (BL-210.5).
 
@@ -1861,18 +1919,15 @@ class SequenceEditorDialog(QDialog):
                                 _t("call_mapping_no_to_calls"))
             return True
         current = self.db.get_call_text_figures(key)
-        # Vereinigung statt "Vorschlag nur ohne Zuordnung": eine halbe
-        # Alt-Zuordnung darf den Mengen-Vorschlag nicht blockieren. Der Nutzer
-        # sieht im Picker, was dazukommt, und bestaetigt oder nicht.
-        selected = list(dict.fromkeys(current + self._suggest_set(key)))
+        # Der Nutzer sieht im Picker, was dazukommt, und bestaetigt oder nicht.
+        selected = self._with_suggestion(key, current)
         if not selected:
             # Ohne Zuordnung und ohne Muster den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
             selected = [suggested] if suggested is not None else []
         # intern#87: pro entity_id nur ein Eintrag, Label ohne [Programm] -
         # dieselbe Dedup wie im Call-Mapping-Dialog.
-        entities, _labels, _min_to = picker_entities_from_to_calls(
-            self.db.get_teaching_order_calls())
+        entities, _labels, _min_to = self._picker_entities()
         dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
                                       unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
@@ -1949,6 +2004,9 @@ class SequenceEditorDialog(QDialog):
             self._combo_type.setFocus()
             return
 
+        # Gelbe Zeilen: Mengen-Vorschlaege nach Rueckfrage uebernehmen
+        # (intern#88) -- vor dem Speichern, damit das Level sie schon sieht
+        self._offer_suggested_sets(calls)
         # Exakte Treffer als 'auto'-Mapping sichern, damit das Level berechnet wird
         self._persist_auto_mappings(calls)
 
@@ -2976,6 +3034,10 @@ class CallMappingDialog(QDialog):
         self._table.setRowCount(0)
         self._table.setRowCount(len(rows))
         none_label = _t("call_mapping_none")   # einmal statt je Zeile
+        # Spalte "Quelle" uebersetzt (intern#88); der interne Wert bleibt
+        # englisch und steht in _all_data, die Anzeige wird nie zurueckgelesen.
+        source_labels = {mb: _t(f"call_mapping_source_{mb}")
+                         for mb in ("auto", "manual", "inferred")}
 
         for i, (call_text, count, entity_id, mapped_by) in enumerate(rows):
 
@@ -3038,7 +3100,7 @@ class CallMappingDialog(QDialog):
             self._table.setItem(i, 2, item2)
 
             # Col 3: Quelle
-            source = mapped_by if mapped_by else "—"
+            source = source_labels.get(mapped_by, mapped_by) if mapped_by else "—"
             item3 = QTableWidgetItem(source)
             item3.setFlags(item3.flags() & ~Qt.ItemIsEditable)
             self._table.setItem(i, 3, item3)
