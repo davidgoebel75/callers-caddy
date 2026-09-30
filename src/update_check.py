@@ -191,7 +191,12 @@ class UpdateChecker(QObject):
 
     def _begin(self, manual):
         if self._running:
-            return  # laeuft bereits — Doppelklick/Doppelstart ignorieren
+            # laeuft bereits -> kein zweiter Thread. Ein manueller Klick
+            # waehrend der Start-Pruefung bekommt trotzdem Rueckmeldung,
+            # sobald das Ergebnis da ist.
+            if manual:
+                self._manual = True
+            return
         self._running = True
         self._manual = manual
         # intern#134: Daemon-Thread statt QThread. Ein QThread, der beim
