@@ -23,7 +23,7 @@ from song_db import CHECK_START_GENRE_NAME
 from ui_helpers import _WrapButtonBar, mark_toggle
 
 from PySide6.QtCore import (
-    Qt, QTimer, QSettings, QEvent, QPoint, QRect,
+    Qt, QTimer, QEvent, QPoint, QRect,
 )
 from PySide6.QtGui import (
     QIcon, QKeySequence, QShortcut, QTextDocument, QPainter, QColor,
@@ -731,10 +731,10 @@ class LyricsWidget(QWidget):
         self._dyn_invert_state = ()        # je Block: zuletzt invertiert gerendert?
         # Callback(full_key) -> Einstellungen an dieser Zeile oeffnen (MainWindow)
         self.open_settings_at = None
-        # Modus ("1"/"2") wird lazy aus der App-INI gelesen (self._settings, vom
-        # Hauptfenster gesetzt) — NICHT aus einem bare QSettings(), das auf einen
-        # anderen Store zeigen wuerde. Leer = beim ersten Einschalten fragen.
-        self._settings = None
+        # Modus ("1"/"2") wird lazy aus der App-INI gelesen — NICHT aus einem
+        # bare QSettings(), das auf einen anderen Store zeigen wuerde (intern#136).
+        # Leer = beim ersten Einschalten fragen.
+        self._settings = paths.settings
         self._dynamic_mode = ""
         # Schnittstelle zum Sequence-View (Quelle der Wahrheit):
         self.get_current_sequence_calls = None  # () -> list[str] der aktuellen Sequenz
@@ -747,7 +747,7 @@ class LyricsWidget(QWidget):
         self._auto_end_sec = None         # markiertes Ende 7. Teil (Sek.)
         # Lese-Zone (Anteil von oben) per INI ueberschreibbar, Default 0.25
         try:
-            _vf = QSettings().value("lyric_sync/viewport_frac")
+            _vf = self._settings.value("lyric_sync/viewport_frac")
             if _vf is not None:
                 self._SYNC_ANCHOR_VIEWPORT_FRAC = max(0.05, min(0.9, float(_vf)))
         except (TypeError, ValueError):
@@ -2221,7 +2221,7 @@ class LyricsWidget(QWidget):
                 self._btn_dynamic.blockSignals(False)
                 return
             # Modus frisch aus der INI lesen (koennte ueber Settings geaendert sein)
-            settings = self._settings if self._settings is not None else QSettings()
+            settings = self._settings
             try:
                 self._dynamic_mode = str(settings.value("lyrics/dynamic_mode") or "")
             except Exception:
@@ -2251,7 +2251,7 @@ class LyricsWidget(QWidget):
     def _persist_dynamic_enabled(self, enabled: bool):
         """Speichert die An/Aus-Praeferenz in der App-INI (lyrics/dynamic_enabled),
         damit sie beim naechsten Start wiederhergestellt werden kann."""
-        settings = self._settings if self._settings is not None else QSettings()
+        settings = self._settings
         try:
             settings.setValue("lyrics/dynamic_enabled", bool(enabled))
             settings.sync()
@@ -2393,7 +2393,7 @@ class LyricsWidget(QWidget):
                 self.open_settings_at("lyrics/dynamic_invert_mode")
             return
         self._invert_enabled = bool(checked)
-        settings = self._settings if self._settings is not None else QSettings()
+        settings = self._settings
         try:
             settings.setValue("lyrics/dynamic_invert_enabled", bool(checked))
             settings.sync()

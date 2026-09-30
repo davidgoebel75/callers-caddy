@@ -848,9 +848,6 @@ class P29MainWindow(QMainWindow):
         _td3 = perf_split("    SongList", _td2)
         # --- Dock 7: Lyrics (Spalte 3, rechts neben Songliste) ---
         self.lyrics_widget = LyricsWidget(self.paths, skin_mgr=self.skin_mgr, db=self.db)
-        # BL-173: App-INI ans Lyrics-Widget geben, damit der Dynamic-Lyrics-Modus
-        # im GLEICHEN Store liegt wie die uebrigen Settings (nicht bare QSettings).
-        self.lyrics_widget._settings = self._settings
         # BL-160: Im Sync-Modus Rules + History abschalten (Testlauf)
         self.lyrics_widget.on_sync_mode_changed = self._on_lyric_sync_mode
         # Automatische Body-Erkennung anfordern (laeuft im Worker-Thread)
@@ -6333,7 +6330,7 @@ class P29MainWindow(QMainWindow):
 
     def _on_import_sequences_universal(self):
         """Universeller Sequenz-Import (BL-098): erkennt MDB/JSON/CSDS/Freitext."""
-        dlg = SequenceImportDialog(self.db, parent=self)
+        dlg = SequenceImportDialog(self.db, self._settings, parent=self)
         if dlg.exec() != QDialog.Accepted:
             return
         inserted, skipped = dlg.get_summary()
