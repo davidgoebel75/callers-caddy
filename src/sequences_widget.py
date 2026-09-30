@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QTextBrowser, QTextEdit, QPlainTextEdit, QListWidget, QListWidgetItem,
     QDialogButtonBox,
 )
-from PySide6.QtCore import Qt, QTimer, QSettings, QEvent, QObject
+from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
     QFont, QFontMetrics, QKeySequence, QShortcut,
@@ -2057,9 +2057,10 @@ class SequenceImportDialog(QDialog):
 
     PREVIEW_BLOCKS = 3
 
-    def __init__(self, db, parent=None):
+    def __init__(self, db, settings, parent=None):
         super().__init__(parent)
         self.db = db
+        self._settings = settings  # App-INI (intern#136)
         self._paths = []
         self._detected_format = None  # FMT_* nach Datei-Auswahl
         self._parsed = []  # list[dict]: calls, seq_type, difficulty, level, source_id
@@ -2198,7 +2199,7 @@ class SequenceImportDialog(QDialog):
     # ---- Datei-Auswahl ----
 
     def _on_browse(self):
-        settings = QSettings()
+        settings = self._settings
         last_dir = str(settings.value("sequences/universal_import_dir", ""))
         if not last_dir or not os.path.isdir(last_dir):
             last_dir = os.path.expanduser("~")
