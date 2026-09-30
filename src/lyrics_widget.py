@@ -939,9 +939,26 @@ class LyricsWidget(QWidget):
         Farbangabe erhalten schwarzen Text auf weissem Hintergrund —
         wie ein Browser es anzeigen wuerde.
         """
+        # h1-h6 "medium": Qt vergroessert Ueberschriften sonst fest (h1 = 2x)
+        # und uebergeht dabei jede Groessenangabe der Datei (intern#152).
         self._browser.document().setDefaultStyleSheet(
             "body { color: #000000; background-color: white; }"
+            " h1, h2, h3, h4, h5, h6 { font-size: medium; }"
         )
+
+    @staticmethod
+    def _unwrap_style_comments(html: str) -> str:
+        """Entfernt die Kommentar-Klammern <!-- --> in <style>-Bloecken.
+
+        Word schreibt sein Stylesheet als <style><!-- ... --></style>. Browser
+        ignorieren diese Klammern, Qt verwirft dagegen das GANZE Stylesheet —
+        dann fehlen z.B. Groesse, Schrift und Farbe der Ueberschriften
+        (intern#152).
+        """
+        def _unwrap(m):
+            css = m.group(2).replace("<!--", "").replace("-->", "")
+            return f"{m.group(1)}{css}</style>"
+        return re.sub(r'(?si)(<style[^>]*>)(.*?)</style>', _unwrap, html)
 
     @classmethod
     def _sanitize_html(cls, html: str, lyrics_dir: str = None) -> str:
@@ -958,6 +975,10 @@ class LyricsWidget(QWidget):
           - Keine Theme-Anpassung, keine WCAG-Kontrast-Pruefung
           - Hintergrund ist immer weiss → Dateien sehen aus wie im Browser/Word
         """
+        # 0) Words <!-- --> um das Stylesheet loesen, sonst ignoriert Qt es
+        #    komplett (Farben/Schriften der Ueberschriften fehlen, intern#152)
+        html = cls._unwrap_style_comments(html)
+
         # 1) Externe <link>-CSS auflösen → inline <style>
         def _resolve_link(m):
             href = m.group(1) or m.group(2) or m.group(3)
@@ -3827,7 +3848,9 @@ class LyricsWidget(QWidget):
             return
 
         if ext in self._SUPPORTED_HTML:
-            html = content  # Original-HTML 1:1 (ohne Sanitize) editieren
+            # Original-HTML (ohne Sanitize) editieren; nur Words
+            # Kommentar-Klammern um das Stylesheet loesen, sonst ignoriert Qt es
+            html = self._unwrap_style_comments(content)
         elif ext in self._SUPPORTED_RTF:
             # RTF → HTML konvertieren (gleiche Logik wie _load_rtf)
             content = self._strip_rtf_binary_groups(content)
@@ -3856,6 +3879,7 @@ class LyricsWidget(QWidget):
         # eine Skalierung wuerde sonst falsche Fragmente treffen.
         # Nach dem Speichern wird der Cache beim Reload neu gefuellt.
         self._original_sizes = []
+        self._set_font_size(self._current_font_size)  # im Edit-Modus = 100 %
         # Signale sind bereits im __init__ einmal verbunden — Slots pruefen
         # self._edit_mode und sind im Read-Modus No-Ops.
 
@@ -3891,6 +3915,7 @@ class LyricsWidget(QWidget):
         self._browser.setReadOnly(True)
         self._edit_mode = False
         self._dirty = False
+        self._set_font_size(self._current_font_size)  # Zoom wieder anwenden
         self._format_toolbar_widget.setVisible(False)
         self._btn_auto_scroll.setEnabled(True)
         self._btn_auto_size.setEnabled(True)
@@ -4315,6 +4340,11 @@ class LyricsWidget(QWidget):
         damit Zoom/Auto-Width auch Dokumente mit per-Span font-size verkleinern
         oder vergroessern koennen.
         """
+        if self._edit_mode:
+            # Bearbeiten zeigt die Datei in Originalgroesse (100 %): Die
+            # Groessen der Datei werden dort nicht gezoomt, also auch der Rest
+            # (Ueberschriften, Leerraum) nicht (intern#152).
+            size_px = self._base_font_size
         font = self._browser.font()
         font.setPointSizeF(size_px * 0.75)  # px → pt Naeherung (96dpi)
         self._browser.setFont(font)

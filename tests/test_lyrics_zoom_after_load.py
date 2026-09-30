@@ -54,3 +54,23 @@ def test_dokument_passt_sofort_zum_aktuellen_zoom(widget, tmp_path, auto_width):
 
     # Vor jedem Auto-Fit: Inline-Groesse = Original x aktueller Faktor
     assert _inline_pt(w) == pytest.approx(20.0)
+
+
+# ---------------------------------------------------------------------------
+# Edit-Modus: Words Stylesheet in <!-- --> muss wirken (intern#152)
+# ---------------------------------------------------------------------------
+
+def test_word_stylesheet_in_kommentar_wirkt(qapp):
+    from PySide6.QtGui import QTextDocument
+    raw = ("<html><head><style>\n<!--\nh1\n\t{font-size:10.0pt;color:brown;}\n-->\n"
+           "</style></head><body><h1>OPENER</h1></body></html>")
+    doc = QTextDocument()
+    doc.setHtml(LyricsWidget._unwrap_style_comments(raw))
+    fmt = doc.begin().begin().fragment().charFormat()
+    assert fmt.fontPointSize() == pytest.approx(10.0)
+
+
+def test_kommentare_ausserhalb_von_style_bleiben():
+    html = "<!-- Kopf --><style><!-- p{} --></style><p><!-- x -->a</p>"
+    out = LyricsWidget._unwrap_style_comments(html)
+    assert out == "<!-- Kopf --><style> p{} </style><p><!-- x -->a</p>"
