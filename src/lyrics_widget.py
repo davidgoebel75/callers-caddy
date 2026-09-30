@@ -4518,13 +4518,15 @@ class LyricsWidget(QWidget):
         — robust gegen langsames HTML/RTF-Layout. 250 ms Fallback-Timer
         falls das Signal nicht (mehr) feuert (z.B. leeres Document).
         """
+        # setHtml() hat die Inline-Groessen auf die Originalwerte zurueckgesetzt.
+        # Die aktuelle/gespeicherte Groesse (aus der INI beim Start) sofort neu
+        # anwenden — in JEDEM Modus. Sonst passt das Dokument bis zum Auto-Fit
+        # nicht zu _current_font_size, und wer in dieser Luecke den Zoom-Faktor
+        # herausrechnet (Dynamic Lyrics direkt nach dem Laden), halbiert die
+        # Inline-Groessen, waehrend Ueberschriften ohne eigene Groesse riesig
+        # wirken (intern#152).
+        self._set_font_size(self._current_font_size)
         if not (self._auto_size_enabled or self._auto_width_enabled):
-            # Manueller Zoom-Modus: setHtml() hat die Inline-Groessen auf die
-            # Originalwerte zurueckgesetzt. Die aktuelle/gespeicherte Groesse
-            # (aus der INI beim Start) neu anwenden — sonst zeigt der frisch
-            # geladene Text die Basisgroesse und erst ein Zoom-Klick stellt
-            # den gemerkten Faktor wieder her.
-            self._set_font_size(self._current_font_size)
             return
 
         doc_layout = self._browser.document().documentLayout()
