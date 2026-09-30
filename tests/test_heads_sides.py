@@ -160,6 +160,34 @@ def test_art_bleibt_leer_und_wird_nicht_still_gespeichert(qapp, tmp_path):
     assert row.get_value() == "HSSH"
 
 
+def test_spiegel_button_springt_zur_art_auswahl(qapp, tmp_path):
+    """intern#133 (Handtest David): Die Einstellungen oeffnen sich vom
+    Spiegel-Button aus direkt an der Art-Auswahl. Bisher lief der Sprung ins
+    Leere, weil die Scroll-Flaeche beim deferten Aufbau noch keine Hoehe
+    hatte, und man landete ganz oben."""
+    import time
+    from PySide6.QtCore import QCoreApplication, QPoint, QSettings
+    from settings_dialog import SettingsDialog
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_mode", "")
+    dlg = SettingsDialog(None, ini, focus_key="lyrics/dynamic_invert_mode")
+    dlg.show()
+    bar = dlg._scroll.verticalScrollBar()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and bar.value() == 0:
+        QCoreApplication.processEvents()
+        time.sleep(0.01)
+    try:
+        row = next(r for r in dlg._rows
+                   if r.full_key == "lyrics/dynamic_invert_mode")
+        top = row.widget.mapTo(dlg._scroll.viewport(), QPoint(0, 0)).y()
+        assert bar.value() > 0
+        # ganz sichtbar (ins obere Drittel, soweit die Liste so weit reicht)
+        assert 0 <= top <= dlg._scroll.viewport().height() - row.widget.height()
+    finally:
+        dlg.close()
+
+
 def _invert_dialog(tmp_path, monkeypatch, enabled, mode):
     from PySide6.QtCore import QSettings
     import settings_dialog

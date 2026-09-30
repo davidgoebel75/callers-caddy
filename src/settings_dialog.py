@@ -20,7 +20,7 @@ except Exception:
     _sd = None
     _SD_AVAILABLE = False
 
-from PySide6.QtCore import Qt, QDate, QTimer, QEvent
+from PySide6.QtCore import Qt, QDate, QTimer, QEvent, QPoint
 from PySide6.QtWidgets import (
     QDialog, QWidget, QScrollArea, QFormLayout, QGroupBox,
     QLabel, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox,
@@ -783,13 +783,32 @@ class SettingsDialog(QDialog):
         self._build_ui()
 
     def focus_row(self, full_key: str) -> bool:
-        """Scrollt zur Zeile full_key und setzt den Fokus auf ihr Feld
-        (z. B. vom Spiegel-Button im Lyrics-Fenster, intern#127)."""
+        """Scrollt zur Zeile full_key (ins obere Drittel) und setzt den Fokus
+        auf ihr Feld (z. B. vom Spiegel-Button im Lyrics-Fenster, intern#127).
+
+        intern#133: Direkt nach dem deferten Aufbau hat die Scroll-Flaeche
+        noch keine Hoehe (Scrollbereich 0), ein Sprung liefe ins Leere. Dann
+        wird gescrollt, sobald der Scrollbereich steht (rangeChanged)."""
         row = next((r for r in self._rows if r.full_key == full_key), None)
         if row is None:
             return False
+        bar = self._scroll.verticalScrollBar()
+        inner = self._scroll.widget()
+
+        def scroll_to_row():
+            y = row.widget.mapTo(inner, QPoint(0, 0)).y()
+            bar.setValue(y - self._scroll.viewport().height() // 3)
+
+        def on_range(_min, maximum):
+            if maximum > 0:
+                bar.rangeChanged.disconnect(on_range)
+                scroll_to_row()
+
         self._inner_layout.activate()   # Geometrie der frisch gebauten Zeilen
-        self._scroll.ensureWidgetVisible(row.widget, 0, 80)
+        if bar.maximum() > 0:
+            scroll_to_row()
+        else:
+            bar.rangeChanged.connect(on_range)
         row.widget.setFocus()
         return True
 
