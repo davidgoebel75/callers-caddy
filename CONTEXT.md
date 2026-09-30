@@ -97,6 +97,18 @@ wechselt oder Heads und Sides tauscht. "Texttausch timen" verschiebt ihn um ganz
 Sekunden.
 _EN_: Text Swap
 
+**Leseposition**:
+Hoehe im Lyric-Fenster, auf der der gerade gesungene Text steht, in Prozent von
+oben (0 % = ganz oben, 100 % = ganz unten). Gilt mit und ohne SyncPoints.
+_EN_: Reading Position
+_Avoid_: Lese-Zone, Viewport-Anteil
+
+**Lesebalken**:
+Farbig hinterlegter Bereich im Lyric-Fenster ueber dem Text, der gerade zu singen
+ist. Folgt dem gesungenen Text, auch wenn "Textsprung timen" frueher scrollt.
+_EN_: Reading Band
+_Avoid_: Band, Leseband
+
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.

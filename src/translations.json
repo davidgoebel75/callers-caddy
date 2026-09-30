@@ -1420,6 +1420,46 @@
     "en": "Shifts the sequence change and the heads/sides swap of Dynamic Lyrics, in seconds. Negative = earlier, -4 recommended (then it matches the text jump).",
     "ja": "Dynamic Lyrics のシーケンス切り替えと Heads/Sides の入れ替えを秒単位でずらします。マイナス = 早く、推奨は -4（テキストジャンプと揃います）。"
   },
+  "setting_label_lyrics_reading_position_pct": {
+    "de": "Leseposition",
+    "en": "Reading position",
+    "ja": "読み取り位置"
+  },
+  "setting_tip_lyrics_reading_position_pct": {
+    "de": "In welcher Höhe des Lyric-Fensters der gerade gesungene Text steht: 0 % = ganz oben, 100 % = ganz unten. Empfohlen 30 %: Man sieht noch etwas vom gerade Gesungenen und mehr vom Text, der noch kommt.",
+    "en": "At which height of the lyrics window the text currently being sung is shown: 0 % = top, 100 % = bottom. 30 % recommended: you still see a little of what was just sung and more of the text to come.",
+    "ja": "現在歌われているテキストを歌詞ウィンドウのどの高さに表示するか：0 % = 一番上、100 % = 一番下。推奨は 30 %：直前に歌った部分が少し見え、これから来るテキストが多く見えます。"
+  },
+  "setting_label_lyrics_reading_band_enabled": {
+    "de": "Lesebalken anzeigen",
+    "en": "Show reading band",
+    "ja": "リーディングバンドを表示"
+  },
+  "setting_tip_lyrics_reading_band_enabled": {
+    "de": "Hinterlegt den gerade gesungenen Text farbig, damit man ihn nach einem Blick weg sofort wiederfindet. Der Balken folgt dem gesungenen Text, auch wenn „Textsprung timen“ früher scrollt.",
+    "en": "Highlights the text currently being sung with a colored band, so you find it again right away after looking away. The band follows the sung text, even when \"Text jump timing\" scrolls earlier.",
+    "ja": "現在歌われているテキストを色付きの帯で強調し、目を離した後もすぐに見つけられるようにします。「テキストジャンプのタイミング」で早くスクロールしても、帯は歌われているテキストに追従します。"
+  },
+  "setting_label_lyrics_reading_band_height": {
+    "de": "Lesebalken-Höhe",
+    "en": "Reading band height",
+    "ja": "リーディングバンドの高さ"
+  },
+  "setting_tip_lyrics_reading_band_height": {
+    "de": "Höhe des Lesebalkens in Prozent der Fensterhöhe.",
+    "en": "Height of the reading band as a percentage of the window height.",
+    "ja": "ウィンドウの高さに対するリーディングバンドの高さ（％）。"
+  },
+  "setting_label_lyrics_reading_band_opacity": {
+    "de": "Lesebalken-Deckkraft",
+    "en": "Reading band opacity",
+    "ja": "リーディングバンドの不透明度"
+  },
+  "setting_tip_lyrics_reading_band_opacity": {
+    "de": "Deckkraft des Lesebalkens in Prozent. Die Farbe kommt aus dem Theme.",
+    "en": "Opacity of the reading band in percent. The color comes from the theme.",
+    "ja": "リーディングバンドの不透明度（％）。色はテーマから取得されます。"
+  },
   "dynamic_invert_opt_hhss": {
     "de": "HHSS – Figure 3 und 4 tauschen",
     "en": "HHSS – swap in Figures 3 and 4",

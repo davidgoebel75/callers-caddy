@@ -106,6 +106,61 @@ def lyric_section_lines(res, text: str) -> dict:
     return out
 
 
+class _ReadingBandOverlay(QWidget):
+    """Lesebalken (intern#76): farbiges Band ueber dem gerade gesungenen Text.
+
+    Liegt als durchsichtige Flaeche deckungsgleich ueber dem Viewport und
+    laesst alle Mausereignisse durch (Sync-Klicks, Markieren, Rad). Kind des
+    Browsers, NICHT des Viewports: Beim Scrollen verschiebt Qt die Kinder des
+    Viewports mit, der Balken waere mitgewandert. Das Dokument wird nicht
+    angefasst. Die Position kommt aus LyricsWidget._band_doc_y
+    (Dokument-Y des gesungenen Texts, OHNE "Textsprung timen"); gemalt wird
+    relativ zum aktuellen Scroll-Wert. Farbe aus dem Skin ("reading_band").
+    """
+
+    _FALLBACK_COLOR = "#4a9eff"
+
+    def __init__(self, owner: 'LyricsWidget'):
+        super().__init__(owner._browser)
+        self._owner = owner
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.sync_geometry()
+        self.show()
+
+    def sync_geometry(self):
+        """Deckungsgleich mit dem Viewport (ohne Rahmen und Scrollbalken)."""
+        self.setGeometry(self._owner._browser.viewport().geometry())
+        self.raise_()
+
+    def band_rect(self):
+        """Rechteck des Balkens in Viewport-Koordinaten oder None."""
+        o = self._owner
+        if (o._band_doc_y is None or not o._reading_band_enabled
+                or not o._lyrics_loaded or o._sync_mode or o._edit_mode):
+            return None
+        h = self.height()
+        band_h = max(2, int(h * o._reading_band_height_pct / 100.0))
+        y = int(o._band_doc_y) - o._browser.verticalScrollBar().value()
+        return QRect(0, y - band_h // 2, self.width(), band_h)
+
+    def paintEvent(self, _event):
+        rect = self.band_rect()
+        if rect is None or not rect.intersects(self.rect()):
+            return
+        sm = getattr(self._owner, "_skin_mgr", None)
+        try:
+            color = QColor(sm.color("reading_band", self._FALLBACK_COLOR)
+                           if sm else self._FALLBACK_COLOR)
+        except Exception:
+            color = QColor(self._FALLBACK_COLOR)
+        color.setAlpha(int(255 * self._owner._reading_band_opacity_pct / 100.0))
+        painter = QPainter(self)
+        painter.fillRect(rect, color)
+        painter.end()
+
+
 class _LyricSectionOverlay(QWidget):
     """Farbstreifen der Lyric-Abschnitte — eine eigene Spalte NEBEN dem Text.
 
@@ -426,7 +481,7 @@ class LyricsWidget(QWidget):
     # ist (Anteil von oben). 0.5 = Mitte: aktuelle Zeile zentriert, gleich viel
     # Kontext darueber wie darunter. Per INI ("lyric_sync/viewport_frac")
     # ueberschreibbar (siehe __init__).
-    _SYNC_ANCHOR_VIEWPORT_FRAC = 0.5
+    _SYNC_ANCHOR_VIEWPORT_FRAC = 0.3   # intern#76: "Leseposition", INI lyrics/reading_position_pct
 
     # Manuelles Scrollen (Rad/Ziehen/Tasten) setzt den Auto-Scroll fuer diese
     # Zeitspanne aus, damit man waehrend der Wiedergabe zu einer Zeile blaettern
@@ -644,6 +699,15 @@ class LyricsWidget(QWidget):
         self._section_overlay = _LyricSectionOverlay(self)
         self._browser.verticalScrollBar().valueChanged.connect(
             lambda _v: self._section_overlay.update())
+        # intern#76: Lesebalken. _band_doc_y = Dokument-Y des gesungenen Texts
+        # (None = nichts anzeigen); Werte aus der INI (reload_reading_settings).
+        self._band_doc_y = None
+        self._reading_band_enabled = True
+        self._reading_band_height_pct = 12
+        self._reading_band_opacity_pct = 30
+        self._reading_band = _ReadingBandOverlay(self)
+        self._browser.verticalScrollBar().valueChanged.connect(
+            lambda _v: self._reading_band.update())
         # Manuelles Scrollen erkennen: actionTriggered feuert bei Rad/Ziehen/
         # Tasten, aber NICHT bei unserem programmatischen setValue() — damit
         # entsteht keine Rueckkopplung mit dem Auto-Scroll.
@@ -745,13 +809,8 @@ class LyricsWidget(QWidget):
         self._auto_calc_active = False    # True = Start/Ende werden gerade erfasst
         self._auto_start_sec = None       # markierter Beginn 1. Teil (Sek.)
         self._auto_end_sec = None         # markiertes Ende 7. Teil (Sek.)
-        # Lese-Zone (Anteil von oben) per INI ueberschreibbar, Default 0.25
-        try:
-            _vf = self._settings.value("lyric_sync/viewport_frac")
-            if _vf is not None:
-                self._SYNC_ANCHOR_VIEWPORT_FRAC = max(0.05, min(0.9, float(_vf)))
-        except (TypeError, ValueError):
-            pass
+        # intern#76: Leseposition und Lesebalken aus der INI ([lyrics])
+        self.reload_reading_settings()
 
         # --- Format-Toolbar (nur im Edit-Modus sichtbar) ---
         self._format_toolbar_widget = self._build_format_toolbar()
@@ -853,6 +912,7 @@ class LyricsWidget(QWidget):
         # (nicht entfernen — das alte Dokument existiert nicht mehr).
         self._marker_inserts = []
         self._scroll_last_val = -1
+        self._band_doc_y = None   # intern#76: Lesebalken erst mit neuer Position
         # BL-173: Position zuruecksetzen, damit ein Auto-Re-Apply von Dynamic
         # nicht vom alten Song-Ende ausgeht (sonst kurzer Sequenz-Fehlstand).
         self._sync_last_pos = 0.0
@@ -1816,6 +1876,8 @@ class LyricsWidget(QWidget):
             if (obj is self._browser.viewport()
                     and event.type() == QEvent.Resize):
                 self.refresh_section_overlay()
+                # intern#76: Lesebalken deckt immer den ganzen Viewport ab
+                self._reading_band.sync_geometry()
         except Exception:
             pass
         # BL-160: Im Sync-Modus faengt das Widget Maus-Klicks ab
@@ -2444,6 +2506,26 @@ class LyricsWidget(QWidget):
             except (TypeError, ValueError):
                 val = 0
             setattr(self, attr, max(-lim, min(lim, val)))
+
+    def reload_reading_settings(self):
+        """intern#76: Leseposition und Lesebalken aus der INI lesen (Start und
+        Settings-Live-Apply). Unlesbare Werte gelten als Standard."""
+        def _num(key, default, lo, hi):
+            try:
+                val = float(self._settings.value(key, default))
+            except (TypeError, ValueError):
+                val = default
+            return max(lo, min(hi, val))
+        self._SYNC_ANCHOR_VIEWPORT_FRAC = _num(
+            "lyrics/reading_position_pct", 30, 0, 100) / 100.0
+        raw = self._settings.value("lyrics/reading_band_enabled", True)
+        self._reading_band_enabled = str(raw).strip().lower() not in (
+            "false", "0", "no", "off", "")
+        self._reading_band_height_pct = _num("lyrics/reading_band_height", 12, 1, 100)
+        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 0, 100)
+        self._scroll_last_val = -1
+        if getattr(self, "_reading_band", None) is not None:
+            self._reading_band.update()
 
     def _dynamic_current_part(self, pos: float) -> int:
         """Index des gerade laufenden Figuren-Teils (letzter Teil, dessen
@@ -4405,7 +4487,16 @@ class LyricsWidget(QWidget):
         # nach dem Start erst anspringt, wenn ein Zoom/Toggle ihn neu berechnet.
         # Ob es ueberhaupt etwas zu scrollen gibt, sagt die Live-Scrollbar weiter
         # unten (max_val <= 0) verlaesslich — das heilt den Start-Fall selbst.
-        if not self._auto_scroll_enabled or not self._lyrics_loaded:
+        if not self._lyrics_loaded or dur <= 0:
+            return
+        anchors = self._anchor_doc_points() if self._active_anchors() else []
+        # intern#76: Lesebalken folgt dem gesungenen Text (ohne Textsprung-
+        # Verschiebung), auch waehrend manuellen Scrollens; gemalt wird relativ
+        # zum Scroll-Wert.
+        if self._reading_band_enabled:
+            self._update_reading_band(self._sung_doc_y(pos, dur, anchors))
+
+        if not self._auto_scroll_enabled:
             return
 
         # Manuelles Scrollen hat Vorrang: waehrend des Pausenfensters nicht
@@ -4415,14 +4506,15 @@ class LyricsWidget(QWidget):
 
         scrollbar = self._browser.verticalScrollBar()
         max_val = scrollbar.maximum()
-        if max_val <= 0 or dur <= 0:
+        if max_val <= 0:
             return
 
-        if self._active_anchors():
-            target = self._sync_scroll_target(pos, dur, max_val)
+        if anchors:
+            target = self._sync_scroll_target(pos, dur, max_val, anchors)
         else:
-            # Proportionale Position (Standardverhalten ohne Anker)
-            target = int((pos / dur) * max_val)
+            # Ohne Anker proportional, der gesungene Text steht dabei auf der
+            # Leseposition (intern#76; vorher lief er oben am Fenster).
+            target = int(self._sung_doc_y(pos, dur, anchors) - self._read_offset())
 
         target = max(0, min(max_val, target))
         # Kleines Rueckwaerts-Zittern durch Audio-Positions-Jitter unterdruecken.
@@ -4432,6 +4524,13 @@ class LyricsWidget(QWidget):
             return
         self._scroll_last_val = target
         scrollbar.setValue(target)
+
+    def _update_reading_band(self, doc_y):
+        """intern#76: Neue Position des Lesebalkens, neu malen nur bei Aenderung."""
+        new = None if doc_y is None else int(doc_y)
+        if new != self._band_doc_y:
+            self._band_doc_y = new
+            self._reading_band.update()
 
     def _y_for_pos(self, pristine_pos: int, doc, layout, max_pos: int):
         """Dokument-Y der sichtbaren Zeile, die an pristine_pos beginnt.
@@ -4454,59 +4553,80 @@ class LyricsWidget(QWidget):
                 y += line.y()
         return int(y)
 
-    def _sync_scroll_target(self, pos: float, dur: float, max_val: int) -> int:
-        """Berechnet die Ziel-Scrollposition per stueckweiser Interpolation.
-
-        Stuetzpunkte: (0s -> 0px), die sortierten Anker (Sekunde -> Zeilen-Y),
-        (dur -> max_val). Das Zeilen-Y wird zur Laufzeit aus der Zeichenposition
-        bestimmt, damit es bei Zoom/Auto-Size stabil bleibt.
-        """
+    def _anchor_doc_points(self):
+        """Anker als [(Sekunde, Dokument-Y der Ankerzeile)], nach Zeit sortiert.
+        Echte Zeiten, ohne "Textsprung timen" und ohne Leseposition."""
         doc = self._browser.document()
         layout = doc.documentLayout()
-        # Ankerzeile in die Lese-Zone setzen (nicht an den oberen Rand), damit
-        # der aktuelle Text nicht zu frueh oben aus dem Bild laeuft.
-        viewport_h = self._browser.viewport().height()
-        read_offset = int(viewport_h * self._SYNC_ANCHOR_VIEWPORT_FRAC)
         max_pos = doc.characterCount() - 1
-        # Stuetzpunkte aufbauen (nach Zeit sortiert)
-        points = [(0.0, 0)]
-        # intern#115: "Textsprung timen" verschiebt die Anker zeitlich (nur fuer
-        # die Anzeige, gespeichert bleibt die echte Zeit). Innerhalb des Songs
-        # halten, sonst ueberholt ein Anker die festen Endpunkte. Im SyncPoint-
-        # Modus nicht: Dort prueft und setzt man SyncPoints gegen die echte Zeit.
-        shift = 0.0 if self._sync_mode else float(self._text_jump_offset)
+        out = []
         for sec, p in sorted(self._active_anchors(), key=lambda a: a[0]):
             y = self._y_for_pos(int(p), doc, layout, max_pos)
-            if y is None:
-                continue
-            t = max(0.0, min(float(dur), float(sec) + shift))
-            points.append((t, max(0, y - read_offset)))
-        points.append((float(dur), max_val))
-        # Doppelte/unsortierte Zeiten entschaerfen
-        points.sort(key=lambda p: p[0])
+            if y is not None:
+                out.append((float(sec), y))
+        return out
 
-        # Segment finden, in dem pos liegt
+    def _interpolate(self, pos: float, points) -> float:
+        """Stueckweise lineare Interpolation ueber (Zeit, Y)-Stuetzpunkte.
+
+        Rueckwaerts-Segmente (Sprung zu frueherer Textzeile) halten die
+        Position und springen erst kurz vor dem Ziel schnell zurueck.
+        """
+        points = sorted(points, key=lambda p: p[0])
         for i in range(len(points) - 1):
             t0, y0 = points[i]
             t1, y1 = points[i + 1]
             if pos <= t1:
                 if t1 <= t0:
-                    return int(y1)
+                    return float(y1)
                 if y1 < y0:
-                    # Rueckwaerts-Segment (Sprung zu frueherer Textzeile):
-                    # Position halten und erst kurz vor dem Ziel schnell zurueck.
                     snap = min(self._SYNC_BACK_SNAP_SECONDS, t1 - t0)
                     snap_start = t1 - snap
                     if pos <= snap_start:
-                        return int(y0)
-                    frac = (pos - snap_start) / snap
-                    frac = max(0.0, min(1.0, frac))
-                    return int(y0 + frac * (y1 - y0))
-                # Vorwaerts-Segment: glatt linear
-                frac = (pos - t0) / (t1 - t0)
-                frac = max(0.0, min(1.0, frac))
-                return int(y0 + frac * (y1 - y0))
-        return max_val
+                        return float(y0)
+                    frac = max(0.0, min(1.0, (pos - snap_start) / snap))
+                    return y0 + frac * (y1 - y0)
+                frac = max(0.0, min(1.0, (pos - t0) / (t1 - t0)))
+                return y0 + frac * (y1 - y0)
+        return float(points[-1][1])
+
+    def _read_offset(self) -> int:
+        """Leseposition in Pixeln von der Viewport-Oberkante (intern#76)."""
+        return int(self._browser.viewport().height() * self._SYNC_ANCHOR_VIEWPORT_FRAC)
+
+    def _sync_scroll_target(self, pos: float, dur: float, max_val: int,
+                            anchors=None) -> int:
+        """Berechnet die Ziel-Scrollposition per stueckweiser Interpolation.
+
+        Stuetzpunkte: (0s -> 0px), die sortierten Anker (Sekunde -> Zeilen-Y,
+        so verschoben, dass die Ankerzeile auf der Leseposition steht),
+        (dur -> max_val). Das Zeilen-Y wird zur Laufzeit aus der Zeichenposition
+        bestimmt, damit es bei Zoom/Auto-Size stabil bleibt.
+        """
+        if anchors is None:
+            anchors = self._anchor_doc_points()
+        read_offset = self._read_offset()
+        # intern#115: "Textsprung timen" verschiebt die Anker zeitlich (nur fuer
+        # die Anzeige, gespeichert bleibt die echte Zeit). Innerhalb des Songs
+        # halten, sonst ueberholt ein Anker die festen Endpunkte. Im SyncPoint-
+        # Modus nicht: Dort prueft und setzt man SyncPoints gegen die echte Zeit.
+        shift = 0.0 if self._sync_mode else float(self._text_jump_offset)
+        points = [(0.0, 0)]
+        for sec, y in anchors:
+            t = max(0.0, min(float(dur), sec + shift))
+            points.append((t, max(0, y - read_offset)))
+        points.append((float(dur), max_val))
+        return int(self._interpolate(pos, points))
+
+    def _sung_doc_y(self, pos: float, dur: float, anchors) -> float:
+        """intern#76: Dokument-Y des gerade gesungenen Texts, OHNE "Textsprung
+        timen". Mit Ankern: Interpolation Songanfang (0) -> Anker -> Songende
+        (Dokumenthoehe). Ohne Anker: proportional zur Songzeit."""
+        doc_h = float(self._browser.document().size().height())
+        if not anchors:
+            return (pos / dur) * doc_h if dur > 0 else 0.0
+        points = [(0.0, 0.0)] + list(anchors) + [(float(dur), doc_h)]
+        return self._interpolate(pos, points)
 
     # ---- Refit nach Song-Wechsel ----
 
@@ -4582,6 +4702,7 @@ class LyricsWidget(QWidget):
         self._lyrics_loaded = False
         self._auto_scroll_active = False
         self._marker_inserts = []
+        self._band_doc_y = None
         self._set_font_size(self._base_font_size)
         self._browser.setPlainText("")
         self._label_status.setText(msg)
@@ -4591,6 +4712,7 @@ class LyricsWidget(QWidget):
         self._lyrics_loaded = False
         self._auto_scroll_active = False
         self._marker_inserts = []
+        self._band_doc_y = None
         self._set_font_size(self._base_font_size)
         self._browser.clear()
         self._label_status.setText("\u2014")
