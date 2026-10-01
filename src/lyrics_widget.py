@@ -2524,8 +2524,8 @@ class LyricsWidget(QWidget):
         raw = self._settings.value("lyrics/reading_band_enabled", True)
         self._reading_band_enabled = str(raw).strip().lower() not in (
             "false", "0", "no", "off", "")
-        self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 1, 100)
-        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 0, 100)
+        self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 2, 60)
+        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 5, 100)
         self._scroll_last_val = -1
         if getattr(self, "_reading_band", None) is not None:
             self._reading_band.update()
@@ -4495,6 +4495,9 @@ class LyricsWidget(QWidget):
         if not self._lyrics_loaded or dur <= 0:
             return
         self._last_dur = dur
+        # Ankerberechnung laeuft je Takt: sparen, wenn niemand sie braucht.
+        if not (self._reading_band_enabled or self._auto_scroll_enabled):
+            return
         anchors = self._anchor_doc_points() if self._active_anchors() else []
         # intern#76: Lesebalken folgt dem gesungenen Text (ohne Textsprung-
         # Verschiebung), auch waehrend manuellen Scrollens; gemalt wird relativ
@@ -4554,27 +4557,6 @@ class LyricsWidget(QWidget):
         if new != self._band_doc_y:
             self._band_doc_y = new
             self._reading_band.update()
-
-    def _y_for_pos(self, pristine_pos: int, doc, layout, max_pos: int):
-        """Dokument-Y der sichtbaren Zeile, die an pristine_pos beginnt.
-
-        Beruecksichtigt eingefuegte Marker (pristine -> Anzeige) und die genaue
-        Zeile innerhalb eines Blocks (wichtig bei RTF: ein Block, viele Zeilen).
-        """
-        dpos = self._pristine_to_display(int(pristine_pos))
-        dpos = max(0, min(dpos, max_pos))
-        cursor = QTextCursor(doc)
-        cursor.setPosition(dpos)
-        block = cursor.block()
-        if not block.isValid():
-            return None
-        y = layout.blockBoundingRect(block).top()
-        blay = block.layout()
-        if blay is not None:
-            line = blay.lineForTextPosition(dpos - block.position())
-            if line.isValid():
-                y += line.y()
-        return int(y)
 
     # Folgt der naechste SyncPoint innerhalb dieser Zeit, beendet der Anker
     # einen Abschnitt (danach springt der Text woanders hin), intern#76.

@@ -195,3 +195,11 @@ def test_ruecksprung_wird_vom_zitterschutz_nicht_gebremst(widget):
         t += 0.05
     steps = [abs(screen[i] - screen[i - 1]) for i in range(1, len(screen))]
     assert max(steps) <= 3
+
+
+def test_grenzen_wie_im_einstellungsdialog(widget, ini):
+    ini.setValue("lyrics/reading_band_height", "99")
+    ini.setValue("lyrics/reading_band_opacity", "0")
+    widget.reload_reading_settings()
+    assert widget._reading_band_height_pct == 60
+    assert widget._reading_band_opacity_pct == 5
