@@ -10,9 +10,10 @@ A. Eine Spalte nur in _MIGRATIONS fehlt bei jeder Neuinstallation: auf einer
 B. Eine Spalte nur in _CREATE_* fehlt bei jedem Update: eine bestehende
    Tabelle bekommt neue Spalten ausschliesslich ueber _MIGRATIONS.
 
-Fuer B steht unten der Grundbestand je Tabelle: Spalten, die von Anfang an im
-CREATE standen. Eingefroren am Stand 0.160; abgeglichen mit 0.150, seitdem
-kam keine Spalte dazu. Eine neue Spalte gehoert nach _MIGRATIONS (und ins
+Fuer B steht unten der Grundbestand je Tabelle: Spalten einer frischen DB,
+die nicht ueber _MIGRATIONS kommen. Eingefroren am Stand 0.160 (identisch mit
+0.150); was davor ohne Migration ins CREATE rutschte, sieht der Test nicht,
+B schuetzt erst ab hier. Eine neue Spalte gehoert nach _MIGRATIONS (und ins
 CREATE), nie hierher. Eine neue Tabelle traegt man hier einmal komplett ein.
 """
 import re
@@ -54,18 +55,25 @@ _BASE_COLUMNS = {
 }
 
 
-def _migration_columns() -> set:
+def _migration_columns() -> set[tuple[str, str]]:
     """(Tabelle, Spalte) aller ALTER TABLE ... ADD COLUMN in _MIGRATIONS."""
     pattern = re.compile(r"\s*ALTER TABLE (\w+) ADD COLUMN (\w+)", re.I)
-    return {m.groups() for sql in song_db._MIGRATIONS
-            if (m := pattern.match(sql))}
+    cols = set()
+    for sql in song_db._MIGRATIONS:
+        if "ADD COLUMN" not in sql.upper():
+            continue
+        m = pattern.match(sql)
+        # Sonst wuerde ein ungewohnt geschriebenes ALTER still uebersprungen
+        assert m, f"ADD COLUMN nicht erkannt, Regex anpassen: {sql!r}"
+        cols.add(m.groups())
+    return cols
 
 
 @pytest.fixture(scope="module")
-def fresh_columns(tmp_path_factory) -> dict:
+def fresh_columns(tmp_path_factory) -> dict[str, set[str]]:
     """Spalten je Tabelle einer frisch angelegten DB."""
     path = tmp_path_factory.mktemp("schema") / "fresh.db"
-    SongDatabase(str(path))._conn.close()
+    SongDatabase(str(path)).close()
     conn = sqlite3.connect(path)
     try:
         tables = [r[0] for r in conn.execute(
@@ -100,3 +108,11 @@ def test_every_create_column_reaches_existing_dbs(fresh_columns):
                             f"Update. ALTER TABLE ... ADD COLUMN nach "
                             f"_MIGRATIONS")
     assert not problems, "\n".join(problems)
+
+
+def test_base_columns_not_stale(fresh_columns):
+    stale = sorted(f"{t}.{c}" for t, cols in _BASE_COLUMNS.items()
+                   for c in cols - fresh_columns.get(t, set()))
+    assert not stale, (
+        f"In _BASE_COLUMNS, aber nicht in frischer DB: {stale}. "
+        f"Entfernte Spalten/Tabellen hier streichen.")
