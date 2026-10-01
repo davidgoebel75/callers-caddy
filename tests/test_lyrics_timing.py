@@ -18,6 +18,7 @@ class _Stub:
     _dynamic_current_part = L._dynamic_current_part
     reload_timing_settings = L.reload_timing_settings
     _TIMING_OFFSET_LIMIT = L._TIMING_OFFSET_LIMIT
+    _TIMING_OFFSET_DEFAULT = L._TIMING_OFFSET_DEFAULT
 
     def __init__(self, settings=None):
         self._settings = settings
@@ -54,6 +55,18 @@ def test_einstellungen_werden_gelesen_und_begrenzt(tmp_path):
     s.reload_timing_settings()
     assert s._text_jump_offset == -2
     assert s._dynamic_swap_offset == 10
+
+
+def test_ohne_ini_eintrag_gilt_die_vorgabe_wie_im_dialog(tmp_path):
+    """intern#156: Nach einem Update fehlen die Schluessel in der INI. Dann
+    gilt -4 wie im Einstellungsdialog, nicht 0."""
+    from settings_dialog import SETTINGS_META
+
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    s = _Stub(ini)
+    s.reload_timing_settings()
+    assert s._text_jump_offset == SETTINGS_META["lyrics/text_jump_offset"]["default"] == -4
+    assert s._dynamic_swap_offset == SETTINGS_META["lyrics/dynamic_swap_offset"]["default"] == -4
 
 
 def test_kaputter_wert_gilt_als_null(tmp_path):

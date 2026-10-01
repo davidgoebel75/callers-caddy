@@ -9,6 +9,9 @@ jede Sequenz mit auch nur einem ungemappten Call-Text. Abhilfe:
   Tags bleiben), laedt alles und springt ans Ende.
 - Sequenzen mit Call-Texten ohne Zuordnung sind rot; Rechtsklick "Call-Mapping
   fuer diese Sequenz oeffnen" filtert es auf genau diese Call-Texte.
+- intern#156: Rote Sequenzen (Inhalt unbekannt) sind im Standard IMMER aus, auch
+  wenn ihre zugeordneten Figuren ins Programm passen. Rechtsklick "Nicht
+  zugeordnete Sequenzen ausblenden" fuehrt aus "alle anzeigen" zurueck.
 
 Nur oeffentliche Methoden und sichtbare Qt-Bausteine, keine privaten Attribute.
 Entity-IDs aus src/reference_calls.json.
@@ -43,7 +46,7 @@ def db(tmp_path):
     ids = {
         # voll gemappt -> bei Tanzprogramm-Wahl Mainstream sichtbar
         "ok": d.insert_sequence([MAPPED, MAPPED], seq_type=SINGER),
-        # teilweise gemappt -> rot
+        # teilweise gemappt -> rot, im Standard aus (intern#156)
         "teil": d.insert_sequence([MAPPED, UNMAPPED_A, UNMAPPED_A],
                                   seq_type=SINGER),
         # "frisch importiert": gar nichts gemappt -> bei Tanzprogramm-Wahl weg
@@ -102,6 +105,53 @@ def test_ungemappte_call_texte_einer_sequenz(db):
 def test_tanzprogramm_wahl_versteckt_frisch_importierte(widget, db):
     table = widget.findChild(QTableWidget)
     assert db.ids["neu"] not in _ids(table)
+
+
+def test_rote_sind_im_standard_aus_obwohl_figuren_passen(widget, db):
+    """intern#156: Der Band-Filter allein liesse "teil" durch (Swing Thru passt
+    ins Programm), der unbekannte Call-Text koennte aber darueber liegen."""
+    table = widget.findChild(QTableWidget)
+    assert _ids(table) == [db.ids["ok"]]
+
+
+def test_rote_sind_auch_ohne_tanzprogramm_wahl_aus(widget, db):
+    table = widget.findChild(QTableWidget)
+    widget.set_program_bands(None)
+    assert _ids(table) == [db.ids["ok"]]
+
+
+def test_ausblenden_stellt_den_startzustand_her(widget, db):
+    table = widget.findChild(QTableWidget)
+    widget.show_hidden_sequences()
+    assert db.ids["teil"] in _ids(table)
+    widget.hide_unmapped_sequences()
+    assert _ids(table) == [db.ids["ok"]]
+    assert _t("sequences_program_selection_suspended") not in _status(widget)
+
+
+def test_kontextmenue_bietet_je_zustand_den_passenden_weg(widget, monkeypatch):
+    table = widget.findChild(QTableWidget)
+    zeigen = _t("ctx_show_hidden_sequences")
+    ausblenden = _t("ctx_hide_unmapped_sequences")
+    gesehen = _rechtsklick_leer(table, monkeypatch)
+    assert zeigen in gesehen and ausblenden not in gesehen
+    widget.show_hidden_sequences()
+    gesehen = _rechtsklick_leer(table, monkeypatch)
+    assert ausblenden in gesehen and zeigen not in gesehen
+
+
+def _rechtsklick_leer(table, monkeypatch):
+    import sequences_widget
+
+    gesehen = []
+
+    class _StummesMenue(QMenu):
+        def exec(self, *_a):
+            gesehen.extend(act.text() for act in self.actions())
+
+    monkeypatch.setattr(sequences_widget, "QMenu", _StummesMenue)
+    table.customContextMenuRequested.emit(table.rect().bottomRight())
+    return gesehen
 
 
 def test_ausgeblendete_zeigt_alle_und_springt_ans_ende(widget, db):

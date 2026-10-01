@@ -2514,19 +2514,23 @@ class LyricsWidget(QWidget):
             tip = _t("tooltip_dynamic_invert", mode=self._invert_mode)
         self._btn_invert.setToolTip(tip)
 
-    # Grenzen der Timing-Parameter (Sekunden), siehe SETTINGS_META
+    # Grenzen und Vorgabe der Timing-Parameter (Sekunden), siehe SETTINGS_META.
+    # intern#156: Vorgabe gilt auch ohne INI-Eintrag (Update, Neuinstallation).
     _TIMING_OFFSET_LIMIT = 10
+    _TIMING_OFFSET_DEFAULT = -4
 
     def reload_timing_settings(self):
         """intern#115: "Textsprung timen" und "Texttausch timen" aus der INI
-        lesen (Start und Settings-Live-Apply). Unlesbare Werte gelten als 0."""
+        lesen (Start und Settings-Live-Apply). Fehlt der Schluessel, gilt die
+        Vorgabe wie im Einstellungsdialog; unlesbare Werte gelten als 0."""
         if self._settings is None:
             return
         lim = self._TIMING_OFFSET_LIMIT
         for attr, key in (("_text_jump_offset", "lyrics/text_jump_offset"),
                           ("_dynamic_swap_offset", "lyrics/dynamic_swap_offset")):
             try:
-                val = int(float(self._settings.value(key, 0) or 0))
+                val = int(float(self._settings.value(
+                    key, self._TIMING_OFFSET_DEFAULT) or 0))
             except (TypeError, ValueError):
                 val = 0
             setattr(self, attr, max(-lim, min(lim, val)))

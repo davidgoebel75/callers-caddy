@@ -581,10 +581,12 @@ class SequencesWidget(QWidget):
         self.on_sequences_deleted = None      # callback(seq_ids) → SequenceView informieren
         self.on_open_call_mapping = None      # callback(call_texts) → Call-Mapping mit Fokus
         self._loading = False      # Schutz gegen Endlos-Nachladen
-        # intern#119: "Auch ausgeblendete Sequenzen anzeigen" setzt die Tanzprogramm-Wahl NUR
-        # fuer diese Liste aus (Session/Player bleiben unberuehrt). Der naechste
-        # Filter- oder Programmwechsel hebt das wieder auf.
-        self._bands_suspended = False
+        # intern#119: "Auch ausgeblendete Sequenzen anzeigen" zeigt die Sequenzen ohne
+        # Einstufung (rot, intern#156 sonst immer aus) und setzt die Tanzprogramm-Wahl
+        # NUR fuer diese Liste aus (Session/Player bleiben unberuehrt). Der naechste
+        # Filter- oder Programmwechsel oder "Nicht zugeordnete Sequenzen ausblenden"
+        # hebt das wieder auf.
+        self._show_hidden = False
         # BL-190: Teaching-Order-Grenze des aktuell gewaehlten Tanzprogramms.
         # Steuert nur die Sortierung der Contains-Vorschlaege (Programm-Calls
         # zuerst), kein harter Filter. None = keine Programm-Sortierung.
@@ -958,7 +960,7 @@ class SequencesWidget(QWidget):
             return
         _t0 = perf_start()
         self._program_bands = new
-        self._bands_suspended = False   # neue Tanzprogramm-Wahl greift wieder
+        self._show_hidden = False   # neue Tanzprogramm-Wahl greift wieder
         # MS50: Contains- und Limit-Liste an die neuen Baender knuepfen
         self._rebuild_contains_items()
         self._rebuild_limit_items()
@@ -969,7 +971,7 @@ class SequencesWidget(QWidget):
     def _on_filter_changed(self, _idx=None):
         """Filter geaendert: Tabelle neu laden und SequenceView zuruecksetzen."""
         _t0 = perf_start()
-        self._bands_suspended = False   # intern#119: Filterwechsel beendet das Aussetzen
+        self._show_hidden = False   # intern#119: Filterwechsel beendet das Aussetzen
         self._loaded_count = 0
         self._load_sequences(reset=True)
         _pt = perf_split("SeqFilter._on_filter_changed: load_sequences", _t0)
@@ -1012,7 +1014,7 @@ class SequencesWidget(QWidget):
         self._check_only_program.setChecked(False)
         self._check_only_program.blockSignals(False)
         # Nach dem Zuruecksetzen setzen: _on_filter_changed wuerde es aufheben.
-        self._bands_suspended = bool(self._program_bands)
+        self._show_hidden = True
         self._load_sequences(reset=True, until=self._ALL_ROWS)
         if self.on_filter_changed_detail:
             self.on_filter_changed_detail()
@@ -1021,6 +1023,24 @@ class SequencesWidget(QWidget):
             self._table.selectRow(last)
             self._table.scrollToBottom()
         perf_log(f"SeqFilter.show_hidden_sequences: {last + 1} Zeilen", _t0)
+
+    def hide_unmapped_sequences(self):
+        """intern#156: Rueckweg aus show_hidden_sequences in den Startzustand.
+
+        Die roten Sequenzen verschwinden wieder und die Tanzprogramm-Wahl der
+        Session greift. Enthaelt und Limit leer, "Nur" wie beim Start (INI-Vorgabe).
+        Typ, Schwierigkeit und Tags bleiben, wie beim Hinweg.
+        """
+        for combo in (self._combo_contains, self._combo_limit):
+            combo.blockSignals(True)
+            combo.setCurrentIndex(0)
+            combo.blockSignals(False)
+        only_default = self._settings is not None and str(self._settings.value(
+            "sequences/only_program_default", "false")).lower() == "true"
+        self._check_only_program.blockSignals(True)
+        self._check_only_program.setChecked(only_default)
+        self._check_only_program.blockSignals(False)
+        self._on_filter_changed()   # beendet _show_hidden und laedt neu
 
     def select_sequence(self, seq_id: int):
         """Markiert eine Sequenz in der Tabelle (falls geladen) und oeffnet sie
@@ -1056,7 +1076,8 @@ class SequencesWidget(QWidget):
             seq_type=self._get_type_filter(),
             difficulty=self._get_difficulty_filter(),
             tags=self._get_tags_filter(),
-            bands=None if self._bands_suspended else self._program_bands,
+            bands=self._program_bands,
+            show_hidden=self._show_hidden,
         )
 
     # ---- Daten laden ----
@@ -1165,7 +1186,7 @@ class SequencesWidget(QWidget):
             text = _t("sequences_count", count=self._total_count)
         else:
             text = _t("sequences_filtered", filtered=self._total_count, total=total_db)
-        if self._bands_suspended:
+        if self._show_hidden and self._program_bands:
             text += " · " + _t("sequences_program_selection_suspended")
         self._label_status.setText(text)
 
@@ -1215,8 +1236,13 @@ class SequencesWidget(QWidget):
         menu = QMenu(self)
         # intern#119: auch ohne Zeile unter der Maus (leere Liste = genau der Fall,
         # in dem man seine frisch importierten Sequenzen sucht).
-        act_hidden = menu.addAction(_t("ctx_show_hidden_sequences"))
-        act_hidden.triggered.connect(self.show_hidden_sequences)
+        # intern#156: im Zustand "alle anzeigen" stattdessen der Rueckweg.
+        if self._show_hidden:
+            act_hidden = menu.addAction(_t("ctx_hide_unmapped_sequences"))
+            act_hidden.triggered.connect(self.hide_unmapped_sequences)
+        else:
+            act_hidden = menu.addAction(_t("ctx_show_hidden_sequences"))
+            act_hidden.triggered.connect(self.show_hidden_sequences)
         item = self._table.itemAt(pos)
         id_item = self._table.item(self._table.row(item), 0) if item else None
         seq_id = id_item.data(Qt.UserRole) if id_item else None
