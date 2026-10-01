@@ -6871,6 +6871,11 @@ class P29MainWindow(QMainWindow):
             # intern#115: Timing-Parameter (Sekunden, negativ = frueher)
             "lyrics/text_jump_offset": "-4",
             "lyrics/dynamic_swap_offset": "-4",
+            # intern#76: Leseposition (% von oben) und Lesebalken
+            "lyrics/reading_position_pct": "30",
+            "lyrics/reading_band_enabled": "true",
+            "lyrics/reading_band_height": "20",
+            "lyrics/reading_band_opacity": "30",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6973,6 +6978,13 @@ class P29MainWindow(QMainWindow):
                          "lyrics/dynamic_swap_offset"):
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.reload_timing_settings()
+
+            elif key in ("lyrics/reading_position_pct",
+                         "lyrics/reading_band_enabled",
+                         "lyrics/reading_band_height",
+                         "lyrics/reading_band_opacity"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_reading_settings()
 
             elif key == "notes/zoom_pct":
                 try:

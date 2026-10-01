@@ -387,6 +387,36 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Verschiebt bei Dynamic Lyrics den Sequenzwechsel und den "
                    "Heads/Sides-Tausch. Negativ = früher, empfohlen -4.",
     },
+    # intern#76: Leseposition und Lesebalken (Live-Orientierung)
+    "lyrics/reading_position_pct": {
+        "label": "Leseposition",
+        "widget": "spinbox",
+        "min": 0, "max": 100, "step": 5, "suffix": " %",
+        "default": 30,
+        "tooltip": "In welcher Höhe des Lyric-Fensters der gerade gesungene "
+                   "Text steht: 0 % = ganz oben, 100 % = ganz unten.",
+    },
+    "lyrics/reading_band_enabled": {
+        "label": "Lesebalken anzeigen",
+        "widget": "checkbox",
+        "default": True,
+        "tooltip": "Hinterlegt den gerade gesungenen Text farbig, damit man "
+                   "ihn nach einem Blick weg sofort wiederfindet.",
+    },
+    "lyrics/reading_band_height": {
+        "label": "Lesebalken-Höhe",
+        "widget": "spinbox",
+        "min": 2, "max": 60, "step": 1, "suffix": " %",
+        "default": 20,
+        "tooltip": "Höhe des Lesebalkens in Prozent der Fensterhöhe.",
+    },
+    "lyrics/reading_band_opacity": {
+        "label": "Lesebalken-Deckkraft",
+        "widget": "spinbox",
+        "min": 5, "max": 100, "step": 5, "suffix": " %",
+        "default": 30,
+        "tooltip": "Deckkraft des Lesebalkens. Die Farbe kommt aus dem Theme.",
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",

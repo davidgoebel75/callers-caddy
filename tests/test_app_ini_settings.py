@@ -25,7 +25,7 @@ def test_lyrics_lesen_und_schreiben_die_app_ini(qapp, tmp_path):
     from lyrics_widget import LyricsWidget
 
     ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
-    ini.setValue("lyric_sync/viewport_frac", "0.4")
+    ini.setValue("lyrics/reading_position_pct", "40")  # intern#76
     w = LyricsWidget(PathManager(ini))
     assert w._SYNC_ANCHOR_VIEWPORT_FRAC == 0.4
     w._persist_dynamic_enabled(True)
