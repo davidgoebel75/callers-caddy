@@ -17,7 +17,8 @@ siehe suggest_figure_set()-Docstring fuer die genaue Reihenfolge.
 Die erwarteten Entity-IDs sind frei erfundene, aber realistische Namen -- sie
 stammen unabhaengig von der Implementierung aus dieser Testdatei selbst.
 """
-from sequence_mapper import CallMatcher, canon_key, suggest_figure_set
+from sequence_mapper import (CallMatcher, canon_key, figure_set_lookups,
+                             suggest_figure_set)
 
 
 def test_volltreffer_unterdrueckt_vorschlag():
@@ -431,3 +432,18 @@ def test_all4couples_rest_mit_and_im_figurennamen():
     assert suggest_figure_set(
         "All 4 Couples Right And Left Thru", exact_lookup) == (
         ["concept_all_4_couples", "call_right_and_left_thru"], "all8")
+
+
+def test_figure_set_lookups_niedrigste_variante_und_nur_eindeutige_mengen():
+    to_calls = [("call_swing_b1", "Swing", 1.0, "B1"),
+                ("call_swing_a2", "Swing", 60.0, "A2"),
+                ("call_touch_a_quarter", "Touch a Quarter", 5.0, "B1")]
+    figure_sets = {"Touch 1/4": ["call_touch_a_quarter"],
+                   "Chase Right & Roll": ["call_chase_right", "concept_roll"]}
+
+    exact_lookup, rest_lookup = figure_set_lookups(to_calls, figure_sets)
+
+    assert exact_lookup == {"swing": "call_swing_b1",
+                            "touch a quarter": "call_touch_a_quarter"}
+    # nur die eindeutige Zuordnung, und NIE in exact_lookup gemischt
+    assert rest_lookup == {"touch 1/4": "call_touch_a_quarter"}

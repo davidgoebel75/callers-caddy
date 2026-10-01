@@ -1,0 +1,279 @@
+"""Heads/Sides invertieren fuer Dynamic Lyrics (intern#127).
+
+Die Regeln stammen aus der Analyse aller Lyrics und Sequenzen (siehe Issue);
+die Faelle hier sind die dort gefundenen Schreibweisen und Fehltreffer.
+"""
+import pytest
+
+import heads_sides as hs
+
+
+@pytest.mark.parametrize("src, expected", [
+    # Regel 1: immer tauschen, Schreibweise bleibt
+    ("Heads Square Thru 4", "Sides Square Thru 4"),
+    ("Sides Promenade 1/2, Heads Star Thru", "Heads Promenade 1/2, Sides Star Thru"),
+    ("HDS SQUARE THRU 4", "SDS SQUARE THRU 4"),
+    ("Hds Lead Right", "Sds Lead Right"),
+    ("Head Ladies Chain 3/4 (Side Men Turn Them)",
+     "Side Ladies Chain 3/4 (Head Men Turn Them)"),
+    ("Head Position Promenade 1/2", "Side Position Promenade 1/2"),
+    ("Heads/Sides Pass Thru", "Sides/Heads Pass Thru"),
+    ("(original heads)", "(original sides)"),
+    ("HEADS", "SIDES"),
+    # Regel 2: nie tauschen
+    ("Each Side Face Your Partner", "Each Side Face Your Partner"),
+    ("(each side)", "(each side)"),
+    ("Cross Head Tie", "Cross Head Tie"),
+    ("left-side", "left-side"),
+    ("It's a side's thing", "It's a side's thing"),
+    ("R-H Star", "R-H Star"),
+    ("SD-205", "SD-205"),
+    ("HD 2", "HD 2"),
+    # Regel 4: Einzelbuchstaben nur in Klammern
+    ("(H) SqTh4", "(S) SqTh4"),
+    ("H Star", "H Star"),
+    # Regel 3: Couple-Nummern 1->2->3->4->1
+    ("Couple #1 Face Right", "Couple #2 Face Right"),
+    ("Couples 1 & 3 Right & Left Thru", "Couples 2 & 4 Right & Left Thru"),
+    ("Couples # 1 & # 3", "Couples # 2 & # 4"),
+    ("couple number 4", "couple number 1"),
+    ("3&1 Lead Right", "4&2 Lead Right"),
+    ("#1 Man & #3 Lady Jaywalk", "#2 Man & #4 Lady Jaywalk"),
+    ("first couple split two", "first couple split two"),
+    ("1st couple split two", "1st couple split two"),
+    # Keine Couple-Nummern: Brueche und die Formation '3 & 1 Lines'
+    ("Swing Thru 1 & 1/2", "Swing Thru 1 & 1/2"),
+    ("All Acey Deucey (3 & 1 line) Boys Go 1 & 1/2",
+     "All Acey Deucey (3 & 1 line) Boys Go 1 & 1/2"),
+    ("All Flip The Diamond (from 3&1)", "All Flip The Diamond (from 3&1)"),
+])
+def test_invert_line(src, expected):
+    assert hs.invert_line(src) == expected
+
+
+@pytest.mark.parametrize("calls", [
+    ["Couples 1 & 2 Lead Right", "Heads Pass Thru"],
+    ["Couple #4 and #1 Face"],
+    ["Couples 1, 2, 3 Circle Left"],
+    ["Square Thru Your Couple Number"],
+])
+def test_asymmetrische_choreo_bleibt_unveraendert(calls):
+    assert hs.is_asymmetric(calls)
+    assert hs.invert_sequence(calls) == calls
+
+
+def test_getrennte_nennungen_sind_nicht_benachbart():
+    # Entscheidung David: nur innerhalb EINER Nennung zaehlt Nachbarschaft
+    calls = ["Couple #1 Face Right", "Couple #2 Face Left"]
+    assert not hs.is_asymmetric(calls)
+    assert hs.invert_sequence(calls) == ["Couple #2 Face Right",
+                                         "Couple #3 Face Left"]
+
+
+def test_zweimal_invertieren_bei_heads_sides_ist_identitaet():
+    calls = ["Heads Square Thru 4", "Sides Rollaway", "Head Ladies Chain"]
+    assert hs.invert_sequence(hs.invert_sequence(calls)) == calls
+
+
+@pytest.mark.parametrize("mode, figs", [
+    ("HHSS", {3, 4}), ("HSSH", {2, 3}), ("HSHS", {2, 4}),
+    ("hhss", {3, 4}), ("", set()), (None, set()), ("XYZ", set()),
+])
+def test_inverted_figures(mode, figs):
+    assert hs.inverted_figures(mode) == figs
+
+
+# ---------------------------------------------------------------------------
+# Figuren-Zuordnung im Lyrics-Widget (ohne echtes Widget)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def stub(qapp):
+    from lyrics_widget import LyricsWidget
+
+    class _Stub:
+        _invert_active = LyricsWidget._invert_active
+        _dyn_block_figure = LyricsWidget._dyn_block_figure
+        _dyn_invert_flags = LyricsWidget._dyn_invert_flags
+        _dynamic_current_part = LyricsWidget._dynamic_current_part
+
+    s = _Stub()
+    s._invert_enabled = True
+    s._invert_mode = "HHSS"
+    s._dyn_part_starts = [10.0, 40.0, 90.0, 120.0]   # Figure 1..4
+    s._sync_last_pos = 0.0
+    s._dynamic_swap_offset = 0                      # intern#115
+    return s
+
+
+def test_getrennte_bloecke_fest_zugeordnet(stub):
+    stub._dyn_block_keys = [(1, 5), (8, 12), (15, 19), (22, 26)]
+    stub._dyn_block_figs = [(1,), (2,), (3,), (4,)]
+    assert stub._dyn_invert_flags() == (False, False, True, True)
+    stub._invert_mode = "HSHS"
+    assert stub._dyn_invert_flags() == (False, True, False, True)
+
+
+def test_gemeinsamer_block_folgt_der_laufenden_figur(stub):
+    stub._dyn_block_keys = [(1, 9)]
+    stub._dyn_block_figs = [(1, 2, 3, 4)]
+    expected = {0.0: False, 15.0: False, 50.0: False,   # Opener, Fig 1, Fig 2
+                95.0: True, 130.0: True}                # Fig 3, Fig 4
+    for pos, inv in expected.items():
+        stub._sync_last_pos = pos
+        assert stub._dyn_invert_flags() == (inv,), pos
+
+
+def test_gemeinsamer_block_ohne_vier_teile_tauscht_nicht(stub):
+    stub._dyn_block_keys = [(1, 9)]
+    stub._dyn_block_figs = [(1, 2, 3, 4)]
+    stub._dyn_part_starts = [10.0, 40.0]
+    stub._sync_last_pos = 130.0
+    assert stub._dyn_invert_flags() == (False,)
+
+
+def test_aus_oder_ohne_art_tauscht_nicht(stub):
+    stub._dyn_block_keys = [(1, 5)]
+    stub._dyn_block_figs = [(3,)]
+    stub._invert_enabled = False
+    assert stub._dyn_invert_flags() == (False,)
+    stub._invert_enabled, stub._invert_mode = True, ""
+    assert stub._dyn_invert_flags() == (False,)
+
+
+# ---------------------------------------------------------------------------
+# Einstellungen
+# ---------------------------------------------------------------------------
+
+def test_art_bleibt_leer_und_wird_nicht_still_gespeichert(qapp, tmp_path):
+    from PySide6.QtCore import QSettings
+    from settings_dialog import SettingsDialog
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_enabled", "false")
+    ini.setValue("lyrics/dynamic_invert_mode", "")
+    dlg = SettingsDialog(None, ini, focus_key="lyrics/dynamic_invert_mode")
+    dlg._populate_groups_deferred()   # sonst erst per QTimer im Event-Loop
+    row = next(r for r in dlg._rows if r.full_key == "lyrics/dynamic_invert_mode")
+    assert row.widget.currentIndex() == -1
+    assert not row.is_changed()
+    assert dlg.focus_row("lyrics/dynamic_invert_mode")
+    row.widget.setCurrentIndex(row.widget.findData("HSSH"))
+    assert row.get_value() == "HSSH"
+
+
+def test_spiegel_button_springt_zur_art_auswahl(qapp, tmp_path):
+    """intern#133 (Handtest David): Die Einstellungen oeffnen sich vom
+    Spiegel-Button aus direkt an der Art-Auswahl. Bisher lief der Sprung ins
+    Leere, weil die Scroll-Flaeche beim deferten Aufbau noch keine Hoehe
+    hatte, und man landete ganz oben."""
+    import time
+    from PySide6.QtCore import QCoreApplication, QPoint, QSettings
+    from settings_dialog import SettingsDialog
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_mode", "")
+    dlg = SettingsDialog(None, ini, focus_key="lyrics/dynamic_invert_mode")
+    dlg.show()
+    bar = dlg._scroll.verticalScrollBar()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and bar.value() == 0:
+        QCoreApplication.processEvents()
+        time.sleep(0.01)
+    try:
+        row = next(r for r in dlg._rows
+                   if r.full_key == "lyrics/dynamic_invert_mode")
+        top = row.widget.mapTo(dlg._scroll.viewport(), QPoint(0, 0)).y()
+        assert bar.value() > 0
+        # ganz sichtbar (ins obere Drittel, soweit die Liste so weit reicht)
+        assert 0 <= top <= dlg._scroll.viewport().height() - row.widget.height()
+    finally:
+        dlg.close()
+
+
+def _invert_dialog(tmp_path, monkeypatch, enabled, mode):
+    from PySide6.QtCore import QSettings
+    import settings_dialog
+    from settings_dialog import SettingsDialog
+    # Frische INI: andere Zeilen gelten als geaendert -> Neustart-Hinweis
+    monkeypatch.setattr(settings_dialog.QMessageBox, "information",
+                        lambda *a, **k: None)
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_enabled", enabled)
+    ini.setValue("lyrics/dynamic_invert_mode", mode)
+    dlg = SettingsDialog(None, ini, focus_key="lyrics/dynamic_invert_mode")
+    dlg._populate_groups_deferred()
+    row = next(r for r in dlg._rows if r.full_key == "lyrics/dynamic_invert_mode")
+    return ini, dlg, row
+
+
+def test_erste_art_schaltet_tausch_ein(qapp, tmp_path, monkeypatch):
+    """intern#133: Wer eine Art waehlt, will sie benutzen. Das erste
+    Speichern einer Art schaltet den Tausch ein, und die Live-Uebernahme
+    bekommt den Schalter mit."""
+    ini, dlg, row = _invert_dialog(tmp_path, monkeypatch, "false", "")
+    applied = []
+    dlg._on_apply = applied.extend
+    row.widget.setCurrentIndex(row.widget.findData("HHSS"))
+    dlg._on_apply_btn()
+    assert ini.value("lyrics/dynamic_invert_mode") == "HHSS"
+    assert ini.value("lyrics/dynamic_invert_enabled", type=bool) is True
+    assert "lyrics/dynamic_invert_enabled" in applied
+
+
+def test_artwechsel_laesst_schalter_aus(qapp, tmp_path, monkeypatch):
+    """intern#133: Ein spaeterer Wechsel der Art aendert An/Aus nicht."""
+    ini, dlg, row = _invert_dialog(tmp_path, monkeypatch, "false", "HHSS")
+    row.widget.setCurrentIndex(row.widget.findData("HSSH"))
+    dlg._on_apply_btn()
+    assert ini.value("lyrics/dynamic_invert_mode") == "HSSH"
+    assert ini.value("lyrics/dynamic_invert_enabled", type=bool) is False
+
+
+# ---------------------------------------------------------------------------
+# Groessen-Stabilisator: Neu-Rendern darf den Zoom nicht zuruecksetzen
+# ---------------------------------------------------------------------------
+
+def test_tauschen_behaelt_aktuellen_zoom(qapp, tmp_path):
+    """Der Klon fuer das Neu-Rendern stammt vom Einschalt-Zeitpunkt. Nach einem
+    Zoom (Auto-Size, Auto-Breite, manuell) muss die aktuelle Groesse bleiben,
+    sonst schrumpft der Text beim Tausch an der Figuren-Grenze."""
+    from PySide6.QtCore import QSettings
+    from path_manager import PathManager
+    from lyrics_widget import LyricsWidget
+
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("lyrics/dynamic_invert_mode", "HHSS")
+    ini.setValue("lyrics/dynamic_invert_enabled", "true")
+    w = LyricsWidget(PathManager(ini))
+    w._settings = ini
+    w.reload_invert_settings()
+    w._browser.setHtml('<p>OPENER</p><p>FIGURE</p>'
+                       '<p><span style="font-size:14pt">old call</span></p>'
+                       '<p>old 2</p><p>CLOSER</p>')
+    w._lyrics_loaded = True
+    w._rebuild_line_offsets()
+    w._cache_original_sizes()
+    w._lyric_sections = {n: (1, 3) for n in
+                         ("figure1", "figure2", "figure3", "figure4")}
+    w._sync_anchors = []
+    w.get_current_sequence_calls = lambda: ["Heads Square Thru 4"]
+    w._dynamic_enabled = True
+    w._apply_dynamic()
+
+    def sizes():
+        doc = w._browser.document()
+        frag = doc.findBlockByNumber(2).begin().fragment()
+        return (round(doc.defaultFont().pointSizeF(), 2),
+                round(frag.charFormat().fontPointSize(), 2))
+
+    w._set_font_size(26)
+    w._current_font_size = 26
+    zoomed = sizes()
+
+    w._dyn_part_starts = [0, 10, 20, 30]
+    w._sync_last_pos = 25          # Figur 3 -> HHSS tauscht
+    w._dynamic_build_document(w._current_sequence_calls())
+    assert w._browser.document().findBlockByNumber(2).text() == "Sides Square Thru 4"
+    assert sizes() == zoomed
+
+    w._revert_dynamic()
+    assert sizes() == zoomed

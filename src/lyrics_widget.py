@@ -14,6 +14,7 @@ import difflib
 
 import perf
 import singing_sections
+import heads_sides
 from i18n import _t
 from path_manager import PathManager
 from skin_manager import SkinManager
@@ -22,7 +23,7 @@ from song_db import CHECK_START_GENRE_NAME
 from ui_helpers import _WrapButtonBar, mark_toggle
 
 from PySide6.QtCore import (
-    Qt, QTimer, QSettings, QEvent, QPoint, QRect,
+    Qt, QTimer, QEvent, QPoint, QRect,
 )
 from PySide6.QtGui import (
     QIcon, QKeySequence, QShortcut, QTextDocument, QPainter, QColor,
@@ -103,6 +104,61 @@ def lyric_section_lines(res, text: str) -> dict:
     for name, blk in (getattr(res, "extras", None) or {}).items():
         out[name] = (to_line(blk[0]), to_line(blk[1]))
     return out
+
+
+class _ReadingBandOverlay(QWidget):
+    """Lesebalken (intern#76): farbiges Band ueber dem gerade gesungenen Text.
+
+    Liegt als durchsichtige Flaeche deckungsgleich ueber dem Viewport und
+    laesst alle Mausereignisse durch (Sync-Klicks, Markieren, Rad). Kind des
+    Browsers, NICHT des Viewports: Beim Scrollen verschiebt Qt die Kinder des
+    Viewports mit, der Balken waere mitgewandert. Das Dokument wird nicht
+    angefasst. Die Position kommt aus LyricsWidget._band_doc_y
+    (Dokument-Y des gesungenen Texts, OHNE "Textsprung timen"); gemalt wird
+    relativ zum aktuellen Scroll-Wert. Farbe aus dem Skin ("reading_band").
+    """
+
+    _FALLBACK_COLOR = "#4a9eff"
+
+    def __init__(self, owner: 'LyricsWidget'):
+        super().__init__(owner._browser)
+        self._owner = owner
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.sync_geometry()
+        self.show()
+
+    def sync_geometry(self):
+        """Deckungsgleich mit dem Viewport (ohne Rahmen und Scrollbalken)."""
+        self.setGeometry(self._owner._browser.viewport().geometry())
+        self.raise_()
+
+    def band_rect(self):
+        """Rechteck des Balkens in Viewport-Koordinaten oder None."""
+        o = self._owner
+        if (o._band_doc_y is None or not o._reading_band_enabled
+                or not o._lyrics_loaded or o._sync_mode or o._edit_mode):
+            return None
+        h = self.height()
+        band_h = max(2, int(h * o._reading_band_height_pct / 100.0))
+        y = int(o._band_doc_y) - o._browser.verticalScrollBar().value()
+        return QRect(0, y - band_h // 2, self.width(), band_h)
+
+    def paintEvent(self, _event):
+        rect = self.band_rect()
+        if rect is None or not rect.intersects(self.rect()):
+            return
+        sm = getattr(self._owner, "_skin_mgr", None)
+        try:
+            color = QColor(sm.color("reading_band", self._FALLBACK_COLOR)
+                           if sm else self._FALLBACK_COLOR)
+        except Exception:
+            color = QColor(self._FALLBACK_COLOR)
+        color.setAlpha(int(255 * self._owner._reading_band_opacity_pct / 100.0))
+        painter = QPainter(self)
+        painter.fillRect(rect, color)
+        painter.end()
 
 
 class _LyricSectionOverlay(QWidget):
@@ -425,7 +481,7 @@ class LyricsWidget(QWidget):
     # ist (Anteil von oben). 0.5 = Mitte: aktuelle Zeile zentriert, gleich viel
     # Kontext darueber wie darunter. Per INI ("lyric_sync/viewport_frac")
     # ueberschreibbar (siehe __init__).
-    _SYNC_ANCHOR_VIEWPORT_FRAC = 0.5
+    _SYNC_ANCHOR_VIEWPORT_FRAC = 0.3   # intern#76: "Leseposition", INI lyrics/reading_position_pct
 
     # Manuelles Scrollen (Rad/Ziehen/Tasten) setzt den Auto-Scroll fuer diese
     # Zeitspanne aus, damit man waehrend der Wiedergabe zu einer Zeile blaettern
@@ -539,6 +595,22 @@ class LyricsWidget(QWidget):
         self._btn_dynamic.toggled.connect(self._on_dynamic_toggled)
         toolbar.add(self._btn_dynamic)
 
+        # intern#127: Spiegel-Button direkt hinter "Dynamic Lyrics" — tauscht
+        # Heads/Sides in den Figuren der gewaehlten Art. Ohne gewaehlte Art
+        # fuehrt der Klick in die Einstellungen (siehe _on_invert_clicked).
+        self._btn_invert = QPushButton()
+        self._btn_invert.setFixedSize(28, 28)
+        mark_toggle(self._btn_invert, active=True)
+        _inv_icon_dir = (skin_mgr.icon_dir.replace("\\", "/")
+                         if skin_mgr and skin_mgr.icon_dir else "")
+        if _inv_icon_dir:
+            self._btn_invert.setIcon(QIcon(f"{_inv_icon_dir}/mirror-hs.svg"))
+        else:
+            self._btn_invert.setText("⇄")
+        self._btn_invert.setToolTip(_t("tooltip_dynamic_invert_choose"))
+        self._btn_invert.clicked.connect(self._on_invert_clicked)
+        toolbar.add(self._btn_invert)
+
         # BL-171: Songstart (und damit alle SyncPoints + Ende) um ∓1 s verschieben.
         # Nur im Sync-Modus sichtbar (Toggle in _on_sync_toggled). Rufen dieselbe
         # Logik wie das Kontextmenue "Alle verschieben" (_shift_all_anchors) auf —
@@ -627,6 +699,18 @@ class LyricsWidget(QWidget):
         self._section_overlay = _LyricSectionOverlay(self)
         self._browser.verticalScrollBar().valueChanged.connect(
             lambda _v: self._section_overlay.update())
+        # intern#76: Lesebalken. _band_doc_y = Dokument-Y des gesungenen Texts
+        # (None = nichts anzeigen); Werte aus der INI (reload_reading_settings).
+        self._band_doc_y = None
+        self._last_dur = 0.0              # zuletzt gesehene Songdauer (Neuaufbau)
+        self._interp_snapping = False     # letzte Interpolation im Ruecksprung?
+        self._heading_kw = None           # Keyword-Woerter (lazy, singing_sections)
+        self._reading_band_enabled = True
+        self._reading_band_height_pct = 20
+        self._reading_band_opacity_pct = 30
+        self._reading_band = _ReadingBandOverlay(self)
+        self._browser.verticalScrollBar().valueChanged.connect(
+            lambda _v: self._reading_band.update())
         # Manuelles Scrollen erkennen: actionTriggered feuert bei Rad/Ziehen/
         # Tasten, aber NICHT bei unserem programmatischen setValue() — damit
         # entsteht keine Rueckkopplung mit dem Auto-Scroll.
@@ -666,6 +750,9 @@ class LyricsWidget(QWidget):
         self._sync_music_slot = 1         # 1 = Primaer, 2+ = Variante
         self._sync_lyric_slot = 1
         self._sync_last_pos = 0.0         # zuletzt gesehene Wiedergabeposition (Sek.)
+        # intern#115: Timing-Parameter in ganzen Sekunden, negativ = frueher
+        self._text_jump_offset = 0        # Auto-Scroll erreicht SyncPoints verschoben
+        self._dynamic_swap_offset = 0     # Figuren-Grenzen von Dynamic Lyrics verschoben
         self._scroll_last_val = -1        # letzter gesetzter Scroll-Wert (Anti-Jitter)
         self._manual_scroll_until = 0.0   # bis hierhin Auto-Scroll aussetzen (monotonic)
         self._sync_move_anchor = None     # gesetzter Anker, der per Klick verschoben wird
@@ -704,10 +791,17 @@ class LyricsWidget(QWidget):
         self._dyn_render_pending = False   # deferter Re-Render eingeplant
         self._dyn_advance_pending = False  # defertes Weiterblaettern eingeplant
         self._dynamic_wanted = False       # Wunschzustand, ueberlebt Songwechsel
-        # Modus ("1"/"2") wird lazy aus der App-INI gelesen (self._settings, vom
-        # Hauptfenster gesetzt) — NICHT aus einem bare QSettings(), das auf einen
-        # anderen Store zeigen wuerde. Leer = beim ersten Einschalten fragen.
-        self._settings = None
+        # intern#127: Heads/Sides invertieren (INI lyrics/dynamic_invert_*)
+        self._invert_enabled = False
+        self._invert_mode = ""             # "" = noch keine Art gewaehlt
+        self._dyn_block_figs = []          # je Block (wie _dyn_block_keys): Figur-Nummern
+        self._dyn_invert_state = ()        # je Block: zuletzt invertiert gerendert?
+        # Callback(full_key) -> Einstellungen an dieser Zeile oeffnen (MainWindow)
+        self.open_settings_at = None
+        # Modus ("1"/"2") wird lazy aus der App-INI gelesen — NICHT aus einem
+        # bare QSettings(), das auf einen anderen Store zeigen wuerde (intern#136).
+        # Leer = beim ersten Einschalten fragen.
+        self._settings = paths.settings
         self._dynamic_mode = ""
         # Schnittstelle zum Sequence-View (Quelle der Wahrheit):
         self.get_current_sequence_calls = None  # () -> list[str] der aktuellen Sequenz
@@ -718,13 +812,8 @@ class LyricsWidget(QWidget):
         self._auto_calc_active = False    # True = Start/Ende werden gerade erfasst
         self._auto_start_sec = None       # markierter Beginn 1. Teil (Sek.)
         self._auto_end_sec = None         # markiertes Ende 7. Teil (Sek.)
-        # Lese-Zone (Anteil von oben) per INI ueberschreibbar, Default 0.25
-        try:
-            _vf = QSettings().value("lyric_sync/viewport_frac")
-            if _vf is not None:
-                self._SYNC_ANCHOR_VIEWPORT_FRAC = max(0.05, min(0.9, float(_vf)))
-        except (TypeError, ValueError):
-            pass
+        # intern#76: Leseposition und Lesebalken aus der INI ([lyrics])
+        self.reload_reading_settings()
 
         # --- Format-Toolbar (nur im Edit-Modus sichtbar) ---
         self._format_toolbar_widget = self._build_format_toolbar()
@@ -826,6 +915,7 @@ class LyricsWidget(QWidget):
         # (nicht entfernen — das alte Dokument existiert nicht mehr).
         self._marker_inserts = []
         self._scroll_last_val = -1
+        self._band_doc_y = None   # intern#76: Lesebalken erst mit neuer Position
         # BL-173: Position zuruecksetzen, damit ein Auto-Re-Apply von Dynamic
         # nicht vom alten Song-Ende ausgeht (sonst kurzer Sequenz-Fehlstand).
         self._sync_last_pos = 0.0
@@ -912,9 +1002,26 @@ class LyricsWidget(QWidget):
         Farbangabe erhalten schwarzen Text auf weissem Hintergrund —
         wie ein Browser es anzeigen wuerde.
         """
+        # h1-h6 "medium": Qt vergroessert Ueberschriften sonst fest (h1 = 2x)
+        # und uebergeht dabei jede Groessenangabe der Datei (intern#152).
         self._browser.document().setDefaultStyleSheet(
             "body { color: #000000; background-color: white; }"
+            " h1, h2, h3, h4, h5, h6 { font-size: medium; }"
         )
+
+    @staticmethod
+    def _unwrap_style_comments(html: str) -> str:
+        """Entfernt die Kommentar-Klammern <!-- --> in <style>-Bloecken.
+
+        Word schreibt sein Stylesheet als <style><!-- ... --></style>. Browser
+        ignorieren diese Klammern, Qt verwirft dagegen das GANZE Stylesheet —
+        dann fehlen z.B. Groesse, Schrift und Farbe der Ueberschriften
+        (intern#152).
+        """
+        def _unwrap(m):
+            css = m.group(2).replace("<!--", "").replace("-->", "")
+            return f"{m.group(1)}{css}</style>"
+        return re.sub(r'(?si)(<style[^>]*>)(.*?)</style>', _unwrap, html)
 
     @classmethod
     def _sanitize_html(cls, html: str, lyrics_dir: str = None) -> str:
@@ -931,6 +1038,10 @@ class LyricsWidget(QWidget):
           - Keine Theme-Anpassung, keine WCAG-Kontrast-Pruefung
           - Hintergrund ist immer weiss → Dateien sehen aus wie im Browser/Word
         """
+        # 0) Words <!-- --> um das Stylesheet loesen, sonst ignoriert Qt es
+        #    komplett (Farben/Schriften der Ueberschriften fehlen, intern#152)
+        html = cls._unwrap_style_comments(html)
+
         # 1) Externe <link>-CSS auflösen → inline <style>
         def _resolve_link(m):
             href = m.group(1) or m.group(2) or m.group(3)
@@ -1789,6 +1900,8 @@ class LyricsWidget(QWidget):
             if (obj is self._browser.viewport()
                     and event.type() == QEvent.Resize):
                 self.refresh_section_overlay()
+                # intern#76: Lesebalken deckt immer den ganzen Viewport ab
+                self._reading_band.sync_geometry()
         except Exception:
             pass
         # BL-160: Im Sync-Modus faengt das Widget Maus-Klicks ab
@@ -2194,7 +2307,7 @@ class LyricsWidget(QWidget):
                 self._btn_dynamic.blockSignals(False)
                 return
             # Modus frisch aus der INI lesen (koennte ueber Settings geaendert sein)
-            settings = self._settings if self._settings is not None else QSettings()
+            settings = self._settings
             try:
                 self._dynamic_mode = str(settings.value("lyrics/dynamic_mode") or "")
             except Exception:
@@ -2224,7 +2337,7 @@ class LyricsWidget(QWidget):
     def _persist_dynamic_enabled(self, enabled: bool):
         """Speichert die An/Aus-Praeferenz in der App-INI (lyrics/dynamic_enabled),
         damit sie beim naechsten Start wiederhergestellt werden kann."""
-        settings = self._settings if self._settings is not None else QSettings()
+        settings = self._settings
         try:
             settings.setValue("lyrics/dynamic_enabled", bool(enabled))
             settings.sync()
@@ -2252,6 +2365,8 @@ class LyricsWidget(QWidget):
             self._btn_dynamic.blockSignals(True)
             self._btn_dynamic.setChecked(bool(self._dynamic_wanted))
             self._btn_dynamic.blockSignals(False)
+        self.reload_invert_settings()   # intern#127
+        self.reload_timing_settings()   # intern#115
         self.update_dynamic_button_state()
 
     def set_dynamic_wanted(self, enabled: bool):
@@ -2310,9 +2425,140 @@ class LyricsWidget(QWidget):
             return "2"
         return None
 
+    # ---- intern#127: Heads / Sides invertieren ----
+
+    def _invert_active(self) -> bool:
+        return self._invert_enabled and bool(
+            heads_sides.inverted_figures(self._invert_mode))
+
+    def _dyn_block_figure(self, figs: tuple):
+        """Figur (1..4), die ein Block gerade darstellt. Ein eigener Block je
+        Figur steht fest; ein gemeinsamer FIGURE-Block zeigt die laufende Figur
+        (aus der Teil-Zeitachse), vorher die naechste. Ohne verlaessliche
+        Zeitachse (nicht genau 4 Teile) None -> nicht tauschen."""
+        if len(figs) == 1:
+            return figs[0]
+        if len(self._dyn_part_starts) != 4:
+            return None
+        cur = self._dynamic_current_part(self._sync_last_pos) + 1
+        if cur in figs:
+            return cur
+        upcoming = [f for f in figs if f > cur]
+        return upcoming[0] if upcoming else figs[-1]
+
+    def _dyn_invert_flags(self) -> tuple:
+        """Je Figuren-Block: soll dort invertiert angezeigt werden?"""
+        if not self._invert_active():
+            return tuple(False for _ in self._dyn_block_keys)
+        swap = heads_sides.inverted_figures(self._invert_mode)
+        return tuple(self._dyn_block_figure(figs) in swap
+                     for figs in self._dyn_block_figs)
+
+    def _invert_tick(self):
+        """Im Scroll-Takt: wechselt die Tauschrichtung eines gemeinsamen
+        Blocks an einer Figuren-Grenze, wird deferred neu gerendert (auch in
+        Modus 1, wo sonst nichts neu gerendert wird). Billig ohne Wechsel."""
+        if not self._dynamic_enabled or not self._invert_active():
+            return
+        flags = self._dyn_invert_flags()
+        if flags != self._dyn_invert_state:
+            # Vorab merken: ohne Sequenz setzt der Render den Zustand nicht,
+            # sonst liefe hier jeder Tick einen neuen Render an.
+            self._dyn_invert_state = flags
+            self.refresh_dynamic_from_sequence()
+
+    def _on_invert_clicked(self, checked: bool):
+        """Spiegel-Button. Ohne gewaehlte Art: in die Einstellungen an die
+        Art-Auswahl (Button bleibt aus). Sonst An/Aus-Toggle, synchron mit
+        lyrics/dynamic_invert_enabled."""
+        if not heads_sides.inverted_figures(self._invert_mode):
+            self._btn_invert.blockSignals(True)
+            self._btn_invert.setChecked(False)
+            self._btn_invert.blockSignals(False)
+            if callable(self.open_settings_at):
+                self.open_settings_at("lyrics/dynamic_invert_mode")
+            return
+        self._invert_enabled = bool(checked)
+        settings = self._settings
+        try:
+            settings.setValue("lyrics/dynamic_invert_enabled", bool(checked))
+            settings.sync()
+        except Exception:
+            pass
+        self._update_invert_tooltip()
+        self.refresh_dynamic_from_sequence()
+
+    def reload_invert_settings(self):
+        """Art und An/Aus aus der INI lesen (Start und Settings-Live-Apply) und
+        Button + Anzeige nachziehen."""
+        if self._settings is None:
+            return
+        try:
+            self._invert_enabled = self._settings.value(
+                "lyrics/dynamic_invert_enabled", False, type=bool)
+            self._invert_mode = str(
+                self._settings.value("lyrics/dynamic_invert_mode") or "").upper()
+        except Exception:
+            return
+        if hasattr(self, "_btn_invert"):
+            self._btn_invert.blockSignals(True)
+            self._btn_invert.setChecked(self._invert_active())
+            self._btn_invert.blockSignals(False)
+            self._update_invert_tooltip()
+        self.refresh_dynamic_from_sequence()
+
+    def _update_invert_tooltip(self):
+        if not heads_sides.inverted_figures(self._invert_mode):
+            tip = _t("tooltip_dynamic_invert_choose")
+        else:
+            tip = _t("tooltip_dynamic_invert", mode=self._invert_mode)
+        self._btn_invert.setToolTip(tip)
+
+    # Grenzen der Timing-Parameter (Sekunden), siehe SETTINGS_META
+    _TIMING_OFFSET_LIMIT = 10
+
+    def reload_timing_settings(self):
+        """intern#115: "Textsprung timen" und "Texttausch timen" aus der INI
+        lesen (Start und Settings-Live-Apply). Unlesbare Werte gelten als 0."""
+        if self._settings is None:
+            return
+        lim = self._TIMING_OFFSET_LIMIT
+        for attr, key in (("_text_jump_offset", "lyrics/text_jump_offset"),
+                          ("_dynamic_swap_offset", "lyrics/dynamic_swap_offset")):
+            try:
+                val = int(float(self._settings.value(key, 0) or 0))
+            except (TypeError, ValueError):
+                val = 0
+            setattr(self, attr, max(-lim, min(lim, val)))
+
+    def reload_reading_settings(self):
+        """intern#76: Leseposition und Lesebalken aus der INI lesen (Start und
+        Settings-Live-Apply). Unlesbare Werte gelten als Standard."""
+        def _num(key, default, lo, hi):
+            try:
+                val = float(self._settings.value(key, default))
+            except (TypeError, ValueError):
+                val = default
+            return max(lo, min(hi, val))
+        self._SYNC_ANCHOR_VIEWPORT_FRAC = _num(
+            "lyrics/reading_position_pct", 30, 0, 100) / 100.0
+        raw = self._settings.value("lyrics/reading_band_enabled", True)
+        self._reading_band_enabled = str(raw).strip().lower() not in (
+            "false", "0", "no", "off", "")
+        self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 2, 60)
+        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 5, 100)
+        self._scroll_last_val = -1
+        if getattr(self, "_reading_band", None) is not None:
+            self._reading_band.update()
+
     def _dynamic_current_part(self, pos: float) -> int:
         """Index des gerade laufenden Figuren-Teils (letzter Teil, dessen
-        Startzeit <= pos). 0, solange noch kein Teil begonnen hat."""
+        Startzeit <= pos). 0, solange noch kein Teil begonnen hat.
+
+        intern#115: Die Grenzen wirken um "Texttausch timen" verschoben
+        (negativ = frueher). Daran haengen Sequenzwechsel und Heads/Sides-
+        Tausch gleichermassen."""
+        pos = pos - self._dynamic_swap_offset
         cur = 0
         for i, t in enumerate(self._dyn_part_starts):
             if t <= pos:
@@ -2325,6 +2571,7 @@ class LyricsWidget(QWidget):
         (deferred, audio-sicher). Das Sequence-View meldet die Aenderung zurueck
         und das Lyric-Feld spiegelt sie (refresh_dynamic_from_sequence).
         Nach dem letzten Figuren-Teil wird nicht weiter geblaettert."""
+        self._invert_tick()
         if (not self._dynamic_enabled or self._dynamic_mode != "2"
                 or self._dyn_advance_pending or not self._dyn_part_starts):
             return
@@ -2395,13 +2642,17 @@ class LyricsWidget(QWidget):
         # (Option B: nur der ersetzte Textbereich wird kuerzer, nicht das Timing).
         base_lines = pristine.toPlainText().split("\n")  # alte Zeilen == old_offsets
         edits = []  # (content_l0, call_end, calls) — Original-Zeilen
-        for key in self._dyn_block_keys:
+        # intern#127: je Block normal oder mit getauschten Heads/Sides
+        flags = self._dyn_invert_flags()
+        self._dyn_invert_state = flags
+        inverted = heads_sides.invert_sequence(calls) if any(flags) else calls
+        for key, inv in zip(self._dyn_block_keys, flags):
             cl0 = key[0] + 1
             if cl0 > key[1]:
                 continue  # Block ist nur die Ueberschrift → nichts zu ersetzen
             call_end = self._resolve_block_cut(key[0], key[1], base_lines,
                                                base_sections)
-            edits.append((cl0, call_end, calls))
+            edits.append((cl0, call_end, inverted if inv else calls))
 
         clone = pristine.clone(self._browser)
         for cl0, l1, calls in sorted(edits, key=lambda e: e[0], reverse=True):
@@ -2446,6 +2697,11 @@ class LyricsWidget(QWidget):
         self._dynamic_anchors = dyn
 
         self._recache_original_sizes_scaled(self._dyn_factor)
+        # Groessen-Stabilisator: der Klon traegt die Schriftgroesse vom
+        # Einschalt-Zeitpunkt. Hat sich der Zoom seitdem geaendert (Auto-Size,
+        # Auto-Breite, manuell), die AKTUELLE Groesse wieder anwenden, sonst
+        # springt der Text bei jedem Neu-Rendern (Sequenz-/Tauschwechsel).
+        self._set_font_size(self._current_font_size)
         self._scroll_last_val = -1
         try:
             vp = self._browser.viewport().height()
@@ -2453,6 +2709,7 @@ class LyricsWidget(QWidget):
         except Exception:
             pass
         self.refresh_section_overlay()
+        self._refresh_band_after_render()
 
     @staticmethod
     def _char_to_line_in(offsets: list, char_pos: int) -> int:
@@ -2498,12 +2755,16 @@ class LyricsWidget(QWidget):
         # Eindeutige Figuren-Bloecke (Doppelungen aus einem gemeinsamen
         # FIGURE-Block zusammenfassen), Reihenfolge nach Textzeile.
         self._dyn_block_keys = []
-        seen = set()
+        figs_by_key = {}
         for name, rng in figures:
             key = (int(rng[0]), int(rng[1]))
-            if key not in seen:
-                seen.add(key)
+            if key not in figs_by_key:
+                figs_by_key[key] = []
                 self._dyn_block_keys.append(key)
+            figs_by_key[key].append(self._DYNAMIC_FIGURES.index(name) + 1)
+        # intern#127: welche Figuren (1..4) ein Block darstellt
+        self._dyn_block_figs = [tuple(sorted(figs_by_key[k]))
+                                for k in self._dyn_block_keys]
 
         # Figuren-Teil-Startzeiten aus den SyncPoints ableiten. Der Auto-Sync
         # legt pro Teil ZWEI Anker an (Block-Anfang bei s_char, Block-Ende bei
@@ -2548,6 +2809,8 @@ class LyricsWidget(QWidget):
         self._original_sizes = snap["sizes"]
         self._lyric_sections = snap["sections"]
         self._line_offsets = snap["offsets"]
+        # Aktuellen Zoom behalten statt auf den Stand beim Einschalten zu springen
+        self._set_font_size(self._current_font_size)
         self._reset_dynamic_state()
         self._scroll_last_val = -1
         try:
@@ -2556,6 +2819,7 @@ class LyricsWidget(QWidget):
         except Exception:
             pass
         self.refresh_section_overlay()
+        self._refresh_band_after_render()
 
     def _reset_dynamic_state(self):
         """Setzt nur die Dynamic-Flags/Referenzen zurueck (ohne Dokumentwechsel).
@@ -2569,6 +2833,8 @@ class LyricsWidget(QWidget):
         self._pre_dynamic = None
         self._dyn_part_starts = []
         self._dyn_block_keys = []
+        self._dyn_block_figs = []
+        self._dyn_invert_state = ()
         self._dyn_rendered_part = 0
         self._dyn_render_pending = False
         self._dyn_advance_pending = False
@@ -3669,7 +3935,9 @@ class LyricsWidget(QWidget):
             return
 
         if ext in self._SUPPORTED_HTML:
-            html = content  # Original-HTML 1:1 (ohne Sanitize) editieren
+            # Original-HTML (ohne Sanitize) editieren; nur Words
+            # Kommentar-Klammern um das Stylesheet loesen, sonst ignoriert Qt es
+            html = self._unwrap_style_comments(content)
         elif ext in self._SUPPORTED_RTF:
             # RTF → HTML konvertieren (gleiche Logik wie _load_rtf)
             content = self._strip_rtf_binary_groups(content)
@@ -3698,17 +3966,18 @@ class LyricsWidget(QWidget):
         # eine Skalierung wuerde sonst falsche Fragmente treffen.
         # Nach dem Speichern wird der Cache beim Reload neu gefuellt.
         self._original_sizes = []
+        self._set_font_size(self._base_font_size)  # Bearbeiten = 100 %
         # Signale sind bereits im __init__ einmal verbunden — Slots pruefen
         # self._edit_mode und sind im Read-Modus No-Ops.
 
         # Format-Toolbar zeigen.
         # Auto-Scroll und Auto-Size waehrend des Editierens sperren
         # (wuerden den Cursor verschieben bzw. die Default-Schrift dauernd
-        # umschalten). Auto-Width und Zoom bleiben verfuegbar — sie aendern
-        # nur die Anzeige, nicht die gespeicherten Per-Char-Groessen.
+        # umschalten). Zoom und Auto-Width ebenfalls: Bearbeiten zeigt die
+        # Datei immer in Originalgroesse (intern#152).
         self._format_toolbar_widget.setVisible(True)
-        self._btn_auto_scroll.setEnabled(False)
-        self._btn_auto_size.setEnabled(False)
+        self._set_edit_locked_buttons_enabled(False)
+        self._update_zoom_label()
 
         # Stift-Icon → Speichern-Hint
         self._btn_edit.blockSignals(True)
@@ -3733,9 +4002,10 @@ class LyricsWidget(QWidget):
         self._browser.setReadOnly(True)
         self._edit_mode = False
         self._dirty = False
+        self._set_font_size(self._current_font_size)  # Zoom wieder anwenden
         self._format_toolbar_widget.setVisible(False)
-        self._btn_auto_scroll.setEnabled(True)
-        self._btn_auto_size.setEnabled(True)
+        self._set_edit_locked_buttons_enabled(True)
+        self._update_zoom_label()
         self._btn_edit.blockSignals(True)
         self._btn_edit.setChecked(False)
         self._btn_edit.blockSignals(False)
@@ -3748,6 +4018,13 @@ class LyricsWidget(QWidget):
         else:
             self._btn_edit.setText("✎")
         self._btn_edit.setToolTip(_t("tooltip_lyrics_edit"))
+
+    def _set_edit_locked_buttons_enabled(self, enabled: bool):
+        """Buttons, die im Bearbeiten-Modus gesperrt sind."""
+        for btn in (self._btn_auto_scroll, self._btn_auto_size,
+                    self._btn_auto_width, self._btn_zoom_in,
+                    self._btn_zoom_out):
+            btn.setEnabled(enabled)
 
     def _on_doc_changed(self):
         # Wird auch durch setHtml() im Read-Modus getriggert — dort ignorieren.
@@ -4051,7 +4328,8 @@ class LyricsWidget(QWidget):
 
     def _update_zoom_label(self):
         """Aktualisiert die Zoom-Prozentanzeige."""
-        pct = int(round(self._current_font_size / self._base_font_size * 100))
+        size = self._base_font_size if self._edit_mode else self._current_font_size
+        pct = int(round(size / self._base_font_size * 100))
         self._label_zoom.setText(f"{pct}%")
 
     # ---- Auto-Fit: Schriftgroesse anpassen ----
@@ -4157,6 +4435,11 @@ class LyricsWidget(QWidget):
         damit Zoom/Auto-Width auch Dokumente mit per-Span font-size verkleinern
         oder vergroessern koennen.
         """
+        if self._edit_mode:
+            # Bearbeiten zeigt die Datei in Originalgroesse (100 %): Die
+            # Groessen der Datei werden dort nicht gezoomt, also auch der Rest
+            # (Ueberschriften, Leerraum) nicht (intern#152).
+            size_px = self._base_font_size
         font = self._browser.font()
         font.setPointSizeF(size_px * 0.75)  # px → pt Naeherung (96dpi)
         self._browser.setFont(font)
@@ -4247,7 +4530,20 @@ class LyricsWidget(QWidget):
         # nach dem Start erst anspringt, wenn ein Zoom/Toggle ihn neu berechnet.
         # Ob es ueberhaupt etwas zu scrollen gibt, sagt die Live-Scrollbar weiter
         # unten (max_val <= 0) verlaesslich — das heilt den Start-Fall selbst.
-        if not self._auto_scroll_enabled or not self._lyrics_loaded:
+        if not self._lyrics_loaded or dur <= 0:
+            return
+        self._last_dur = dur
+        # Ankerberechnung laeuft je Takt: sparen, wenn niemand sie braucht.
+        if not (self._reading_band_enabled or self._auto_scroll_enabled):
+            return
+        anchors = self._anchor_doc_points() if self._active_anchors() else []
+        # intern#76: Lesebalken folgt dem gesungenen Text (ohne Textsprung-
+        # Verschiebung), auch waehrend manuellen Scrollens; gemalt wird relativ
+        # zum Scroll-Wert.
+        if self._reading_band_enabled:
+            self._update_reading_band(self._sung_doc_y(pos, dur, anchors))
+
+        if not self._auto_scroll_enabled:
             return
 
         # Manuelles Scrollen hat Vorrang: waehrend des Pausenfensters nicht
@@ -4257,30 +4553,55 @@ class LyricsWidget(QWidget):
 
         scrollbar = self._browser.verticalScrollBar()
         max_val = scrollbar.maximum()
-        if max_val <= 0 or dur <= 0:
+        if max_val <= 0:
             return
 
-        if self._active_anchors():
-            target = self._sync_scroll_target(pos, dur, max_val)
+        snapping = False
+        if anchors:
+            target = self._sync_scroll_target(pos, dur, max_val, anchors)
+            snapping = self._interp_snapping
         else:
-            # Proportionale Position (Standardverhalten ohne Anker)
-            target = int((pos / dur) * max_val)
+            # Ohne Anker proportional, der gesungene Text steht dabei auf der
+            # Leseposition (intern#76; vorher lief er oben am Fenster).
+            target = int(self._sung_doc_y(pos, dur, anchors) - self._read_offset())
 
         target = max(0, min(max_val, target))
         # Kleines Rueckwaerts-Zittern durch Audio-Positions-Jitter unterdruecken.
         # Echter Ruecksprung (Figur-Wiederholung, Loop) ist groesser als 5 % des
         # Scrollbereichs und wird durchgelassen.
-        if target < self._scroll_last_val and self._scroll_last_val - target < max_val * 0.05:
+        # intern#76: Beim gewollten Ruecksprung (Figur-Wiederholung) nicht
+        # bremsen, sonst ruckelt der Text in Stuecken, waehrend der Lesebalken
+        # glatt zurueckgleitet.
+        if (not snapping and target < self._scroll_last_val
+                and self._scroll_last_val - target < max_val * 0.05):
             return
         self._scroll_last_val = target
         scrollbar.setValue(target)
 
-    def _y_for_pos(self, pristine_pos: int, doc, layout, max_pos: int):
-        """Dokument-Y der sichtbaren Zeile, die an pristine_pos beginnt.
+    def _refresh_band_after_render(self):
+        """intern#76: Nach einem Neuaufbau des Dokuments (Dynamic Lyrics) den
+        Lesebalken sofort am neuen Layout ausrichten, statt ihn bis zum
+        naechsten Takt an der alten Stelle stehen zu lassen (Huepfen)."""
+        dur = self._last_dur or 0
+        if not (self._lyrics_loaded and self._reading_band_enabled and dur > 0):
+            self._update_reading_band(None)
+            return
+        anchors = self._anchor_doc_points() if self._active_anchors() else []
+        self._update_reading_band(self._sung_doc_y(self._sync_last_pos, dur, anchors))
 
-        Beruecksichtigt eingefuegte Marker (pristine -> Anzeige) und die genaue
-        Zeile innerhalb eines Blocks (wichtig bei RTF: ein Block, viele Zeilen).
-        """
+    def _update_reading_band(self, doc_y):
+        """intern#76: Neue Position des Lesebalkens, neu malen nur bei Aenderung."""
+        new = None if doc_y is None else int(doc_y)
+        if new != self._band_doc_y:
+            self._band_doc_y = new
+            self._reading_band.update()
+
+    # Folgt der naechste SyncPoint innerhalb dieser Zeit, beendet der Anker
+    # einen Abschnitt (danach springt der Text woanders hin), intern#76.
+    _SECTION_END_GAP_SEC = 2.0
+
+    def _line_geom(self, pristine_pos: int, doc, layout, max_pos: int):
+        """(block, Zeilenindex im Block) der sichtbaren Zeile an pristine_pos."""
         dpos = self._pristine_to_display(int(pristine_pos))
         dpos = max(0, min(dpos, max_pos))
         cursor = QTextCursor(doc)
@@ -4288,61 +4609,151 @@ class LyricsWidget(QWidget):
         block = cursor.block()
         if not block.isValid():
             return None
-        y = layout.blockBoundingRect(block).top()
         blay = block.layout()
+        idx = 0
         if blay is not None:
             line = blay.lineForTextPosition(dpos - block.position())
             if line.isValid():
-                y += line.y()
-        return int(y)
+                idx = line.lineNumber()
+        return block, idx
 
-    def _sync_scroll_target(self, pos: float, dur: float, max_val: int) -> int:
-        """Berechnet die Ziel-Scrollposition per stueckweiser Interpolation.
+    @staticmethod
+    def _line_box(block, idx, layout):
+        """(Dokument-Y oben, Hoehe, Text) der Zeile idx im Block."""
+        top = layout.blockBoundingRect(block).top()
+        blay = block.layout()
+        if blay is None or blay.lineCount() == 0:
+            return top, layout.blockBoundingRect(block).height(), block.text()
+        line = blay.lineAt(idx)
+        text = block.text()[line.textStart():line.textStart() + line.textLength()]
+        return top + line.y(), line.height(), text
 
-        Stuetzpunkte: (0s -> 0px), die sortierten Anker (Sekunde -> Zeilen-Y),
-        (dur -> max_val). Das Zeilen-Y wird zur Laufzeit aus der Zeichenposition
-        bestimmt, damit es bei Zoom/Auto-Size stabil bleibt.
+    @staticmethod
+    def _next_line(block, idx):
+        """Naechste Zeile (block, idx) im Dokument oder None."""
+        blay = block.layout()
+        if blay is not None and idx + 1 < blay.lineCount():
+            return block, idx + 1
+        nxt = block.next()
+        return (nxt, 0) if nxt.isValid() else None
+
+    def _is_heading_text(self, text: str) -> bool:
+        """Abschnitts-Ueberschrift ohne Inhalt auf derselben Zeile (OPENER,
+        FIGURE, ...). "(Opener): Calls" zaehlt nicht, dort steht schon Text."""
+        import singing_sections as _ss
+        if self._heading_kw is None:
+            self._heading_kw = _ss._keyword_words(_ss.DEFAULT_SECTIONS)
+        raw = (text or "").strip()
+        if not raw or _ss.PAREN_LABEL_RE.match(raw.upper()):
+            return False
+        return _ss.classify_heading(raw, _ss.DEFAULT_SECTIONS, self._heading_kw) is not None
+
+    def _anchor_doc_points(self):
+        """Anker als [(Sekunde, Dokument-Y der gesungenen Stelle)], nach Zeit.
+
+        Echte Zeiten, ohne "Textsprung timen" und ohne Leseposition. Die
+        gespeicherten SyncPoints bleiben unveraendert; nur fuer Scroll und
+        Lesebalken gilt (intern#76, Regel David): Ein Abschnitt laeuft von der
+        ersten Zeile NACH dem Schluesselwort bis zum Ende der Zeile VOR dem
+        naechsten Schluesselwort.
+        - Anker auf einer Ueberschrift -> Mitte der ersten Textzeile danach
+        - Anker, der einen Abschnitt beendet (naechster Anker folgt binnen
+          _SECTION_END_GAP_SEC, oder letzter Anker) -> Unterkante seiner Zeile
+        - sonst -> Mitte seiner Zeile (dort wird gerade gesungen)
+        Der Lesebalken ist um diesen Punkt zentriert.
         """
         doc = self._browser.document()
         layout = doc.documentLayout()
-        # Ankerzeile in die Lese-Zone setzen (nicht an den oberen Rand), damit
-        # der aktuelle Text nicht zu frueh oben aus dem Bild laeuft.
-        viewport_h = self._browser.viewport().height()
-        read_offset = int(viewport_h * self._SYNC_ANCHOR_VIEWPORT_FRAC)
         max_pos = doc.characterCount() - 1
-        # Stuetzpunkte aufbauen (nach Zeit sortiert)
-        points = [(0.0, 0)]
-        for sec, p in sorted(self._active_anchors(), key=lambda a: a[0]):
-            y = self._y_for_pos(int(p), doc, layout, max_pos)
-            if y is None:
+        raw = sorted(((float(a[0]), int(a[1])) for a in self._active_anchors()),
+                     key=lambda a: a[0])
+        out = []
+        for i, (sec, p) in enumerate(raw):
+            geom = self._line_geom(p, doc, layout, max_pos)
+            if geom is None:
                 continue
-            points.append((float(sec), max(0, y - read_offset)))
-        points.append((float(dur), max_val))
-        # Doppelte/unsortierte Zeiten entschaerfen
-        points.sort(key=lambda p: p[0])
+            block, idx = geom
+            top, height, text = self._line_box(block, idx, layout)
+            if self._is_heading_text(text):
+                nxt = self._next_line(block, idx)
+                for _ in range(5):       # Leerzeilen nach der Ueberschrift ueberspringen
+                    if nxt is None:
+                        break
+                    n_top, n_h, n_text = self._line_box(nxt[0], nxt[1], layout)
+                    if n_text.strip():
+                        top, height = n_top, n_h
+                        break
+                    nxt = self._next_line(*nxt)
+                out.append((sec, float(top + height / 2)))
+                continue
+            is_end = (i == len(raw) - 1
+                      or raw[i + 1][0] - sec <= self._SECTION_END_GAP_SEC)
+            out.append((sec, float(top + height) if is_end else float(top + height / 2)))
+        return out
 
-        # Segment finden, in dem pos liegt
+    def _interpolate(self, pos: float, points) -> float:
+        """Stueckweise lineare Interpolation ueber (Zeit, Y)-Stuetzpunkte.
+
+        Rueckwaerts-Segmente (Sprung zu frueherer Textzeile) halten die
+        Position und springen erst kurz vor dem Ziel schnell zurueck.
+        """
+        points = sorted(points, key=lambda p: p[0])
+        self._interp_snapping = False
         for i in range(len(points) - 1):
             t0, y0 = points[i]
             t1, y1 = points[i + 1]
             if pos <= t1:
                 if t1 <= t0:
-                    return int(y1)
+                    return float(y1)
                 if y1 < y0:
-                    # Rueckwaerts-Segment (Sprung zu frueherer Textzeile):
-                    # Position halten und erst kurz vor dem Ziel schnell zurueck.
                     snap = min(self._SYNC_BACK_SNAP_SECONDS, t1 - t0)
                     snap_start = t1 - snap
                     if pos <= snap_start:
-                        return int(y0)
-                    frac = (pos - snap_start) / snap
-                    frac = max(0.0, min(1.0, frac))
-                    return int(y0 + frac * (y1 - y0))
-                # Vorwaerts-Segment: glatt linear
-                frac = (pos - t0) / (t1 - t0)
-                frac = max(0.0, min(1.0, frac))
-                return int(y0 + frac * (y1 - y0))
-        return max_val
+                        return float(y0)
+                    self._interp_snapping = True
+                    frac = max(0.0, min(1.0, (pos - snap_start) / snap))
+                    return y0 + frac * (y1 - y0)
+                frac = max(0.0, min(1.0, (pos - t0) / (t1 - t0)))
+                return y0 + frac * (y1 - y0)
+        return float(points[-1][1])
+
+    def _read_offset(self) -> int:
+        """Leseposition in Pixeln von der Viewport-Oberkante (intern#76)."""
+        return int(self._browser.viewport().height() * self._SYNC_ANCHOR_VIEWPORT_FRAC)
+
+    def _sync_scroll_target(self, pos: float, dur: float, max_val: int,
+                            anchors=None) -> int:
+        """Berechnet die Ziel-Scrollposition per stueckweiser Interpolation.
+
+        Stuetzpunkte: (0s -> 0px), die sortierten Anker (Sekunde -> Zeilen-Y,
+        so verschoben, dass die Ankerzeile auf der Leseposition steht),
+        (dur -> max_val). Das Zeilen-Y wird zur Laufzeit aus der Zeichenposition
+        bestimmt, damit es bei Zoom/Auto-Size stabil bleibt.
+        """
+        if anchors is None:
+            anchors = self._anchor_doc_points()
+        read_offset = self._read_offset()
+        # intern#115: "Textsprung timen" verschiebt die Anker zeitlich (nur fuer
+        # die Anzeige, gespeichert bleibt die echte Zeit). Innerhalb des Songs
+        # halten, sonst ueberholt ein Anker die festen Endpunkte. Im SyncPoint-
+        # Modus nicht: Dort prueft und setzt man SyncPoints gegen die echte Zeit.
+        shift = 0.0 if self._sync_mode else float(self._text_jump_offset)
+        points = [(0.0, 0)]
+        for sec, y in anchors:
+            t = max(0.0, min(float(dur), sec + shift))
+            points.append((t, max(0, y - read_offset)))
+        points.append((float(dur), max_val))
+        return int(self._interpolate(pos, points))
+
+    def _sung_doc_y(self, pos: float, dur: float, anchors) -> float:
+        """intern#76: Dokument-Y des gerade gesungenen Texts, OHNE "Textsprung
+        timen". Mit Ankern: Interpolation Songanfang (0) -> Anker -> Songende
+        (Dokumenthoehe). Ohne Anker: proportional zur Songzeit."""
+        doc_h = float(self._browser.document().size().height())
+        if not anchors:
+            return (pos / dur) * doc_h if dur > 0 else 0.0
+        points = [(0.0, 0.0)] + list(anchors) + [(float(dur), doc_h)]
+        return self._interpolate(pos, points)
 
     # ---- Refit nach Song-Wechsel ----
 
@@ -4354,13 +4765,15 @@ class LyricsWidget(QWidget):
         — robust gegen langsames HTML/RTF-Layout. 250 ms Fallback-Timer
         falls das Signal nicht (mehr) feuert (z.B. leeres Document).
         """
+        # setHtml() hat die Inline-Groessen auf die Originalwerte zurueckgesetzt.
+        # Die aktuelle/gespeicherte Groesse (aus der INI beim Start) sofort neu
+        # anwenden — in JEDEM Modus. Sonst passt das Dokument bis zum Auto-Fit
+        # nicht zu _current_font_size, und wer in dieser Luecke den Zoom-Faktor
+        # herausrechnet (Dynamic Lyrics direkt nach dem Laden), halbiert die
+        # Inline-Groessen, waehrend Ueberschriften ohne eigene Groesse riesig
+        # wirken (intern#152).
+        self._set_font_size(self._current_font_size)
         if not (self._auto_size_enabled or self._auto_width_enabled):
-            # Manueller Zoom-Modus: setHtml() hat die Inline-Groessen auf die
-            # Originalwerte zurueckgesetzt. Die aktuelle/gespeicherte Groesse
-            # (aus der INI beim Start) neu anwenden — sonst zeigt der frisch
-            # geladene Text die Basisgroesse und erst ein Zoom-Klick stellt
-            # den gemerkten Faktor wieder her.
-            self._set_font_size(self._current_font_size)
             return
 
         doc_layout = self._browser.document().documentLayout()
@@ -4418,6 +4831,7 @@ class LyricsWidget(QWidget):
         self._lyrics_loaded = False
         self._auto_scroll_active = False
         self._marker_inserts = []
+        self._band_doc_y = None
         self._set_font_size(self._base_font_size)
         self._browser.setPlainText("")
         self._label_status.setText(msg)
@@ -4427,6 +4841,7 @@ class LyricsWidget(QWidget):
         self._lyrics_loaded = False
         self._auto_scroll_active = False
         self._marker_inserts = []
+        self._band_doc_y = None
         self._set_font_size(self._base_font_size)
         self._browser.clear()
         self._label_status.setText("\u2014")

@@ -202,6 +202,11 @@ WSOLA_WINDOW_SIZE = 8192
 LOOP_XFADE_FRAMES = 2048     # Default ~46ms bei 44100 Hz — PCM-Crossfade am Loop-Uebergang
 PREPROCESS_OUTPUT_SECONDS = 1.0   # Fix B (AR-020): 0.25 → 1.0 — groessere Output-Polster-Reserve,
                                   # damit Lock-Hold-Spitzen den 11ms-WDM-KS-Hardware-Buffer nicht mehr trifft.
+# WSOLA-Warmup beim Start aus dem Stopp (play()): so viel Output wird
+# verarbeitet und verworfen (Stille), bis die Overlap-Add-Fenster eingeschwungen
+# sind. intern#100: als Konstante, damit "an Marker springen und abspielen" um
+# genau diese Strecke frueher ansetzen kann.
+PLAY_WARMUP_SECONDS = 0.2
 
 # --- Anti-Ruckler-Schalter (siehe docs/anti_ruckler_backlog.md) -------------
 MMCSS_ENABLED = True   # AR-009: Feeder-Thread auf MMCSS "Pro Audio" hochstufen
@@ -331,6 +336,11 @@ def compute_loop_offset(audio_data, sample_rate, loop_in, loop_out):
 
     # Vorzeichen invertieren (siehe measure_loop_offset).
     return (-best_offset, -offset_ms, best_corr)
+
+
+# Format fuer den Ausgabe-Stream, wenn ein Alert ohne geladenen Song kommt.
+# main._load_alert_sound resampelt dann auf diese Rate.
+ALERT_IDLE_SR = 44100
 
 
 class AudioEngine:
@@ -479,6 +489,11 @@ class AudioEngine:
         """
         if samples is None or len(samples) == 0:
             return
+        # Kaltstart: noch nie gespielt -> kein Stream, der Ton wuerde bis zum
+        # naechsten Play warten (intern#110). Stream jetzt oeffnen; der Callback
+        # gibt im Leerlauf Stille + Alert aus.
+        if self.stream is None:
+            self._ensure_idle_stream()
         arr = np.asarray(samples, dtype=np.float32)
         if arr.ndim == 1:
             # Mono → auf Stream-Kanalzahl duplizieren
@@ -500,6 +515,50 @@ class AudioEngine:
         self._alert_data = arr
         self._alert_pos = 0
         self._alert_volume = max(0.0, float(volume))
+
+    def _ensure_idle_stream(self):
+        """Oeffnet den Ausgabe-Stream ohne geladenen Song (nur fuer Alerts).
+
+        Ohne Song gibt es noch kein Format — dann das Alert-Standardformat
+        (ALERT_IDLE_SR, Stereo). Laedt spaeter ein Song mit anderem Format,
+        baut _ensure_stream() den Stream beim Play ohnehin neu auf.
+        """
+        if self.sample_rate is None:
+            self.sample_rate = ALERT_IDLE_SR
+        if self.channels is None:
+            self.channels = 2
+        try:
+            self._ensure_stream()
+        except Exception as e:
+            _diag_log(f"[Diag] Alert-Stream konnte nicht geoeffnet werden: {e}")
+
+    def _mix_alert(self, buf, frames):
+        """Mischt den naechsten Block des Alert-Sounds in buf (in place,
+        additiv, Clip-Schutz). Laeuft im Audio-Callback — nur Slicing/NumPy,
+        keine Allokation ueber den Block hinaus, kein Lock."""
+        alert = self._alert_data
+        if alert is None:
+            return
+        ap = self._alert_pos
+        remaining = len(alert) - ap
+        if remaining <= 0:
+            # Alert ausgespielt — Buffer freigeben
+            self._alert_data = None
+            self._alert_pos = 0
+            return
+        n = min(frames, remaining, len(buf))
+        try:
+            buf[:n] = np.clip(buf[:n] + alert[ap:ap + n] * self._alert_volume,
+                              -1.0, 1.0)
+        except ValueError:
+            # Kanal-Mismatch zum Stream: Alert verwerfen statt Callback-Crash
+            self._alert_data = None
+            self._alert_pos = 0
+            return
+        self._alert_pos = ap + n
+        if self._alert_pos >= len(alert):
+            self._alert_data = None
+            self._alert_pos = 0
 
     def stop_alert(self):
         """Aktiven Alert-Sound vorzeitig abbrechen."""
@@ -795,10 +854,18 @@ class AudioEngine:
             return 0
         # Ab Post-Stretcher-Pitch-Architektur (2026-06-03): Stretcher-Input
         # ist Original-Audio, daher KEIN ratio-Faktor mehr auf `buffered`.
-        # (Output-Buffer im Stretcher + Pitcher-Carry sind klein gegen den
-        # 5-Sekunden-Input-Puffer; vernachlaessigt fuer die Slider-Anzeige.)
+        # intern#100: Der vorberechnete Output-Buffer (PREPROCESS_OUTPUT_SECONDS,
+        # seit AR-020 1 s) ist schon aus dem Input verschwunden, aber noch nicht
+        # zu hoeren -- ohne Abzug lief die Position ~1 s vor dem Ton (Anzeige,
+        # Loop-In/-Out setzen). Output-Frames x Stretcher-Tempo = Original-Frames;
+        # Pitcher-Carry analog (x pitch_ratio x Stretcher-Tempo = User-Tempo).
+        # Nur Lesezugriffe ohne Lock, wie input_available().
         buffered = max(0, self.stretcher.input_available())
-        pos = max(0, self._feed_pos - buffered)
+        buffered += self.stretcher.output_available() * self.stretcher.tempo
+        if self.pitcher:
+            buffered += (len(self.pitcher._out_carry)
+                         * self._user_tempo * self._today_tempo)
+        pos = max(0, self._feed_pos - int(buffered))
         # Nach Loop-Wrap kann _feed_pos nahe loop_in sein waehrend
         # der Buffer noch altes Audio enthaelt → pos klemmen.
         # NUR wenn Feed bereits im Loop-Bereich ist (nicht bei Pattern-Start
@@ -1223,6 +1290,9 @@ class AudioEngine:
 
         if not self.playing or self.paused or self.stretcher is None:
             outdata[:] = 0
+            # Alert auch ohne Musik hoerbar (z.B. Rule-Ton in der Pause, intern#110)
+            if self._alert_data is not None:
+                self._mix_alert(outdata, frames)
             return
 
         # Output-Buffer-Stand VOR retrieve() messen (in ms) — vorgezogen, damit der
@@ -1329,24 +1399,8 @@ class AudioEngine:
 
         # BL-137: Alert-Sound einmischen (additiv, mit Clip-Schutz).
         # Im Normalbetrieb: ein `is not None`-Check, sonst nichts.
-        alert = self._alert_data
-        if alert is not None:
-            ap = self._alert_pos
-            remaining = len(alert) - ap
-            if remaining <= 0:
-                # Alert ausgespielt — Buffer freigeben
-                self._alert_data = None
-                self._alert_pos = 0
-            else:
-                n = min(frames, remaining)
-                stretched[:n] = np.clip(
-                    stretched[:n] + alert[ap:ap + n] * self._alert_volume,
-                    -1.0, 1.0,
-                )
-                self._alert_pos = ap + n
-                if self._alert_pos >= len(alert):
-                    self._alert_data = None
-                    self._alert_pos = 0
+        if self._alert_data is not None:
+            self._mix_alert(stretched, frames)
 
         outdata[:] = stretched
         self._playback_sample += frames
@@ -1488,7 +1542,7 @@ class AudioEngine:
             self.stretcher.preprocess(target)
         # WSOLA-Warmup: ~200ms verarbeiten und verwerfen, damit
         # die Overlap-Add-Fenster sauber eingeschwungen sind
-        self._warmup_frames = int(0.2 * self.sample_rate)
+        self._warmup_frames = int(PLAY_WARMUP_SECONDS * self.sample_rate)
         self.playing = True
         self.paused = False
         # Stream wiederverwenden statt jedes Mal neu erstellen
@@ -1631,6 +1685,11 @@ class AudioEngine:
         if self.stretcher and self.sample_rate:
             return self._estimate_playback_pos() / self.sample_rate
         return 0.0
+
+    def play_warmup_song_seconds(self) -> float:
+        """Song-Sekunden, die play() beim Start aus dem Stopp als Warmup
+        verwirft (Output-Frames x User-/Heute-Tempo = Original-Zeit)."""
+        return PLAY_WARMUP_SECONDS * self._user_tempo * self._today_tempo
 
     def get_playback_position_seconds(self):
         """Praezise Wiedergabe-Position basierend auf dem Sample-Counter.

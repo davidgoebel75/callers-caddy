@@ -190,10 +190,14 @@ def test_settings_dialog_offers_exactly_the_accepted_values(notes):
     Der Dialog listet ausserdem nur INI-Keys (childKeys) — main.py saet den
     Default deshalb einmalig, sonst waere die Zeile unsichtbar.
     """
-    from settings_dialog import SETTINGS_META
+    from settings_dialog import SETTINGS_META, _SettingRow
 
     meta = SETTINGS_META["notes/insert_position"]
-    offered = [value for value, _label in meta["choices"]]
+    # Die Auswahl baut _build_widget zur Laufzeit (i18n) — also die echte
+    # Combobox fragen, nicht SETTINGS_META["choices"].
+    combo = _SettingRow("notes", "insert_position", meta["default"]).widget
+    offered = [combo.itemData(i) for i in range(combo.count())]
+    assert offered
     assert meta["default"] in offered
 
     for value in offered:

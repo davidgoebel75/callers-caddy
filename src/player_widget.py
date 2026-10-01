@@ -854,6 +854,11 @@ class PlayerWidget(QWidget):
             self.spin_pitch.setValue(max(-6.0, min(6.0, song.pitch)))
         finally:
             self._loading = False
+        # intern#147: engine.load() setzt Pitch/Tempo zurueck. Zeigt die SpinBox
+        # schon denselben Wert (Song erneut geladen), feuert kein valueChanged —
+        # daher die Werte hier explizit an die Engine geben.
+        self.engine.set_tempo(self.spin_tempo.value() / 100.0)
+        self.engine.set_pitch(self.spin_pitch.value())
         # Frisch geladen = nichts mehr zu speichern.
         self._tempo_dirty = False
         self._pitch_dirty = False

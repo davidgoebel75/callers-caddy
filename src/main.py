@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.159"
+__version__ = "0.160"
 
 import sys
 import os
@@ -25,6 +25,7 @@ import math
 import shutil
 import threading
 import random
+import struct
 from time import monotonic
 from datetime import date, datetime
 from PySide6.QtWidgets import (
@@ -50,7 +51,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QProgressDialog,
 )
-from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject
+from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject, QRect
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QCursor
 
 # --- Frühest möglicher Crash-Handler -----------------------------------------
@@ -147,7 +148,7 @@ _LOCK_FILE = _acquire_single_instance_lock()
 if _LOCK_FILE is None:
     _warn_already_running_and_exit()
 
-from audio_engine import AudioEngine
+from audio_engine import ALERT_IDLE_SR, AudioEngine
 from system_report import generate_report
 from song_db import SongDatabase, Song, Location
 from path_manager import PathManager
@@ -160,7 +161,9 @@ from notes_widget import NotesWidget
 from stats_widget import StatsWidget
 from evening_planner_widget import EveningPlannerWidget
 import zip_import
-from zip_import_dialog import ZipImportPreviewDialog
+import song_catalog
+import song_match
+from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
 
 # _ComboClickToOpen / install_combo_click_to_open -> sequences_widget.py (BL-201)
@@ -231,6 +234,9 @@ from dialogs_location_program import (
     LocationDialog, _DanceProgramManagerDialog, _MultiProgramPickerDialog,
     _GenreManagerDialog, _ImportGenreDialog, DeduplicationDialog,
 )
+# --- Call-Map Export/Import mit Konfliktklaerung (intern#79)
+import mapping_io
+from dialogs_mapping_conflict import run_mapping_import
 
 
 # ===========================================================================
@@ -379,7 +385,7 @@ from playlist_widget import (
 # --- Sequenzen-UI -> sequences_widget.py (BL-201, Stufe 4) ------------------
 from sequences_widget import (
     SequenceViewWidget, SequencesWidget, SequenceEditorDialog,
-    FreetextSequenceImportDialog, SequenceImportDialog, CallMappingDialog,
+    SequenceImportDialog, CallMappingDialog,
 )
 
 
@@ -842,9 +848,6 @@ class P29MainWindow(QMainWindow):
         _td3 = perf_split("    SongList", _td2)
         # --- Dock 7: Lyrics (Spalte 3, rechts neben Songliste) ---
         self.lyrics_widget = LyricsWidget(self.paths, skin_mgr=self.skin_mgr, db=self.db)
-        # BL-173: App-INI ans Lyrics-Widget geben, damit der Dynamic-Lyrics-Modus
-        # im GLEICHEN Store liegt wie die uebrigen Settings (nicht bare QSettings).
-        self.lyrics_widget._settings = self._settings
         # BL-160: Im Sync-Modus Rules + History abschalten (Testlauf)
         self.lyrics_widget.on_sync_mode_changed = self._on_lyric_sync_mode
         # Automatische Body-Erkennung anfordern (laeuft im Worker-Thread)
@@ -972,6 +975,7 @@ class P29MainWindow(QMainWindow):
         self.sequences_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequences_widget.on_add_filter_to_notes = self._notes_add_seq_with_filters
         self.sequences_widget.on_sequences_deleted = self._on_sequences_deleted
+        self.sequences_widget.on_open_call_mapping = self._open_call_mapping
         self.sequence_view_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequence_view_widget.on_edit_sequence = self._on_sequence_editor
         self.sequence_view_widget.on_delete_sequence = self._on_sequence_view_delete
@@ -985,6 +989,9 @@ class P29MainWindow(QMainWindow):
         # BL-182: Dynamic-Start mischt auch die ERSTE Sequenz, wenn Shuffle an ist.
         self.lyrics_widget.randomize_start_sequence_view = \
             self.sequence_view_widget.random_start
+        # intern#127: Spiegel-Button ohne gewaehlte Art -> Einstellungen dort oeffnen
+        self.lyrics_widget.open_settings_at = \
+            lambda key: self._show_settings_dialog(focus_key=key)
         self.sequence_view_widget.on_current_sequence_changed = \
             self.lyrics_widget.refresh_dynamic_from_sequence
         # Sequenzliste geaendert → Gating des Dynamic-Buttons neu bewerten.
@@ -1085,9 +1092,9 @@ class P29MainWindow(QMainWindow):
         self._ep_placeholder = QWidget()
         self._ep_location_id = None      # ausstehende Lokation bis Lazy-Init
         self._ep_planned_tips = 0        # ausstehende Tips-Zahl bis Lazy-Init
-        # Floating-Geometrie der Tool-Fenster: gespeicherte Werte vormerken,
-        # angewandt wird beim ersten Sichtbarwerden (restoreGeometry greift
-        # nur auf sichtbaren Docks — verifiziert).
+        # Floating-Geometrie der Tool-Fenster (objectName -> QRect): aus der
+        # INI bzw. beim Schliessen vorgemerkt, angewandt beim naechsten
+        # Sichtbarwerden (#121, siehe _on_float_dock_visible).
         self._pending_float_geom = {}
         self._float_geom_connected = False
         self.dock_evening_planner = _make_dock(
@@ -1098,7 +1105,7 @@ class P29MainWindow(QMainWindow):
             QDockWidget.DockWidgetMovable
             | QDockWidget.DockWidgetFloatable
             | QDockWidget.DockWidgetClosable)
-        # Nicht dockbar — nur als freies Fenster (wie Photo/Reports/Rules)
+        # Standard: freies Fenster (per Magnet andockbar, s. _DEFAULT_FREE_DOCKS)
         self.dock_evening_planner.setFloating(True)
         self.dock_evening_planner.setAllowedAreas(Qt.NoDockWidgetArea)
         self.dock_evening_planner.hide()
@@ -1262,8 +1269,19 @@ class P29MainWindow(QMainWindow):
         self.break_widget = BreakWidget(self.skin_mgr)
         self.break_widget.on_play_last_song = self._on_break_play_last
         self.break_widget.on_stop_last_song = self._on_break_stop_last
+        self.break_widget.on_break_started = self._on_break_started
+        self.break_widget.on_break_finished = self._on_break_finished
         self._break_music_active = False
         self._break_music_timer = None
+        self._break_with_music = False  # Art der letzten Pause (Condition break_type)
+        # Zuletzt wirklich gestarteter Song dieser Sitzung (ohne Wartemusik,
+        # Audition, Beat Snap) — Quelle fuer "Letzten Song spielen"
+        self._last_logged_song_id = None
+        # Vor der Wartemusik geladener Song — wird nach der Pause wieder geladen
+        self._pre_break_song_id = None
+        # Song, der gerade als Wartemusik laeuft (intern#130: ein manuelles Play
+        # eines ANDEREN Songs beendet den Pausenzustand)
+        self._break_music_song_id = None
         # Latch: unterdrueckt den Feedback-Dialog am Ende der Wartemusik. Wird in
         # _trigger_song_stopped einmalig gelesen und zurueckgesetzt (wie _in_audition).
         self._break_music_suppress_feedback = False
@@ -1326,6 +1344,7 @@ class P29MainWindow(QMainWindow):
             self.engine, self.db,
             skin_mgr=self.skin_mgr,
             jump_callback=self._jump_to_time,
+            play_callback=self._jump_and_play,
             song_provider=lambda: self._current_song,
             perf_start=perf_start, perf_log=perf_log,
         )
@@ -1378,6 +1397,10 @@ class P29MainWindow(QMainWindow):
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
         self._wire_dock_context_menus()
+        # #121: Floating-Geometrie-Handler auch ohne gespeichertes Layout
+        # (Erststart) verbinden, sonst merkt sich kein Dock seine Position
+        # innerhalb der Sitzung. Idempotent.
+        self._connect_float_geom_handlers()
 
         # Layout wiederherstellen
         self._restore_layout()
@@ -1917,11 +1940,19 @@ class P29MainWindow(QMainWindow):
 
         # 3) Dateiname parsen + DB-Eintrag
         title, label = self._parse_filename(basename)
+        # intern#126: sicherer Katalogtreffer -> Katalog-Schreibweise + Caller
+        cat_entry = self._catalog_entry_for_import(basename, title, label)
+        if cat_entry is not None:
+            title = song_catalog.canonical_title(title, cat_entry.title)
+            label = cat_entry.label_field
         song = Song(filename=store_name, title=title, label=label,
+                    artist=cat_entry.caller if cat_entry else "",
                     is_pattern=is_pattern, is_singing=is_singing)
         song = self.db.insert(song)
         print(f"[Import] Neu: #{song.id} '{title}'"
               f"{f' [{label}]' if label else ''}")
+        if cat_entry is not None:
+            self._apply_catalog_metadata(song.id, cat_entry)
 
         # 3b) Lyrics-Co-Import (gleichnamig, tolerant) — beim ZIP abgeschaltet
         if auto_lyrics:
@@ -1963,6 +1994,47 @@ class P29MainWindow(QMainWindow):
 
         return {"song": song, "store_name": store_name,
                 "dest": dest, "status": "new"}
+
+    def _catalog_entry_for_import(self, basename: str, title: str, label: str):
+        """intern#126: Katalogeintrag fuer eine neue Datei, nur bei "sicher".
+
+        Der Katalog ist eine weitere Datenquelle fuer den vorhandenen Abgleich
+        (song_match): bewertet wird der Dateiname in beiden Zerlegungen (Import-
+        Parser und zip_import-Parser), der bessere Treffer zaehlt. Unterhalb von
+        IMPORT_MIN_SCORE wird nichts uebernommen (Potential zeigt es an)."""
+        try:
+            catalog = song_catalog.get_catalog(self.paths.app_dir)
+            if catalog is None:
+                return None
+            pn = song_match.parse_name(os.path.splitext(basename)[0])
+            matches = [m for m in (catalog.identify(title, label),
+                                   catalog.identify(pn.title, pn.label_full)) if m]
+        except Exception as e:  # noqa: BLE001 — Import darf daran nie scheitern
+            print(f"[Import] Katalog-Abgleich uebersprungen: {e}")
+            return None
+        best = max(matches, key=lambda m: m.score, default=None)
+        if best is None or not best.is_sure:
+            return None
+        print(f"[Import] Katalog: '{best.entry.title}' [{best.entry.label_field}] "
+              f"(Score {best.score})")
+        return best.entry
+
+    def _apply_catalog_metadata(self, song_id: int, entry):
+        """Fuellt Original-Interpret, Erscheinungsjahr und bekannte Genres aus
+        dem Katalog (neuer Song, Felder sind leer). Additiv, NEW bleibt."""
+        try:
+            if entry.original_artist:
+                self.db.set_property(song_id, "original_artist", entry.original_artist)
+            if entry.release_year:
+                self.db.set_property(song_id, "release_year", entry.release_year)
+            # Nur bekannte Genres, Gross-/Kleinschreibung egal (wie Potential)
+            known = {name.lower(): gid for gid, name in self.db.get_all_genres()}
+            for gname in entry.genres:
+                gid = known.get(gname.lower())
+                if gid:
+                    self.db.add_song_genre(song_id, gid)
+        except Exception as e:  # noqa: BLE001
+            print(f"[Import] Katalog-Metadaten uebersprungen (#{song_id}): {e}")
 
     def _import_files(self, filepaths: list, copy_mode: bool = True,
                       import_root: str = "", genre_ids: list = None):
@@ -2170,10 +2242,20 @@ class P29MainWindow(QMainWindow):
             QMessageBox.information(self, _t("import_result_title"),
                                     _t("zip_no_songs"))
             return
+        # Mehrere Songs in einem ZIP: erst nachfragen, nicht still teilen (intern#125)
+        multi = result.multi_song_zips
         try:
+            if multi:
+                split = ask_zip_split(self, multi)
+                if split is None:
+                    return
+                for g in multi:
+                    g.use_split = split
+                result.refresh_bundles()
             dlg = ZipImportPreviewDialog(
                 result, lists, self._zip_lists_path(), self,
-                audition_cb=self._audition_zip_play)
+                audition_cb=self._audition_zip_play,
+                dup_lookup=self._zip_dup_title)
             accepted = dlg.exec() == QDialog.Accepted
             self._stop_zip_audition()  # vor Commit/Cleanup Probehören stoppen
             if accepted:
@@ -2207,7 +2289,9 @@ class P29MainWindow(QMainWindow):
             return os.path.basename(dest)
 
         imported = 0
-        skipped = 0
+        skipped = []    # Dateinamen, die schon existierten (intern#125)
+        not_attached = []   # Dateien eines Duplikats, die nicht angehaengt wurden
+        attached = 0    # neue Spuren an vorhandene Songs gehaengt
         errors = []
         last_dest = None
 
@@ -2226,8 +2310,26 @@ class P29MainWindow(QMainWindow):
                 if song is None:
                     continue
                 if r["status"] == "dup":
-                    # Song existiert bereits vollstaendig -> nicht erneut Varianten anhaengen
-                    skipped += 1
+                    # Hauptspur existiert schon. Auf Wunsch (Preview) nur die
+                    # Spuren anhaengen, die der Song noch nicht hat.
+                    skipped.append(os.path.basename(primary["path"]))
+                    # Lyrics haengt der Duplikat-Zweig nie an: nicht still verwerfen
+                    not_attached.extend(os.path.basename(l["path"])
+                                        for l in d.get("lyrics", []) if l["selected"])
+                    if not d.get("attach_new"):
+                        not_attached.extend(os.path.basename(a["path"]) for a in audio[1:])
+                        continue
+                    known = {os.path.basename(song.filename).lower()} | {
+                        os.path.basename(f).lower()
+                        for _i, _n, f in self.db.get_variants(song.id, "music")}
+                    for a in audio[1:]:
+                        name = os.path.basename(a["path"])
+                        if name.lower() in known or self.db.get_by_filename(name):
+                            skipped.append(name)
+                            continue
+                        fn = _copy_into(a["path"], music_dir)
+                        self.db.add_variant(song.id, "music", a["label_text"], fn)
+                        attached += 1
                     continue
                 # Titel/Label aus dem Preview uebernehmen (User kann editiert haben)
                 song.title = d["title"] or song.title
@@ -2282,14 +2384,30 @@ class P29MainWindow(QMainWindow):
             lines.append(_t("import_songs_imported", count=imported))
             lines.append("")
             lines.append(_t("import_result_hint_songlist"))
+        if attached:
+            lines.append(_t("zip_attached_tracks", count=attached))
         if skipped:
-            lines.append(_t("import_songs_skipped", count=skipped))
+            lines.append(_t("import_songs_skipped", count=len(skipped)))
+            lines.extend(_t("import_skipped_file", name=n) for n in skipped)
+        if not_attached:
+            lines.append(_t("zip_not_attached", count=len(not_attached)))
+            lines.extend(f"  • {n}" for n in not_attached)
         if errors:
             lines.append(_t("import_errors", count=len(errors)))
             lines.extend(f"  {e}" for e in errors)
         if lines:
             QMessageBox.information(self, _t("import_result_title"),
                                     "\n".join(lines))
+
+    def _zip_dup_title(self, filename: str):
+        """ZIP-Preview (intern#125): Titel des vorhandenen Songs, wenn die Datei
+        beim Import als Duplikat uebersprungen wuerde, sonst None. Gleiche
+        Pruefung wie _import_single_audio im Kopiermodus (Speichername =
+        Basename, Datei liegt schon im Musikordner)."""
+        song = self.db.get_by_filename(filename)
+        if song and os.path.exists(os.path.join(self.paths.music_dir, filename)):
+            return song.title or filename
+        return None
 
     # ---- Lokation-Auswahl ----
 
@@ -2337,12 +2455,7 @@ class P29MainWindow(QMainWindow):
             dock.show()
             t = perf_split(f"_toggle_dock({name}): show()", t)
             if open_position == "centered":
-                # Zentrieren ueber dem Hauptfenster
-                main_geo = self.geometry()
-                dock_size = dock.size()
-                x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
-                y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
-                dock.move(x, y)
+                self._center_float_dock(dock)
                 perf_split(f"_toggle_dock({name}): move()", t)
             # "last": kein move() -> floatgeom-System stellt die letzte Position her
             perf_log(f"_toggle_dock({name}): TOTAL open", t0)
@@ -2611,10 +2724,14 @@ class P29MainWindow(QMainWindow):
         _on_play_started (nur ohne das Trigger-Feuern selbst)."""
         if not self._current_song or not self._current_song.id:
             return False
+        # Vor dem Historie-Log und dem song_started-Trigger: beides soll fuer
+        # den von Hand gestarteten Song wieder ganz normal laufen.
+        self._end_break_on_manual_play()
         import crash_handler as _ch
         _ch.log_action(f"Play: {self._current_song.title or self._current_song.filename}")
         # Audition/Beat-Snap nicht in Historie loggen, aber Rules trotzdem feuern
         if not getattr(self, '_suppress_play_log', False):
+            self._last_logged_song_id = self._current_song.id
             location_id = self._current_location.id if self._current_location else None
             # Historie-Log ist "best effort": ist die DB gerade gesperrt (z.B.
             # laufende Bulk-Worker), darf das NICHT das Abspielen verhindern.
@@ -2885,8 +3002,10 @@ class P29MainWindow(QMainWindow):
             QTimer.singleShot(0, self._init_evening_planner)
 
     def _init_evening_planner(self):
-        self.dock_evening_planner.setFloating(True)
-        self.dock_evening_planner.setAllowedAreas(Qt.NoDockWidgetArea)
+        # Nur schweben lassen, wenn der Dock (Magnet) auf 'frei' steht —
+        # eine angedockte Wahl des Nutzers bleibt erhalten.
+        if self.dock_evening_planner.allowedAreas() == Qt.NoDockWidgetArea:
+            self.dock_evening_planner.setFloating(True)
         self.evening_planner = EveningPlannerWidget(
             self.db, settings=self._settings, parent=self)
         self.evening_planner.apply_skin(self.skin_mgr)
@@ -2925,8 +3044,10 @@ class P29MainWindow(QMainWindow):
             QTimer.singleShot(0, self._init_reports)
 
     def _init_reports(self):
-        self.dock_reports.setFloating(True)
-        self.dock_reports.setAllowedAreas(Qt.NoDockWidgetArea)
+        # Nur schweben lassen, wenn der Dock (Magnet) auf 'frei' steht —
+        # eine angedockte Wahl des Nutzers bleibt erhalten.
+        if self.dock_reports.allowedAreas() == Qt.NoDockWidgetArea:
+            self.dock_reports.setFloating(True)
         self.reports_widget = ReportsWidget(self.db, paths=self.paths)
         self.reports_widget.set_date_format(self._date_format)
         self.dock_reports.setWidget(self.reports_widget)
@@ -3607,7 +3728,15 @@ class P29MainWindow(QMainWindow):
     # ---- Break: Wartemusik (zuletzt gespielter Song, ohne Historie) ----
 
     def _last_played_song_id(self):
-        """Ermittelt die ID des zuletzt gespielten Songs (aus der Historie)."""
+        """Ermittelt die ID des zuletzt gespielten Songs.
+
+        Zuerst der in dieser Sitzung zuletzt gestartete Song, dann die Historie
+        der Lokation. Der geladene Song ist nur der letzte Ausweg: nach
+        Auto-Advance ist das schon der NAECHSTE Playlist-Song (ohne Lokation
+        ist die Historie leer, intern#110).
+        """
+        if getattr(self, "_last_logged_song_id", None):
+            return self._last_logged_song_id
         location_id = self._current_location.id if self._current_location else None
         lpm = self.db.get_last_played_map(location_id)
         if lpm:
@@ -3633,14 +3762,19 @@ class P29MainWindow(QMainWindow):
             return False
         _t1 = perf_split("_on_break_play_last: lookup+find_file", _t0)
         self._flush_player_values()
+        # Vorher geladenen Song merken (z.B. der per Auto-Advance vorgeladene
+        # naechste Playlist-Song) — _on_break_stop_last laedt ihn wieder.
+        prev = self._current_song
+        self._pre_break_song_id = prev.id if prev and prev.id != song.id else None
         self._current_song = song
+        self._break_music_song_id = song.id
         self._load_known_song(song.id, filepath)
         _t2 = perf_split("_on_break_play_last: load_from_list", _t1)
         self._ensure_primary_channel()
         perf_split("_on_break_play_last: ensure_primary_channel", _t2)
         self._suppress_play_log = True      # NICHT in die Historie
-        # Kein Feedback-Dialog am Ende der Wartemusik (Latch, in _trigger_song_stopped
-        # konsumiert — robust gegen Stop-Timing, da nicht in _on_break_stop_last geloescht).
+        # Kein Feedback-Dialog am Ende der Wartemusik (Latch, zurueckgesetzt in
+        # _trigger_song_stopped oder _on_break_stop_last).
         self._break_music_suppress_feedback = True
         # Rules komplett sperren waehrend der Wartemusik (kein Auto-Advance etc.).
         # Nested-Counter: jedes suspend() braucht genau ein resume() (in _on_break_stop_last).
@@ -3657,22 +3791,103 @@ class P29MainWindow(QMainWindow):
         self._break_music_timer.start(int(max(1.0, duration_seconds) * 1000))
         return True
 
+    def _on_break_started(self, with_music: bool):
+        """Pausen-Uhr frisch gestartet -> Trigger 'break_started' (intern#110).
+
+        Deferred: kommt der Start aus einer Rule-Aktion (Start Break), laeuft
+        fire_trigger noch und der Loop-Schutz wuerde den Trigger blocken.
+        Die Wartemusik-Sperre gilt nicht fuer die Pausen-Trigger.
+        """
+        self._break_with_music = bool(with_music)
+        QTimer.singleShot(0, lambda: self.rule_engine.fire_trigger(
+            "break_started", bypass_suspend=("break_music",)))
+
+    def _on_break_finished(self):
+        """Countdown bei 0 -> Wartemusik beenden, dann 'break_finished' feuern.
+
+        Wartemusik und Countdown laufen ueber getrennte Timer; der Stopp hier
+        verhindert, dass die Folge-Rule (z.B. Auto-Advance -> Play) auf noch
+        laufende Wartemusik trifft.
+        """
+        if self._break_music_active:
+            self._on_break_stop_last()
+        QTimer.singleShot(0, lambda: self.rule_engine.fire_trigger(
+            "break_finished", bypass_suspend=("break_music",)))
+
     def _on_break_stop_last(self):
         """Stoppt die Wartemusik und stellt das Historie-Logging wieder her."""
         _t0 = perf_start()
+        if self._break_music_active:
+            self.engine.stop()
+            # Das Ende der Wartemusik ist kein Songende: ohne diesen Reset
+            # erkennt _update_all im naechsten Tick "Song-Ende" und feuert
+            # song_stopped (dann schon ohne Sperre) -> Auto-Advance schaltet
+            # weiter, mit break_finished -> Auto-Advance sogar doppelt
+            # (intern#110).
+            self._was_playing = False
+            self._leave_break_music()
+            self._restore_pre_break_song()
+        else:
+            self._leave_break_music()
+        perf_log("_on_break_stop_last", _t0)
+
+    def _end_break_on_manual_play(self):
+        """Startet der Caller waehrend der Pause von Hand einen Song, ist das
+        ein eindeutiges Signal: Die Pause ist vorbei (intern#130, Entscheidung
+        David). Laeuft Wartemusik und startet ein ANDERER Song, wird der
+        Pausenzustand verworfen (nichts stoppen, nichts nachladen). Eine
+        laufende Pausen-Uhr wird zurueckgesetzt, auch ohne Wartemusik.
+        'break_finished' feuert dabei NICHT: Die Pause ist abgebrochen, nicht
+        abgelaufen, und eine Rule wie "Break Finished -> Play" wuerde sonst
+        den gerade gestarteten Song ueberfahren.
+
+        Vorhoeren und Testlaeufe (Audition, Loop-Finder, Sync-Modus,
+        ZIP-Vorhoeren) zaehlen nicht als manuelles Play."""
+        if getattr(self, "_in_audition", False) or (
+                self._suppress_play_log and not self._break_music_active):
+            return
+        if self._break_music_active:
+            if self._current_song.id == self._break_music_song_id:
+                return      # Play auf die Wartemusik selbst (z. B. Fortsetzen)
+            self._pre_break_song_id = None
+            self._leave_break_music()
+        if getattr(self, "break_widget", None) is not None:
+            self.break_widget.end_break()
+
+    def _leave_break_music(self):
+        """Gemeinsamer Ausstieg aus der Wartemusik (Stopp oder manuelles Play):
+        Auto-Stop-Timer weg, Historie-Log und Rules wieder frei, Button im
+        Break-Widget zuruecksetzen. Stoppt selbst KEIN Audio."""
         if self._break_music_timer is not None:
             self._break_music_timer.stop()
             self._break_music_timer = None
         if self._break_music_active:
-            self.engine.stop()
+            # Der Feedback-Latch wird nicht mehr in _trigger_song_stopped
+            # konsumiert, also hier loeschen.
+            self._break_music_suppress_feedback = False
             self._suppress_play_log = False
-            # Rules wieder freigeben (genau ein resume() zum suspend() oben)
+            # Rules wieder freigeben (genau ein resume() zum suspend() in
+            # _on_break_play_last)
             self.rule_engine.resume("break_music")
             self._break_music_active = False
-        # Break-Widget-Button zuruecksetzen (Auto-Stop)
+            self._break_music_song_id = None
         if getattr(self, 'break_widget', None) is not None:
             self.break_widget.set_music_stopped()
-        perf_log("_on_break_stop_last", _t0)
+
+    def _restore_pre_break_song(self):
+        """Laedt nach der Wartemusik wieder den Song, der vor der Pause geladen
+        war (intern#110). Ohne Abspielen; Laden ist synchron, eine Folge-Rule
+        "Play" (z.B. auf Break Finished) spielt also diesen Song."""
+        song_id, self._pre_break_song_id = self._pre_break_song_id, None
+        if not song_id:
+            return
+        song = self.db.get_by_id(song_id)
+        filepath = self.paths.find_song_file(song.filename) if song else None
+        if not filepath:
+            return
+        self._flush_player_values()
+        self._current_song = song
+        self._load_known_song(song.id, filepath)
 
     def _on_potential_navigate_beatsnap(self, song_id):
         """Laedt den Song und oeffnet Beat Snap."""
@@ -3861,6 +4076,7 @@ class P29MainWindow(QMainWindow):
             "location_not_selected": loc is None,
             "play_elapsed_seconds": play_elapsed,
             "song_length_seconds": song_length,
+            "break_with_music": getattr(self, "_break_with_music", False),
         }
 
     def _register_rule_conditions(self):
@@ -3894,6 +4110,17 @@ class P29MainWindow(QMainWindow):
                               >= p.get("minutes", 5) * 60)
         # BL-205: Songlaenge über/unter Schwellwert (mm:ss)
         re.register_condition("song_length", self._eval_song_length)
+        # intern#110: Art der letzten Pause (all / without_music / with_music)
+        re.register_condition("break_type", self._eval_break_type)
+
+    @staticmethod
+    def _eval_break_type(ctx, p) -> bool:
+        kind = p.get("kind", "all")
+        if kind == "with_music":
+            return bool(ctx.get("break_with_music", False))
+        if kind == "without_music":
+            return not ctx.get("break_with_music", False)
+        return True
 
     @staticmethod
     def _eval_song_length(ctx, p) -> bool:
@@ -4061,12 +4288,17 @@ class P29MainWindow(QMainWindow):
         fuer _toggle_dock 'centered' und die Regelaktion dock_open 'centered')."""
         dock.setFloating(True)
         dock.show()
+        self._center_float_dock(dock)
+        dock.raise_()
+
+    def _center_float_dock(self, dock):
+        """Zentriert ein schwebendes Dock ueber dem Hauptfenster. Die beim
+        show() gesetzte gemerkte Geometrie (#121) liefert dabei die Groesse."""
         main_geo = self.geometry()
         dock_size = dock.size()
         x = main_geo.x() + (main_geo.width() - dock_size.width()) // 2
         y = main_geo.y() + (main_geo.height() - dock_size.height()) // 2
         dock.move(x, y)
-        dock.raise_()
 
     def _rule_dock_close(self, params: dict):
         dock = self._dock_map().get(params.get("dock_name", ""))
@@ -4720,13 +4952,12 @@ class P29MainWindow(QMainWindow):
         """Oeffnet den Fuellen-Dialog des To-Call-Widgets (BL-199)."""
         from to_call_widget import ToCallFillDialog
         progs = self.db.get_all_dance_programs()
-        # Aktives Programm als Default: erstes der Session-Programm-Wahl
+        # Vorauswahl: hoechstes der gewaehlten Tanzprogramme (dieselbe Regel wie
+        # der Programm-Button im Player) -- trifft den Normalfall am Clubabend.
         label_by_id = {r[0]: (r[2] or r[1]) for r in progs}
-        active_label = ""
-        for pid in getattr(self, '_session_program_ids', []) or []:
-            if pid in label_by_id:
-                active_label = label_by_id[pid]
-                break
+        top_id, _code = self._top_program(
+            getattr(self, '_session_program_ids', []) or [])
+        active_label = label_by_id.get(top_id, "")
         if not active_label and progs:
             active_label = progs[0][2] or progs[0][1]
 
@@ -5168,7 +5399,9 @@ class P29MainWindow(QMainWindow):
         except OSError:
             return None
         cached = self._alert_cache.get(path)
-        target_sr = self.engine.sample_rate if self.engine else 44100
+        # Ohne geladenen Song (Kaltstart) oeffnet play_alert den Stream mit
+        # ALERT_IDLE_SR — dorthin resamplen.
+        target_sr = (self.engine.sample_rate if self.engine else None) or ALERT_IDLE_SR
         if cached and cached[0] == mtime and cached[1] == target_sr:
             return cached[2]
         try:
@@ -5335,6 +5568,28 @@ class P29MainWindow(QMainWindow):
             self.engine.seek_with_crossfade(target, xfade_ms)
         else:
             self.engine.seek(target)
+
+    def _jump_and_play(self, time_seconds: float):
+        """Doppelklick auf einen Sprung-Button (intern#100): hinspringen und
+        abspielen. Laeuft der Song schon, nichts tun: Der erste Klick des
+        Doppelklicks ist bereits gesprungen, ein zweiter Sprung wuerde das
+        Stueck nach dem Marker doppelt spielen (und _on_play() von vorne
+        starten). Gestoppt/pausiert: normaler Play-Weg (Rules,
+        Spieldauer-Timer wie beim Play-Button bzw. Resume)."""
+        eng = self.player.engine
+        if eng.is_playing():
+            return
+        if eng.is_loaded() and not eng.is_paused():
+            # Start aus dem Stopp: play() verwirft die ersten Samples als
+            # Warmup -> um genau diese Strecke frueher ansetzen, damit der
+            # Marker selbst als Erstes zu hoeren ist.
+            self._jump_to_time(
+                max(0.0, time_seconds - eng.play_warmup_song_seconds()))
+            self.player._on_play()
+            return
+        self._jump_to_time(time_seconds)
+        if eng.is_loaded() and not eng.is_playing():
+            self.player._on_play()
 
     def _add_custom_marker(self):
         """Set-Marker-Button: legt an der aktuellen Abspielposition einen Marker an.
@@ -5899,60 +6154,6 @@ class P29MainWindow(QMainWindow):
                 self.sequence_view_widget.set_sequence(self.db, seq_ids, 0)
             perf_split("    _init_sequences.sequence_view prefill", _ts1)
 
-    def _on_import_sequences(self):
-        """Menue: Sequenzen aus MDB importieren."""
-        # Pruefen ob schon Sequenzen vorhanden
-        existing = self.db.get_sequence_count()
-        if existing > 0:
-            reply = QMessageBox.question(
-                self, _t("import_sequences_title"),
-                _t("import_sequences_exists", count=existing),
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
-                return
-
-        # MDB-Datei waehlen
-        last_mdb = str(self._settings.value("sequences/mdb_path", ""))
-        if not last_mdb or not os.path.isdir(os.path.dirname(last_mdb)):
-            last_mdb = os.path.expanduser("~")
-        mdb_path, _ = QFileDialog.getOpenFileName(
-            self, _t("dialog_mdb_select"), last_mdb,
-            _t("filter_mdb")
-        )
-        if not mdb_path:
-            return
-
-        # Pfad merken
-        self._settings.setValue("sequences/mdb_path", mdb_path)
-
-        # Import durchfuehren
-        self.sequences_widget.import_from_mdb(mdb_path)
-
-        # Sequenzen-Tab aktivieren
-        self.dock_sequences.raise_()
-
-    def _on_import_sequences_json(self):
-        """Menue: Sequenzen aus JSON-Dateien importieren (Ceder-Format)."""
-        last_dir = str(self._settings.value("sequences/json_import_dir", ""))
-        if not last_dir or not os.path.isdir(last_dir):
-            last_dir = os.path.expanduser("~")
-
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, _t("dialog_json_select"), last_dir,
-            _t("filter_json")
-        )
-        if not paths:
-            return
-
-        # Letztes Verzeichnis merken
-        self._settings.setValue(
-            "sequences/json_import_dir", os.path.dirname(paths[0])
-        )
-
-        self.sequences_widget.import_from_json(paths)
-        self.dock_sequences.raise_()
-
     def _on_export_sequences_json(self):
         """Menue: Alle Sequenzen als JSON-Datei exportieren (gleiche Struktur wie Import)."""
         import json as _json
@@ -6033,29 +6234,34 @@ class P29MainWindow(QMainWindow):
 
     def _on_call_mapping(self):
         """Menue: Call-Mapping-Dialog oeffnen."""
+        self._open_call_mapping()
+
+    def _open_call_mapping(self, focus_texts=None):
+        """Call-Mapping-Dialog oeffnen; focus_texts filtert ihn beim Start auf
+        diese Call-Texte (intern#119, Rechtsklick auf eine rote Sequenz)."""
         if self.db.get_teaching_order_count() == 0:
             QMessageBox.warning(
                 self, _t("call_mapping_title"),
                 _t("call_mapping_no_to_calls")
             )
             return
-        unmapped = self.db.get_unmapped_call_texts()
-        if not unmapped:
-            QMessageBox.information(
-                self, _t("call_mapping_title"),
-                _t("call_mapping_all_mapped")
-            )
-            return
-        dlg = CallMappingDialog(self.db, self)
+        # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
+        # Ergaenzen/Aendern ("Optimieren", intern#97).
+        dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
+        elif dlg.wrote_assignments:
+            # "Optimieren" (intern#97) hat schon geschrieben und die Baender
+            # nachgerechnet -> bei Abbrechen nur die Sequenzansicht neu laden,
+            # nicht noch einmal rechnen (~120 ms auf dem Main-Thread).
+            self.sequences_widget.load_sequences()
 
     def _on_mapping_export(self):
-        """Menue: Call-Text-Mappings als JSON-Datei exportieren."""
+        """Menue: Call-Maps als JSON exportieren (v2 mit Header, intern#79)."""
         import json as _json
-        rows = self.db.get_all_call_text_mappings()
-        if not rows:
+        data = mapping_io.build_export(self.db)
+        if not data["mappings"]:
             QMessageBox.information(
                 self, _t("mapping_export_title"), _t("mapping_export_empty")
             )
@@ -6072,15 +6278,15 @@ class P29MainWindow(QMainWindow):
         self._settings.setValue("sequences/mapping_export_dir",
                                 str(os.path.dirname(path)))
         with open(path, "w", encoding="utf-8") as f:
-            _json.dump(rows, f, ensure_ascii=False, indent=2)
+            _json.dump(data, f, ensure_ascii=False, indent=2)
         QMessageBox.information(
             self, _t("mapping_export_title"),
-            # BL-210: eine Zeile je Figur -> Zuordnungen = Call-Texte zaehlen
-            _t("mapping_export_ok", count=len({r["call_text"] for r in rows}))
+            _t("mapping_export_ok", count=len(data["mappings"]))
         )
 
     def _on_mapping_import(self):
-        """Menue: Call-Text-Mappings aus JSON-Datei importieren (INSERT OR IGNORE)."""
+        """Menue: Call-Maps importieren (v1 + v2), Konflikte klaeren lassen
+        (intern#79). Ablauf in dialogs_mapping_conflict.run_mapping_import."""
         import json as _json
         last_dir = str(self._settings.value("sequences/mapping_export_dir", ""))
         path, _ = QFileDialog.getOpenFileName(
@@ -6089,59 +6295,42 @@ class P29MainWindow(QMainWindow):
         )
         if not path:
             return
+        self._settings.setValue("sequences/mapping_export_dir",
+                                str(os.path.dirname(path)))
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = _json.load(f)
-            if not isinstance(data, list):
-                raise ValueError("Erwartet eine JSON-Liste.")
-            # Nur gueltige Eintraege mit call_text
-            rows = [
-                {"call_text": str(r["call_text"]),
-                 "entity_id": r.get("entity_id"),
-                 "mapped_by": str(r.get("mapped_by", "import"))}
-                for r in data
-                if isinstance(r, dict) and r.get("call_text")
-            ]
-            neu, bereits = self.db.import_call_text_mappings(rows)
-            self._settings.setValue("sequences/mapping_export_dir",
-                                    str(os.path.dirname(path)))
-            QMessageBox.information(
+            res = run_mapping_import(self, self.db, data)
+        except mapping_io.CallMapFormatError as e:
+            QMessageBox.warning(
                 self, _t("mapping_import_title"),
-                _t("mapping_import_ok", neu=neu, bereits=bereits)
+                _t("mapping_import_error", msg=_t(e.key, **e.params))
             )
-            if neu > 0:
-                # Remapping anstossen damit max_teaching_order aktualisiert wird
-                self.sequences_widget._do_remapping()
+            return
         except Exception as e:
             QMessageBox.warning(
                 self, _t("mapping_import_title"),
                 _t("mapping_import_error", msg=str(e))
             )
-
-    def _on_import_sequences_csds(self):
-        """Menue: Sequenzen aus CSDS-Dateien importieren (Vic Ceder Export)."""
-        last_dir = str(self._settings.value("sequences/csds_import_dir", ""))
-        if not last_dir or not os.path.isdir(last_dir):
-            last_dir = str(self._settings.value("sequences/json_import_dir",
-                           os.path.expanduser("~")))
-
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, _t("dialog_csds_select"), last_dir,
-            _t("filter_csds")
-        )
-        if not paths:
             return
-
-        self._settings.setValue(
-            "sequences/csds_import_dir", os.path.dirname(paths[0])
-        )
-
-        self.sequences_widget.import_from_csds(paths)
-        self.dock_sequences.raise_()
+        if res is None:
+            return   # Konfliktklaerung abgebrochen: nichts geschrieben
+        if res["written"]:
+            # Remapping anstossen damit max_teaching_order aktualisiert wird
+            self.sequences_widget._do_remapping()
+        lines = [_t("mapping_import_summary", new=res["new"],
+                    identical=res["identical"], kept=res["kept"],
+                    taken=res["taken"], custom=res["custom"])]
+        if res["unknown_figures"]:
+            lines.append(_t("mapping_import_unknown",
+                            figures=", ".join(res["unknown_figures"]),
+                            skipped=len(res["skipped"])))
+        QMessageBox.information(self, _t("mapping_import_title"),
+                                "\n\n".join(lines))
 
     def _on_import_sequences_universal(self):
         """Universeller Sequenz-Import (BL-098): erkennt MDB/JSON/CSDS/Freitext."""
-        dlg = SequenceImportDialog(self.db, parent=self)
+        dlg = SequenceImportDialog(self.db, self._settings, parent=self)
         if dlg.exec() != QDialog.Accepted:
             return
         inserted, skipped = dlg.get_summary()
@@ -6153,18 +6342,6 @@ class P29MainWindow(QMainWindow):
             self, _t("seq_import_title"),
             _t("seq_import_done", inserted=inserted, dupes=skipped)
         )
-
-    def _on_import_sequences_freetext(self):
-        """Menue: Sequenzen aus einer Freitext-Datei importieren (BL-098)."""
-        dlg = FreetextSequenceImportDialog(self.db, parent=self)
-        if dlg.exec() != QDialog.Accepted:
-            return
-        sequences, seq_type, difficulty = dlg.get_result()
-        if not sequences or not seq_type:
-            return
-        self.sequences_widget.import_from_freetext(sequences, seq_type,
-                                                   difficulty)
-        self.dock_sequences.raise_()
 
     def _show_paths_info(self):
         """Zeigt alle konfigurierten Pfade an."""
@@ -6420,6 +6597,7 @@ class P29MainWindow(QMainWindow):
         "dock_manager", "dock_loop_finder", "dock_photo", "dock_evening_planner",
         "dock_break", "dock_rules", "dock_reports", "dock_potential", "dock_stats",
         "dock_lyrics",  # #66: letzte Floating-Position auch ueber Neustart halten
+        "dock_to_call",  # #121: frei schwebend oft fast bildschirmfuellend
     )
 
     def _floating_tool_docks(self):
@@ -6427,32 +6605,91 @@ class P29MainWindow(QMainWindow):
                 if d is not None]
 
     def _save_float_geoms(self, settings):
-        """Floating-Geometrie jedes Tool-Fensters explizit sichern."""
+        """Floating-Geometrie jedes Tool-Fensters explizit sichern.
+
+        #121: als QRect unter floatrect/<name> (per setGeometry wiederher-
+        gestellt, ohne Versatz). Die alten floatgeom-Bytes werden entfernt.
+        Ein noch vorgemerkter Wert (Dock in dieser Sitzung nie gezeigt) hat
+        Vorrang vor geometry(), die dann nur Qt-Defaults enthielte.
+
+        Angedockte Docks behalten ihre letzte Floating-Position: vorgemerkt
+        oder aus der App-INI (floatrect, sonst einmalig aus alten floatgeom-
+        Bytes umgerechnet). floatgeom wird erst entfernt, NACHDEM floatrect
+        geschrieben ist — sonst liefe der Fallback bei jedem Start erneut
+        bzw. ginge die Position verloren. Unlesbare Bytes bleiben stehen."""
         for dock in self._floating_tool_docks():
             name = dock.objectName()
-            if name and dock.isFloating():
-                settings.setValue(f"floatgeom/{name}", dock.saveGeometry())
+            if not name:
+                continue
+            if dock.isFloating():
+                rect = self._pending_float_geom.get(name) or dock.geometry()
+            else:
+                # Quelle ist immer die App-INI, nicht das Ziel: beim Layout-
+                # Export ist settings eine neue oder alte fremde Datei.
+                rect = (self._pending_float_geom.get(name)
+                        or self._read_float_rect(self._settings, name))
+            if rect is None:
+                continue
+            settings.setValue(f"floatrect/{name}", rect)
+            settings.remove(f"floatgeom/{name}")
+
+    # QWidget.saveGeometry(): Magic, Major/Minor (uint16), dann frameGeometry
+    # und normalGeometry als je 4 x int32 (x1, y1, x2, y2), big-endian.
+    _SAVED_GEOMETRY_MAGIC = 0x1D9D0CB
+    _SAVED_GEOMETRY_HEAD = struct.Struct(">IHH8i")
+
+    @staticmethod
+    def _rect_from_saved_geometry(data):
+        """Liest aus alten floatgeom-Bytes (QWidget.saveGeometry) das Client-
+        Rechteck (normalGeometry). Nur Fallback fuer INIs von vor #121;
+        None, wenn das Format nicht passt.
+
+        Bewusst per struct statt QDataStream: QDataStream(QByteArray(data))
+        haelt das temporaere QByteArray nicht am Leben und liest dann
+        freigegebenen Speicher (Muell-Rechteck, Absturz beim Start, #121)."""
+        head = P29MainWindow._SAVED_GEOMETRY_HEAD
+        try:
+            raw = bytes(data)
+            if len(raw) < head.size:
+                return None
+            (magic, _major, _minor, _fx1, _fy1, _fx2, _fy2,
+             x1, y1, x2, y2) = head.unpack_from(raw)
+        except (TypeError, ValueError, struct.error):
+            return None
+        if magic != P29MainWindow._SAVED_GEOMETRY_MAGIC:
+            return None
+        # Unsinnige Werte (kaputte Bytes) nicht als Position uebernehmen
+        if any(abs(v) > 100000 for v in (x1, y1, x2, y2)):
+            return None
+        normal = QRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1)
+        return normal if normal.isValid() else None
+
+    def _read_float_rect(self, settings, name):
+        """floatrect/<name> (QRect); sonst Fallback auf alte floatgeom-Bytes."""
+        rect = settings.value(f"floatrect/{name}")
+        if isinstance(rect, QRect) and rect.isValid():
+            return rect
+        legacy = settings.value(f"floatgeom/{name}")
+        return (self._rect_from_saved_geometry(legacy)
+                if legacy is not None else None)
 
     def _restore_float_geoms(self, settings):
         """Gespeicherte Floating-Geometrie vormerken und anwenden.
 
-        restoreGeometry() greift NUR auf einem SICHTBAREN Dock (verifiziert) —
-        beim Layout-Restore sind die Tool-Fenster aber versteckt. Deshalb:
-        Werte vormerken; bereits sichtbare Docks sofort (deferred) setzen,
-        versteckte erst beim ersten Sichtbarwerden via visibilityChanged.
+        Werte vormerken; bereits sichtbare Docks sofort setzen, versteckte
+        beim naechsten Sichtbarwerden via visibilityChanged.
         """
         for dock in self._floating_tool_docks():
             name = dock.objectName()
             if name:
-                val = settings.value(f"floatgeom/{name}")
-                if val is not None:
-                    self._pending_float_geom[name] = val
+                rect = self._read_float_rect(settings, name)
+                if rect is not None:
+                    self._pending_float_geom[name] = rect
         self._connect_float_geom_handlers()
         for dock in self._floating_tool_docks():
             name = dock.objectName()
             if dock.isVisible() and name in self._pending_float_geom:
-                geom = self._pending_float_geom.pop(name)
-                QTimer.singleShot(0, lambda d=dock, g=geom: d.restoreGeometry(g))
+                self._apply_float_rect(dock, self._pending_float_geom.pop(name))
 
     def _connect_float_geom_handlers(self):
         """Verbindet visibilityChanged jedes Tool-Docks — einmalig."""
@@ -6464,13 +6701,39 @@ class P29MainWindow(QMainWindow):
                 lambda visible, d=dock: self._on_float_dock_visible(d, visible))
 
     def _on_float_dock_visible(self, dock, visible):
-        """Wendet die vorgemerkte Floating-Geometrie beim ersten Sichtbar-
-        werden an (einmalig pro Dock, deferred bis nach dem Show)."""
+        """Merkt die Floating-Geometrie beim Verstecken vor und setzt sie beim
+        naechsten Sichtbarwerden wieder (#121).
+
+        Vorgemerkt wird nur, wenn das Dock selbst ein schwebendes Fenster ist.
+        Beim Andocken/Abdocken feuert das Verstecken, solange das Dock noch
+        angedockt ist (isFloating() False); ein angedockter Tab, der nach
+        hinten rutscht, ist ebenfalls nicht schwebend. Minimieren des
+        Hauptfensters loest kein visibilityChanged aus.
+        """
+        name = dock.objectName()
         if not visible:
+            if name and dock.isFloating():
+                self._pending_float_geom[name] = dock.geometry()
             return
-        geom = self._pending_float_geom.pop(dock.objectName(), None)
-        if geom is not None:
-            QTimer.singleShot(0, lambda: dock.restoreGeometry(geom))
+        rect = self._pending_float_geom.pop(name, None)
+        if rect is not None:
+            self._apply_float_rect(dock, rect)
+
+    @staticmethod
+    def _apply_float_rect(dock, rect):
+        """Setzt eine Floating-Geometrie per setGeometry().
+
+        Bewusst nicht restoreGeometry(): das schiebt ein Fenster mit Titel-
+        leiste am oberen Bildschirmrand nach unten (gemessen bis ~30 px).
+        Schwebt das Dock schon, SOFORT setzen — wer direkt danach selbst
+        positioniert (Zentrieren, Fullsize, Dual View), behaelt so das letzte
+        Wort. Sonst einen Tick spaeter (Lazy-Docks schalten setFloating(True)
+        erst deferred); ist es dann angedockt, nichts anfassen."""
+        if dock.isFloating():
+            dock.setGeometry(rect)
+        else:
+            QTimer.singleShot(
+                0, lambda: dock.isFloating() and dock.setGeometry(rect))
 
     def _save_layout(self):
         """Speichert Layout in die INI (automatisch bei Programmende)."""
@@ -6544,12 +6807,18 @@ class P29MainWindow(QMainWindow):
         s = QSettings(path, QSettings.IniFormat)
         geometry = s.value("geometry")
         state = s.value("windowState")
+        # #121: Vorgemerkte Floating-Positionen verwerfen — VOR restoreState
+        # (sonst setzt ein dabei eingeblendetes Dock seine alte Position) und
+        # DANACH (restoreState versteckt schwebende Docks -> visibilityChanged
+        # merkt deren aktuelle Position neu vor). Massgeblich ist die Datei.
+        self._pending_float_geom.clear()
         if geometry is not None:
             self.restoreGeometry(geometry)
         if state is not None:
             if not self.restoreState(state, _LAYOUT_VERSION):
                 print(f"[Layout] Version stimmt nicht, State ignoriert: {path}")
                 return False
+        self._pending_float_geom.clear()
         print(f"[Layout] Geladen: {path}")
         self._reapply_dock_features()
         self._restore_float_geoms(s)
@@ -6595,6 +6864,18 @@ class P29MainWindow(QMainWindow):
             "feedback/enabled": "false",
             # intern#96: Einfuegeposition neuer Notizen (top/bottom)
             "notes/insert_position": "top",
+            # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
+            # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
+            "lyrics/dynamic_invert_enabled": "false",
+            "lyrics/dynamic_invert_mode": "",
+            # intern#115: Timing-Parameter (Sekunden, negativ = frueher)
+            "lyrics/text_jump_offset": "-4",
+            "lyrics/dynamic_swap_offset": "-4",
+            # intern#76: Leseposition (% von oben) und Lesebalken
+            "lyrics/reading_position_pct": "30",
+            "lyrics/reading_band_enabled": "true",
+            "lyrics/reading_band_height": "20",
+            "lyrics/reading_band_opacity": "30",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6603,7 +6884,7 @@ class P29MainWindow(QMainWindow):
 
     # ---- Einstellungen-Dialog (BL-129) ----
 
-    def _show_settings_dialog(self):
+    def _show_settings_dialog(self, focus_key=None):
         dlg = SettingsDialog(
             self,
             self._settings,
@@ -6611,6 +6892,7 @@ class P29MainWindow(QMainWindow):
             on_apply=self._on_settings_applied,
             program_picker_cb=self._settings_pick_programs,
             program_label_cb=self._program_codes_label,
+            focus_key=focus_key,
         )
         dlg.exec()
 
@@ -6686,6 +6968,23 @@ class P29MainWindow(QMainWindow):
             elif key == "lyrics/dynamic_mode":
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.set_dynamic_mode_live(val)
+
+            elif key in ("lyrics/dynamic_invert_enabled",
+                         "lyrics/dynamic_invert_mode"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_invert_settings()
+
+            elif key in ("lyrics/text_jump_offset",
+                         "lyrics/dynamic_swap_offset"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_timing_settings()
+
+            elif key in ("lyrics/reading_position_pct",
+                         "lyrics/reading_band_enabled",
+                         "lyrics/reading_band_height",
+                         "lyrics/reading_band_opacity"):
+                if hasattr(self, "lyrics_widget"):
+                    self.lyrics_widget.reload_reading_settings()
 
             elif key == "notes/zoom_pct":
                 try:
@@ -6903,7 +7202,9 @@ class P29MainWindow(QMainWindow):
     # Fuer sie ist der "Frei bewegen"-Umschalter fix an (angehakt + deaktiviert),
     # damit die Titelleisten-Menues einheitlich bleiben, ohne diese bewusst
     # nicht-dockbaren Fenster zu brechen.
-    _FIXED_FREE_DOCKS = frozenset({
+    # Docks, die OHNE gespeicherte Wahl frei schweben (frueher fix nicht
+    # dockbar). Per Magnet/Kontextmenue jetzt wie alle anderen umschaltbar.
+    _DEFAULT_FREE_DOCKS = frozenset({
         "dock_manager", "dock_loop_finder", "dock_photo",
         "dock_evening_planner", "dock_break", "dock_rules", "dock_reports",
     })
@@ -6943,11 +7244,7 @@ class P29MainWindow(QMainWindow):
         act = menu.addAction(_t("dock_ctx_free_move"))
         act.setCheckable(True)
         act.setChecked(dock.allowedAreas() == Qt.NoDockWidgetArea)
-        if dock.objectName() in self._FIXED_FREE_DOCKS:
-            # Bewusst nicht-dockbares Fenster: Zustand fix, nur zur Anzeige.
-            act.setEnabled(False)
-        else:
-            act.toggled.connect(lambda free, d=dock: self._set_dock_free(d, free))
+        act.toggled.connect(lambda free, d=dock: self._set_dock_free(d, free))
         menu.exec(dock.mapToGlobal(pos))
 
     def _set_dock_free(self, dock, free):
@@ -6975,14 +7272,15 @@ class P29MainWindow(QMainWindow):
             self._save_layout()
 
     def _apply_saved_dock_free(self):
-        """Wendet den gespeicherten 'Frei bewegen'-Zustand auf die dockbaren
-        Docks an. Fix-freie Docks bleiben unberuehrt (ihr Zustand wird an anderer
-        Stelle erzwungen)."""
+        """Wendet den gespeicherten 'Frei bewegen'-Zustand auf alle Docks an.
+        Ohne gespeicherte Wahl gilt fuer _DEFAULT_FREE_DOCKS 'frei', sonst
+        'andockbar'."""
         for dock in self.findChildren(QDockWidget):
             name = dock.objectName()
-            if not name or name in self._FIXED_FREE_DOCKS:
+            if not name:
                 continue
-            free = self._settings.value(f"dockfree/{name}", False, type=bool)
+            free = self._settings.value(
+                f"dockfree/{name}", name in self._DEFAULT_FREE_DOCKS, type=bool)
             dock.setAllowedAreas(
                 Qt.NoDockWidgetArea if free else self._all_dock_areas())
             self._refresh_view_magnet(dock)
@@ -6993,10 +7291,13 @@ class P29MainWindow(QMainWindow):
         """Fuegt dem Ansicht-Menue eine Zeile fuer einen Dock hinzu: links die
         (unveraenderte) Sichtbarkeits-Umschaltung, rechtsbuendig ein Magnet-Icon
         zum Umschalten angedockt <-> frei. Der Magnet zeigt den Snap-Zustand:
-        angedockt = kraeftige Textfarbe, frei = dezent."""
+        angedockt = kraeftige Textfarbe, frei = dezent.
+
+        Die Zeilen werden alphabetisch nach dem (uebersetzten) Text einsortiert,
+        egal wann ein Dock angelegt wird (intern#117)."""
         from PySide6.QtWidgets import (
             QWidget, QHBoxLayout, QCheckBox, QToolButton, QWidgetAction)
-        from PySide6.QtCore import QSize
+        from PySide6.QtCore import QSize, QCollator, QLocale
         row = QWidget(self._view_menu)
         lay = QHBoxLayout(row)
         lay.setContentsMargins(8, 2, 8, 2)
@@ -7020,14 +7321,20 @@ class P29MainWindow(QMainWindow):
         lay.addWidget(magnet)
         wa = QWidgetAction(self._view_menu)
         wa.setDefaultWidget(row)
-        self._view_menu.addAction(wa)
+        wa.setData(text)
+        collator = QCollator(QLocale())
+        collator.setCaseSensitivity(Qt.CaseInsensitive)
+        before = next((a for a in self._view_menu.actions()
+                       if collator.compare(text, a.data() or "") < 0), None)
+        if before is None:
+            self._view_menu.addAction(wa)
+        else:
+            self._view_menu.insertAction(before, wa)
         self._view_magnets[dock] = magnet
         self._refresh_view_magnet(dock)
 
     def _toggle_dock_snap(self, dock):
         """Magnet-Klick: angedockt -> frei, frei -> wieder angedockt."""
-        if dock.objectName() in self._FIXED_FREE_DOCKS:
-            return
         free_now = dock.allowedAreas() == Qt.NoDockWidgetArea
         self._set_dock_free(dock, not free_now)
 
@@ -7037,7 +7344,6 @@ class P29MainWindow(QMainWindow):
         magnet = getattr(self, "_view_magnets", {}).get(dock)
         if magnet is None:
             return
-        fixed = dock.objectName() in self._FIXED_FREE_DOCKS
         free = dock.allowedAreas() == Qt.NoDockWidgetArea
         # Angedockt = aktiv/"haftet" -> Theme-Akzentfarbe (auffaellig, passend zum
         # Skin). Frei = inaktiv -> dezenter, kontrastarmer Ton.
@@ -7051,7 +7357,6 @@ class P29MainWindow(QMainWindow):
         else:
             color = "#999999" if free else "#0067c0"
         magnet.setIcon(_make_icon(_SVG_MAGNET, color))
-        magnet.setEnabled(not fixed)
         magnet.setToolTip(
             _t("dock_undock_tooltip") if free else _t("dock_ctx_free_move"))
 
@@ -7289,6 +7594,14 @@ class P29MainWindow(QMainWindow):
             else:
                 print(f"[P21] Song-Ende erkannt! is_playing={is_playing}, paused={self.engine.is_paused()}")
                 self._was_playing = False
+                # intern#122: Nach Songende/Fade-Ende wie bei Stop auf Anfang
+                # (bzw. Loop-In) zurueckspulen. Stream bleibt offen (TIC-0025).
+                # VOR song_stopped, damit Auto-Advance danach den naechsten
+                # Song laedt und nicht vom Zurueckspulen ueberholt wird.
+                # Position 0 = gerade neu geladen (load() setzt playing=False):
+                # nicht anfassen, sonst stuende ein Pattern-Song auf Loop-In.
+                if self.engine.get_playback_position_seconds() > 0:
+                    self.engine.stop()
                 self._trigger_song_stopped()
         self._was_playing = is_playing
 
@@ -7430,13 +7743,18 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
-def _show_crash_log_notice(parent, crash_logs: list):
-    """Zeigt einen Hinweis-Dialog wenn Crash-Logs vom letzten Start vorhanden sind."""
+def _show_crash_log_notice(parent, crash_logs: list, settings):
+    """Zeigt einen Hinweis-Dialog wenn neue Crash-Logs vorhanden sind.
+
+    Merkt sich den neuesten gezeigten Log in der INI (LAST_NOTIFIED_KEY),
+    damit beim naechsten Start nur neu hinzugekommene Logs gemeldet werden."""
     count = len(crash_logs)
     newest = crash_logs[0]
+    settings.setValue(_crash_handler.LAST_NOTIFIED_KEY, os.path.basename(newest))
+    settings.sync()
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("crash_notice_title"))
-    msg.setIcon(QMessageBox.Warning)
+    msg.setIcon(QMessageBox.Information)
     msg.setText(_t("crash_notice_text", count=count))
     msg.setInformativeText(os.path.basename(newest))
     btn_show = msg.addButton(_t("crash_notice_btn_show"), QMessageBox.ActionRole)
@@ -7627,10 +7945,18 @@ def main():
         _visible_total_ms = (_startup_time.time() - _T_PROCESS_CREATE_EPOCH) * 1000.0
         perf.perf_write(f"[Perf] === GESAMT ab Prozessstart bis SICHTBAR: {_visible_total_ms:.0f}ms ===")
 
-    # Crash-Logs vom letzten Start pruefen und Hinweis anzeigen
-    crash_logs = _crash_handler.CrashLogger.find_crash_logs(app_dir)
+    # Neue Crash-Logs seit dem letzten Hinweis pruefen und Hinweis anzeigen
+    crash_logs = _crash_handler.CrashLogger.find_crash_logs(
+        app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
     if crash_logs:
-        QTimer.singleShot(800, lambda: _show_crash_log_notice(window, crash_logs))
+        QTimer.singleShot(
+            800, lambda: _show_crash_log_notice(window, crash_logs, settings))
+
+    # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
+    # nicht auf dem Main-Thread parsen (intern#126).
+    QTimer.singleShot(1000, lambda: threading.Thread(
+        target=song_catalog.get_catalog, args=(window.paths.app_dir,),
+        daemon=True, name="SongCatalogPreload").start())
 
     # Update-Pruefung im Hintergrund (scheitert lautlos bei Offline/Fehler).
     # Verzoegert, damit sie nicht mit dem Start konkurriert.

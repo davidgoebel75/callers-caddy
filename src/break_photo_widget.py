@@ -102,6 +102,9 @@ class BreakWidget(QWidget):
     # Callbacks (vom MainWindow gesetzt) — Wartemusik ohne Historie-Eintrag
     on_play_last_song = None   # fn(duration_seconds) -> bool (True = laeuft)
     on_stop_last_song = None   # fn()
+    # intern#110: Pausen-Ereignisse fuer die Rules (Trigger break_started/-finished)
+    on_break_started = None    # fn(with_music: bool) — nur bei frischem Start
+    on_break_finished = None   # fn() — nur bei echtem Ablauf auf 0
 
     def __init__(self, skin_mgr=None, parent=None):
         super().__init__(parent)
@@ -194,6 +197,8 @@ class BreakWidget(QWidget):
                 self._finished = True
                 self._timer.stop()
                 self._update_buttons()
+                if callable(self.on_break_finished):
+                    self.on_break_finished()
         self._refresh_views()
 
     def _toggle_start(self):
@@ -207,6 +212,10 @@ class BreakWidget(QWidget):
 
     def _start_countdown(self):
         """Countdown starten (von vorn, falls abgelaufen/leer)."""
+        # Frisch = volle Restzeit oder abgelaufen; Fortsetzen nach Anhalten nicht.
+        # Anhalten im ersten Tick oder neue Dauer per Klick zaehlt bewusst als frisch.
+        fresh = (self._finished or self._remaining <= 0
+                 or self._remaining >= self._total)
         if self._finished or self._remaining <= 0:
             self._remaining = self._total
             self._finished = False
@@ -215,6 +224,8 @@ class BreakWidget(QWidget):
         self._timer.start()
         self._update_buttons()
         self._refresh_views()
+        if fresh and callable(self.on_break_started):
+            self.on_break_started(self._music_playing)
 
     def _reset(self):
         self._running = False
@@ -223,6 +234,16 @@ class BreakWidget(QWidget):
         self._remaining = self._total
         self._update_buttons()
         self._refresh_views()
+
+    def end_break(self) -> bool:
+        """Laufende Pause von aussen beenden (intern#130: manuelles Play des
+        Callers). Setzt den Countdown zurueck wie der Reset-Knopf und feuert
+        bewusst KEIN on_break_finished (abgebrochen, nicht abgelaufen).
+        False, wenn die Pausen-Uhr gar nicht lief."""
+        if not self._running:
+            return False
+        self._reset()
+        return True
 
     def _edit_duration(self):
         """Klick auf die Uhr: Countdown pausieren und Dauer neu setzen."""

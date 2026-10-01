@@ -50,8 +50,6 @@ def test_band_filter_prueft_jede_figur_der_menge(db):
     # Allemande Thar liegt nicht in Band 30 -> raus; Plus 2026 deckt beide
     assert db.get_filtered_count(bands_filter=MS2026) == 0
     assert db.get_filtered_count(bands_filter=PL2026) == 1
-    assert db.get_sequence_ids_for_bands(MS2026) == []
-    assert len(db.get_sequence_ids_for_bands(PL2026)) == 1
 
 
 def test_nur_filter_richtet_sich_nach_der_menge(db):

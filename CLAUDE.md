@@ -24,7 +24,9 @@
   1. Auf `develop`: Versions-Bump + Changelog (siehe PFLICHT-DOPPELPACK), committen, pushen.
   2. Pull Request `develop` → `main` anlegen: `gh pr create --base main --head develop --title "Release 0.XX"`. Tests abwarten.
   3. Mergen mit **„Create a merge commit"** — NIE „Squash and merge", NIE „Rebase and merge". Sonst verliert Git die Verbindung zwischen `develop` und `main`, und der naechste Release-PR bringt alte Commits doppelt plus Konflikte.
-  4. `main` holen (`git switch main && git pull`), bauen (siehe Build-Regel), Tag setzen: `git tag -a 0.XX -m "Release 0.XX"` und `git push origin 0.XX` (Format wie `0.151`, ohne `v`).
+  4. `main` holen (`git switch main && git pull`), bauen (siehe Build-Regel).
+  5. Build pruefen: `python installer/check_release.py <alt> <neu>` (mit `CC_RELEASE_DIR` wie beim Build). Vergleicht ZIP-Groessen mit der Vorversion, sucht Nutzerdaten im Update-ZIP, gleicht Skins mit `main` ab und prueft die Version. Nur Code geaendert ⇒ ZIPs wachsen kaum (0.158→0.159: +0,1 MB).
+  6. Nach Davids Test am gebauten Paket Tag setzen: `git tag -a 0.XX -m "Release 0.XX"` und `git push origin 0.XX` (Format wie `0.151`, ohne `v`).
 - **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
 - Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
 
@@ -75,6 +77,7 @@ Callers-Caddy/
 - **3 ZIP-Typen**: Vollpaket (Neuinstallation), Update (ohne DB/INI/User-Ordner), Source-Code
 - Prototypen-Ordner in `_archive/` sind nicht mehr aktiv
 - Nach Abnahme: CHANGELOG.md aktualisieren
+- **Pre-Commit-Hook** (`.githooks/pre-commit`): Steckt `src/*.py` oder `src/*.json` im Commit, laufen `tests/test_settings_i18n.py` und `tests/test_settings_reachable.py` (fehlende Uebersetzungen bzw. `SETTINGS_META`-Eintraege); schlaegt einer fehl, bricht der Commit ab. Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`. Nimmt `.venv` sonst `python` aus dem PATH. Notfall: `git commit --no-verify`.
 
 ## Fallback-Sicherung (PFLICHT)
 
@@ -173,9 +176,15 @@ Die Details stehen in `1_Source/docs/`. **Vor jeder Arbeit den passenden Abschni
 | `00_projektuebersicht.md` | Scope, Zielgruppe, Projektziele | Neue Feature-Ideen einordnen |
 | `perf_logs/INDEX.md` | Sammelordner fuer alle Startup-Perf-Logs (alle Maschinen). Neue Logs einfach als `.txt` in `1_Source/docs/perf_logs/` ablegen und Zeile in INDEX.md ergaenzen — keine Nummerierung noetig. | Performance-Vergleich, Regression pruefen, neue Messung archivieren |
 
+## Uebersetzungen (i18n)
+
+- Texte laufen ueber `_t("key")` aus `src/translations.json`, jeder Key mit `de`, `en` und `ja`. `_t()` faellt still auf Deutsch zurueck — eine fehlende Sprache faellt also erst dem englischen oder japanischen Nutzer auf.
+- **Neuer INI-Schluessel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` uebersetzen (Muster `lyrics/dynamic_mode`). Test `tests/test_settings_i18n.py` prueft das.
+
 ## Technische Konventionen
 
 - Sprache im Code: Englisch (Variablen, Methoden), Deutsch (Kommentare, UI-Texte)
+- **Song-Katalog** (`music-extended-data/music_extended_data.csv`, geladen über `song_catalog.py`): nicht von Hand editieren. Aktualisiert wird er per `tools/update_song_catalog.py`, das Davids Scraper-Update aufruft und als Auto-PR `chore/song-catalog-*` einreicht. Match-Verbesserungen gehören nach `song_match.py`.
 - UI-Framework: PySide6 (Qt 6 Widgets), kein WebView
 - DB: SQLite via built-in sqlite3
 - Audio: Eigener Streaming-WSOLA (kein Rubber Band/SoundTouch)

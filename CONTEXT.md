@@ -72,6 +72,12 @@ Plattenlabel eines Square-Dance-Songs (z. B. ESP, Global). Zusammen mit der
 Plattennummer identifiziert es die Aufnahme — u. a. fuer Cue-Sheet-Suche und
 GEMA-Musikfolgeliste.
 
+**Song-Katalog**:
+Mitgelieferte Liste veroeffentlichter Square-Dance-Songs mit Titel, Label und
+Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
+_EN_: Song Catalog
+_Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.
@@ -80,9 +86,41 @@ Wird als Lyrics-Datei beim Song abgelegt.
 Die dem Song zugeordnete Textdatei im Programm, egal woher sie stammt.
 _Avoid_: Songtext (mehrdeutig: meint mal die Datei, mal den Text darin)
 
+**Textsprung**:
+Moment, in dem der Auto-Scroll der Lyrics an einem SyncPoint die naechste
+Sprungmarke erreicht. "Textsprung timen" verschiebt ihn um ganze Sekunden.
+_EN_: Text Jump
+
+**Texttausch**:
+Moment, in dem Dynamic Lyrics an einer Figure-Grenze die eingeblendete Sequenz
+wechselt oder Heads und Sides tauscht. "Texttausch timen" verschiebt ihn um ganze
+Sekunden.
+_EN_: Text Swap
+
+**Leseposition**:
+Hoehe im Lyric-Fenster, auf der der gerade gesungene Text steht, in Prozent von
+oben (0 % = ganz oben, 100 % = ganz unten). Gilt mit und ohne SyncPoints.
+_EN_: Reading Position
+_Avoid_: Lese-Zone, Viewport-Anteil
+
+**Lesebalken**:
+Farbig hinterlegter Bereich im Lyric-Fenster ueber dem Text, der gerade zu singen
+ist. Folgt dem gesungenen Text, auch wenn "Textsprung timen" frueher scrollt.
+_EN_: Reading Band
+_Avoid_: Band, Leseband
+
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
+
+**Pausen-Uhr**:
+Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
+_EN_: Break Clock
+
+**Wartemusik**:
+Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
+als gespielt und schaltet die Playlist nicht weiter.
+_EN_: Break Music
 
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
@@ -169,7 +207,26 @@ _Avoid_: Tags, Figurenliste
 Automatisch erkannte Figuren-Menge fuer einen zusammengesetzten Call-Text. Ist nur
 ein Vorschlag — er wird markiert und erst nach Bestaetigung des Callers zur Zuordnung.
 _EN_: Figure Set Suggestion
-_Avoid_: Automapping
+_Avoid_: Automapping, Mustererkennung
+
+**Zuordnungs-Datei**:
+JSON-Datei, mit der Caller ihre Zuordnungen exportieren und bei anderen importieren
+(Menue „Zuordnungen exportieren/importieren“). Weicht eine importierte Figuren-Menge
+von der lokalen ab, klaert der Caller je Call-Text: A lokal behalten, B aus der Datei
+uebernehmen, C selbst waehlen.
+_EN_: Mapping File
+_Avoid_: Call-Map, Mapping (im Deutschen)
+
+**Optimieren**:
+Aktion im Call-Mapping, die alle abweichenden Mengen-Vorschlaege auf einen Schlag
+uebernimmt, nach Rueckfrage je Art der Abweichung. Ergebnis sind abgeleitete Zuordnungen.
+_EN_: Optimize
+
+**Abgeleitete Zuordnung**:
+Zuordnung, die aus einem Mengen-Vorschlag gesammelt uebernommen wurde, statt vom
+Caller einzeln bestaetigt. Bleibt von automatischen und von Hand gesetzten
+Zuordnungen unterscheidbar.
+_EN_: Inferred Assignment
 
 **Teilung**:
 Zerlegen eines zusammengesetzten Call-Texts in zwei eigenstaendige Call-Texte.
@@ -181,3 +238,16 @@ Figur in der Teaching-Order, bis zu der eine Sequenz tanzbar sein muss, um angez
 zu werden. Eine Sequenz liegt darunter, wenn jede Figur jeder ihrer Zuordnungen darunter liegt.
 _Synonym_: Figuren-Grenze
 _Avoid_: Grenze (allein), Programm-Grenze (ist etwas anderes)
+
+**Nur-Filter**:
+Zeigt nur Sequenzen, die das oberste gewaehlte Programm wirklich brauchen, also mit
+den tieferen Programmen der Tanzprogramm-Wahl allein nicht tanzbar sind. Ohne
+Tanzprogramm-Wahl gilt das Programm des Limits.
+_EN_: Only Filter
+
+**Ausgeblendete Sequenz**:
+Sequenz, die nur wegen fehlender Zuordnungen ihrer Call-Texte nicht in der Liste
+erscheint, typischerweise frisch importiert. "Auch ausgeblendete Sequenzen anzeigen"
+holt sie zurueck, ohne Typ, Schwierigkeit oder Tags anzutasten.
+_EN_: Hidden Sequence
+_Avoid_: Neueste Sequenz, versteckte Sequenz

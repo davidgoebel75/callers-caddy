@@ -5,8 +5,6 @@ Call-Mapping-Dialog. Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
 import os
-import re
-import sys
 import random
 
 from PySide6.QtWidgets import (
@@ -16,19 +14,23 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
     QMessageBox, QDialog, QMenu, QAbstractItemView,
     QTextBrowser, QTextEdit, QPlainTextEdit, QListWidget, QListWidgetItem,
+    QDialogButtonBox,
 )
-from PySide6.QtCore import Qt, QTimer, QSettings, QEvent, QObject
+from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
     QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
 from song_db import SongDatabase, calls_to_json
+import sequence_import as seq_import
 from i18n import _t
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
-from sequence_mapper import CallMatcher as _CallMatcher, canon_key, suggest_figure_set
+from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
+                             suggest_figure_set)
+from sequence_filter import filter_query_args
 
 
 class _ComboClickToOpen(QObject):
@@ -560,6 +562,8 @@ class SequencesWidget(QWidget):
     """
 
     _PAGE_SIZE = 50   # Lazy Loading: Bloecke a 50 Zeilen
+    _ALL_ROWS = float("inf")   # _load_sequences(until=...): alle Zeilen
+    _ROLE_UNMAPPED = Qt.UserRole + 1   # Spalte 0: Sequenz hat Call-Texte ohne Zuordnung
 
     def __init__(self, db, skin_mgr=None, settings=None):
         super().__init__()
@@ -575,7 +579,12 @@ class SequencesWidget(QWidget):
         self.on_add_to_notes = None           # callback(seq_id)
         self.on_add_filter_to_notes = None    # callback() → aktive Filter als Shortcode
         self.on_sequences_deleted = None      # callback(seq_ids) → SequenceView informieren
+        self.on_open_call_mapping = None      # callback(call_texts) → Call-Mapping mit Fokus
         self._loading = False      # Schutz gegen Endlos-Nachladen
+        # intern#119: "Auch ausgeblendete Sequenzen anzeigen" setzt die Tanzprogramm-Wahl NUR
+        # fuer diese Liste aus (Session/Player bleiben unberuehrt). Der naechste
+        # Filter- oder Programmwechsel hebt das wieder auf.
+        self._bands_suspended = False
         # BL-190: Teaching-Order-Grenze des aktuell gewaehlten Tanzprogramms.
         # Steuert nur die Sortierung der Contains-Vorschlaege (Programm-Calls
         # zuerst), kein harter Filter. None = keine Programm-Sortierung.
@@ -799,38 +808,6 @@ class SequencesWidget(QWidget):
             return None
         return self._combo_limit.itemData(idx, Qt.UserRole)
 
-    def _get_min_to_filter(self):
-        """Gibt die Untergrenze fuer den "Nur"-Filter zurueck (oder None).
-
-        Aktiv nur wenn die Checkbox gesetzt UND ein Limit gewaehlt ist.
-        Untergrenze = Programm-Start des Limit-Calls (Ganzzahlteil der
-        Teaching Order, z.B. 50.0 bei einem A1-Limit) — d.h. der hoechste
-        Call der Sequenz muss im Programm des Limits liegen.
-        """
-        if not self._check_only_program.isChecked():
-            return None
-        limit = self._get_limit_filter()
-        if limit is None:
-            return None
-        return float(int(limit))
-
-    def _get_bands_below(self):
-        """MS50: Bei aktivem "Nur"-Filter die Baender UNTER dem obersten der
-        gewaehlten Programme. Der Filter zeigt dann nur Sequenzen, die das oberste
-        Band wirklich brauchen (nicht mit den tieferen tanzbar).
-
-        Rueckgabe None, wenn "Nur" aus ist oder nur ein Band gewaehlt ist
-        (dann gibt es nichts "darunter").
-        """
-        bands = self._program_bands
-        if not bands or not self._check_only_program.isChecked():
-            return None
-        if len(bands) < 2:
-            return None
-        top = max(bands)
-        below = set(bands) - {top}
-        return below or None
-
     def _get_type_filter(self):
         """Gibt den Type-Filter-Text zurueck (oder None)."""
         idx = self._combo_type.currentIndex()
@@ -981,6 +958,7 @@ class SequencesWidget(QWidget):
             return
         _t0 = perf_start()
         self._program_bands = new
+        self._bands_suspended = False   # neue Tanzprogramm-Wahl greift wieder
         # MS50: Contains- und Limit-Liste an die neuen Baender knuepfen
         self._rebuild_contains_items()
         self._rebuild_limit_items()
@@ -991,6 +969,7 @@ class SequencesWidget(QWidget):
     def _on_filter_changed(self, _idx=None):
         """Filter geaendert: Tabelle neu laden und SequenceView zuruecksetzen."""
         _t0 = perf_start()
+        self._bands_suspended = False   # intern#119: Filterwechsel beendet das Aussetzen
         self._loaded_count = 0
         self._load_sequences(reset=True)
         _pt = perf_split("SeqFilter._on_filter_changed: load_sequences", _t0)
@@ -1015,6 +994,34 @@ class SequencesWidget(QWidget):
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
 
+    def show_hidden_sequences(self):
+        """intern#119: Frisch importierte Sequenzen finden.
+
+        Hebt nur die Filter auf, die an der Zuordnung haengen (Enthaelt, Limit,
+        Nur-Filter) und setzt die Tanzprogramm-Wahl fuer diese Liste aus. Typ,
+        Schwierigkeit und Tags bleiben — der Caller weiss selbst, welche Art
+        Sequenz er sucht. Laedt dann ALLE passenden Zeilen und springt ans Ende:
+        die Liste ist nach id sortiert, die neuesten stehen also unten.
+        """
+        _t0 = perf_start()
+        for combo in (self._combo_contains, self._combo_limit):
+            combo.blockSignals(True)
+            combo.setCurrentIndex(0)
+            combo.blockSignals(False)
+        self._check_only_program.blockSignals(True)
+        self._check_only_program.setChecked(False)
+        self._check_only_program.blockSignals(False)
+        # Nach dem Zuruecksetzen setzen: _on_filter_changed wuerde es aufheben.
+        self._bands_suspended = bool(self._program_bands)
+        self._load_sequences(reset=True, until=self._ALL_ROWS)
+        if self.on_filter_changed_detail:
+            self.on_filter_changed_detail()
+        last = self._table.rowCount() - 1
+        if last >= 0:
+            self._table.selectRow(last)
+            self._table.scrollToBottom()
+        perf_log(f"SeqFilter.show_hidden_sequences: {last + 1} Zeilen", _t0)
+
     def select_sequence(self, seq_id: int):
         """Markiert eine Sequenz in der Tabelle (falls geladen) und oeffnet sie
         im SequenzView. Laedt bei Bedarf weitere Bloecke nach, bis sie sichtbar
@@ -1024,10 +1031,9 @@ class SequencesWidget(QWidget):
             return
         target_idx = seq_ids.index(seq_id)
 
-        # Solange nachladen, bis die Zielzeile geladen ist
-        while (self._loaded_count <= target_idx
-               and self._loaded_count < self._total_count):
-            self._load_sequences(reset=False)
+        # Bis zur Zielzeile nachladen — in EINER Abfrage statt Block fuer Block
+        if self._loaded_count <= target_idx:
+            self._load_sequences(reset=False, until=target_idx + 1)
 
         for r in range(self._table.rowCount()):
             it = self._table.item(r, 0)
@@ -1040,38 +1046,18 @@ class SequencesWidget(QWidget):
             self.on_open_detail(seq_ids, target_idx)
 
     def _current_filter_args(self) -> dict:
-        """MS50: Zentrale Ableitung ALLER Filter-Parameter fuer die Sequenz-Abfragen
-        (Tabelle, Zaehler, Detail-IDs) — eine Quelle, damit die Pfade nicht
-        auseinanderlaufen. Im Baender-Modus begrenzt der Limit-Filter die effektive
-        Band-Menge (_effective_bands) und "Only" laeuft ueber bands_below; ohne
-        Programmwahl gilt der Legacy-max_to/min_to-Pfad."""
-        args = dict(
-            entity_id_filter=self._get_contains_filter(),
-            type_filter=self._get_type_filter(),
-            difficulty_filter=self._get_difficulty_filter(),
-            tags_filter=self._get_tags_filter(),
+        """MS50: Filter-Parameter fuer ALLE Sequenz-Abfragen (Tabelle, Zaehler,
+        Detail-IDs) — eine Quelle, damit die Pfade nicht auseinanderlaufen.
+        Die Regel selbst steht in sequence_filter.filter_query_args."""
+        return filter_query_args(
+            contains=self._get_contains_filter(),
+            limit=self._get_limit_filter(),
+            only=self._check_only_program.isChecked(),
+            seq_type=self._get_type_filter(),
+            difficulty=self._get_difficulty_filter(),
+            tags=self._get_tags_filter(),
+            bands=None if self._bands_suspended else self._program_bands,
         )
-        if self._program_bands:
-            # Limit wirkt als FEINE Teaching-Order-Obergrenze (cover_max_to) INNERHALB
-            # der gewaehlten Baender — nicht als Band-Reduktion. So schliesst "Limit =
-            # Spin Chain Thru" die spaeter gelehrten Figuren desselben Bandes (Recycle)
-            # korrekt aus.
-            args.update(
-                max_to_filter=None,
-                min_to_filter=None,
-                bands_filter=self._program_bands,
-                bands_below_filter=self._get_bands_below(),
-                cover_max_to=self._get_limit_filter(),
-            )
-        else:
-            args.update(
-                max_to_filter=self._get_limit_filter(),
-                min_to_filter=self._get_min_to_filter(),
-                bands_filter=None,
-                bands_below_filter=None,
-                cover_max_to=None,
-            )
-        return args
 
     # ---- Daten laden ----
 
@@ -1080,8 +1066,14 @@ class SequencesWidget(QWidget):
         self._loaded_count = 0
         self._load_sequences(reset=True)
 
-    def _load_sequences(self, reset=False):
-        """Laedt den naechsten Block Sequenzen (Lazy Loading)."""
+    def _load_sequences(self, reset=False, until=None):
+        """Laedt den naechsten Block Sequenzen (Lazy Loading).
+
+        until: statt eines Blocks in EINER Abfrage so viele Zeilen nachladen,
+        bis die Tabelle `until` Zeilen hat (_ALL_ROWS = alle). intern#119: ans
+        Ende bzw. zu einer weit unten liegenden Sequenz springen, ohne Block
+        fuer Block.
+        """
         if self._loading:
             return
         self._loading = True
@@ -1099,8 +1091,10 @@ class SequencesWidget(QWidget):
         if reset:
             self._loaded_count = 0
 
+        page = (self._PAGE_SIZE if until is None
+                else max(0, min(until, self._total_count) - self._loaded_count))
         rows = self.db.get_filtered_sequences(
-            limit=self._PAGE_SIZE, offset=self._loaded_count, **args)
+            limit=page, offset=self._loaded_count, **args)
         _pt = perf_split(f"SeqFilter._load: page_query -> {len(rows)} rows "
                         f"(offset={self._loaded_count})", _pt)
 
@@ -1126,6 +1120,11 @@ class SequencesWidget(QWidget):
     def _fill_rows(self, start_idx: int, rows: list):
         """Fuellt Tabellenzeilen ab start_idx."""
         from sequence_mapper import get_program_label
+        # intern#119: Sequenzen mit Call-Texten ohne Zuordnung rot (Skin-Farbe),
+        # Rechtsklick oeffnet das Call-Mapping. Einmal je Block statt je Zeile.
+        unmapped_fg = QColor(self._skin_mgr.color("warning", "#ef4444")
+                             if self._skin_mgr else "#ef4444")
+        unmapped_tip = _t("sequences_unmapped_tooltip")
         for i, row in enumerate(rows):
             table_idx = start_idx + i
             seq_id = row[0]
@@ -1139,6 +1138,11 @@ class SequencesWidget(QWidget):
             seq_text = " \u2192 ".join(call_texts)
             item_seq = QTableWidgetItem(seq_text)
             item_seq.setData(Qt.UserRole, seq_id)
+            # max_teaching_order NULL = mind. ein Call-Text ohne tanzbare Zuordnung
+            if max_to is None:
+                item_seq.setForeground(unmapped_fg)
+                item_seq.setToolTip(unmapped_tip)
+                item_seq.setData(self._ROLE_UNMAPPED, True)
             self._table.setItem(table_idx, 0, item_seq)
 
             # Level-Spalte
@@ -1158,13 +1162,12 @@ class SequencesWidget(QWidget):
         """Aktualisiert die Statuszeile."""
         total_db = self.db.get_sequence_count()
         if self._total_count == total_db:
-            self._label_status.setText(
-                _t("sequences_count", count=self._total_count)
-            )
+            text = _t("sequences_count", count=self._total_count)
         else:
-            self._label_status.setText(
-                _t("sequences_filtered", filtered=self._total_count, total=total_db)
-            )
+            text = _t("sequences_filtered", filtered=self._total_count, total=total_db)
+        if self._bands_suspended:
+            text += " · " + _t("sequences_program_selection_suspended")
+        self._label_status.setText(text)
 
     # ---- Lazy Loading ----
 
@@ -1209,21 +1212,30 @@ class SequencesWidget(QWidget):
             self.on_open_detail(seq_ids, current_idx)
 
     def _on_context_menu(self, pos):
+        menu = QMenu(self)
+        # intern#119: auch ohne Zeile unter der Maus (leere Liste = genau der Fall,
+        # in dem man seine frisch importierten Sequenzen sucht).
+        act_hidden = menu.addAction(_t("ctx_show_hidden_sequences"))
+        act_hidden.triggered.connect(self.show_hidden_sequences)
         item = self._table.itemAt(pos)
-        if not item:
-            return
-        row = self._table.row(item)
-        id_item = self._table.item(row, 0)
-        if not id_item:
-            return
-        seq_id = id_item.data(Qt.UserRole)
+        id_item = self._table.item(self._table.row(item), 0) if item else None
+        seq_id = id_item.data(Qt.UserRole) if id_item else None
         if seq_id is None:
+            menu.exec(self._table.viewport().mapToGlobal(pos))
             return
         selected_ids = self._get_selected_seq_ids()
         # Wenn die Rechtsklick-Zeile nicht in der Selektion ist, nur sie nehmen
         if seq_id not in selected_ids:
             selected_ids = [seq_id]
-        menu = QMenu(self)
+        menu.addSeparator()
+        # intern#119: rote Sequenz -> Call-Mapping auf ihre Call-Texte ohne Zuordnung.
+        # Rot heisst nur max_to fehlt (auch ohne Call-Texte oder vor dem
+        # Remapping): Eintrag nur, wenn es wirklich etwas zuzuordnen gibt.
+        if (id_item.data(self._ROLE_UNMAPPED) and self.on_open_call_mapping
+                and self.db.get_unmapped_call_texts_of_sequence(seq_id)):
+            act_map = menu.addAction(_t("ctx_open_call_mapping_for_sequence"))
+            act_map.triggered.connect(
+                lambda: self._open_call_mapping_for_sequence(seq_id))
         act = menu.addAction(_t("ctx_add_to_notes"))
         act.triggered.connect(
             lambda: self.on_add_to_notes(seq_id) if self.on_add_to_notes else None)
@@ -1235,6 +1247,16 @@ class SequencesWidget(QWidget):
         del_act.triggered.connect(
             lambda: self._delete_sequences_with_confirm(selected_ids))
         menu.exec(self._table.viewport().mapToGlobal(pos))
+
+    def _open_call_mapping_for_sequence(self, seq_id):
+        """intern#119: Call-Mapping oeffnen, gefiltert auf die Call-Texte dieser
+        Sequenz ohne Zuordnung. Danach dieselbe Sequenz wieder markieren — sie
+        ist dann (hoffentlich) nicht mehr rot."""
+        texts = self.db.get_unmapped_call_texts_of_sequence(seq_id)
+        if not texts:
+            return
+        self.on_open_call_mapping(texts)
+        self.select_sequence(seq_id)
 
     # ---- Loeschen ----
 
@@ -1345,7 +1367,8 @@ class SequencesWidget(QWidget):
                mapped=stats['mapped'],
                unmapped=stats['unmapped'],
                auto=stats['auto'],
-               manual=stats['manual'])
+               manual=stats['manual'],
+               inferred=stats['inferred'])
         )
 
     def _do_remapping(self):
@@ -1476,325 +1499,56 @@ class SequencesWidget(QWidget):
         self._rebuild_contains_items()
         self._rebuild_limit_items()
 
-        # --- Type-Dropdown ---
-        _DEFAULT_TYPE = "Singer (Corner progression)"
-        self._combo_type.blockSignals(True)
-        self._combo_type.clear()
-        self._combo_type.addItem(_t("type_all"))
-        default_type_idx = 0
-        for t in self.db.get_sequence_type_values():
-            self._combo_type.addItem(t)
-            if t == _DEFAULT_TYPE:
-                default_type_idx = self._combo_type.count() - 1
-        self._combo_type.setCurrentIndex(default_type_idx)
-        self._combo_type.blockSignals(False)
+        # Typ, Schwierigkeit und Tags behalten ihre Auswahl (intern#131: nach
+        # "OK" im Call-Mapping muss dieselbe Sequenz wieder auffindbar sein).
+        # Nur beim allerersten Aufbau greift der Vorgabe-Typ "Singer".
+        self._refill_combo(self._combo_type, _t("type_all"),
+                           self.db.get_sequence_type_values(),
+                           fallback="Singer (Corner progression)")
+        self._refill_combo(self._combo_difficulty, _t("difficulty_all"),
+                           self.db.get_sequence_difficulty_values())
+        self._refill_combo(self._combo_tags, _t("tags_all"),
+                           self.db.get_sequence_tags_values())
 
-        # --- Difficulty-Dropdown ---
-        self._combo_difficulty.blockSignals(True)
-        self._combo_difficulty.clear()
-        self._combo_difficulty.addItem(_t("difficulty_all"))
-        for d in self.db.get_sequence_difficulty_values():
-            self._combo_difficulty.addItem(d)
-        self._combo_difficulty.blockSignals(False)
-
-        # --- Tags-Dropdown (BL-191) ---
-        self._combo_tags.blockSignals(True)
-        prev_tag = self._get_tags_filter()
-        self._combo_tags.clear()
-        self._combo_tags.addItem(_t("tags_all"))
-        for tg in self.db.get_sequence_tags_values():
-            self._combo_tags.addItem(tg)
-        # Vorherige Auswahl beibehalten (z.B. nach Editor-Speichern), sonst "Alle".
-        restore_idx = 0
-        if prev_tag:
-            for i in range(1, self._combo_tags.count()):
-                if self._combo_tags.itemText(i) == prev_tag:
-                    restore_idx = i
-                    break
-        self._combo_tags.setCurrentIndex(restore_idx)
-        self._combo_tags.blockSignals(False)
-
-    # ---- Import ----
-
-    def import_from_mdb(self, mdb_path: str):
-        """Importiert Sequenzen aus einer Access-MDB (nur Rohdaten).
-
-        Das Mapping (Call-Texte → Entity-IDs) muss separat ueber
-        tools/map_sequence_calls.py erfolgen.
-
-        Args:
-            mdb_path: Pfad zur caller.mdb
-        """
-        # mdb_reader liegt in src/migration/ (Sub-Paket neben main.py)
-        migration_dir = os.path.join(os.path.dirname(__file__), "migration")
-        if migration_dir not in sys.path:
-            sys.path.insert(0, migration_dir)
-
-        from mdb_reader import MdbReader
-
-        # 1) MDB lesen
-        reader = MdbReader(mdb_path)
-        sequences = reader.read_sequences()
-        print(f"[Import] {len(sequences)} Sequenzen gelesen")
-
-        # 2) In Bulk-Format bringen und schnell einspielen (Warte-Cursor)
-        seqs = []
-        for seq in sequences:
-            calls = []
-            for i in range(1, 16):
-                val = seq.get(f"Feld{i}", None)
-                if val and isinstance(val, str) and val.strip() and val.strip() != "-":
-                    calls.append(val.strip())
-            level = seq.get("Level", "") or ""
-            if isinstance(level, str):
-                level = level.strip()
-            seqs.append({"calls": calls, "level": level})
-
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        try:
-            self.db.bulk_import_sequences(seqs, source="",
-                                          dedup_against_existing=True)
-            # 3) Dropdowns + Tabelle
-            self._populate_dropdowns()
-            self.load_sequences()
-        finally:
-            QApplication.restoreOverrideCursor()
-
-        print(f"[Import] {len(sequences)} Sequenzen importiert")
-        QMessageBox.information(
-            self, _t("import_done_title"),
-            _t("import_done_msg", count=len(sequences))
-        )
-
-    def import_from_json(self, json_paths: list):
-        """Importiert Sequenzen aus einer oder mehreren JSON-Dateien (Ceder-Format).
-
-        Erwartet pro Eintrag:
-          { "calls": [...], "level": "...", "seq_type": "...", "difficulty": "..." }
-
-        Sequenzen werden einfach angehaengt (kein Loeschen bestehender Daten).
-        Dubletten-Bereinigung ist ein separater Schritt.
-        """
-        import json as _json
-
-        all_seqs = []
-        seen_ids: set = set()  # Deduplizierung ueber alle gewaehlten Dateien
-
-        for path in json_paths:
-            try:
-                with open(path, encoding="utf-8") as f:
-                    data = _json.load(f)
-                if not isinstance(data, list):
-                    print(f"[Import JSON] {path}: kein Array — uebersprungen")
-                    continue
-                for seq in data:
-                    ceder_id = seq.get("id", "")
-                    if ceder_id and ceder_id in seen_ids:
-                        continue
-                    if ceder_id:
-                        seen_ids.add(ceder_id)
-                    all_seqs.append(seq)
-            except Exception as e:
-                print(f"[Import JSON] Fehler beim Lesen von {path}: {e}")
-
-        if not all_seqs:
-            QMessageBox.warning(self, _t("import_json_title"),
-                                _t("import_json_empty"))
-            return
-
-        # Bulk-Import (eine Transaktion, Index/Cache einmal) + Dedup gegen Bestand,
-        # damit ein erneuter Import nicht dupliziert. Loest das Pro-Zeile-Commit-
-        # Perf-Problem (10k Sequenzen: Sekunden statt ~40 s). Warte-Cursor, weil
-        # Index+Cache-Neubau auf langsamen Rechnern ein paar Sekunden dauern kann.
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        try:
-            inserted, skipped = self.db.bulk_import_sequences(
-                all_seqs, source="", dedup_against_existing=True)
-            # Dropdowns + Tabelle aktualisieren
-            self._populate_dropdowns()
-            self.load_sequences()
-        finally:
-            QApplication.restoreOverrideCursor()
-
-        print(f"[Import JSON] {inserted} Sequenzen eingefuegt, {skipped} uebersprungen")
-        QMessageBox.information(
-            self, _t("import_json_title"),
-            _t("import_json_done", inserted=inserted, skipped=skipped)
-        )
-
-    def import_from_csds(self, csds_paths: list):
-        """Importiert Sequenzen aus einer oder mehreren CSDS-Dateien (Vic Ceder Export).
-
-        Format:
-          @
-          #PROOFREAD#
-          #EASY#
-          #REC=6734#
-          #SEQTYPE=10#
-          #AUTHOR=...#
-          Call 1,
-          Call 2,
-          ...
-          @
-
-        Sequenzen werden angehaengt (kein Loeschen bestehender Daten).
-        """
-        import re as _re
-
-        # Mapping SEQTYPE-Nummer → lesbarer Name (kanonische Ceder-Konvention:
-        # "Singer (...)" und Pfeil "➔" als Trenner — muss zu song_db.
-        # canonicalize_seq_type passen, sonst entstehen doppelte Filter-Kategorien).
-        _SEQTYPE_NAMES = {
-            "5":   "Static Set ➔ Resolve",
-            "10":  "Singer (Corner progression)",
-            "20":  "Singer (R-H Lady progression)",
-            "30":  "Singing break",
-            "40":  "Stir the bucket",
-            "80":  "Static Set ➔ Zero Line",
-            "90":  "Static Set ➔ Zero Box",
-            "95":  "Zero Line ➔ Resolve",
-            "100": "Zero Line ➔ Zero Line",
-            "110": "Zero Line ➔ Zero Box",
-            "115": "Zero Box ➔ Resolve",
-            "120": "Zero Box ➔ Zero Line",
-            "130": "Zero Box ➔ Zero Box",
-        }
-        _DIFFICULTY_MAP = {
-            "EASY":   "Easy",
-            "MEDIUM": "Medium",
-            "HARD":   "Hard",
-        }
-
-        def _clean_call(raw: str) -> str:
-            """Bereinigt eine Call-Zeile: XML-Tags entfernen, Trailing-Komma abschneiden."""
-            # <C ALT="...">text</C> → text
-            cleaned = _re.sub(r'<C[^>]*>(.*?)</C>', r'\1', raw)
-            return cleaned.rstrip(',').strip()
-
-        def _parse_csds_content(text: str) -> list:
-            seqs = []
-            for block in text.split('@'):
-                lines = block.splitlines()
-                difficulty = ""
-                rec_id = ""
-                seq_type = ""
-                calls = []
-                for line in lines:
-                    s = line.strip()
-                    if not s:
-                        continue
-                    if s.startswith('#') and s.endswith('#'):
-                        inner = s[1:-1]
-                        if inner in _DIFFICULTY_MAP:
-                            difficulty = _DIFFICULTY_MAP[inner]
-                        elif inner.startswith('REC='):
-                            rec_id = inner[4:]
-                        elif inner.startswith('SEQTYPE='):
-                            seq_type = _SEQTYPE_NAMES.get(inner[8:], inner[8:])
-                        # PROOFREAD, AUTHOR etc. ignorieren
-                    else:
-                        call = _clean_call(s)
-                        if call:
-                            calls.append(call)
-                if calls:
-                    seqs.append({
-                        "id": rec_id,
-                        "calls": calls,
-                        "seq_type": seq_type,
-                        "difficulty": difficulty,
-                        "level": "",
-                    })
-            return seqs
-
-        all_seqs = []
-        seen_ids: set = set()
-
-        for path in csds_paths:
-            try:
-                with open(path, encoding="utf-8", errors="replace") as f:
-                    content = f.read()
-                for seq in _parse_csds_content(content):
-                    rec_id = seq.get("id", "")
-                    if rec_id and rec_id in seen_ids:
-                        continue
-                    if rec_id:
-                        seen_ids.add(rec_id)
-                    all_seqs.append(seq)
-            except Exception as e:
-                print(f"[Import CSDS] Fehler beim Lesen von {path}: {e}")
-
-        if not all_seqs:
-            QMessageBox.warning(self, _t("import_csds_title"),
-                                _t("import_csds_empty"))
-            return
-
-        # Bulk-Import + Dedup + Warte-Cursor (wie JSON-Import).
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        try:
-            inserted, skipped = self.db.bulk_import_sequences(
-                all_seqs, source="", dedup_against_existing=True)
-            self._populate_dropdowns()
-            self.load_sequences()
-        finally:
-            QApplication.restoreOverrideCursor()
-
-        print(f"[Import CSDS] {inserted} Sequenzen eingefuegt, {skipped} uebersprungen")
-        QMessageBox.information(
-            self, _t("import_csds_title"),
-            _t("import_csds_done", inserted=inserted, skipped=skipped)
-        )
-
-    def import_from_freetext(self, sequences, seq_type: str, difficulty: str):
-        """Importiert Sequenzen aus einem geparsten Freitext (BL-098).
-
-        Args:
-            sequences: list[list[str]] — bereits geparsterCall-Listen
-                (siehe FreetextSequenceImportDialog._parse_text).
-            seq_type: Sequenz-Typ (Pflichtfeld, vom Nutzer im Dialog gewaehlt).
-            difficulty: Schwierigkeitsgrad (optional, '' = leer).
-        """
-        if not sequences:
-            return 0, 0
-
-        # In Bulk-Format bringen (Typ/Schwierigkeit gelten fuer alle) und
-        # ueber den schnellen Bulk-Import + Dedup + Warte-Cursor einspielen.
-        seqs = [{"calls": c, "seq_type": seq_type, "difficulty": difficulty}
-                for c in sequences if c]
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        try:
-            inserted, skipped = self.db.bulk_import_sequences(
-                seqs, source="", dedup_against_existing=True)
-            self._populate_dropdowns()
-            self.load_sequences()
-        finally:
-            QApplication.restoreOverrideCursor()
-
-        print(f"[Import Freitext] {inserted} Sequenzen eingefuegt, "
-              f"{skipped} uebersprungen")
-        QMessageBox.information(
-            self, _t("freetext_import_title"),
-            _t("freetext_import_done", inserted=inserted, skipped=skipped)
-        )
-        return inserted, skipped
-
+    @staticmethod
+    def _refill_combo(combo, all_text, values, fallback=None):
+        """Fuellt ein Filter-Dropdown neu ("Alle" + values) und stellt die
+        vorige Auswahl wieder her. Gibt es sie nicht mehr (oder ist das
+        Dropdown noch leer), gilt fallback, sonst "Alle"."""
+        prev = combo.currentText() if combo.count() else fallback
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(all_text)
+        combo.addItems(list(values))
+        idx = combo.findText(prev) if prev else -1
+        if idx < 0 and fallback:
+            idx = combo.findText(fallback)
+        combo.setCurrentIndex(max(idx, 0))
+        combo.blockSignals(False)
 
 class _MappingHighlighter(QSyntaxHighlighter):
-    """Faerbt jede Zeile (Block) gruen, deren Call-Text bereits gemappt ist.
+    """Faerbt jede Zeile (Block) nach ihrem Mapping-Zustand: gruen = gemappt,
+    gelb = die Mustererkennung schlaegt noch fehlende Figuren vor (BL-210.12).
 
-    Die Mapping-Pruefung kommt ueber den Callback is_mapped(text) -> bool,
+    Den Zustand liefert der Callback line_state(text) -> 'gruen'|'gelb'|None,
     den der Editor mit einem Cache versorgt.
     """
 
-    def __init__(self, document, is_mapped):
+    def __init__(self, document, line_state):
         super().__init__(document)
-        self._is_mapped = is_mapped
-        self._fmt = QTextCharFormat()
-        self._fmt.setBackground(QColor(46, 94, 46))   # dezentes Gruen
-        self._fmt.setForeground(QColor(220, 255, 220))
+        self._line_state = line_state
+        gruen = QTextCharFormat()
+        gruen.setBackground(QColor(46, 94, 46))   # dezentes Gruen
+        gruen.setForeground(QColor(220, 255, 220))
+        gelb = QTextCharFormat()
+        gelb.setBackground(QColor(110, 90, 20))   # dezentes Gelb, gleich dunkel
+        gelb.setForeground(QColor(255, 245, 205))
+        self._fmts = {"gruen": gruen, "gelb": gelb}
 
     def highlightBlock(self, text: str):
-        if text.strip() and self._is_mapped(text):
-            self.setFormat(0, len(text), self._fmt)
+        fmt = self._fmts.get(self._line_state(text)) if text.strip() else None
+        if fmt is not None:
+            self.setFormat(0, len(text), fmt)
 
 
 class _CallListEdit(QPlainTextEdit):
@@ -1832,8 +1586,9 @@ class SequenceEditorDialog(QDialog):
     Beim Speichern werden ueberzaehlige Zeilen abgewiesen.
 
     Per-Zeile-Mapping (BL-015 Ausbau): Jede Zeile, deren Call-Text bereits ein
-    Mapping hat (oder exakt passt), wird gruen markiert. Doppelklick auf eine
-    Zeile oeffnet den CallFiguresPickerDialog mit ihrer Figuren-Menge
+    Mapping hat (oder exakt passt), wird gruen markiert, gelb, wenn die
+    Mustererkennung noch fehlende Figuren vorschlaegt (BL-210.12). Doppelklick
+    auf eine Zeile oeffnet den CallFiguresPickerDialog mit ihrer Figuren-Menge
     (BL-210.5). Typ ist Pflichtfeld.
 
     Args:
@@ -1850,8 +1605,9 @@ class SequenceEditorDialog(QDialog):
         self.db = db
         self._seq_id = seq_id              # None = Neuanlage
         self._on_saved = on_saved
-        self._map_cache = {}               # call_text -> bool (gemappt?)
+        self._map_cache = {}               # call_text -> 'gruen'|'gelb'|None
         self._matcher = None               # CallMatcher (lazy)
+        self._lookups = None               # (exact_lookup, rest_lookup), lazy
         self.setWindowTitle(_t("seq_editor_title"))
         self.setMinimumSize(440, 480)
         self.setModal(True)
@@ -1917,7 +1673,7 @@ class SequenceEditorDialog(QDialog):
 
         # Highlighter: gemappte Zeilen gruen
         self._highlighter = _MappingHighlighter(
-            self._edit_calls.document(), self._is_mapped
+            self._edit_calls.document(), self._line_state
         )
         # Debounce-Timer fuer das Neu-Hervorheben beim Tippen
         self._rehl_timer = QTimer(self)
@@ -2021,21 +1777,40 @@ class SequenceEditorDialog(QDialog):
             return eid
         return None
 
-    def _is_mapped(self, text: str) -> bool:
-        """Prueft (gecacht), ob ein Call-Text gemappt ODER ein exakter Treffer ist.
+    def _suggest_set(self, key: str) -> list:
+        """Mengen-Vorschlag der Mustererkennung (BL-210.12), [] ohne Vorschlag.
 
-        Gruen also auch fuer Calls, die zwar noch keine Mapping-Zeile haben, aber
-        exakt zu einem bekannten Call passen — diese werden beim Speichern als
-        'auto'-Mapping persistiert.
+        Die Lookups entstehen beim ersten Aufruf (~7 ms auf der Prod-DB, einmal
+        je Editor), also erst beim ersten Faerben, nicht schon im Konstruktor.
+        """
+        if self._lookups is None:
+            self._lookups = figure_set_lookups(
+                self.db.get_teaching_order_calls(),
+                self.db.get_all_call_text_figures())
+        return suggest_figure_set(key, *self._lookups)[0] or []
+
+    def _line_state(self, text: str):
+        """Zustand einer Zeile fuer den Highlighter (gecacht).
+
+        'gelb': die Mustererkennung schlaegt Figuren vor, die noch nicht
+        zugeordnet sind -- auch bei halber Zuordnung (BL-210.12). Doppelklick
+        hakt sie im Picker mit an.
+        'gruen': gemappt ODER exakter Treffer -- letzterer wird beim Speichern
+        als 'auto'-Mapping persistiert.
+        None: nichts erkannt.
         """
         key = text.strip()
         if not key:
-            return False
+            return None
         if key not in self._map_cache:
-            mapped = self.db.get_entity_for_call_text(key) is not None
-            if not mapped:
-                mapped = self._exact_entity(key) is not None
-            self._map_cache[key] = mapped
+            current = self.db.get_call_text_figures(key)
+            if not set(self._suggest_set(key)) <= set(current):
+                state = "gelb"
+            elif current or self._exact_entity(key) is not None:
+                state = "gruen"
+            else:
+                state = None
+            self._map_cache[key] = state
         return self._map_cache[key]
 
     def _persist_auto_mappings(self, calls: list):
@@ -2054,13 +1829,84 @@ class SequenceEditorDialog(QDialog):
             if eid is not None:
                 self.db.set_call_text_mapping(key, eid, mapped_by="auto")
 
+    def _with_suggestion(self, key: str, current: list) -> list:
+        """Bisherige Menge plus Mengen-Vorschlag, ohne Doppelte (BL-210.12).
+
+        Vereinigung statt "Vorschlag nur ohne Zuordnung": eine halbe
+        Alt-Zuordnung darf den Vorschlag nicht blockieren. Gemeinsam fuer
+        Picker-Vorbelegung und Rueckfrage beim Speichern (intern#88).
+        """
+        return list(dict.fromkeys(current + self._suggest_set(key)))
+
+    def _offer_suggested_sets(self, calls: list):
+        """Rueckfrage beim Speichern (intern#88): Haben Zeilen noch einen
+        Mengen-Vorschlag ('gelb'), fragt der Editor einmal, ob die Vorschlaege
+        uebernommen werden. Ja schreibt je Call-Text die bisherige Menge plus
+        den Vorschlag als mapped_by='inferred' (eine Transaktion); Nein
+        schreibt nichts. Ohne gelbe Zeile keine Rueckfrage.
+        """
+        yellow = [k for k in dict.fromkeys(c.strip() for c in calls)
+                  if k and self._line_state(k) == "gelb"]
+        if not yellow:
+            return
+        current = {k: self.db.get_call_text_figures(k) for k in yellow}
+        pairs = [(k, self._with_suggestion(k, current[k])) for k in yellow]
+        added = [(k, [eid for eid in figures if eid not in current[k]])
+                 for k, figures in pairs]
+        if not self._confirm_suggested_sets(added):
+            return
+        self.db.set_call_text_figures_bulk(pairs, mapped_by="inferred")
+        # Die neuen Mengen koennen ueber rest_lookup andere Zeilen aendern
+        self._lookups = None
+        self._map_cache.clear()
+        self._highlighter.rehighlight()
+
+    # Mehr Call-Texte stehen gekuerzt in der Rueckfrage, alle im Detailbereich
+    _SUGGESTION_LINES = 10
+
+    def _picker_entities(self):
+        """(entity_list, eid_to_label, eid_min_to) wie im Picker -- siehe
+        picker_entities_from_to_calls()."""
+        return picker_entities_from_to_calls(self.db.get_teaching_order_calls())
+
+    def _confirm_suggested_sets(self, added: list) -> bool:
+        """Rueckfrage zu _offer_suggested_sets: je Call-Text eine Zeile mit
+        den Figuren, die dazukommen (intern#88). Eine Zuordnung gilt fuer die
+        ganze Datenbank -- der Nutzer soll sehen, was er uebernimmt.
+
+        added: [(call_text, [entity_id, ...]), ...] -- nur die neuen Figuren.
+        """
+        # Namen wie im Picker (ein Lookup fuer alle Zeilen)
+        _entities, names, _min_to = self._picker_entities()
+        lines =[f"{key}  →  + {', '.join(names.get(e, e) for e in eids)}"
+                 for key, eids in added]
+        # Gekuerzt erst ab zwei ueberzaehligen Zeilen: "... und 1 weitere"
+        # waere so lang wie die Zeile selbst
+        truncate = len(lines) > self._SUGGESTION_LINES + 1
+        shown = lines[:self._SUGGESTION_LINES] if truncate else list(lines)
+        if truncate:
+            shown.append(_t("seq_editor_save_suggestions_more",
+                            count=len(lines) - len(shown)))
+        question = (_t("seq_editor_save_suggestions_one") if len(lines) == 1
+                    else _t("seq_editor_save_suggestions", count=len(lines)))
+        box = QMessageBox(QMessageBox.Question, _t("seq_editor_title"),
+                          question + "\n\n" + "\n".join(shown),
+                          QMessageBox.Yes | QMessageBox.No, self)
+        # Call-Texte sind Nutzereingaben: '<...>' nie als Rich Text deuten
+        box.setTextFormat(Qt.PlainText)
+        box.setDefaultButton(QMessageBox.Yes)
+        if truncate:
+            box.setDetailedText("\n".join(lines))
+        return box.exec() == QMessageBox.Yes
+
     def _handle_line_dblclick(self, line: str) -> bool:
         """Doppelklick auf eine Zeile: Figuren-Picker oeffnen (BL-210.5).
 
         Immer, auch bei vorhandener Zuordnung: sonst kaeme man an eine fertige
         (womoeglich unvollstaendige) Menge nicht mehr heran. Vorbelegt mit der
-        aktuellen Menge, ohne Zuordnung mit dem Matcher-Vorschlag. OK schreibt
-        die Menge (mapped_by='manual'), Abbrechen schreibt nichts.
+        aktuellen Menge plus dem Mengen-Vorschlag der Mustererkennung
+        (BL-210.12); ohne beides mit dem Matcher-Vorschlag. OK schreibt die
+        Menge (mapped_by='manual'), Abbrechen schreibt nichts.
 
         Returns True, wenn der Doppelklick behandelt wurde (normales
         Wort-Markieren unterdruecken); False bei leerer Zeile.
@@ -2073,15 +1919,15 @@ class SequenceEditorDialog(QDialog):
                                 _t("call_mapping_no_to_calls"))
             return True
         current = self.db.get_call_text_figures(key)
-        selected = current
-        if not current:
-            # Ohne Zuordnung den Matcher-Vorschlag vorab anhaken
+        # Der Nutzer sieht im Picker, was dazukommt, und bestaetigt oder nicht.
+        selected = self._with_suggestion(key, current)
+        if not selected:
+            # Ohne Zuordnung und ohne Muster den Matcher-Vorschlag vorab anhaken
             _score, suggested = self._matcher_obj().suggest(key)
             selected = [suggested] if suggested is not None else []
         # intern#87: pro entity_id nur ein Eintrag, Label ohne [Programm] -
         # dieselbe Dedup wie im Call-Mapping-Dialog.
-        entities, _labels, _min_to = picker_entities_from_to_calls(
-            self.db.get_teaching_order_calls())
+        entities, _labels, _min_to = self._picker_entities()
         dlg = CallFiguresPickerDialog(entities, selected=selected, parent=self,
                                       unknown_ids=self.db.unknown_figures(selected))
         dlg.setWindowTitle(_t("seq_map_picker_text", text=key))
@@ -2093,6 +1939,10 @@ class SequenceEditorDialog(QDialog):
             # 'manual' und der Cover-Cache verworfen. Leere Auswahl entfernt
             # eine bestehende Zuordnung (wie im Call-Mapping).
             self.db.set_call_text_figures(key, ids, mapped_by="manual")
+            # Die neue Menge kann ueber rest_lookup auch andere Zeilen aendern
+            # ('Touch 1/4' zugeordnet -> 'Heads Touch 1/4 & Roll' wird gelb)
+            self._lookups = None
+            self._map_cache.clear()
         # Cache verwerfen und neu hervorheben -> Zeile faerbt neu
         self._map_cache.pop(key, None)
         self._highlighter.rehighlight()
@@ -2154,6 +2004,9 @@ class SequenceEditorDialog(QDialog):
             self._combo_type.setFocus()
             return
 
+        # Gelbe Zeilen: Mengen-Vorschlaege nach Rueckfrage uebernehmen
+        # (intern#88) -- vor dem Speichern, damit das Level sie schon sieht
+        self._offer_suggested_sets(calls)
         # Exakte Treffer als 'auto'-Mapping sichern, damit das Level berechnet wird
         self._persist_auto_mappings(calls)
 
@@ -2183,259 +2036,11 @@ class SequenceEditorDialog(QDialog):
             self._update_line_count()
 
 
-class FreetextSequenceImportDialog(QDialog):
-    """Importiert Sequenzen aus einer Freitext-Datei (BL-098).
-
-    Unterstuetzt drei Formate (auto-erkannt):
-      1. Eine Zeile pro Sequenz, Calls durch Komma getrennt.
-      2. Ein Call pro Zeile, Sequenzen durch Leerzeile(n) getrennt.
-      3. Wie 2., zusaetzlich Trennzeichen am Ende der Zeile (`,` oder `;`).
-
-    Algorithmus:
-      - Datei in Bloecke splitten. Trenner ist:
-          * eine oder mehrere Leerzeilen, ODER
-          * eine Ceder-Header-Zeile (enthaelt `ID=<digits>` — z.B.
-            "Mainstream -- Singer (Corner progression)   Easy   ID=6734   Print").
-        Header-Zeilen werden verworfen.
-      - Pro Block: Zeilen trimmen, trailing `,;` strippen.
-      - Block mit genau 1 Zeile + Komma → per `,` splitten (Format 1).
-      - Sonst → jede Zeile = ein Call (Format 2/3).
-      - Max. 15 Calls pro Sequenz (Rest wird abgeschnitten, in Vorschau angezeigt).
-    """
-
-    MAX_CALLS = 15
-    PREVIEW_BLOCKS = 3
-    # Ceder-Header-Erkennung: Zeilen mit ID=<Zahl> sind Sequenz-Trennzeilen.
-    _CEDER_HEADER_RE = re.compile(r'\bID\s*=\s*\d+\b', re.IGNORECASE)
-
-    def __init__(self, db, parent=None):
-        super().__init__(parent)
-        self.db = db
-        self._parsed = []  # list[list[str]]
-        self._truncated_count = 0
-        self.setWindowTitle(_t("freetext_import_title"))
-        self.setModal(True)
-        self.resize(700, 600)
-        self._build_ui()
-
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-
-        # --- Datei-Auswahl ---
-        file_row = QHBoxLayout()
-        file_row.addWidget(QLabel(_t("freetext_import_file")))
-        self._edit_path = QLineEdit()
-        self._edit_path.setReadOnly(True)
-        file_row.addWidget(self._edit_path, 1)
-        btn_browse = QPushButton("...")
-        btn_browse.setObjectName("fileBtn")
-        btn_browse.setFixedWidth(36)
-        btn_browse.clicked.connect(self._on_browse)
-        file_row.addWidget(btn_browse)
-        layout.addLayout(file_row)
-
-        # --- Typ + Schwierigkeit ---
-        meta_form = QFormLayout()
-        meta_form.setLabelAlignment(Qt.AlignRight)
-
-        self._combo_type = QComboBox()
-        self._combo_type.setEditable(True)
-        install_combo_click_to_open(self._combo_type)
-        self._combo_type.setInsertPolicy(QComboBox.NoInsert)
-        self._combo_type.addItem("")
-        for t in self.db.get_sequence_type_values():
-            self._combo_type.addItem(t)
-        self._combo_type.setCurrentText("")
-        self._combo_type.currentTextChanged.connect(self._update_button_state)
-        meta_form.addRow(_t("label_type") + " *", self._combo_type)
-
-        self._combo_difficulty = QComboBox()
-        self._combo_difficulty.setEditable(True)
-        install_combo_click_to_open(self._combo_difficulty)
-        self._combo_difficulty.setInsertPolicy(QComboBox.NoInsert)
-        self._combo_difficulty.addItem("")
-        for d in self.db.get_sequence_difficulty_values():
-            self._combo_difficulty.addItem(d)
-        self._combo_difficulty.setCurrentText("")
-        meta_form.addRow(_t("label_difficulty"), self._combo_difficulty)
-
-        layout.addLayout(meta_form)
-
-        # --- Vorschau ---
-        layout.addWidget(QLabel(_t("freetext_import_preview")))
-        self._preview = QTextBrowser()
-        self._preview.setStyleSheet(
-            "QTextBrowser { background-color: white; color: black; }"
-        )
-        layout.addWidget(self._preview, 1)
-
-        self._status_label = QLabel("")
-        self._status_label.setStyleSheet("color: #555; font-size: 11px;")
-        layout.addWidget(self._status_label)
-
-        # --- Buttons ---
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        self._btn_import = QPushButton(_t("btn_import"))
-        self._btn_import.setEnabled(False)
-        self._btn_import.clicked.connect(self.accept)
-        btn_row.addWidget(self._btn_import)
-        btn_cancel = QPushButton(_t("btn_cancel"))
-        btn_cancel.clicked.connect(self.reject)
-        btn_row.addWidget(btn_cancel)
-        layout.addLayout(btn_row)
-
-    # ---- Datei-Auswahl + Parsing ----
-
-    def _on_browse(self):
-        settings = QSettings()
-        last_dir = str(settings.value("sequences/freetext_import_dir", ""))
-        if not last_dir or not os.path.isdir(last_dir):
-            last_dir = os.path.expanduser("~")
-        path, _ignored = QFileDialog.getOpenFileName(
-            self, _t("dialog_freetext_select"), last_dir,
-            _t("filter_freetext")
-        )
-        if not path:
-            return
-        settings.setValue("sequences/freetext_import_dir",
-                          os.path.dirname(path))
-        self._edit_path.setText(path)
-        self._load_and_parse(path)
-
-    def _load_and_parse(self, path: str):
-        try:
-            try:
-                with open(path, encoding="utf-8") as f:
-                    text = f.read()
-            except UnicodeDecodeError:
-                with open(path, encoding="cp1252") as f:
-                    text = f.read()
-        except Exception as e:
-            QMessageBox.warning(self, _t("freetext_import_title"),
-                                _t("freetext_import_read_error", error=str(e)))
-            self._parsed = []
-            self._update_preview()
-            self._update_button_state()
-            return
-
-        self._parsed, self._truncated_count = self._parse_text(text)
-        self._update_preview()
-        self._update_button_state()
-
-    @classmethod
-    def _parse_text(cls, text: str):
-        """Parst Freitext in eine Liste von Sequenzen.
-
-        Returns:
-            (sequences, truncated_count) — sequences ist list[list[str]],
-            truncated_count = wie viele Sequenzen auf 15 Calls gekuerzt wurden.
-        """
-        # Zeilenenden normalisieren, BEVOR gesplittet wird. Manche Quellen
-        # (z. B. SqView-Exporte) schreiben pro Zeile ein doppeltes CR: '\r\r\n'.
-        # splitlines() zerlegt das lone '\r' in eine zusaetzliche Phantom-
-        # Leerzeile — dann wuerde jeder Call als eigene Sequenz erkannt.
-        # '\r+\n' → '\n' (deckt '\r\n' und '\r\r\n…' ab), danach lone CR (alt-Mac).
-        text = re.sub(r'\r+\n', '\n', text)
-        text = text.replace('\r', '\n')
-        # Zeilenweise verarbeiten — Leerzeile bleibt erhalten als Trenner
-        raw_lines = text.split('\n')
-        sequences = []
-        truncated = 0
-        block_lines = []
-
-        def _flush_block():
-            nonlocal truncated
-            if not block_lines:
-                return
-            # Block-Inhalt: Zeilen trimmen + trailing , ; entfernen
-            cleaned = []
-            for ln in block_lines:
-                s = ln.strip().rstrip(',;').strip()
-                if s:
-                    cleaned.append(s)
-            if not cleaned:
-                return
-            # Format-Erkennung: 1 Zeile + Komma → Komma-Split, sonst je Zeile = ein Call
-            if len(cleaned) == 1 and ',' in cleaned[0]:
-                calls = [c.strip() for c in cleaned[0].split(',')]
-                calls = [c for c in calls if c]
-            else:
-                calls = cleaned
-            if not calls:
-                return
-            # Kein 15-Limit mehr — volle Liste uebernehmen (calls_json speichert alles).
-            sequences.append(calls)
-
-        for ln in raw_lines:
-            if ln.strip() == "" or cls._CEDER_HEADER_RE.search(ln):
-                # Leerzeile ODER Ceder-Header → vorigen Block abschliessen,
-                # Header-Zeile selbst nicht uebernehmen.
-                _flush_block()
-                block_lines = []
-            else:
-                block_lines.append(ln)
-        _flush_block()
-
-        return sequences, truncated
-
-    def _update_preview(self):
-        if not self._parsed:
-            self._preview.setPlainText("")
-            self._status_label.setText(_t("freetext_import_status_empty"))
-            return
-
-        # HTML-Vorschau: erste N Bloecke
-        parts = []
-        for i, calls in enumerate(self._parsed[:self.PREVIEW_BLOCKS], start=1):
-            parts.append(f"<b>#{i}</b>")
-            for c in calls:
-                # einfache HTML-Escapes
-                esc = (c.replace('&', '&amp;')
-                        .replace('<', '&lt;').replace('>', '&gt;'))
-                parts.append(f"&nbsp;&nbsp;{esc}")
-            parts.append("")
-        if len(self._parsed) > self.PREVIEW_BLOCKS:
-            parts.append(f"<i>… +{len(self._parsed) - self.PREVIEW_BLOCKS}</i>")
-        self._preview.setHtml("<br>".join(parts))
-
-        status = _t("freetext_import_status",
-                    count=len(self._parsed))
-        if self._truncated_count > 0:
-            status += "  " + _t("freetext_import_status_truncated",
-                                count=self._truncated_count,
-                                max=self.MAX_CALLS)
-        self._status_label.setText(status)
-
-    def _update_button_state(self, *_args):
-        has_seqs = bool(self._parsed)
-        has_type = bool(self._combo_type.currentText().strip())
-        self._btn_import.setEnabled(has_seqs and has_type)
-
-    # ---- Ergebnis fuer den Aufrufer ----
-
-    def get_result(self):
-        """Returns: (sequences, seq_type, difficulty)"""
-        return (
-            list(self._parsed),
-            self._combo_type.currentText().strip(),
-            self._combo_difficulty.currentText().strip(),
-        )
-
-
 class SequenceImportDialog(QDialog):
     """Universeller Sequenz-Import (BL-098).
 
-    Erkennt automatisch das Format der ausgewaehlten Datei(en) und
-    bietet eine einheitliche Oberflaeche mit Vorschau, Bulk-Override
-    fuer Typ/Schwierigkeit und Duplikat-Erkennung.
-
-    Unterstuetzte Formate:
-      - MDB / ACCDB (alte CC1-Datenbank)
-      - JSON (Ceder-Eigen-Schema, Array mit calls/level/seq_type/difficulty)
-      - CSDS (Vic Ceder Choreo-DB Export, @-Bloecke + #KEY=VALUE#)
-      - Freitext (Leerzeile / Ceder-Web-Header als Trenner)
+    Oberflaeche vor sequence_import (Format-Erkennung, Parser, Schreibweise):
+    Vorschau, Bulk-Override fuer Typ/Schwierigkeit und Duplikat-Erkennung.
 
     Quellen-Modus pro Meta-Feld:
       - "Bulk" (Standard): Alle importierten Sequenzen bekommen den im
@@ -2446,46 +2051,16 @@ class SequenceImportDialog(QDialog):
     """
 
     FMT_AUTO = "auto"
-    FMT_MDB = "mdb"
-    FMT_JSON = "json"
-    FMT_CSDS = "csds"
-    FMT_FREETEXT = "freetext"
 
     SRC_BULK = "bulk"
     SRC_FILE = "file"
 
-    # Gross-/Kleinschreibung der Call-Texte beim Import
-    CASE_ASIS  = "asis"    # 1. wie im Text (unveraendert)
-    CASE_UPPER = "upper"   # 2. ALLES GROSSBUCHSTABEN
-    CASE_TITLE = "title"   # 3. Erster Buchstabe je Wort gross, Rest klein
-
-    MAX_CALLS = 15
     PREVIEW_BLOCKS = 3
 
-    # CSDS-Konstanten (Kopie aus import_from_csds, damit Dialog autark ist).
-    # Kanonische Ceder-Konvention: "Singer (...)" + Pfeil "➔" als Trenner —
-    # muss zu song_db.canonicalize_seq_type und der Kopie in import_from_csds passen.
-    _SEQTYPE_NAMES = {
-        "5":   "Static Set ➔ Resolve",
-        "10":  "Singer (Corner progression)",
-        "20":  "Singer (R-H Lady progression)",
-        "30":  "Singing break",
-        "40":  "Stir the bucket",
-        "80":  "Static Set ➔ Zero Line",
-        "90":  "Static Set ➔ Zero Box",
-        "95":  "Zero Line ➔ Resolve",
-        "100": "Zero Line ➔ Zero Line",
-        "110": "Zero Line ➔ Zero Box",
-        "115": "Zero Box ➔ Resolve",
-        "120": "Zero Box ➔ Zero Line",
-        "130": "Zero Box ➔ Zero Box",
-    }
-    _DIFFICULTY_MAP = {"EASY": "Easy", "MEDIUM": "Medium", "HARD": "Hard"}
-    _CEDER_HEADER_RE = re.compile(r'\bID\s*=\s*\d+\b', re.IGNORECASE)
-
-    def __init__(self, db, parent=None):
+    def __init__(self, db, settings, parent=None):
         super().__init__(parent)
         self.db = db
+        self._settings = settings  # App-INI (intern#136)
         self._paths = []
         self._detected_format = None  # FMT_* nach Datei-Auswahl
         self._parsed = []  # list[dict]: calls, seq_type, difficulty, level, source_id
@@ -2528,10 +2103,10 @@ class SequenceImportDialog(QDialog):
         fmt_row.addWidget(QLabel(_t("seq_import_override")))
         self._combo_format = QComboBox()
         self._combo_format.addItem(_t("seq_fmt_auto"), self.FMT_AUTO)
-        self._combo_format.addItem(_t("seq_fmt_mdb"), self.FMT_MDB)
-        self._combo_format.addItem(_t("seq_fmt_json"), self.FMT_JSON)
-        self._combo_format.addItem(_t("seq_fmt_csds"), self.FMT_CSDS)
-        self._combo_format.addItem(_t("seq_fmt_freetext"), self.FMT_FREETEXT)
+        self._combo_format.addItem(_t("seq_fmt_mdb"), seq_import.FMT_MDB)
+        self._combo_format.addItem(_t("seq_fmt_json"), seq_import.FMT_JSON)
+        self._combo_format.addItem(_t("seq_fmt_csds"), seq_import.FMT_CSDS)
+        self._combo_format.addItem(_t("seq_fmt_freetext"), seq_import.FMT_FREETEXT)
         self._combo_format.currentIndexChanged.connect(self._on_format_changed)
         fmt_row.addWidget(self._combo_format)
         layout.addLayout(fmt_row)
@@ -2582,9 +2157,9 @@ class SequenceImportDialog(QDialog):
 
         # Gross-/Kleinschreibung der Call-Texte (Standard: wie im Text)
         self._combo_case = QComboBox()
-        self._combo_case.addItem(_t("seq_import_case_asis"),  self.CASE_ASIS)
-        self._combo_case.addItem(_t("seq_import_case_upper"), self.CASE_UPPER)
-        self._combo_case.addItem(_t("seq_import_case_title"), self.CASE_TITLE)
+        self._combo_case.addItem(_t("seq_import_case_asis"),  seq_import.CASE_ASIS)
+        self._combo_case.addItem(_t("seq_import_case_upper"), seq_import.CASE_UPPER)
+        self._combo_case.addItem(_t("seq_import_case_title"), seq_import.CASE_TITLE)
         self._combo_case.setCurrentIndex(0)
         self._combo_case.currentIndexChanged.connect(self._update_preview)
         meta_form.addRow(_t("seq_import_case_label"), self._combo_case)
@@ -2624,7 +2199,7 @@ class SequenceImportDialog(QDialog):
     # ---- Datei-Auswahl ----
 
     def _on_browse(self):
-        settings = QSettings()
+        settings = self._settings
         last_dir = str(settings.value("sequences/universal_import_dir", ""))
         if not last_dir or not os.path.isdir(last_dir):
             last_dir = os.path.expanduser("~")
@@ -2654,7 +2229,7 @@ class SequenceImportDialog(QDialog):
         """Erkennt Format (falls Auto) und parst alle gewaehlten Dateien."""
         override = self._combo_format.currentData()
         if override == self.FMT_AUTO:
-            fmt = self._detect_format(self._paths[0]) if self._paths else None
+            fmt = seq_import.detect_format(self._paths[0]) if self._paths else None
         else:
             fmt = override
         self._detected_format = fmt
@@ -2670,14 +2245,14 @@ class SequenceImportDialog(QDialog):
             self._parsed = []
         else:
             try:
-                self._parsed = self._parse_paths(self._paths, fmt)
+                self._parsed = seq_import.parse_files(self._paths, fmt)
             except Exception as e:
                 QMessageBox.warning(self, _t("seq_import_title"),
                                     _t("seq_import_parse_error", error=str(e)))
                 self._parsed = []
 
         # MDB: nur erste Datei wird genutzt — Hinweis falls mehrere gewaehlt
-        if fmt == self.FMT_MDB and len(self._paths) > 1:
+        if fmt == seq_import.FMT_MDB and len(self._paths) > 1:
             QMessageBox.information(self, _t("seq_import_title"),
                                     _t("seq_import_mdb_only_first"))
 
@@ -2687,211 +2262,11 @@ class SequenceImportDialog(QDialog):
 
     def _format_label(self, fmt: str) -> str:
         return {
-            self.FMT_MDB:      _t("seq_fmt_mdb"),
-            self.FMT_JSON:     _t("seq_fmt_json"),
-            self.FMT_CSDS:     _t("seq_fmt_csds"),
-            self.FMT_FREETEXT: _t("seq_fmt_freetext"),
+            seq_import.FMT_MDB:      _t("seq_fmt_mdb"),
+            seq_import.FMT_JSON:     _t("seq_fmt_json"),
+            seq_import.FMT_CSDS:     _t("seq_fmt_csds"),
+            seq_import.FMT_FREETEXT: _t("seq_fmt_freetext"),
         }.get(fmt, "—")
-
-    @classmethod
-    def _detect_format(cls, path: str) -> str:
-        """Erkennt das Format anhand Datei-Endung + Inhalts-Stichprobe."""
-        ext = os.path.splitext(path)[1].lower()
-        if ext in (".mdb", ".accdb"):
-            return cls.FMT_MDB
-        # Inhalts-Stichprobe (erste 4 KB reichen fuer alle Sniffs)
-        try:
-            try:
-                with open(path, encoding="utf-8") as f:
-                    head = f.read(4096)
-            except UnicodeDecodeError:
-                with open(path, encoding="cp1252") as f:
-                    head = f.read(4096)
-        except Exception:
-            return cls.FMT_FREETEXT
-        # CSDS: @-Block mit #REC=/#SEQTYPE=
-        if "@" in head and ("#REC=" in head or "#SEQTYPE=" in head):
-            return cls.FMT_CSDS
-        # JSON: beginnt mit [ oder {
-        stripped = head.lstrip()
-        if ext == ".json" or stripped.startswith("[") or stripped.startswith("{"):
-            try:
-                import json as _json
-                with open(path, encoding="utf-8") as f:
-                    data = _json.load(f)
-                if isinstance(data, (list, dict)):
-                    return cls.FMT_JSON
-            except Exception:
-                pass
-        return cls.FMT_FREETEXT
-
-    # ---- Parser pro Format ----
-
-    def _parse_paths(self, paths: list, fmt: str) -> list:
-        """Parst die gewaehlten Dateien zu normalisierten Sequenz-Dicts.
-
-        Returns:
-            list[dict] mit keys: calls (list[str]), seq_type (str),
-            difficulty (str), level (str), source_id (str).
-        """
-        if fmt == self.FMT_MDB:
-            return self._parse_mdb(paths[0])
-        if fmt == self.FMT_JSON:
-            return self._parse_json(paths)
-        if fmt == self.FMT_CSDS:
-            return self._parse_csds(paths)
-        return self._parse_freetext(paths)
-
-    @staticmethod
-    def _parse_mdb(path: str) -> list:
-        # mdb_reader liegt in src/migration/ (Sub-Paket neben main.py)
-        migration_dir = os.path.join(os.path.dirname(__file__), "migration")
-        if migration_dir not in sys.path:
-            sys.path.insert(0, migration_dir)
-        from mdb_reader import MdbReader  # type: ignore
-        reader = MdbReader(path)
-        raw = reader.read_sequences()
-        result = []
-        for seq in raw:
-            calls = []
-            for i in range(1, 16):
-                val = seq.get(f"Feld{i}", None)
-                if isinstance(val, str) and val.strip() and val.strip() != "-":
-                    calls.append(val.strip())
-            if not calls:
-                continue
-            level = seq.get("Level", "") or ""
-            if isinstance(level, str):
-                level = level.strip()
-            result.append({
-                "calls": calls,   # kein 15-Limit mehr (calls_json)
-                "seq_type": "",
-                "difficulty": "",
-                "level": level,
-                "source_id": "",
-            })
-        return result
-
-    @staticmethod
-    def _parse_json(paths: list) -> list:
-        import json as _json
-        result = []
-        seen_ids = set()
-        for path in paths:
-            try:
-                with open(path, encoding="utf-8") as f:
-                    data = _json.load(f)
-            except Exception as e:
-                print(f"[SeqImport JSON] {path}: {e}")
-                continue
-            if not isinstance(data, list):
-                continue
-            for seq in data:
-                if not isinstance(seq, dict):
-                    continue
-                src_id = str(seq.get("id", "") or "")
-                if src_id and src_id in seen_ids:
-                    continue
-                if src_id:
-                    seen_ids.add(src_id)
-                calls_raw = seq.get("calls", [])
-                calls = [str(c).strip() for c in calls_raw
-                         if isinstance(c, str) and c.strip()]
-                if not calls:
-                    continue
-                result.append({
-                    "calls": calls,   # kein 15-Limit mehr (calls_json)
-                    "seq_type": str(seq.get("seq_type", "") or "").strip(),
-                    "difficulty": str(seq.get("difficulty", "") or "").strip(),
-                    "level": str(seq.get("level", "") or "").strip(),
-                    "source_id": src_id,
-                })
-        return result
-
-    @classmethod
-    def _parse_csds(cls, paths: list) -> list:
-        import re as _re
-        def _clean_call(raw: str) -> str:
-            cleaned = _re.sub(r'<C[^>]*>(.*?)</C>', r'\1', raw)
-            return cleaned.rstrip(',').strip()
-
-        result = []
-        seen_ids = set()
-        for path in paths:
-            try:
-                with open(path, encoding="utf-8", errors="replace") as f:
-                    text = f.read()
-            except Exception as e:
-                print(f"[SeqImport CSDS] {path}: {e}")
-                continue
-            for block in text.split('@'):
-                lines = block.splitlines()
-                difficulty = ""
-                rec_id = ""
-                seq_type = ""
-                calls = []
-                for line in lines:
-                    s = line.strip()
-                    if not s:
-                        continue
-                    if s.startswith('#') and s.endswith('#'):
-                        inner = s[1:-1]
-                        if inner in cls._DIFFICULTY_MAP:
-                            difficulty = cls._DIFFICULTY_MAP[inner]
-                        elif inner.startswith('REC='):
-                            rec_id = inner[4:]
-                        elif inner.startswith('SEQTYPE='):
-                            seq_type = cls._SEQTYPE_NAMES.get(
-                                inner[8:], inner[8:])
-                    else:
-                        call = _clean_call(s)
-                        if call:
-                            calls.append(call)
-                if not calls:
-                    continue
-                if rec_id and rec_id in seen_ids:
-                    continue
-                if rec_id:
-                    seen_ids.add(rec_id)
-                result.append({
-                    "calls": calls,   # kein 15-Limit mehr (calls_json)
-                    "seq_type": seq_type,
-                    "difficulty": difficulty,
-                    "level": "",
-                    "source_id": rec_id,
-                })
-        return result
-
-    @classmethod
-    def _parse_freetext(cls, paths: list) -> list:
-        result = []
-        for path in paths:
-            try:
-                # newline="" verhindert die Universal-Newline-Uebersetzung
-                # beim Lesen. Sonst wandelt Python '\r\r\n' (SqView-Export:
-                # doppeltes CR pro Zeile) schon hier in '\n\n' um — eine
-                # Phantom-Leerzeile pro Call, die _parse_text nicht mehr von
-                # einem echten Sequenz-Trenner unterscheiden koennte. Mit
-                # rohem '\r' normalisiert _parse_text '\r+\n' → '\n' korrekt.
-                try:
-                    with open(path, encoding="utf-8", newline="") as f:
-                        text = f.read()
-                except UnicodeDecodeError:
-                    with open(path, encoding="cp1252", newline="") as f:
-                        text = f.read()
-            except Exception as e:
-                print(f"[SeqImport Freitext] {path}: {e}")
-                continue
-            sequences, _truncated = FreetextSequenceImportDialog._parse_text(text)
-            for calls in sequences:
-                result.append({
-                    "calls": calls,   # kein 15-Limit mehr (calls_json)
-                    "seq_type": "",
-                    "difficulty": "",
-                    "level": "",
-                    "source_id": "",
-                })
-        return result
 
     # ---- Meta-Aufloesung (Bulk vs. aus Datei) ----
 
@@ -2931,36 +2306,12 @@ class SequenceImportDialog(QDialog):
             difficulty = bulk_diff
         return seq_type, difficulty
 
-    @staticmethod
-    def _apply_case_one(text: str, mode: str) -> str:
-        """Wendet den Gross-/Kleinschreibungs-Modus auf einen Call-Text an.
-
-        CASE_TITLE macht jeden Buchstaben gross, dem KEIN alphanumerisches
-        Zeichen vorausgeht — also am Wortanfang und auch nach Trennzeichen wie
-        Leerzeichen, '-', '(', ')', '/', '&'. Nach einer Ziffer bleibt der
-        Buchstabe klein, damit '1ST' zu '1st' wird (nicht '1St' wie .title()).
-        Beispiele: 'WALK-GIRLS' -> 'Walk-Girls', '(LOOK AT HER)' -> '(Look At Her)'.
-        """
-        if mode == SequenceImportDialog.CASE_UPPER:
-            return text.upper()
-        if mode == SequenceImportDialog.CASE_TITLE:
-            out = []
-            prev_alnum = False
-            for ch in text:
-                if ch.isalpha():
-                    out.append(ch.lower() if prev_alnum else ch.upper())
-                else:
-                    out.append(ch)
-                prev_alnum = ch.isalnum()
-            return "".join(out)
-        return text  # CASE_ASIS
-
     def _cased_calls(self, seq: dict) -> list:
         """Call-Liste einer Sequenz mit angewandtem Gross-/Kleinschreibungs-Modus."""
         mode = self._combo_case.currentData()
-        if mode == self.CASE_ASIS:
+        if mode == seq_import.CASE_ASIS:
             return list(seq["calls"])
-        return [self._apply_case_one(c, mode) for c in seq["calls"]]
+        return [seq_import.apply_case(c, mode) for c in seq["calls"]]
 
     # ---- Vorschau + Status ----
 
@@ -3310,6 +2661,39 @@ class _NumericItem(QTableWidgetItem):
             return super().__lt__(other)
 
 
+class CallMappingOptimizeDialog(QDialog):
+    """Rueckfrage zum Knopf "Optimieren" im Call-Mapping-Dialog (intern#97).
+
+    Zeigt die drei Gruppen (neu zuordnen / ergaenzen / aendern) mit ihrer
+    Anzahl, jede mit eigenem Haken (vorbelegt). counts: {Gruppe: Anzahl} mit
+    den Gruppen "new", "extend", "change". chosen_groups() liefert die
+    angehakten Gruppen als Menge.
+    """
+
+    GROUPS = ("new", "extend", "change")
+
+    def __init__(self, counts: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("call_mapping_optimize_title"))
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(_t("call_mapping_optimize_intro")))
+        self._checks = {}
+        for key in self.GROUPS:
+            count = counts.get(key, 0)
+            cb = QCheckBox(_t(f"call_mapping_optimize_{key}", count=count))
+            cb.setChecked(count > 0)
+            cb.setEnabled(count > 0)
+            layout.addWidget(cb)
+            self._checks[key] = cb
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def chosen_groups(self) -> set:
+        return {k for k, cb in self._checks.items() if cb.isChecked()}
+
+
 class CallMappingDialog(QDialog):
     """Dialog zum Verwalten des Call-Text-Mappings.
 
@@ -3327,13 +2711,18 @@ class CallMappingDialog(QDialog):
     _F_MAPPED   = "mapped"
     _F_ALL      = "all"
     _F_MISMATCH = "mismatch"
+    _F_FOCUS    = "focus"   # intern#119: nur die Call-Texte einer Sequenz
 
     # Rollenwert der Figur-Spalte fuer "An Komma aufteilen"
     _SPLIT = "__SPLIT_COMMA__"
 
-    def __init__(self, db, parent=None):
+    def __init__(self, db, parent=None, focus_texts=None):
+        """focus_texts: Call-Texte, auf die der Dialog beim Oeffnen gefiltert
+        wird (intern#119, Rechtsklick auf eine rote Sequenz). Der Filter bleibt
+        als eigener Eintrag waehlbar; None = normaler Start."""
         super().__init__(parent)
         self.db = db
+        self._focus_texts = set(focus_texts) if focus_texts else None
         self._all_data    = []   # [(call_text, count, eid, mapped_by), ...]
         self._entity_list = []   # [(label, entity_id), ...] — Figuren fuer den Picker
         self._eid_to_label = {}
@@ -3345,6 +2734,7 @@ class CallMappingDialog(QDialog):
         self._alive        = True   # False sobald der Dialog schliesst
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
         self._pending_pos   = 0
+        self._wrote_assignments = False  # intern#97: "Optimieren" hat geschrieben
         self.setWindowTitle(_t("call_mapping_title"))
         self.setMinimumSize(900, 600)
         self._build_ui()
@@ -3353,6 +2743,12 @@ class CallMappingDialog(QDialog):
         # Stattdessen: Fenster sofort mit Ladehinweis zeigen, dann laden.
         self._loaded_once = False
         self._label_info.setText(_t("call_mapping_loading"))
+
+    @property
+    def wrote_assignments(self) -> bool:
+        """True, sobald "Optimieren" Zuordnungen geschrieben hat -- dann muss
+        der Aufrufer die Sequenzen auch bei Abbrechen neu mappen."""
+        return self._wrote_assignments
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -3378,6 +2774,11 @@ class CallMappingDialog(QDialog):
             self._prepare_data()
             _t1 = time.perf_counter()
             self._load_table()
+            self._btn_optimize.setEnabled(True)
+            if self._focus_texts and self._table.rowCount():
+                # intern#119: gleich auf die erste Figur-Zelle -> Doppelklick/F2
+                self._table.setCurrentCell(0, 2)
+                self._table.scrollToItem(self._table.item(0, 2))
             _t2 = time.perf_counter()
         finally:
             QApplication.restoreOverrideCursor()
@@ -3451,6 +2852,12 @@ class CallMappingDialog(QDialog):
         self._combo_filter.addItem(_t("call_mapping_f_mapped"),   self._F_MAPPED)
         self._combo_filter.addItem(_t("call_mapping_f_all"),      self._F_ALL)
         self._combo_filter.addItem(_t("call_mapping_f_mismatch"), self._F_MISMATCH)
+        if self._focus_texts:
+            # Vor dem connect(): der Aufbau soll kein _load_table ausloesen.
+            self._combo_filter.insertItem(
+                0, _t("call_mapping_f_focus", count=len(self._focus_texts)),
+                self._F_FOCUS)
+            self._combo_filter.setCurrentIndex(0)
         self._combo_filter.currentIndexChanged.connect(self._load_table)
         filter_row.addWidget(self._combo_filter)
         filter_row.addStretch()
@@ -3535,6 +2942,14 @@ class CallMappingDialog(QDialog):
         self._btn_confirm_sel = QPushButton(_t("call_mapping_confirm_selected"))
         self._btn_confirm_sel.clicked.connect(self._on_confirm_selected)
         btn_layout.addWidget(self._btn_confirm_sel)
+        # intern#97: alle abweichenden Mengen-Vorschlaege auf einen Schlag
+        self._btn_optimize = QPushButton(_t("call_mapping_optimize"))
+        self._btn_optimize.setToolTip(_t("call_mapping_optimize_tip"))
+        self._btn_optimize.clicked.connect(self._on_optimize)
+        # Erst nach dem Laden bedienbar (_load_deferred) -- vorher gibt es
+        # noch keine Mengen-Vorschlaege.
+        self._btn_optimize.setEnabled(False)
+        btn_layout.addWidget(self._btn_optimize)
         btn_layout.addStretch()
         self._btn_save = QPushButton(_t("call_mapping_save"))
         self._btn_save.setDefault(True)
@@ -3565,21 +2980,10 @@ class CallMappingDialog(QDialog):
 
         import time
 
-        # BL-210.8: exact_lookup (kanonischer Name -> entity_id) fuer
-        # suggest_figure_set() unten. to_calls ist aufsteigend sortiert ->
-        # setdefault nimmt die niedrigste Variante. Eigener kurzer Durchlauf
-        # (< 1 ms, paar hundert Eintraege), faellt darum nicht unter die
-        # Zeitmessung unten.
-        exact_lookup = {}
-        for eid, cname, _to, _prog in to_calls:
-            exact_lookup.setdefault(canon_key(cname), eid)
-
         # BL-210.8: Mengen-Vorschlag (suggest_figure_set) einmalig je Call-Text.
-        # bestehende EINDEUTIGE Zuordnungen -- NIE in exact_lookup mischen
-        # (sonst ist jeder gemappte Text ein Volltreffer und der Filter findet nichts)
+        # Lookups wie im Sequenz-Editor ueber figure_set_lookups (BL-210.12).
         t0 = time.perf_counter()
-        rest_lookup = {canon_key(t): f[0]
-                       for t, f in self._figure_sets.items() if len(f) == 1}
+        exact_lookup, rest_lookup = figure_set_lookups(to_calls, self._figure_sets)
         # call_text -> [entity_id, ...]; eigenes Dict, _suggest_cache bleibt
         # unberuehrt. Nur die Figurenliste; pattern liest niemand -- bei
         # Bedarf (Massen-Uebernahme, intern#81) ergaenzen.
@@ -3616,10 +3020,9 @@ class CallMappingDialog(QDialog):
         elif fval == self._F_MAPPED:
             rows = [r for r in self._all_data if r[2] is not None]
         elif fval == self._F_MISMATCH:
-            rows = [r for r in self._all_data
-                    if r[0] in self._set_cache
-                    and set(self._figure_sets.get(r[0]) or ())
-                        != set(self._set_cache[r[0]])]
+            rows = [r for r in self._all_data if self._suggestion_differs(r[0])]
+        elif fval == self._F_FOCUS:
+            rows = [r for r in self._all_data if r[0] in self._focus_texts]
         else:
             rows = self._all_data
 
@@ -3632,6 +3035,10 @@ class CallMappingDialog(QDialog):
         self._table.setRowCount(0)
         self._table.setRowCount(len(rows))
         none_label = _t("call_mapping_none")   # einmal statt je Zeile
+        # Spalte "Quelle" uebersetzt (intern#88); der interne Wert bleibt
+        # englisch und steht in _all_data, die Anzeige wird nie zurueckgelesen.
+        source_labels = {mb: _t(f"call_mapping_source_{mb}")
+                         for mb in ("auto", "manual", "inferred")}
 
         for i, (call_text, count, entity_id, mapped_by) in enumerate(rows):
 
@@ -3694,7 +3101,7 @@ class CallMappingDialog(QDialog):
             self._table.setItem(i, 2, item2)
 
             # Col 3: Quelle
-            source = mapped_by if mapped_by else "—"
+            source = source_labels.get(mapped_by, mapped_by) if mapped_by else "—"
             item3 = QTableWidgetItem(source)
             item3.setFlags(item3.flags() & ~Qt.ItemIsEditable)
             self._table.setItem(i, 3, item3)
@@ -3965,6 +3372,16 @@ class CallMappingDialog(QDialog):
 
     # ------------------------------------------------------------ Speichern --
 
+    def _patch_written(self, written: dict, mapped_by: str):
+        """Zieht frisch geschriebene Zuordnungen im In-Memory-Modell nach, statt
+        alles neu aus der DB zu lesen. written: {call_text: [Figuren, hoechste
+        zuerst]}; in _all_data (call_text, count, entity_id, mapped_by) wird
+        entity_id die hoechste Figur (wie call_text_mappings)."""
+        self._all_data = [
+            (r[0], r[1], written[r[0]][0], mapped_by) if r[0] in written else r
+            for r in self._all_data]
+        self._figure_sets.update(written)
+
     def _on_confirm_selected(self):
         """Bestaetigt die Auto-Vorschlaege fuer alle markierten Zeilen.
 
@@ -4006,17 +3423,7 @@ class CallMappingDialog(QDialog):
             # KEIN Voll-Requery + Voll-Reload mehr (frueher ~3 s: die suggest()-
             # Schleife lief ueber alle ~10k ungemappten Texte neu). Stattdessen
             # das In-Memory-Modell fuer die bestaetigten Texte aktualisieren ...
-            new_all = []
-            for r in self._all_data:
-                figures = confirmed_texts.get(r[0])
-                if figures is not None:
-                    # (call_text, count, entity_id, mapped_by)
-                    # entity_id = hoechste Figur (wie call_text_mappings).
-                    new_all.append((r[0], r[1], figures[0], "manual"))
-                else:
-                    new_all.append(r)
-            self._all_data = new_all
-            self._figure_sets.update(confirmed_texts)
+            self._patch_written(confirmed_texts, "manual")
 
             if self._combo_filter.currentData() == self._F_UNMAPPED:
                 # Im "Nicht gemappt"-Filter fallen die bestaetigten Zeilen nur weg
@@ -4052,6 +3459,93 @@ class CallMappingDialog(QDialog):
                 _t("call_mapping_confirmed_n", count=confirmed)
             )
 
+    def _suggestion_differs(self, call_text) -> bool:
+        """Filter "Vorschlag weicht ab": es gibt einen Mengen-Vorschlag, und er
+        weicht als MENGE von der Zuordnung ab (Reihenfolge egal)."""
+        sug = self._set_cache.get(call_text)
+        return bool(sug) and set(self._figure_sets.get(call_text) or ()) != set(sug)
+
+    def _optimize_groups(self) -> dict:
+        """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
+        Filters "Vorschlag weicht ab") in drei Gruppen:
+        new    -> bisher ohne Zuordnung
+        extend -> Vorschlag ist echte Obermenge der Zuordnung (fehlende Figuren)
+        change -> Vorschlag weicht anders ab
+        Werte: {call_text: Vorschlag}."""
+        groups = {"new": {}, "extend": {}, "change": {}}
+        for call_text in dict.fromkeys(r[0] for r in self._all_data):
+            if not self._suggestion_differs(call_text):
+                continue
+            sug = self._set_cache[call_text]
+            current = set(self._figure_sets.get(call_text) or ())
+            if not current:
+                key = "new"
+            elif current < set(sug):
+                key = "extend"
+            else:
+                key = "change"
+            groups[key][call_text] = sug
+        return groups
+
+    def _is_changed(self, item2) -> bool:
+        """Ungespeicherte Figuren-Wahl in dieser Figur-Zelle: aktuelle Menge
+        != Lademenge (Menge, Reihenfolge egal)."""
+        return (set(self._figures(item2, Qt.UserRole))
+                != set(self._figures(item2, Qt.UserRole + 1)))
+
+    def _has_unsaved_edits(self) -> bool:
+        """True, wenn irgendeine Zeile eine ungespeicherte Figuren-Wahl hat."""
+        for row in range(self._table.rowCount()):
+            item2 = self._table.item(row, 2)
+            if item2 is not None and self._is_changed(item2):
+                return True
+        return False
+
+    def _on_optimize(self):
+        """Knopf "Optimieren" (intern#97): uebernimmt die Mengen-Vorschlaege der
+        gewaehlten Gruppen nach Rueckfrage als mapped_by='inferred'."""
+        # Das Nachladen der Tabelle verwirft ungespeicherte Picker-Aenderungen
+        # -> vorher fragen.
+        if self._has_unsaved_edits() and QMessageBox.question(
+                self, _t("call_mapping_title"),
+                _t("call_mapping_optimize_discard"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No) != QMessageBox.Yes:
+            return
+        groups = self._optimize_groups()
+        if not any(groups.values()):
+            QMessageBox.information(self, _t("call_mapping_title"),
+                                    _t("call_mapping_optimize_nothing"))
+            return
+        dlg = CallMappingOptimizeDialog(
+            {key: len(texts) for key, texts in groups.items()}, parent=self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        import time
+        _t_start = time.perf_counter()
+        written_sets = {ct: self._rank_figures(sug)
+                        for key in dlg.chosen_groups()
+                        for ct, sug in groups[key].items()}
+        if not written_sets:
+            return
+        # EINE Transaktion (TIC-0025: kurz genug fuer den Main-Thread)
+        written = self.db.set_call_text_figures_bulk(written_sets.items(),
+                                                     mapped_by="inferred")
+        self.db.recompute_sequence_max_to()
+        _t_write = time.perf_counter()
+        self._wrote_assignments = True
+        # KEIN Voll-Requery (wie _on_confirm_selected): nur die geschriebenen
+        # Texte im In-Memory-Modell nachziehen. Die Mengen-Vorschlaege bleiben,
+        # die uebernommenen Zeilen fallen so aus "Vorschlag weicht ab" heraus.
+        self._patch_written(written_sets, "inferred")
+        self._load_table()
+        _t_reload = time.perf_counter()
+        print(f"[Call-Mapping] Optimieren: {written} Zeilen | "
+              f"schreiben+Baender {(_t_write-_t_start)*1000:.0f}ms, "
+              f"reload {(_t_reload-_t_write)*1000:.0f}ms")
+        QMessageBox.information(self, _t("call_mapping_title"),
+                                _t("call_mapping_optimize_done", count=written))
+
     def _on_save(self):
         """Speichert geaenderte Zuordnungen; fuehrt Splits durch; loescht entfernte."""
         saved = 0
@@ -4065,12 +3559,10 @@ class CallMappingDialog(QDialog):
             if not item0 or not item2:
                 continue
 
+            if not self._is_changed(item2):
+                continue  # unveraendert (Menge, Reihenfolge egal)
             raw_text = item0.data(Qt.UserRole)
             current  = self._figures(item2, Qt.UserRole)
-            original = self._figures(item2, Qt.UserRole + 1)
-
-            if set(current) == set(original):
-                continue  # unveraendert (Menge, Reihenfolge egal)
 
             if current == (self._SPLIT,):
                 s, o = self.db.split_sequence_call_at_comma(raw_text)

@@ -470,6 +470,25 @@ _SELECT_CALL_TEXT_FIGURES_RANKED = (
     "ON r.entity_id = f.entity_id"
 )
 
+
+def _text_max_to(rows) -> dict:
+    """Verdichtet Zeilen aus _SELECT_CALL_TEXT_FIGURES_RANKED zu
+    {call_text: Teaching-Order}.
+
+    BL-210: mehrere Figuren eines Textes -> hoechste Teaching-Order zaehlt
+    (alle Figuren muessen tanzbar sein). Fehlt einer Figur die Teaching-Order,
+    gilt der Text als ungemappt (None).
+    """
+    text_to_to = {}
+    for text, _eid, to in rows:
+        if text not in text_to_to:
+            text_to_to[text] = to
+            continue
+        prev = text_to_to[text]
+        text_to_to[text] = None if prev is None or to is None else max(prev, to)
+    return text_to_to
+
+
 _CREATE_SEQ_MAX_TO_IDX = """
 CREATE INDEX IF NOT EXISTS idx_sequences_max_to
     ON sequences (max_teaching_order);
@@ -907,6 +926,7 @@ class SongDatabase:
         self._band_cover_cache = {}   # frozenset(bands) -> frozenset(sequence_ids)
         self._scope_key = None        # (frozenset bands, frozenset below), aktuell in TEMP seq_scope
         self._band_cache_ver_seen = -1  # zuletzt gesehener _band_cache_ver.v (Auto-Invalidierung)
+        self._seq_figures = None      # intern#111: sequence_id -> frozenset gebandeter Figuren
         self._migrate()         # Zuerst: bestehende Tabellen umbenennen/erweitern
         self._create_tables()   # Dann: fehlende Tabellen anlegen (IF NOT EXISTS)
         self._backfill_calls_json()  # Option C: calls_json aus field_1..15 fuellen
@@ -1032,7 +1052,7 @@ class SongDatabase:
     def _create_band_cache_triggers(self):
         """MS50-Perf: Versions-Zaehler fuer den Band-Cache. Jede Aenderung an den
         Tabellen, die das "welche Sequenz ist mit diesen Baendern tanzbar"-Ergebnis
-        beeinflussen (sequences, sequence_calls, call_text_mappings,
+        beeinflussen (sequence_calls, call_text_mappings,
         call_text_figures_extra, call_programs), erhoeht `v`. Der Band-Cache
         vergleicht `v` und verwirft sich bei Aenderung selbst — so kann kein
         einzelner Writer vergessen werden."""
@@ -1049,7 +1069,13 @@ class SongDatabase:
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS _band_cover ("
             "cache_key TEXT PRIMARY KEY, ver INTEGER NOT NULL, ids TEXT NOT NULL)")
-        for tbl in ("sequences", "sequence_calls", "call_text_mappings",
+        # intern#111: `sequences` selbst zaehlt nicht — das Cover liest nur
+        # sequence_calls, und jeder Einfuege-/Bearbeiten-/Loesch-Pfad schreibt dort.
+        # Der Trigger auf sequences verwarf den Cache z.B. bei jedem
+        # recompute_sequence_max_to (11k Zeilen -> 11k Zaehler-Updates).
+        for op in ("ins", "upd", "del"):
+            self._conn.execute(f"DROP TRIGGER IF EXISTS _bcv_sequences_{op}")
+        for tbl in ("sequence_calls", "call_text_mappings",
                     "call_text_figures_extra", "call_programs"):
             for op, when in (("ins", "AFTER INSERT"),
                              ("upd", "AFTER UPDATE"),
@@ -2625,14 +2651,38 @@ class SongDatabase:
         if ver != self._band_cache_ver_seen:
             self._band_cover_cache = {}
             self._scope_key = None
+            self._seq_figures = None
             self._band_cache_ver_seen = ver
+
+    def _sequence_figures(self) -> dict:
+        """intern#111: Figuren-Menge je Sequenz, nur Figuren mit call_programs-
+        Zeile (bandlose/ungemappte Calls schliessen nicht aus). Einmal je
+        Daten-Version aufbauen (~100 ms bei 106k sequence_calls); danach kostet
+        jede Band-/Limit-/"Nur"-Kombination nur einen Mengenvergleich (~2 ms)
+        statt des vollen Joins (~145 ms)."""
+        if self._seq_figures is None:
+            banded = {e for (e,) in self._conn.execute(
+                "SELECT DISTINCT entity_id FROM call_programs")}
+            text_figs = {}
+            for ct, eid in self._conn.execute(
+                    "SELECT call_text, entity_id FROM call_text_figures"):
+                if eid in banded:
+                    text_figs.setdefault(ct, []).append(eid)
+            seq_figs = {}
+            for sid, ct in self._conn.execute(
+                    "SELECT sequence_id, call_text FROM sequence_calls"):
+                figs = text_figs.get(ct)
+                if figs:
+                    seq_figs.setdefault(sid, set()).update(figs)
+            self._seq_figures = {s: frozenset(f) for s, f in seq_figs.items()}
+        return self._seq_figures
 
     def _cover_ids(self, bandset: frozenset, max_to: float = None) -> frozenset:
         """Menge der Sequenz-IDs, deren gemappte Figuren ALLE in mindestens einem der
         Baender liegen (aggregiert pro Figur -> Mehrfachnennung korrekt). Optional
         begrenzt max_to die Figuren zusaetzlich auf Teaching-Position <= max_to (feiner
-        Limit-Filter). Ergebnis je (Band-Menge, max_to) gecacht — der eine teure
-        Durchlauf, der frueher 3-6x pro Wechsel lief."""
+        Limit-Filter). Ergebnis je (Band-Menge, max_to) gecacht. Rechnet ueber
+        _sequence_figures statt per SQL-Join (intern#111)."""
         if not bandset:
             return frozenset()
         key = (bandset, max_to)
@@ -2642,7 +2692,7 @@ class SongDatabase:
         bands = sorted(bandset)
         # Persistenter Cover-Cache (B): erst in _band_cover nachschlagen. Der
         # Eintrag ist mit dem `v` gestempelt, bei dem er galt; passt es zum
-        # aktuellen `v`, koennen wir den teuren 97k-Zeilen-Join komplett sparen —
+        # aktuellen `v`, sparen wir den Aufbau von _sequence_figures (~100 ms) —
         # auch ueber Neustarts hinweg. cache_key ist stabil aus Band-Menge + Limit.
         ck = f"{bands}|{max_to}"
         ver = self._band_data_version()
@@ -2657,35 +2707,23 @@ class SongDatabase:
                    if prow[0] else frozenset())
             self._band_cover_cache[key] = ids
             return ids
-        ph = ",".join("?" for _ in bands)
         # Eine Figur "zaehlt" nur, wenn sie eine Band-Zeile im gewaehlten Band hat
         # UND (bei gesetztem Limit) an einer Teaching-Position <= max_to liegt. So
         # wirkt der Limit feingranular INNERHALB eines Bandes (z.B. Spin Chain Thru
-        # vor Recycle, obwohl beide in Band 29).
-        if max_to is None:
-            cond = f"CAST(cp.teaching_order AS INTEGER) IN ({ph})"
-            params = bands
-        else:
-            cond = (f"CAST(cp.teaching_order AS INTEGER) IN ({ph}) "
-                    f"AND cp.teaching_order <= ?")
-            params = bands + [max_to]
-        sql = f"""SELECT sid FROM (
-                    SELECT sc.sequence_id AS sid, m.entity_id AS eid,
-                           MAX(CASE WHEN {cond}
-                                    THEN 1 ELSE 0 END) AS covered
-                    FROM sequence_calls sc
-                    JOIN call_text_figures m
-                         ON m.call_text = sc.call_text
-                    JOIN call_programs cp ON cp.entity_id = m.entity_id
-                    GROUP BY sc.sequence_id, m.entity_id
-                  )
-                  GROUP BY sid HAVING MIN(covered) = 1"""
-        ids = frozenset(r[0] for r in self._conn.execute(sql, params))
+        # vor Recycle, obwohl beide in Band 29). Eine Sequenz passt, wenn ALLE ihre
+        # gebandeten Figuren zaehlen (Mehrfachnennung: irgendeine Band-Zeile reicht).
+        allowed = {e for e, to in self._conn.execute(
+                       "SELECT entity_id, teaching_order FROM call_programs")
+                   if to is not None and int(to) in bandset
+                   and (max_to is None or to <= max_to)}
+        ids = frozenset(sid for sid, figs in self._sequence_figures().items()
+                        if figs <= allowed)
         self._band_cover_cache[key] = ids
-        # Ergebnis persistieren (B): einmal rechnen, ueber Neustarts halten. Bei
-        # Datenaenderung erhoeht der Trigger `v` -> dieser Eintrag passt nicht mehr
-        # und wird beim naechsten Miss durch INSERT OR REPLACE aktualisiert.
+        # Ergebnis persistieren (B): ueber Neustarts halten, damit der Start den
+        # Aufbau von _sequence_figures spart. Eintraege alter Versionen passen
+        # nie mehr -> beim Schreiben mit aufraeumen.
         try:
+            self._conn.execute("DELETE FROM _band_cover WHERE ver <> ?", (ver,))
             self._conn.execute(
                 "INSERT OR REPLACE INTO _band_cover (cache_key, ver, ids) "
                 "VALUES (?, ?, ?)",
@@ -2722,6 +2760,7 @@ class SongDatabase:
         selbst; diese Methode ist ein expliziter Reset (z.B. fuer Tests)."""
         self._band_cover_cache = {}
         self._scope_key = None
+        self._seq_figures = None
         self._band_cache_ver_seen = -1
 
     def _build_sequence_where(self,
@@ -2866,52 +2905,6 @@ class SongDatabase:
             cover_max_to=cover_max_to)
         sql = f"SELECT id FROM sequences {where_sql} ORDER BY id"
         cur = self._conn.execute(sql, params)
-        return [row[0] for row in cur.fetchall()]
-
-    def get_sequence_ids_for_bands(self, allowed_bands) -> list:
-        """MS50-Umbau: Mengen-Filter statt Schwellwert.
-
-        Gibt alle Sequenz-IDs zurueck, deren *gemappte* Calls ALLE in mindestens
-        einem der erlaubten Programm-Baender (Ganzzahl von teaching_order) liegen.
-        Nicht gemappte Call-Texte werden — wie bei der alten max_teaching_order-
-        Logik — ignoriert (sie schliessen eine Sequenz nicht aus).
-
-        Args:
-            allowed_bands: iterable von Band-Ganzzahlen, z.B. {10,20,30} fuer
-                           "bis Mainstream 2026" oder {10,20,29,39,49} fuer altes A1.
-
-        Ersetzt konzeptionell den ``max_teaching_order <= limit``-Filter, sobald
-        ein Call in mehreren Programmen stehen kann und der Maximalwert nicht mehr
-        eindeutig ist.
-        """
-        bands = sorted({int(b) for b in (allowed_bands or [])})
-        if not bands:
-            return []
-        placeholders = ",".join("?" for _ in bands)
-        # WICHTIG bei Mehrfachnennung: pro FIGUR (entity) aggregieren, nicht pro
-        # call_programs-Zeile. Eine Figur ist "abgedeckt", wenn IRGENDEINE ihrer
-        # Band-Mitgliedschaften erlaubt ist (z.B. Dosado in Band 10 UND 30 -> bei
-        # Auswahl {30} abgedeckt). Innere GROUP BY (sequence, entity) -> covered;
-        # aeussere: Sequenz passt, wenn ALLE ihre gemappten & gebandeten Figuren
-        # abgedeckt sind (MIN(covered)=1). Nicht gemappte / bandlose Calls
-        # (z.B. action_*-Styling) erzeugen keine Join-Zeile -> ignoriert.
-        # Existiert die Gruppe ueberhaupt, gibt es >=1 gebandete Figur.
-        sql = f"""
-            SELECT sid FROM (
-                SELECT sc.sequence_id AS sid, m.entity_id AS eid,
-                       MAX(CASE WHEN CAST(cp.teaching_order AS INTEGER) IN ({placeholders})
-                                THEN 1 ELSE 0 END) AS covered
-                FROM sequence_calls sc
-                JOIN call_text_figures m
-                     ON m.call_text = sc.call_text
-                JOIN call_programs cp ON cp.entity_id = m.entity_id
-                GROUP BY sc.sequence_id, m.entity_id
-            )
-            GROUP BY sid
-            HAVING MIN(covered) = 1
-            ORDER BY sid
-        """
-        cur = self._conn.execute(sql, bands)
         return [row[0] for row in cur.fetchall()]
 
     def get_sequence_type_values(self) -> list[str]:
@@ -3121,7 +3114,7 @@ class SongDatabase:
         """Loescht Mappings. Ohne Parameter: alle. Mit: nur die angegebene Quelle.
 
         Args:
-            mapped_by: 'auto' oder 'manual' — None loescht alle
+            mapped_by: 'auto', 'manual' oder 'inferred' — None loescht alle
         """
         # BL-210: weitere Figuren zuerst, solange die Hauptzeilen noch sagen,
         # zu welcher Quelle sie gehoeren (nie Zusatzzeile ohne Hauptzeile).
@@ -3398,14 +3391,6 @@ class SongDatabase:
         )
         return [row[0] for row in cur.fetchall()]
 
-    def get_unmapped_call_texts(self) -> list[str]:
-        """Gibt alle Sequenz-Call-Texte zurueck die noch kein Mapping haben.
-
-        Sammelt alle einzigartigen Texte aus den 15 Feldern und filtert
-        die ohne Eintrag in call_text_mappings.
-        """
-        return [text for text, _cnt in self.get_unmapped_call_texts_by_frequency()]
-
     def get_unmapped_call_texts_by_frequency(self) -> list[tuple]:
         """Gibt ungemappte Call-Texte sortiert nach Haeufigkeit zurueck.
 
@@ -3542,8 +3527,9 @@ class SongDatabase:
         """Gibt alle Zuordnungen als Liste von Dicts zurueck (Export).
 
         BL-210: eine Zeile je Figur, hoechste Figur zuerst; weitere Figuren
-        tragen das mapped_by der Hauptzeile. Aeltere Versionen importieren per
-        INSERT OR IGNORE und uebernehmen so genau die hoechste Figur.
+        tragen das mapped_by der Hauptzeile. "Keine Figur" ist eine Zeile mit
+        entity_id None. Grundlage fuer den v2-Export (mapping_io.build_export)
+        und den Vergleich beim Import; 0.159 und aelter lesen v2 nicht.
         """
         figures = self.get_all_call_text_figures()
         cur = self._conn.execute(
@@ -3555,44 +3541,98 @@ class SongDatabase:
             for fig in (figures.get(call_text) or [entity_id])
         ]
 
-    def import_call_text_mappings(self, rows: list[dict]) -> tuple[int, int]:
-        """Importiert Zuordnungen; vorhandene Call-Texte werden uebersprungen
-        (Semantik wie INSERT OR IGNORE).
-
-        BL-210: Zeilen werden je Call-Text gesammelt (eine Zeile je Figur) und
-        als Menge geschrieben — die hoechste Figur wird neu bestimmt, nicht der
-        Dateireihenfolge entnommen. mapped_by kommt aus der ersten Zeile des
-        Texts. Eine Transaktion.
-
-        Returns:
-            (neu_eingefuegt, bereits_vorhanden) — gezaehlt in Call-Texten
-            (Zuordnungen), nicht in Figuren-Zeilen
-        """
-        groups: dict[str, tuple[str, list]] = {}
-        for r in rows:
-            _mb, ids = groups.setdefault(r["call_text"], (r["mapped_by"], []))
+    def _local_call_text_sets(self) -> dict:
+        """{call_text: (figuren, mapped_by)} inkl. "keine Figur" ([])."""
+        out = {}
+        for r in self.get_all_call_text_mappings():
+            figs, _mb = out.setdefault(r["call_text"], ([], r["mapped_by"]))
             if r["entity_id"]:
-                ids.append(r["entity_id"])
-        existing = {ct for (ct,) in self._conn.execute(
-            "SELECT call_text FROM call_text_mappings")}
-        neu = 0
+                figs.append(r["entity_id"])
+        return out
+
+    def diff_call_text_figures(self, imported: dict) -> dict:
+        """Vergleicht importierte Figuren-Mengen mit den lokalen (intern#79).
+
+        imported: {call_text: obj mit .figures (list) und .mapped_by}
+        (mapping_io.ImportedMapping). Steht lokal schon genau dieselbe Menge,
+        ist der Text identisch, auch wenn sie verwaiste IDs enthaelt (Altbestand
+        ohne calls-Zeile) -- dann gibt es nichts zu melden. Sonst fallen Figuren
+        ohne calls-Zeile weg und werden gemeldet; bleibt dadurch von einer
+        Menge nichts uebrig, wird der Call-Text uebersprungen (statt ihn zu
+        "keine Figur" zu machen).
+
+        Returns dict:
+            new:        [(call_text, figuren, mapped_by)] lokal noch nicht da
+            identical:  [call_text] gleiche Menge (Quelle egal)
+            conflicts:  [(call_text, lokal, lokal_mb, import, import_mb)]
+            unknown_figures: sortierte entity_ids ohne calls-Zeile, nur aus
+                        Texten, die geschrieben wuerden (neu/Konflikt)
+            skipped:    [call_text] nur unbekannte Figuren
+        """
+        local = self._local_call_text_sets()
+        res = {"new": [], "identical": [], "conflicts": [],
+               "unknown_figures": [], "skipped": []}
+        pending = {}
+        for ct, m in imported.items():
+            if ct in local and set(m.figures) == set(local[ct][0]):
+                res["identical"].append(ct)
+            else:
+                pending[ct] = m
+        unknown = self.unknown_figures(
+            [e for m in pending.values() for e in m.figures])
+        reported = set()
+        for ct, m in pending.items():
+            figs = [e for e in m.figures if e not in unknown]
+            dropped = set(m.figures) - set(figs)
+            if m.figures and not figs:
+                res["skipped"].append(ct)
+                reported |= dropped
+                continue
+            if ct not in local:
+                res["new"].append((ct, figs, m.mapped_by))
+                reported |= dropped
+                continue
+            loc_figs, loc_mb = local[ct]
+            if set(figs) == set(loc_figs):
+                # nach dem Filtern identisch: wird nicht geschrieben, also
+                # auch nichts melden
+                res["identical"].append(ct)
+            else:
+                res["conflicts"].append((ct, loc_figs, loc_mb, figs, m.mapped_by))
+                reported |= dropped
+        res["unknown_figures"] = sorted(reported)
+        return res
+
+    def apply_call_text_figures_decisions(self, decisions) -> int:
+        """Schreibt geklaerte Zuordnungen in EINER Transaktion (intern#79).
+
+        decisions: Iterable von (call_text, figuren, mapped_by). figuren
+        None entfernt die Zuordnung, [] setzt bewusst "keine Figur"
+        (entity_id NULL), sonst die Menge. Rueckgabe: Anzahl Call-Texte.
+        """
+        written = 0
         try:
-            for call_text, (mapped_by, ids) in groups.items():
-                if call_text in existing:
+            for call_text, figs, mapped_by in decisions:
+                if not call_text:
                     continue
-                if ids:
-                    self._write_call_text_figures(call_text, ids, mapped_by)
-                else:
-                    # bewusst "keine Figur" (entity_id NULL) wie bisher uebernehmen
+                if figs is None:
+                    self._write_call_text_figures(call_text, [], mapped_by)
+                elif not figs:
                     self._conn.execute(
-                        "INSERT INTO call_text_mappings (call_text, entity_id, mapped_by) "
-                        "VALUES (?, NULL, ?)", (call_text, mapped_by))
-                neu += 1
+                        "DELETE FROM call_text_figures_extra WHERE call_text = ?",
+                        (call_text,))
+                    self._conn.execute(
+                        "INSERT OR REPLACE INTO call_text_mappings "
+                        "(call_text, entity_id, mapped_by) VALUES (?, NULL, ?)",
+                        (call_text, mapped_by))
+                else:
+                    self._write_call_text_figures(call_text, figs, mapped_by)
+                written += 1
         except Exception:
             self._conn.rollback()
             raise
         self._conn.commit()
-        return neu, len(groups) - neu
+        return written
 
     def delete_call_text_mapping(self, call_text: str):
         """Loescht ein bestehendes Mapping fuer den gegebenen Call-Text
@@ -3692,18 +3732,18 @@ class SongDatabase:
         cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE entity_id IS NOT NULL")
         mapped_count = cur.fetchone()[0]
 
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'auto'")
-        auto_count = cur.fetchone()[0]
-
-        cur = self._conn.execute("SELECT COUNT(*) FROM call_text_mappings WHERE mapped_by = 'manual'")
-        manual_count = cur.fetchone()[0]
+        # Zaehlung je Quelle in EINER Abfrage; 'inferred' = per "Optimieren"
+        # aus Mengen-Vorschlaegen uebernommen (intern#97)
+        by_source = dict(self._conn.execute(
+            "SELECT mapped_by, COUNT(*) FROM call_text_mappings GROUP BY mapped_by"))
 
         return {
             "total_unique_texts": len(all_texts),
             "mapped": mapped_count,
             "unmapped": len(all_texts) - mapped_count,
-            "auto": auto_count,
-            "manual": manual_count,
+            "auto": by_source.get("auto", 0),
+            "manual": by_source.get("manual", 0),
+            "inferred": by_source.get("inferred", 0),
         }
 
     def backfill_auto_mappings(self) -> int:
@@ -3823,16 +3863,8 @@ class SongDatabase:
         # Programm passt. min_to ist dieselbe Regel, nach der auch der Band-Filter
         # (_cover_ids) und der Figuren-Picker gehen.
         #
-        # BL-210: mehrere Figuren eines Textes -> hoechste Teaching-Order zaehlt
-        # (alle Figuren muessen tanzbar sein). Fehlt einer Figur die
-        # Teaching-Order, gilt der Text wie bisher als ungemappt.
-        text_to_to = {}
-        for text, _eid, to in self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED):
-            if text not in text_to_to:
-                text_to_to[text] = to
-                continue
-            prev = text_to_to[text]
-            text_to_to[text] = None if prev is None or to is None else max(prev, to)
+        text_to_to = _text_max_to(
+            self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED))
 
         updates = []
         for seq in sequences:
@@ -3860,6 +3892,31 @@ class SongDatabase:
             updates
         )
         self._conn.commit()
+
+    def get_unmapped_call_texts_of_sequence(self, sequence_id: int) -> list[str]:
+        """intern#119: Call-Texte einer Sequenz ohne (tanzbare) Zuordnung, in
+        Sequenz-Reihenfolge, ohne Doppelte.
+
+        Dieselbe Regel wie recompute_sequence_max_to(): ein Text zaehlt als
+        ungemappt, wenn er keine Zuordnung hat oder einer seiner Figuren die
+        Teaching-Order fehlt. Genau diese Texte machen max_teaching_order NULL.
+        """
+        row = self._conn.execute(
+            "SELECT calls_json, field_1, field_2, field_3, field_4, field_5, "
+            "field_6, field_7, field_8, field_9, field_10, "
+            "field_11, field_12, field_13, field_14, field_15 "
+            "FROM sequences WHERE id = ?", (sequence_id,)).fetchone()
+        if not row:
+            return []
+        calls = list(dict.fromkeys(
+            calls_from_json(row[0]) if row[0] else clean_calls(row[1:16])))
+        if not calls:
+            return []
+        marks = ",".join("?" * len(calls))
+        text_to_to = _text_max_to(self._conn.execute(
+            f"{_SELECT_CALL_TEXT_FIGURES_RANKED} WHERE f.call_text IN ({marks})",
+            calls))
+        return [t for t in calls if text_to_to.get(t) is None]
 
     def get_all_sequences_raw(self) -> list[tuple]:
         """Gibt alle Sequenzen mit Rohdaten zurueck (fuer Remapping).

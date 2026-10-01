@@ -35,6 +35,7 @@ _SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
 sys.path.insert(0, os.path.abspath(_SRC))
 
 from song_db import SongDatabase  # noqa: E402
+from sequence_filter import filter_query_args  # noqa: E402
 
 
 def _hash(obj) -> str:
@@ -127,7 +128,7 @@ def capture(db_path: str) -> dict:
     snap["dup_to_delete"] = to_delete
 
     # --- 8./9. Mapping-Statistik ---
-    snap["unmapped_count"] = len(db.get_unmapped_call_texts())
+    snap["unmapped_count"] = len(db.get_unmapped_call_texts_by_frequency())
     snap["distinct_call_texts"] = len(db.get_all_call_texts_with_mapping())
 
     # --- 10. Mengengeruest je Tanzprogramm (Band-Modus, BL-210.1) ---
@@ -141,12 +142,11 @@ def capture(db_path: str) -> dict:
             continue   # Programm ohne Band -> keine Band-Menge ableitbar
         bands = band_set_for(int(limit_to))
         band_sets += 1
-        # Baender UNTER dem obersten — genau wie sequences_widget._get_bands_below:
-        # bleibt nichts uebrig, ist der "Nur"-Filter aus (None).
-        below = sorted(set(bands) - {max(bands)}) or None
-        band_counts[f"bands_{code}"] = db.get_filtered_count(bands_filter=bands)
+        # Dieselbe Regel wie die Sequenz-Liste (sequence_filter)
+        band_counts[f"bands_{code}"] = db.get_filtered_count(
+            **filter_query_args(bands=bands))
         band_counts[f"bands_{code}_only"] = db.get_filtered_count(
-            bands_filter=bands, bands_below_filter=below)
+            **filter_query_args(bands=bands, only=True))
     snap["band_sets"] = band_sets
     snap["band_counts"] = band_counts
     snap["band_counts_hash"] = _hash(band_counts)

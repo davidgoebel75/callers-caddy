@@ -131,6 +131,12 @@ class PathManager:
         return os.path.join(self._app_dir, "callers_caddy.db")
 
     @property
+    def settings(self) -> QSettings:
+        """Die App-INI (callers_caddy.ini). Nie ein QSettings ohne Dateiangabe nehmen,
+        das zeigt unter Windows in die Registry (intern#136)."""
+        return self._settings
+
+    @property
     def ini_path(self) -> str:
         """Absoluter Pfad zur INI-Datei."""
         return os.path.abspath(self._settings.fileName())

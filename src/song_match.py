@@ -53,7 +53,9 @@ def normalize_query(text: str) -> str:
 # Labeltext der App in (Name, Nummer) trennen: "Shakedown 302" -> ("Shakedown",
 # "302"). songs.label haelt beides zusammen; die Bewertung braucht den Namen und
 # die Nummer getrennt (die Plattennummer identifiziert eine Aufnahme eindeutig).
-_NUM_TAIL = re.compile(r"^(.*?)[\s\-_]*([0-9]{1,5}[A-Za-z]?)\s*$")
+# Ein angehaengtes '+' (z.B. 'DGR014+' fuer die Harmonie-Fassung) gehoert nicht
+# zur Nummer (intern#126).
+_NUM_TAIL = re.compile(r"^(.*?)[\s\-_]*([0-9]{1,5}[A-Za-z]?)\+*\s*$")
 
 
 def split_label_number(label_field: str) -> tuple:
@@ -70,20 +72,85 @@ def split_label_number(label_field: str) -> tuple:
 def _norm(s: str) -> str:
     """Normalisiert einen Titel fuer den Vergleich: klein, ohne Artikel, alnum."""
     s = (s or "").lower()
-    s = re.sub(r"[‘’“”`]", "'", s)
+    # Apostrophe ersatzlos streichen ("can't" == "cant", nicht "can t");
+    # Anfuehrungszeichen werden unten zu Leerzeichen (intern#126).
+    s = re.sub(r"[‘’'`´ʼ]", "", s)
     s = re.sub(r"\b(a|an|the)\b", " ", s)
     s = re.sub(r"[^a-z0-9 ]+", " ", s)
     return re.sub(r"\s+", " ", s).strip()
 
 
+def catalog_title_key(t: str) -> str:
+    """Index-Schluessel fuer den exakten Titel-Abgleich gegen den Song-Katalog
+    (song_catalog): klein, Satzzeichen -> Leerzeichen. Bewusst milder als _norm
+    (Artikel bleiben), damit der exakte Treffer exakt bleibt; die Fuzzy-Stufe
+    faengt Abweichungen auf. Frueher lokal in potential_widget._csv_normalize."""
+    t = normalize_query(t or "").lower().strip()
+    t = re.sub(r"[^\w\s]", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+# Klammer-Zusaetze wie "(Vocal)", "(No Leads)", "(V)", "[Instrumental]" —
+# Varianten derselben Aufnahme, fuer den Titelvergleich ohne Bedeutung.
+_BRACKETS = re.compile(r"\s*[\(\[][^\)\]]*[\)\]]")
+
+
 def title_similarity(a: str, b: str) -> float:
-    """0..1 Aehnlichkeit zweier Titel (normalisiert, dann SequenceMatcher)."""
+    """0..1 Aehnlichkeit zweier Titel (normalisiert, dann SequenceMatcher).
+
+    Gleich gelten auch (intern#126): zusammengeschriebene Titel aus
+    Dateinamen ('AintSheSweet' ~ 'Aint She Sweet') und Titel, die sich nur in
+    Klammer-Zusaetzen unterscheiden ('Hey Jude (Vocal)' ~ 'Hey Jude').
+    """
     na, nb = _norm(a), _norm(b)
     if not na or not nb:
         return 0.0
     if na == nb:
         return 1.0
+    # Kompaktform MIT Artikeln: 'RhythmOfTheRain' kennt keine Wortgrenzen, an
+    # denen _norm die Artikel entfernen koennte.
+    for x, y in ((a, b), (_BRACKETS.sub("", a or ""), _BRACKETS.sub("", b or ""))):
+        cx, cy = compact_title(x), compact_title(y)
+        if cx and cx == cy:
+            return 1.0
     return difflib.SequenceMatcher(None, na, nb).ratio()
+
+
+def compact_title(s: str) -> str:
+    """Titel ohne jedes Trennzeichen (klein, Apostrophe weg, nur a-z0-9)."""
+    s = re.sub(r"[‘’'`´ʼ]", "", (s or "").lower())
+    return re.sub(r"[^a-z0-9]+", "", s)
+
+
+# Ab dieser Aehnlichkeit gilt ein zurueckgelieferter Titel als "derselbe Song"
+# (toleriert KI-Kosmetik wie Gross-/Kleinschreibung, Quotes, Tippfehler-Fixes;
+# vertauschte Songs liegen weit darunter).
+SAME_TITLE_MIN_SIMILARITY = 0.85
+
+
+def same_song_title(file_title: str, db_title: str, db_filename: str = "") -> bool:
+    """intern#108: Passt ein aus einer Datei zurueckgelieferter Titel zum Song?
+
+    Verglichen wird gegen den DB-Titel und gegen den Dateinamen ohne Ordner
+    und Endung (der Metadaten-Export schreibt 'title or filename').
+    """
+    stem = re.sub(r"\.[A-Za-z0-9]{2,4}$", "",
+                  re.split(r"[\\/]", db_filename or "")[-1])
+    return any(title_similarity(file_title, cand) >= SAME_TITLE_MIN_SIMILARITY
+               for cand in (db_title, stem) if cand)
+
+
+def label_number_matches(db_label_field: str, label_name: str,
+                         label_code: str, number: str) -> bool:
+    """intern#108: Passt ein Katalogeintrag (Label, Kuerzel, Nummer) zum
+    Labeltext eines Songs? Nummer UND Label muessen zusammen passen -- nur die
+    Nummer oder nur das Kuerzel trifft beliebige andere Aufnahmen."""
+    name, num = split_label_number(db_label_field)
+    if not name or not num or not number:
+        return False
+    if num.lstrip("0").lower() != str(number).strip().lstrip("0").lower():
+        return False
+    return _norm(name) in {_norm(label_code), _norm(label_name)} - {""}
 
 
 # ---------------------------------------------------------------------------

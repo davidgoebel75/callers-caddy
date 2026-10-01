@@ -51,6 +51,7 @@
         "section_normal":  "#4a5568",
         "section_text":    "#ffffff",
         "tutorial_highlight":"#4a9eff",
+        "reading_band":"#4a9eff",
         "tutorial_box_bg":   "#2b2b2b",
         "tutorial_box_text": "#f0f0f0",
         "alt_row_bg":        "#363636"
