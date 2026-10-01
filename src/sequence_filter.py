@@ -8,13 +8,20 @@ get_filtered_sequence_ids.
 
 
 def filter_query_args(*, contains=None, limit=None, only=False, seq_type=None,
-                      difficulty=None, tags=None, bands=None) -> dict:
+                      difficulty=None, tags=None, bands=None,
+                      show_hidden=False) -> dict:
     """Zentrale Ableitung ALLER Filter-Parameter fuer die Sequenz-Abfragen.
 
     contains   = entity_id des Enthaelt-Filters (oder None)
     limit      = Teaching-Order des Limits (oder None)
     only       = Nur-Filter angehakt
     bands      = Band-Menge der Tanzprogramm-Wahl (oder None/leer)
+    show_hidden = "Auch ausgeblendete Sequenzen anzeigen" (intern#119) aktiv
+
+    intern#156: Sequenzen ohne Einstufung (mind. ein Call-Text ohne tanzbare
+    Zuordnung) haben unbekannten Inhalt und sind standardmaessig aus — auch ohne
+    Tanzprogramm-Wahl. Nur show_hidden zeigt sie und setzt dazu die
+    Tanzprogramm-Wahl aus.
 
     Mit Tanzprogramm-Wahl wirkt das Limit als FEINE Teaching-Order-Obergrenze
     (cover_max_to) INNERHALB der Baender — nicht als Band-Reduktion. So schliesst
@@ -32,7 +39,10 @@ def filter_query_args(*, contains=None, limit=None, only=False, seq_type=None,
         type_filter=seq_type,
         difficulty_filter=difficulty,
         tags_filter=tags,
+        hide_unmapped=not show_hidden,
     )
+    if show_hidden:
+        bands = None
     if bands:
         below = set(bands) - {max(bands)} if only else None
         args.update(

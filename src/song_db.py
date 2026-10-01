@@ -2772,7 +2772,8 @@ class SongDatabase:
                               tags_filter: str = None,
                               bands_filter=None,
                               bands_below_filter=None,
-                              cover_max_to: float = None) -> tuple:
+                              cover_max_to: float = None,
+                              hide_unmapped: bool = False) -> tuple:
         """Hilfsmethode: baut WHERE-Clause + params fuer Sequenz-Abfragen.
 
         bands_filter: iterable von Programm-Baendern (Ganzzahlen). Wenn gesetzt,
@@ -2808,6 +2809,13 @@ class SongDatabase:
                 WHERE m.entity_id = ?
             )""")
             params.append(entity_id_filter)
+
+        # intern#156: Sequenzen ohne Einstufung (mind. ein Call-Text ohne tanzbare
+        # Zuordnung, in der Liste rot) haben unbekannten Inhalt -> standardmaessig
+        # aus. Der Band-Filter allein laesst sie durch, weil er nur die
+        # zugeordneten Figuren prueft.
+        if hide_unmapped:
+            where_clauses.append("max_teaching_order IS NOT NULL")
 
         if max_to_filter is not None:
             where_clauses.append(
@@ -2848,7 +2856,8 @@ class SongDatabase:
                                tags_filter: str = None,
                                bands_filter=None,
                                bands_below_filter=None,
-                               cover_max_to: float = None) -> list[tuple]:
+                               cover_max_to: float = None,
+                               hide_unmapped: bool = False) -> list[tuple]:
         """Gibt gefilterte Sequenzen zurueck (Lazy Loading).
 
         Returns:
@@ -2858,7 +2867,7 @@ class SongDatabase:
         where_sql, params = self._build_sequence_where(
             entity_id_filter, max_to_filter, type_filter, difficulty_filter,
             min_to_filter, tags_filter, bands_filter, bands_below_filter,
-            cover_max_to=cover_max_to)
+            cover_max_to=cover_max_to, hide_unmapped=hide_unmapped)
 
         sql = f"""SELECT id, field_1, field_2, field_3, field_4, field_5,
                          field_6, field_7, field_8, field_9, field_10,
@@ -2879,12 +2888,13 @@ class SongDatabase:
                            tags_filter: str = None,
                            bands_filter=None,
                            bands_below_filter=None,
-                           cover_max_to: float = None) -> int:
+                           cover_max_to: float = None,
+                           hide_unmapped: bool = False) -> int:
         """Gibt die Anzahl gefilterter Sequenzen zurueck."""
         where_sql, params = self._build_sequence_where(
             entity_id_filter, max_to_filter, type_filter, difficulty_filter,
             min_to_filter, tags_filter, bands_filter, bands_below_filter,
-            cover_max_to=cover_max_to)
+            cover_max_to=cover_max_to, hide_unmapped=hide_unmapped)
         sql = f"SELECT COUNT(*) FROM sequences {where_sql}"
         cur = self._conn.execute(sql, params)
         return cur.fetchone()[0]
@@ -2897,12 +2907,13 @@ class SongDatabase:
                                    tags_filter: str = None,
                                    bands_filter=None,
                                    bands_below_filter=None,
-                                   cover_max_to: float = None) -> list:
+                                   cover_max_to: float = None,
+                                   hide_unmapped: bool = False) -> list:
         """Gibt alle IDs gefilterter Sequenzen zurueck (fuer Navigation im Detail-Dialog)."""
         where_sql, params = self._build_sequence_where(
             entity_id_filter, max_to_filter, type_filter, difficulty_filter,
             min_to_filter, tags_filter, bands_filter, bands_below_filter,
-            cover_max_to=cover_max_to)
+            cover_max_to=cover_max_to, hide_unmapped=hide_unmapped)
         sql = f"SELECT id FROM sequences {where_sql} ORDER BY id"
         cur = self._conn.execute(sql, params)
         return [row[0] for row in cur.fetchall()]

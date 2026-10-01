@@ -9,7 +9,21 @@ def test_ohne_filter_alles_none():
     assert fqa() == dict(
         entity_id_filter=None, type_filter=None, difficulty_filter=None,
         tags_filter=None, max_to_filter=None, min_to_filter=None,
-        bands_filter=None, bands_below_filter=None, cover_max_to=None)
+        bands_filter=None, bands_below_filter=None, cover_max_to=None,
+        hide_unmapped=True)
+
+
+# ---- Sequenzen ohne Einstufung (intern#156) ----
+
+def test_ohne_einstufung_standardmaessig_aus():
+    assert fqa()["hide_unmapped"] is True
+    assert fqa(bands={30, 40})["hide_unmapped"] is True
+
+
+def test_alle_anzeigen_zeigt_sie_und_setzt_programm_aus():
+    args = fqa(bands={30, 40}, show_hidden=True)
+    assert args["hide_unmapped"] is False
+    assert args["bands_filter"] is None
 
 
 def test_einfache_filter_werden_durchgereicht():

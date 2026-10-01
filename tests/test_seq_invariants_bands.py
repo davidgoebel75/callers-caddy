@@ -47,6 +47,9 @@ def db_path(tmp_path_factory):
     db.set_call_text_mappings(MAPPINGS)
     db.insert_sequence(CALL_SIMPLE)
     db.insert_sequence(CALL_A2)
+    # Einstufung wie nach Import/Speichern in der App; ohne sie gelten die
+    # Sequenzen als unbekannt und sind ausgeblendet (intern#156)
+    db.recompute_sequence_max_to()
     db.close()   # capture() oeffnet die DB selbst
     return path
 

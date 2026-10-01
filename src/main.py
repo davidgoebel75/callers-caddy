@@ -6213,6 +6213,10 @@ class P29MainWindow(QMainWindow):
                 # Filter zuruecksetzen, damit die neue Sequenz garantiert sichtbar
                 # ist, dann markieren + im SequenzView oeffnen
                 self.sequences_widget.reset_filters()
+                # intern#156: mit Call-Texten ohne Zuordnung ist sie im Standard
+                # aus -> wie per Rechtsklick "Auch ausgeblendete ... anzeigen"
+                if saved_id not in self.sequences_widget.get_filtered_seq_ids():
+                    self.sequences_widget.show_hidden_sequences()
                 self.sequences_widget.select_sequence(saved_id)
             else:
                 seq_ids = self.sequences_widget.get_filtered_seq_ids()
