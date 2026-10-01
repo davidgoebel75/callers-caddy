@@ -939,9 +939,26 @@ class LyricsWidget(QWidget):
         Farbangabe erhalten schwarzen Text auf weissem Hintergrund —
         wie ein Browser es anzeigen wuerde.
         """
+        # h1-h6 "medium": Qt vergroessert Ueberschriften sonst fest (h1 = 2x)
+        # und uebergeht dabei jede Groessenangabe der Datei (intern#152).
         self._browser.document().setDefaultStyleSheet(
             "body { color: #000000; background-color: white; }"
+            " h1, h2, h3, h4, h5, h6 { font-size: medium; }"
         )
+
+    @staticmethod
+    def _unwrap_style_comments(html: str) -> str:
+        """Entfernt die Kommentar-Klammern <!-- --> in <style>-Bloecken.
+
+        Word schreibt sein Stylesheet als <style><!-- ... --></style>. Browser
+        ignorieren diese Klammern, Qt verwirft dagegen das GANZE Stylesheet —
+        dann fehlen z.B. Groesse, Schrift und Farbe der Ueberschriften
+        (intern#152).
+        """
+        def _unwrap(m):
+            css = m.group(2).replace("<!--", "").replace("-->", "")
+            return f"{m.group(1)}{css}</style>"
+        return re.sub(r'(?si)(<style[^>]*>)(.*?)</style>', _unwrap, html)
 
     @classmethod
     def _sanitize_html(cls, html: str, lyrics_dir: str = None) -> str:
@@ -958,6 +975,10 @@ class LyricsWidget(QWidget):
           - Keine Theme-Anpassung, keine WCAG-Kontrast-Pruefung
           - Hintergrund ist immer weiss → Dateien sehen aus wie im Browser/Word
         """
+        # 0) Words <!-- --> um das Stylesheet loesen, sonst ignoriert Qt es
+        #    komplett (Farben/Schriften der Ueberschriften fehlen, intern#152)
+        html = cls._unwrap_style_comments(html)
+
         # 1) Externe <link>-CSS auflösen → inline <style>
         def _resolve_link(m):
             href = m.group(1) or m.group(2) or m.group(3)
@@ -3827,7 +3848,9 @@ class LyricsWidget(QWidget):
             return
 
         if ext in self._SUPPORTED_HTML:
-            html = content  # Original-HTML 1:1 (ohne Sanitize) editieren
+            # Original-HTML (ohne Sanitize) editieren; nur Words
+            # Kommentar-Klammern um das Stylesheet loesen, sonst ignoriert Qt es
+            html = self._unwrap_style_comments(content)
         elif ext in self._SUPPORTED_RTF:
             # RTF → HTML konvertieren (gleiche Logik wie _load_rtf)
             content = self._strip_rtf_binary_groups(content)
@@ -3856,17 +3879,18 @@ class LyricsWidget(QWidget):
         # eine Skalierung wuerde sonst falsche Fragmente treffen.
         # Nach dem Speichern wird der Cache beim Reload neu gefuellt.
         self._original_sizes = []
+        self._set_font_size(self._base_font_size)  # Bearbeiten = 100 %
         # Signale sind bereits im __init__ einmal verbunden — Slots pruefen
         # self._edit_mode und sind im Read-Modus No-Ops.
 
         # Format-Toolbar zeigen.
         # Auto-Scroll und Auto-Size waehrend des Editierens sperren
         # (wuerden den Cursor verschieben bzw. die Default-Schrift dauernd
-        # umschalten). Auto-Width und Zoom bleiben verfuegbar — sie aendern
-        # nur die Anzeige, nicht die gespeicherten Per-Char-Groessen.
+        # umschalten). Zoom und Auto-Width ebenfalls: Bearbeiten zeigt die
+        # Datei immer in Originalgroesse (intern#152).
         self._format_toolbar_widget.setVisible(True)
-        self._btn_auto_scroll.setEnabled(False)
-        self._btn_auto_size.setEnabled(False)
+        self._set_edit_locked_buttons_enabled(False)
+        self._update_zoom_label()
 
         # Stift-Icon → Speichern-Hint
         self._btn_edit.blockSignals(True)
@@ -3891,9 +3915,10 @@ class LyricsWidget(QWidget):
         self._browser.setReadOnly(True)
         self._edit_mode = False
         self._dirty = False
+        self._set_font_size(self._current_font_size)  # Zoom wieder anwenden
         self._format_toolbar_widget.setVisible(False)
-        self._btn_auto_scroll.setEnabled(True)
-        self._btn_auto_size.setEnabled(True)
+        self._set_edit_locked_buttons_enabled(True)
+        self._update_zoom_label()
         self._btn_edit.blockSignals(True)
         self._btn_edit.setChecked(False)
         self._btn_edit.blockSignals(False)
@@ -3906,6 +3931,13 @@ class LyricsWidget(QWidget):
         else:
             self._btn_edit.setText("✎")
         self._btn_edit.setToolTip(_t("tooltip_lyrics_edit"))
+
+    def _set_edit_locked_buttons_enabled(self, enabled: bool):
+        """Buttons, die im Bearbeiten-Modus gesperrt sind."""
+        for btn in (self._btn_auto_scroll, self._btn_auto_size,
+                    self._btn_auto_width, self._btn_zoom_in,
+                    self._btn_zoom_out):
+            btn.setEnabled(enabled)
 
     def _on_doc_changed(self):
         # Wird auch durch setHtml() im Read-Modus getriggert — dort ignorieren.
@@ -4209,7 +4241,8 @@ class LyricsWidget(QWidget):
 
     def _update_zoom_label(self):
         """Aktualisiert die Zoom-Prozentanzeige."""
-        pct = int(round(self._current_font_size / self._base_font_size * 100))
+        size = self._base_font_size if self._edit_mode else self._current_font_size
+        pct = int(round(size / self._base_font_size * 100))
         self._label_zoom.setText(f"{pct}%")
 
     # ---- Auto-Fit: Schriftgroesse anpassen ----
@@ -4315,6 +4348,11 @@ class LyricsWidget(QWidget):
         damit Zoom/Auto-Width auch Dokumente mit per-Span font-size verkleinern
         oder vergroessern koennen.
         """
+        if self._edit_mode:
+            # Bearbeiten zeigt die Datei in Originalgroesse (100 %): Die
+            # Groessen der Datei werden dort nicht gezoomt, also auch der Rest
+            # (Ueberschriften, Leerraum) nicht (intern#152).
+            size_px = self._base_font_size
         font = self._browser.font()
         font.setPointSizeF(size_px * 0.75)  # px → pt Naeherung (96dpi)
         self._browser.setFont(font)
@@ -4518,13 +4556,15 @@ class LyricsWidget(QWidget):
         — robust gegen langsames HTML/RTF-Layout. 250 ms Fallback-Timer
         falls das Signal nicht (mehr) feuert (z.B. leeres Document).
         """
+        # setHtml() hat die Inline-Groessen auf die Originalwerte zurueckgesetzt.
+        # Die aktuelle/gespeicherte Groesse (aus der INI beim Start) sofort neu
+        # anwenden — in JEDEM Modus. Sonst passt das Dokument bis zum Auto-Fit
+        # nicht zu _current_font_size, und wer in dieser Luecke den Zoom-Faktor
+        # herausrechnet (Dynamic Lyrics direkt nach dem Laden), halbiert die
+        # Inline-Groessen, waehrend Ueberschriften ohne eigene Groesse riesig
+        # wirken (intern#152).
+        self._set_font_size(self._current_font_size)
         if not (self._auto_size_enabled or self._auto_width_enabled):
-            # Manueller Zoom-Modus: setHtml() hat die Inline-Groessen auf die
-            # Originalwerte zurueckgesetzt. Die aktuelle/gespeicherte Groesse
-            # (aus der INI beim Start) neu anwenden — sonst zeigt der frisch
-            # geladene Text die Basisgroesse und erst ein Zoom-Klick stellt
-            # den gemerkten Faktor wieder her.
-            self._set_font_size(self._current_font_size)
             return
 
         doc_layout = self._browser.document().documentLayout()
