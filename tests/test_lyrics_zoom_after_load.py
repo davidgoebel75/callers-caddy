@@ -74,3 +74,44 @@ def test_kommentare_ausserhalb_von_style_bleiben():
     html = "<!-- Kopf --><style><!-- p{} --></style><p><!-- x -->a</p>"
     out = LyricsWidget._unwrap_style_comments(html)
     assert out == "<!-- Kopf --><style> p{} </style><p><!-- x -->a</p>"
+
+
+def test_ueberschrift_ohne_eigene_groesse_wie_text(widget, tmp_path):
+    """h1-h6 ohne Groessenangabe: so gross wie der Text (Default-Stylesheet)."""
+    w = widget
+    w._btn_auto_size.setChecked(False)
+    w._btn_auto_width.setChecked(False)
+    f = tmp_path / "song.htm"
+    f.write_text("<html><body><h1>OPENER</h1><p>Circle left</p></body></html>",
+                 encoding="utf-8")
+    w._load_file(str(f), f.name)
+    doc = w._browser.document()
+    h1, p = doc.begin(), doc.begin().next()
+    assert h1.charFormat().font().pointSizeF() == pytest.approx(
+        p.charFormat().font().pointSizeF())
+
+
+def test_bearbeiten_zeigt_100_prozent_und_sperrt_zoom(widget, tmp_path):
+    w = widget
+    w._btn_auto_size.setChecked(False)
+    w._btn_auto_width.setChecked(False)
+    w._current_font_size = w._base_font_size * 2
+    f = tmp_path / "song.htm"
+    f.write_text(HTML, encoding="utf-8")
+    w._load_file(str(f), f.name)
+    w._current_path = str(f)  # setzt sonst load_song
+
+    w._enter_edit_mode()
+    assert w._edit_mode
+    assert w._label_zoom.text() == "100%"
+    assert _inline_pt(w) == pytest.approx(10.0)
+    assert not w._btn_zoom_in.isEnabled()
+    assert not w._btn_auto_width.isEnabled()
+    w._on_zoom_in()  # gesperrt per Button; direkt aufgerufen bleibt es 100 %
+    assert w._label_zoom.text() == "100%"
+
+    w._leave_edit_mode_silent()
+    assert not w._edit_mode
+    assert w._label_zoom.text() == f"{round(w._current_font_size / w._base_font_size * 100)}%"
+    assert w._btn_zoom_in.isEnabled()
+    assert w._btn_auto_width.isEnabled()

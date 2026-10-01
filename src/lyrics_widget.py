@@ -3879,18 +3879,18 @@ class LyricsWidget(QWidget):
         # eine Skalierung wuerde sonst falsche Fragmente treffen.
         # Nach dem Speichern wird der Cache beim Reload neu gefuellt.
         self._original_sizes = []
-        self._set_font_size(self._current_font_size)  # im Edit-Modus = 100 %
+        self._set_font_size(self._base_font_size)  # Bearbeiten = 100 %
         # Signale sind bereits im __init__ einmal verbunden — Slots pruefen
         # self._edit_mode und sind im Read-Modus No-Ops.
 
         # Format-Toolbar zeigen.
         # Auto-Scroll und Auto-Size waehrend des Editierens sperren
         # (wuerden den Cursor verschieben bzw. die Default-Schrift dauernd
-        # umschalten). Auto-Width und Zoom bleiben verfuegbar — sie aendern
-        # nur die Anzeige, nicht die gespeicherten Per-Char-Groessen.
+        # umschalten). Zoom und Auto-Width ebenfalls: Bearbeiten zeigt die
+        # Datei immer in Originalgroesse (intern#152).
         self._format_toolbar_widget.setVisible(True)
-        self._btn_auto_scroll.setEnabled(False)
-        self._btn_auto_size.setEnabled(False)
+        self._set_edit_locked_buttons_enabled(False)
+        self._update_zoom_label()
 
         # Stift-Icon → Speichern-Hint
         self._btn_edit.blockSignals(True)
@@ -3917,8 +3917,8 @@ class LyricsWidget(QWidget):
         self._dirty = False
         self._set_font_size(self._current_font_size)  # Zoom wieder anwenden
         self._format_toolbar_widget.setVisible(False)
-        self._btn_auto_scroll.setEnabled(True)
-        self._btn_auto_size.setEnabled(True)
+        self._set_edit_locked_buttons_enabled(True)
+        self._update_zoom_label()
         self._btn_edit.blockSignals(True)
         self._btn_edit.setChecked(False)
         self._btn_edit.blockSignals(False)
@@ -3931,6 +3931,13 @@ class LyricsWidget(QWidget):
         else:
             self._btn_edit.setText("✎")
         self._btn_edit.setToolTip(_t("tooltip_lyrics_edit"))
+
+    def _set_edit_locked_buttons_enabled(self, enabled: bool):
+        """Buttons, die im Bearbeiten-Modus gesperrt sind."""
+        for btn in (self._btn_auto_scroll, self._btn_auto_size,
+                    self._btn_auto_width, self._btn_zoom_in,
+                    self._btn_zoom_out):
+            btn.setEnabled(enabled)
 
     def _on_doc_changed(self):
         # Wird auch durch setHtml() im Read-Modus getriggert — dort ignorieren.
@@ -4234,7 +4241,8 @@ class LyricsWidget(QWidget):
 
     def _update_zoom_label(self):
         """Aktualisiert die Zoom-Prozentanzeige."""
-        pct = int(round(self._current_font_size / self._base_font_size * 100))
+        size = self._base_font_size if self._edit_mode else self._current_font_size
+        pct = int(round(size / self._base_font_size * 100))
         self._label_zoom.setText(f"{pct}%")
 
     # ---- Auto-Fit: Schriftgroesse anpassen ----
