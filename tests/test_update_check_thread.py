@@ -13,6 +13,7 @@ import textwrap
 import threading
 import time
 
+import pytest
 from PySide6.QtCore import QCoreApplication, QObject
 
 import update_check
@@ -35,13 +36,28 @@ class _Window(QObject):
     _settings = None
 
 
+@pytest.fixture(autouse=True)
+def _slot_errors(monkeypatch):
+    """Ausnahmen in Qt-Slots landen in sys.excepthook statt im Test. Hier
+    mitschreiben und den Test fallen lassen (intern#159): sonst bleibt er
+    gruen, und ein vorher per `import main` eingerichteter Crash-Handler
+    schreibt den Fehler nach logs/crashes/ im Arbeitsverzeichnis."""
+    errors = []
+    monkeypatch.setattr(sys, "excepthook", lambda *exc: errors.append(exc[1]))
+    yield
+    assert errors == []
+
+
 def _checker(qapp, monkeypatch, result):
     """UpdateChecker, dessen _on_result mitschreibt (Args + Thread).
 
     _on_result wird auf der KLASSE ersetzt, bevor der Checker gebaut wird:
     __init__ verbindet so direkt den Mitschreiber, und der Test laeuft ueber
-    die echte QueuedConnection aus update_check.py.
+    die echte QueuedConnection aus update_check.py. Die Dialoge sind
+    stummgeschaltet; ein Test, der sie prueft, ersetzt sie am Objekt.
     """
+    for name in ("_show_up_to_date", "_show_check_failed", "_show_update_dialog"):
+        monkeypatch.setattr(update_check.UpdateChecker, name, lambda self, *a: None)
     monkeypatch.setattr(update_check, "find_latest_update", result)
     calls = []
     orig = update_check.UpdateChecker._on_result
