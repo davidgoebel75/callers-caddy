@@ -1,18 +1,22 @@
 """Architektur-Regeln (intern#135, Teil von intern#146).
 
-Zwei Regeln, damit neue Lecks zwischen Oberflaeche, Fachlogik und Datenbank
+Drei Regeln, damit neue Lecks zwischen Oberflaeche, Fachlogik und Datenbank
 gar nicht erst entstehen:
 
 1. Die Module in QT_FREE_MODULES importieren kein PySide6 — auch nicht in
    einer Funktion — und aus src/ nur andere Module dieser Liste. So faellt
    auch der Umweg ueber ui_helpers oder ein Widget auf.
 2. Ausserhalb von song_db.py greift niemand auf ._conn zu. Gemeint ist die
-   Verbindung von SongDatabase (db._conn); own_modules Verbindungen einer Klasse
+   Verbindung von SongDatabase (db._conn); eigene Verbindungen einer Klasse
    (self._conn, z. B. in migration/) zaehlen nicht.
+3. sqlite3 wird nur in song_db.py, migration/ und tools/ importiert — auch
+   nicht in einer Funktion. Wer sonst eine eigene Verbindung oeffnet, geht
+   an song_db vorbei.
 
 Ratsche wie in test_settings_reachable.py: die heutigen Verstoesse gegen
-Regel 2 stehen in _KNOWN_CONN_ACCESS. Wer eine Stelle behebt, muss ihren Zaehler
-senken — sonst faellt der Test. Die Liste soll schrumpfen, nicht wachsen.
+Regel 2 und 3 stehen in _KNOWN_CONN_ACCESS bzw. _KNOWN_SQLITE_IMPORTS. Wer eine
+Stelle behebt, muss ihren Zaehler senken — sonst faellt der Test. Die Listen
+sollen schrumpfen, nicht wachsen.
 """
 import ast
 import pathlib
@@ -41,6 +45,14 @@ _KNOWN_CONN_ACCESS = {
     "notes_widget.py": 1,
     "sequences_widget.py": 1,
     "stats_widget.py": 4,
+}
+
+# Hier darf sqlite3 importiert werden (Pfade relativ zu src/).
+_SQLITE_ALLOWED = ("song_db.py", "migration/", "tools/")
+
+# sqlite3-Importe ausserhalb davon, vorgefunden. Abbau: intern#139.
+_KNOWN_SQLITE_IMPORTS = {
+    "potential_widget.py": 7,
 }
 
 
@@ -86,3 +98,18 @@ def test_conn_only_in_song_db():
         f"._conn ausserhalb von song_db.py: {dict(found)}, erwartet "
         f"{_KNOWN_CONN_ACCESS}. Neue Abfragen gehoeren als Methode nach song_db; "
         f"behobene Stellen aus _KNOWN_CONN_ACCESS streichen.")
+
+
+def test_sqlite_only_in_song_db():
+    found = Counter()
+    for path in _SRC.rglob("*.py"):
+        rel = path.relative_to(_SRC).as_posix()
+        if rel.startswith("_fallback/") or rel.startswith(_SQLITE_ALLOWED):
+            continue
+        for mod in _imports(_parse(path)):
+            if mod == "sqlite3":
+                found[rel] += 1
+    assert dict(found) == _KNOWN_SQLITE_IMPORTS, (
+        f"sqlite3-Importe ausserhalb von song_db: {dict(found)}, erwartet "
+        f"{_KNOWN_SQLITE_IMPORTS}. Abfragen gehoeren als Methode nach "
+        f"song_db; behobene Stellen aus _KNOWN_SQLITE_IMPORTS streichen.")
