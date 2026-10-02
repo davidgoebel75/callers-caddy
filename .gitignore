@@ -23,6 +23,7 @@ src/_fallback/
 src/*.db*
 src/callers_caddy.ini
 src/logs/
+/logs/
 src/music/
 src/neu/
 src/lyrics/
