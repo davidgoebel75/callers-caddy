@@ -196,6 +196,7 @@ Alle Pflichtfelder implementiert:
 - **Datumsformat**: INI-Setting `display/date_format` (de = DD.MM.YY, us = MM/DD/YY). Toggle im Ansicht-Menue.
 - **Migration-Reihenfolge**: `_migrate()` MUSS vor `_create_tables()` laufen. Sonst erstellt `CREATE TABLE IF NOT EXISTS locations` eine leere Tabelle, bevor `ALTER TABLE clubs RENAME TO locations` die Daten uebertragen kann.
 - **Migrations-Sonderfall**: Falls clubs UND locations beide existieren (abgebrochener erster Start), werden Daten manuell kopiert und clubs-Tabelle geloescht.
+- **Neue Spalte = zwei Stellen**: ins passende `_CREATE_*` (Neuinstallation) UND als `ALTER TABLE ... ADD COLUMN` nach `_MIGRATIONS` (Update). Neue Tabelle zusaetzlich einmal in `_BASE_COLUMNS` von `tests/test_schema.py` eintragen. Der Test prueft beide Richtungen (intern#145, Anlass: `dance_programs.origin` in v0.150).
 
 ## SVG-Icons in Qt QSS
 
