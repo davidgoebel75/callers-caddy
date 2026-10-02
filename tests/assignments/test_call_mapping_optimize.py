@@ -6,7 +6,7 @@ neu zuordnen (bisher ungemappt), ergaenzen (Vorschlag ist echte Obermenge der
 Zuordnung) und aendern (Vorschlag weicht anders ab). Geschrieben wird mit
 mapped_by='inferred'.
 
-Muster, Fixtures und Helfer aus tests/test_call_mapping_set_suggestions.py
+Muster, Fixtures und Helfer aus tests/assignments/test_call_mapping_set_suggestions.py
 uebernommen und hier dupliziert (bewusst keine gemeinsame Hilfsdatei). Keine
 privaten Attribute des Dialogs: nur sichtbare Qt-Bausteine, das ersetzbare
 Bestaetigungsfenster und oeffentliche DB-Methoden.

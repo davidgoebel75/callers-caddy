@@ -24,7 +24,7 @@ import pytest
 from settings_dialog import SETTINGS_META, _is_excluded_key
 from test_settings_reachable import _is_excluded, _saat, _settings_calls
 
-_REPO = pathlib.Path(__file__).resolve().parent.parent
+_REPO = pathlib.Path(__file__).resolve().parents[2]
 _SRC = _REPO / "src"
 _LANGS = ("de", "en", "ja")
 

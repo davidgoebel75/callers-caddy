@@ -21,7 +21,7 @@ import pytest
 from settings_dialog import (SETTINGS_META, _EXCLUDED_KEYS, _EXCLUDED_SECTIONS,
                              _EXCLUDED_SUFFIX)
 
-_REPO = pathlib.Path(__file__).resolve().parent.parent
+_REPO = pathlib.Path(__file__).resolve().parents[2]
 _SRC = _REPO / "src"
 _DEFAULT_INI = _REPO / "installer" / "callers_caddy_default.ini"
 

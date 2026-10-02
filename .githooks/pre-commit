@@ -16,7 +16,7 @@ fi
 # ponytail: prueft den Arbeitsstand, nicht nur den gestagten Inhalt.
 # Teil-Staging (git add -p) kann so durchrutschen; die CI faengt es dann.
 QT_QPA_PLATFORM=offscreen "$PY" -m pytest -q --no-header -p no:cacheprovider \
-    tests/test_settings_i18n.py tests/test_settings_reachable.py || {
+    tests/settings/test_settings_i18n.py tests/settings/test_settings_reachable.py || {
     echo
     echo "pre-commit: Einstellungs-Tests fehlgeschlagen, Commit abgebrochen."
     echo "Im Notfall: git commit --no-verify"

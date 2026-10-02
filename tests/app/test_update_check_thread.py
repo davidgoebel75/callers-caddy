@@ -18,7 +18,7 @@ from PySide6.QtCore import QCoreApplication, QObject
 
 import update_check
 
-_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
+_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "src")
 
 
 def _wait_for(condition, timeout=5.0):
