@@ -3,7 +3,7 @@
 
 Baut auf suggest_figure_set()/canon_key() (BL-210.7, sequence_mapper.py) und
 dem bestehenden CallMappingDialog (BL-210.4). Muster, Fixtures und Helfer aus
-tests/test_call_figures_picker.py uebernommen und fuer diese eigene DB
+tests/assignments/test_call_figures_picker.py uebernommen und fuer diese eigene DB
 dupliziert (bewusst keine gemeinsame Hilfsdatei). Wie dort: keine privaten
 Attribute des Dialogs, nur seine sichtbaren Qt-Bausteine und Zellendaten.
 

@@ -77,7 +77,7 @@ Callers-Caddy/
 - **3 ZIP-Typen**: Vollpaket (Neuinstallation), Update (ohne DB/INI/User-Ordner), Source-Code
 - Prototypen-Ordner in `_archive/` sind nicht mehr aktiv
 - Nach Abnahme: CHANGELOG.md aktualisieren
-- **Pre-Commit-Hook** (`.githooks/pre-commit`): Steckt `src/*.py` oder `src/*.json` im Commit, laufen `tests/test_settings_i18n.py` und `tests/test_settings_reachable.py` (fehlende Uebersetzungen bzw. `SETTINGS_META`-Eintraege); schlaegt einer fehl, bricht der Commit ab. Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`. Nimmt `.venv` sonst `python` aus dem PATH. Notfall: `git commit --no-verify`.
+- **Pre-Commit-Hook** (`.githooks/pre-commit`): Steckt `src/*.py` oder `src/*.json` im Commit, laufen `tests/settings/test_settings_i18n.py` und `tests/settings/test_settings_reachable.py` (fehlende Uebersetzungen bzw. `SETTINGS_META`-Eintraege); schlaegt einer fehl, bricht der Commit ab. Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`. Nimmt `.venv` sonst `python` aus dem PATH. Notfall: `git commit --no-verify`.
 
 ## Fallback-Sicherung (PFLICHT)
 
@@ -179,7 +179,7 @@ Die Details stehen in `1_Source/docs/`. **Vor jeder Arbeit den passenden Abschni
 ## Uebersetzungen (i18n)
 
 - Texte laufen ueber `_t("key")` aus `src/translations.json`, jeder Key mit `de`, `en` und `ja`. `_t()` faellt still auf Deutsch zurueck — eine fehlende Sprache faellt also erst dem englischen oder japanischen Nutzer auf.
-- **Neuer INI-Schluessel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` uebersetzen (Muster `lyrics/dynamic_mode`). Test `tests/test_settings_i18n.py` prueft das.
+- **Neuer INI-Schluessel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` uebersetzen (Muster `lyrics/dynamic_mode`). Test `tests/settings/test_settings_i18n.py` prueft das.
 
 ## Technische Konventionen
 

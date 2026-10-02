@@ -5,7 +5,7 @@ import re
 
 from skin_manager import SkinManager
 
-SRC_SKINS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "skins")
+SRC_SKINS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "skins")
 
 
 def _write_skin(root, name, colors, qss, font_size=None):

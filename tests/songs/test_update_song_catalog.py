@@ -8,7 +8,7 @@ import pathlib
 
 import pytest
 
-_TOOL = pathlib.Path(__file__).resolve().parent.parent / "tools" / "update_song_catalog.py"
+_TOOL = pathlib.Path(__file__).resolve().parents[2] / "tools" / "update_song_catalog.py"
 _spec = importlib.util.spec_from_file_location("update_song_catalog", _TOOL)
 tool = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tool)

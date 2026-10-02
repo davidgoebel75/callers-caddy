@@ -22,7 +22,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "tools"))
 
 import seq_invariants  # noqa: E402
 

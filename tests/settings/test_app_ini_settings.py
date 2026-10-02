@@ -7,7 +7,7 @@ import re
 
 from PySide6.QtCore import QSettings
 
-SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
+SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
 
 
 def test_kein_nacktes_qsettings_im_code():

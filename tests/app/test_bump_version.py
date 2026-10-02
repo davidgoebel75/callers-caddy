@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 _SPEC = importlib.util.spec_from_file_location(
-    "bump_version", Path(__file__).resolve().parent.parent / "tools" / "bump_version.py"
+    "bump_version", Path(__file__).resolve().parents[2] / "tools" / "bump_version.py"
 )
 bump_version = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(bump_version)

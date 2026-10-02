@@ -22,7 +22,7 @@ import ast
 import pathlib
 from collections import Counter
 
-_SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
+_SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
 
 # Fachlogik und Infrastruktur ohne Qt. Ein neues Modul ohne Qt gehoert hier
 # dazu, damit es so bleibt. Bewusst nicht dabei: perf (holt fuer den
