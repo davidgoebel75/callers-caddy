@@ -8323,6 +8323,16 @@
     "en": "Remove from playlist",
     "ja": "プレイリストから削除"
   },
+  "db_update_problem_title": {
+    "de": "Datenbank nicht vollständig aktualisiert",
+    "en": "Database not fully updated",
+    "ja": "データベースの更新が完了していません"
+  },
+  "db_update_problem_text": {
+    "de": "Beim Aktualisieren deiner Datenbank auf die neue Version ist etwas schiefgegangen. Callers Caddy läuft weiter, aber einzelne Funktionen können fehlerhaft sein.\n\nBitte melde dich vor deinem nächsten Tanzabend und schick das Fehlerprotokoll aus dem Ordner „logs\\crashes“ mit.",
+    "en": "Something went wrong while updating your database to the new version. Callers Caddy keeps running, but some features may not work correctly.\n\nPlease get in touch before your next dance and send the error log from the \"logs\\crashes\" folder.",
+    "ja": "データベースを新しいバージョンに更新する際に問題が発生しました。Callers Caddy は引き続き動作しますが、一部の機能が正しく動作しない可能性があります。\n\n次のダンスの前にご連絡いただき、「logs\\crashes」フォルダーのエラーログをお送りください。"
+  },
   "crash_notice_title": {
     "de": "Fehlerprotokoll vorhanden",
     "en": "Error log found",

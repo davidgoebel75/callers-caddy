@@ -196,7 +196,9 @@ Alle Pflichtfelder implementiert:
 - **Datumsformat**: INI-Setting `display/date_format` (de = DD.MM.YY, us = MM/DD/YY). Toggle im Ansicht-Menue.
 - **Migration-Reihenfolge**: `_migrate()` MUSS vor `_create_tables()` laufen. Sonst erstellt `CREATE TABLE IF NOT EXISTS locations` eine leere Tabelle, bevor `ALTER TABLE clubs RENAME TO locations` die Daten uebertragen kann.
 - **Migrations-Sonderfall**: Falls clubs UND locations beide existieren (abgebrochener erster Start), werden Daten manuell kopiert und clubs-Tabelle geloescht.
-- **Neue Spalte = zwei Stellen**: ins passende `_CREATE_*` (Neuinstallation) UND als `ALTER TABLE ... ADD COLUMN` nach `_MIGRATIONS` (Update). Neue Tabelle zusaetzlich einmal in `_BASE_COLUMNS` von `tests/app/test_schema.py` eintragen. Der Test prueft beide Richtungen (intern#145, Anlass: `dance_programs.origin` in v0.150).
+- **Neue Spalte = nur ins `_CREATE_*`** (seit intern#145). Bestehende DBs bekommen sie beim Start automatisch: `_add_missing_columns()` fuehrt die `_CREATE_*` in einer In-Memory-DB aus und baut aus `PRAGMA table_info` das `ADD COLUMN`. Nicht nachruestbar sind PRIMARY KEY, UNIQUE, FOREIGN KEY, NOT NULL ohne Standardwert und eine Funktion als Standardwert; so eine Spalte braucht eine eigene Migration. `tests/db/test_schema.py` wird dann rot. Neue Tabelle: zusaetzlich in `_TABLE_SCHEMAS` eintragen (Test prueft das). `_DATA_FIXES` enthaelt nur noch Daten-Korrekturen und laeuft nach `_create_tables()`.
+- **Update von beliebig alten Staenden**: Caller ueberspringen oft Versionen. `tests/db/schemas/` haelt reine Schema-Abbilder (ohne Daten) aller bekannten Altstaende; jeder Testlauf prueft den Update-Weg von jedem davon. Mit jedem Release kommt eins dazu: `python tests/db/test_schema.py 0.XX`.
+- **Fremdschluessel brauchen ihr Ziel**: Mit `PRAGMA foreign_keys=ON` scheitert ein INSERT in eine Tabelle, deren FK-Zieltabelle noch fehlt, auch wenn kein einziger Wert darauf zeigt. Darum legt `_migrate_location_programs()` vorher `dance_programs` an. Ohne das startete die App mit DBs von vor den Tanzprogrammen nicht (intern#145, T5 vom Maerz 2026).
 
 ## SVG-Icons in Qt QSS
 
