@@ -44,7 +44,6 @@ _KNOWN_CONN_ACCESS = {
     "main.py": 1,
     "notes_widget.py": 1,
     "sequences_widget.py": 1,
-    "stats_widget.py": 4,
 }
 
 # Hier darf sqlite3 importiert werden (Pfade relativ zu src/).
