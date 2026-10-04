@@ -3122,11 +3122,8 @@ class P29MainWindow(QMainWindow):
         """Speichert eine Feedback-Notiz ans Ende der Notizliste der Lokation."""
         if not text or loc_id is None:
             return
-        row = self.db._conn.execute(
-            "SELECT MAX(sort_order) FROM notes WHERE location_id = ? AND status != 'deleted'",
-            (loc_id,)).fetchone()
-        bottom_order = (row[0] or 0) + 1
-        self.db.add_note(text, loc_id, note_type="normal", sort_order=bottom_order)
+        self.db.add_note(text, loc_id, note_type="normal",
+                         sort_order=self.db.next_note_order(loc_id))
         if self.notes_widget:
             self.notes_widget.refresh()
 

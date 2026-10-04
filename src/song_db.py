@@ -1541,6 +1541,12 @@ class SongDatabase:
 
     # ---- Calls eines Tanzprogramms (BL-199) ----
 
+    def get_real_calls(self) -> list[tuple]:
+        """[(entity_id, canonical_name)] aller echten Calls (ohne '--'-Trenner)."""
+        return self._conn.execute(
+            "SELECT entity_id, canonical_name FROM calls "
+            "WHERE canonical_name NOT LIKE '--%'").fetchall()
+
     def get_calls_for_program(self, program_label: str) -> list:
         """Alle echten Calls eines Programms, nach Teaching-Order sortiert.
 
@@ -2074,6 +2080,11 @@ class SongDatabase:
         matches.sort(key=lambda t: t[1])
         return matches
 
+    def get_location_name(self, location_id: int) -> str | None:
+        row = self._conn.execute(
+            "SELECT name FROM locations WHERE id = ?", (location_id,)).fetchone()
+        return row[0] if row else None
+
     # ---- BL-178 Paket 2: Shared History ----
 
     def _effective_history_id(self, location_id):
@@ -2574,6 +2585,12 @@ class SongDatabase:
 
     # ---- Sequenzen-CRUD ----
 
+    def get_all_calls_json(self) -> set:
+        """calls_json aller Sequenzen, fuer den Dubletten-Check beim Import."""
+        return {r[0] for r in self._conn.execute(
+            "SELECT calls_json FROM sequences WHERE calls_json IS NOT NULL")
+            if r[0]}
+
     def insert_sequence(self, fields: list, level_original: str = "",
                         max_teaching_order: float = None,
                         seq_type: str = "", difficulty: str = "",
@@ -2626,10 +2643,7 @@ class SongDatabase:
             self._conn.execute("DELETE FROM sequences WHERE source = ?",
                                (source or "",))
 
-        existing = set()
-        if dedup_against_existing:
-            existing = {r[0] for r in self._conn.execute(
-                "SELECT calls_json FROM sequences WHERE calls_json IS NOT NULL")}
+        existing = self.get_all_calls_json() if dedup_against_existing else set()
 
         rows = []
         skipped = 0
@@ -4448,6 +4462,13 @@ class SongDatabase:
         """, (text, location_id, sort_order, note_type, source, source_ref))
         self._conn.commit()
         return cur.lastrowid
+
+    def next_note_order(self, location_id: int) -> int:
+        """sort_order fuer eine neue Notiz ganz unten (geloeschte zaehlen nicht)."""
+        row = self._conn.execute(
+            "SELECT MAX(sort_order) FROM notes "
+            "WHERE location_id = ? AND status != 'deleted'", (location_id,)).fetchone()
+        return (row[0] or 0) + 1
 
     def set_note_status(self, note_id: int, status: str,
                         done_at: str = None):
