@@ -635,6 +635,17 @@ CREATE TABLE IF NOT EXISTS location_programs (
 );
 """
 
+# BL-094: Generische Song-Properties (Key/Value)
+_CREATE_SONG_PROPERTIES_TABLE = """
+CREATE TABLE IF NOT EXISTS song_properties (
+    song_id INTEGER NOT NULL,
+    key     TEXT    NOT NULL,
+    value   TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (song_id, key),
+    FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
+);
+"""
+
 # MS50-Umbau: kleiner Key/Value-Speicher fuer Referenzdaten-Version u.ae.
 _CREATE_APP_META_TABLE = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -677,60 +688,62 @@ _DP_LIMIT_BACKFILL_VERSION = 1
 
 # ---- Migration ----
 
-_MIGRATIONS = [
-    # BL-084: Tanzprogramm-Zuweisung pro Lokation
-    "ALTER TABLE locations ADD COLUMN dance_program_id INTEGER;",
-    # BL-086: Temporaeres Tempo pro Lokation
-    "ALTER TABLE locations ADD COLUMN temp_tempo REAL;",
-    # BL-144: Ziel-BPM pro Lokation (Zwilling zu temp_tempo)
-    "ALTER TABLE locations ADD COLUMN target_bpm REAL;",
-    # BL-144: Welcher der beiden Werte gilt ('percent'|'bpm'; NULL = percent)
-    "ALTER TABLE locations ADD COLUMN tempo_mode TEXT;",
-    # Geplante Anzahl Tips pro Lokation
-    "ALTER TABLE locations ADD COLUMN planned_tips INTEGER;",
-    # Standard-Pausendauer pro Lokation (Minuten)
-    "ALTER TABLE locations ADD COLUMN break_minutes INTEGER;",
-    # BL-178 Paket 1: Termin-Angaben pro Lokation (fuer Start-Auto-Erkennung)
-    # weekdays: CSV der Wochentage (1=Mo..7=So), z.B. "2,4"; NULL/'' = keine
-    "ALTER TABLE locations ADD COLUMN weekdays TEXT;",
-    # time_from/time_to: "HH:MM"; NULL = keine Zeitangabe
-    "ALTER TABLE locations ADD COLUMN time_from TEXT;",
-    "ALTER TABLE locations ADD COLUMN time_to TEXT;",
-    # BL-178: Mehrere Termine pro Lokation als JSON-Liste von Tripeln
-    # [{"wd":2,"from":"19:30","to":"22:00"}, ...]. Loest die drei Einzelspalten
-    # oben ab (die bleiben als Lese-Fallback fuer Altbestand bestehen).
-    "ALTER TABLE locations ADD COLUMN schedules TEXT;",
-    # BL-178 Paket 2: Shared History. Zeigt (falls gesetzt) auf die "Senke" —
-    # die Lokation, die die geteilte Abspielhistorie fuehrt. NULL = eigene History.
-    "ALTER TABLE locations ADD COLUMN shared_history_with INTEGER;",
-    # P18: Pattern/Singing
-    "ALTER TABLE songs ADD COLUMN is_pattern INTEGER NOT NULL DEFAULT 1;",
-    "ALTER TABLE songs ADD COLUMN is_singing INTEGER NOT NULL DEFAULT 1;",
-    # P20: Clubs -> Locations umbenennen
-    "ALTER TABLE clubs RENAME TO locations;",
-    # Migration-Tool: Artist-Spalte
-    "ALTER TABLE songs ADD COLUMN artist TEXT NOT NULL DEFAULT '';",
-    # Loop-Offset: Automatisch gemessener Versatz pro Song (Millisekunden)
-    "ALTER TABLE songs ADD COLUMN loop_offset_ms REAL NOT NULL DEFAULT 0.0;",
-    # P37: Eintragungsdatum
-    "ALTER TABLE songs ADD COLUMN date_added TEXT NOT NULL DEFAULT '';",
-    # Ceder-Import: Sequenz-Typ und Schwierigkeitsgrad
-    "ALTER TABLE sequences ADD COLUMN type TEXT NOT NULL DEFAULT '';",
-    "ALTER TABLE sequences ADD COLUMN difficulty TEXT NOT NULL DEFAULT '';",
-    # BL-111: Emotional Response Rate (1=Höhepunkt, 2=Vorbereitung, 3=Baseline, 4=Beruhigung)
-    "ALTER TABLE songs ADD COLUMN err INTEGER NOT NULL DEFAULT 0;",
+# intern#145: Alle Tabellen mit Spalten-Deklaration. _add_missing_columns()
+# gleicht bestehende DBs dagegen ab. Neue Tabelle -> hier eintragen.
+# ponytail: die Cache-Tabellen _band_cache_ver/_band_cover fehlen bewusst, sie
+# entstehen in _create_band_cache_triggers(); bekommen sie je eine neue Spalte,
+# dort nachziehen.
+_TABLE_SCHEMAS = (
+    _CREATE_TABLE, _CREATE_LOCATIONS_TABLE, _CREATE_GENRES_TABLE,
+    _CREATE_SONG_GENRES_TABLE, _CREATE_SONG_PROPERTIES_TABLE,
+    _CREATE_PLAY_HISTORY_TABLE, _CREATE_SONG_LOCATION_STATS_TABLE,
+    _CREATE_SEQUENCES_TABLE, _CREATE_CALLS_TABLE, _CREATE_CALL_PROGRAMS_TABLE,
+    _CREATE_CALL_TEXT_MAPPINGS_TABLE, _CREATE_CALL_TEXT_FIGURES_EXTRA_TABLE,
+    _CREATE_SEQUENCE_CALLS_TABLE, _CREATE_POTENTIAL_IGNORED_TABLE,
+    _CREATE_NOTES_TABLE, _CREATE_DANCE_PROGRAMS_TABLE,
+    _CREATE_LOCATION_PROGRAMS_TABLE, _CREATE_APP_META_TABLE,
+)
+
+
+def _add_column_sql(ref: sqlite3.Connection, table: str, col: str) -> str:
+    """ALTER TABLE ... ADD COLUMN fuer Spalte `col` aus der Referenz-DB `ref`
+    (dort sind die _CREATE_*-Konstanten ausgefuehrt).
+
+    ValueError, wenn SQLite die Spalte so nicht nachruesten kann. Dann braucht
+    sie eine eigene Migration (intern#145). tests/db/test_schema.py prueft das
+    fuer jede neue Spalte schon beim Entwickeln.
+    """
+    info = {r[1]: r for r in ref.execute(f"PRAGMA table_info({table})")}
+    _cid, _name, ctype, notnull, dflt, pk = info[col]
+    if pk:
+        raise ValueError("PRIMARY KEY nicht per ADD COLUMN nachruestbar")
+    for _seq, idx, unique, _origin, _partial in ref.execute(
+            f"PRAGMA index_list({table})"):
+        idx_cols = [r[2] for r in ref.execute(f"PRAGMA index_info({idx})")]
+        if unique and col in idx_cols:
+            raise ValueError("UNIQUE nicht per ADD COLUMN nachruestbar")
+    if any(fk[3] == col for fk in ref.execute(f"PRAGMA foreign_key_list({table})")):
+        raise ValueError("FOREIGN KEY ginge per ADD COLUMN verloren")
+    if notnull and dflt is None:
+        raise ValueError("NOT NULL ohne Standardwert nicht nachruestbar")
+    if dflt is not None and "(" in dflt and not dflt.startswith("'"):
+        raise ValueError(f"Standardwert {dflt} ist nicht konstant")
+    sql = f"ALTER TABLE {table} ADD COLUMN {col} {ctype}"
+    if notnull:
+        sql += " NOT NULL"
+    if dflt is not None:
+        sql += f" DEFAULT {dflt}"
+    return sql
+
+
+# intern#145: Spalten stehen nur noch in den _CREATE_*-Konstanten. Fehlende
+# Spalten einer bestehenden DB leitet _add_missing_columns() daraus ab. Hier
+# bleiben nur Daten-Korrekturen, in fester Reihenfolge, bei jedem Start nach
+# _create_tables(). Jede muss idempotent sein (WHERE-Klausel, die nach dem
+# ersten Lauf nichts mehr trifft).
+_DATA_FIXES = [
     # BL-XXX: quality-Spalte bereinigen (REAL/TEXT → INTEGER, behebt Crash bei str > int)
     "UPDATE songs SET quality = CAST(ROUND(quality) AS INTEGER) WHERE typeof(quality) != 'integer';",
-    # BL-132: Sequenz-Limit pro Tanzprogramm
-    "ALTER TABLE dance_programs ADD COLUMN sequence_limit_to REAL;",
-    # BL-094: Generische Song-Properties (Key/Value)
-    """CREATE TABLE IF NOT EXISTS song_properties (
-        song_id INTEGER NOT NULL,
-        key     TEXT    NOT NULL,
-        value   TEXT    NOT NULL DEFAULT '',
-        PRIMARY KEY (song_id, key),
-        FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
-    );""",
     # BL-147: Relative Pfade kanonisch mit '/' speichern. Aeltere Versionen
     # haben relative Unterpfade mit Windows-Backslash abgelegt (z.B.
     # 'Sub\\song.mp3'). Das bricht den exakten String-Vergleich in
@@ -756,17 +769,6 @@ _MIGRATIONS = [
     "UPDATE sequences SET type = REPLACE(type, ' - ', ' ➔ ') "
     "WHERE type LIKE 'Static Set - %' OR type LIKE 'Zero Line - %' "
     "OR type LIKE 'Zero Box - %';",
-    # Option C: volle Callliste als JSON. field_1..15 bleiben als Mirror.
-    # Der Backfill fuer Alt-Zeilen (calls_json IS NULL) laeuft in Python
-    # (_backfill_calls_json), weil das Filtern leerer/'-'-Felder in SQL umstaendlich ist.
-    "ALTER TABLE sequences ADD COLUMN calls_json TEXT;",
-    # Herkunfts-Marke fuer den ausgelieferten Referenz-Satz (siehe CREATE TABLE).
-    "ALTER TABLE sequences ADD COLUMN source TEXT NOT NULL DEFAULT '';",
-    # BL-191: frei vergebbarer Tag/Kategorie je Sequenz.
-    "ALTER TABLE sequences ADD COLUMN tags TEXT NOT NULL DEFAULT '';",
-    # MS50-Umbau: Herkunft eines Tanzprogramms (builtin -> vom Reseed pflegbar,
-    # user -> vom Nutzer angelegt, bleibt erhalten).
-    "ALTER TABLE dance_programs ADD COLUMN origin TEXT NOT NULL DEFAULT 'builtin';",
 ]
 
 # ---------------------------------------------------------------------------
@@ -927,8 +929,13 @@ class SongDatabase:
         self._scope_key = None        # (frozenset bands, frozenset below), aktuell in TEMP seq_scope
         self._band_cache_ver_seen = -1  # zuletzt gesehener _band_cache_ver.v (Auto-Invalidierung)
         self._seq_figures = None      # intern#111: sequence_id -> frozenset gebandeter Figuren
+        # intern#145: Was beim Update nicht klappte. main zeigt es beim Start an.
+        self.schema_problems: list[str] = []
         self._migrate()         # Zuerst: bestehende Tabellen umbenennen/erweitern
         self._create_tables()   # Dann: fehlende Tabellen anlegen (IF NOT EXISTS)
+        self._apply_data_fixes()
+        for problem in self.schema_problems:
+            _safe_print(f"[SongDB] Update-Problem: {problem}")
         self._backfill_calls_json()  # Option C: calls_json aus field_1..15 fuellen
         self._ensure_sequence_calls_index()  # enthält-Filter-Index sicherstellen
         self.reseed_reference_data()  # MS50: gebuendelte Referenz einspielen (einmalig)
@@ -1025,6 +1032,7 @@ class SongDatabase:
         self._conn.execute(_CREATE_LOCATIONS_TABLE)
         self._conn.execute(_CREATE_GENRES_TABLE)
         self._conn.execute(_CREATE_SONG_GENRES_TABLE)
+        self._conn.execute(_CREATE_SONG_PROPERTIES_TABLE)
         self._conn.execute(_CREATE_PLAY_HISTORY_TABLE)
         self._conn.execute(_CREATE_PLAY_HISTORY_INDEX)
         self._conn.execute(_CREATE_SONG_LOCATION_STATS_TABLE)
@@ -1085,20 +1093,24 @@ class SongDatabase:
                     f"{when} ON {tbl} BEGIN "
                     f"UPDATE _band_cache_ver SET v = v + 1; END;")
 
-    def _migrate(self):
-        """Fuehrt DB-Migrationen aus (neue Spalten, Tabellen-Umbenennungen).
+    def _has_table(self, name: str) -> bool:
+        return self._conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (name,)).fetchone() is not None
 
-        Jede Migration ist idempotent-sicher:
-        Falls die Aenderung schon existiert, wirft SQLite einen Fehler,
-        den wir einfach ignorieren.
+    def _migrate(self):
+        """Bringt bestehende Tabellen auf den Stand der _CREATE_*-Konstanten.
+
+        Reihenfolge (intern#145): Umbenennung clubs -> locations, dann fehlende
+        Spalten, dann die Struktur-Umbauten. Danach legt _create_tables()
+        fehlende Tabellen an, und _apply_data_fixes() korrigiert Daten.
+        Probleme landen in self.schema_problems statt verschluckt zu werden.
         """
-        for sql in _MIGRATIONS:
-            try:
-                self._conn.execute(sql)
-                self._conn.commit()
-                _safe_print(f"[SongDB] Migration: {sql.strip()[:60]}...")
-            except sqlite3.OperationalError:
-                pass  # Spalte/Tabelle existiert bereits bzw. Quell-Tabelle fehlt
+        # P20: Clubs -> Locations umbenennen
+        if self._has_table("clubs") and not self._has_table("locations"):
+            self._conn.execute("ALTER TABLE clubs RENAME TO locations")
+            self._conn.commit()
+            print("[SongDB] Migration: clubs -> locations umbenannt")
 
         # Sonderfall: Falls clubs UND locations beide existieren (z.B. nach
         # abgebrochenem erstem Start), Daten aus clubs nach locations kopieren
@@ -1120,8 +1132,56 @@ class SongDatabase:
             self._conn.commit()
             print("[SongDB] Migration: clubs-Reste nach locations uebernommen")
 
+        self._add_missing_columns()
         self._migrate_calls_split()
         self._migrate_location_programs()
+
+    def _add_missing_columns(self):
+        """Ergaenzt in bestehenden Tabellen die Spalten, die in _CREATE_*
+        stehen, aber in der DB fehlen (intern#145).
+
+        Die _CREATE_*-Konstanten laufen dazu in einer leeren In-Memory-DB;
+        PRAGMA table_info liefert Typ, NOT NULL und Standardwert, daraus baut
+        _add_column_sql() das ALTER. Fehlende Tabellen legt danach
+        _create_tables() komplett an. Nicht nachruestbare Spalten werden nicht
+        verschluckt: sie landen in self.schema_problems, main meldet sie.
+        """
+        ref = sqlite3.connect(":memory:")
+        try:
+            for create in _TABLE_SCHEMAS:
+                ref.execute(create)
+            tables = [r[0] for r in ref.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+            for table in tables:
+                have = {r[1] for r in self._conn.execute(
+                    f"PRAGMA table_info({table})")}
+                if not have:
+                    continue  # Tabelle fehlt ganz -> _create_tables()
+                for r in ref.execute(f"PRAGMA table_info({table})").fetchall():
+                    col = r[1]
+                    if col in have:
+                        continue
+                    try:
+                        self._conn.execute(_add_column_sql(ref, table, col))
+                        _safe_print(f"[SongDB] Migration: Spalte {table}.{col} ergaenzt")
+                    except (ValueError, sqlite3.Error) as e:
+                        self.schema_problems.append(f"{table}.{col}: {e}")
+            self._conn.commit()
+        finally:
+            ref.close()
+
+    def _apply_data_fixes(self):
+        """Daten-Korrekturen aus _DATA_FIXES, bei jedem Start (idempotent)."""
+        for sql in _DATA_FIXES:
+            try:
+                n = self._conn.execute(sql).rowcount
+            except sqlite3.Error as e:
+                self.schema_problems.append(f"Datenkorrektur {sql.strip()[:50]}: {e}")
+                continue
+            if n > 0:
+                _safe_print(f"[SongDB] Datenkorrektur ({n} Zeilen): {sql.strip()[:60]}...")
+        self._conn.commit()
 
     def _migrate_location_programs(self):
         """MS50-Umbau: Backfill der Junction-Tabelle location_programs.
@@ -1135,6 +1195,9 @@ class SongDatabase:
         ).fetchone()
         if exists:
             return
+        # Ziel des Fremdschluessels muss existieren, sonst scheitert der INSERT
+        # unten bei DBs aus der Zeit vor den Tanzprogrammen (intern#145, T5).
+        self._conn.execute(_CREATE_DANCE_PROGRAMS_TABLE)
         self._conn.execute(_CREATE_LOCATION_PROGRAMS_TABLE)
         # locations-Tabelle da? (frische DB: noch nicht -> _create_tables macht sie)
         has_loc = self._conn.execute(

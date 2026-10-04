@@ -2,6 +2,7 @@
 # Pre-Commit-Hook (intern#128): Einstellungs-Tests vor jedem Commit, der
 # src/*.py oder src/*.json anfasst. Faengt fehlende Uebersetzungen und
 # fehlende SETTINGS_META-Eintraege schon beim Commit ab, nicht erst in der CI.
+# Dazu der Update-Weg der DB von allen bekannten Altstaenden (intern#145).
 # Aktivieren (einmal pro Klon): git config core.hooksPath .githooks
 # Notfall: git commit --no-verify
 
@@ -16,9 +17,10 @@ fi
 # ponytail: prueft den Arbeitsstand, nicht nur den gestagten Inhalt.
 # Teil-Staging (git add -p) kann so durchrutschen; die CI faengt es dann.
 QT_QPA_PLATFORM=offscreen "$PY" -m pytest -q --no-header -p no:cacheprovider \
-    tests/settings/test_settings_i18n.py tests/settings/test_settings_reachable.py || {
+    tests/settings/test_settings_i18n.py tests/settings/test_settings_reachable.py \
+    tests/db/test_schema.py || {
     echo
-    echo "pre-commit: Einstellungs-Tests fehlgeschlagen, Commit abgebrochen."
+    echo "pre-commit: Einstellungs- oder Schema-Tests fehlgeschlagen, Commit abgebrochen."
     echo "Im Notfall: git commit --no-verify"
     exit 1
 }

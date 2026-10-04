@@ -6,6 +6,11 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.160)
+
+### Bugfixes
+- **Update von sehr alten Versionen startet wieder.** Wer von einem frühen Stand aus der Zeit vor den Tanzprogrammen (etwa März 2026) direkt auf eine aktuelle Version wechselte, bekam beim Start einen Fehler, und Callers Caddy öffnete sich nicht. Jetzt wird auch eine solche Datenbank beim ersten Start vollständig auf den neuen Stand gebracht. Klappt dabei einmal etwas nicht, startet das Programm trotzdem, zeigt sofort einen deutlichen Hinweis und legt ein Fehlerprotokoll an, das man dem Entwickler schicken kann.
+
 ## 0.160 — Lesebalken in den Lyrics, Zuordnungs-Import mit Konfliktklärung & Song-Katalog (2026-10-01)
 
 ### Verbesserungen

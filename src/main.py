@@ -7747,6 +7747,21 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
+def _report_db_update_problems(parent, problems: list):
+    """intern#145: Das DB-Update hat nicht alles geschafft. Die App laeuft
+    weiter, aber der Caller soll es sofort merken, nicht erst am Tanzabend:
+    Crash-Report fuer die Details, dazu ein unuebersehbarer Dialog."""
+    _crash_handler.write_report(
+        "Datenbank-Update unvollstaendig (intern#145)",
+        [f"  {p}" for p in problems])
+    msg = QMessageBox(parent)
+    msg.setWindowTitle(_t("db_update_problem_title"))
+    msg.setIcon(QMessageBox.Warning)
+    msg.setText(_t("db_update_problem_text"))
+    msg.setDetailedText("\n".join(problems))
+    msg.exec()
+
+
 def _show_crash_log_notice(parent, crash_logs: list, settings):
     """Zeigt einen Hinweis-Dialog wenn neue Crash-Logs vorhanden sind.
 
@@ -7955,6 +7970,11 @@ def main():
     if crash_logs:
         QTimer.singleShot(
             800, lambda: _show_crash_log_notice(window, crash_logs, settings))
+    # Erst nach der Suche oben: der Report dieses Starts gehoert nicht in den
+    # Hinweis auf alte Fehlerprotokolle.
+    if window.db.schema_problems:
+        QTimer.singleShot(
+            500, lambda: _report_db_update_problems(window, window.db.schema_problems))
 
     # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
     # nicht auf dem Main-Thread parsen (intern#126).
