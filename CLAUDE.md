@@ -79,6 +79,7 @@ Callers-Caddy/
 - Prototypen-Ordner in `_archive/` sind nicht mehr aktiv
 - Nach Abnahme: CHANGELOG.md aktualisieren
 - **Pre-Commit-Hook** (`.githooks/pre-commit`): Steckt `src/*.py` oder `src/*.json` im Commit, laufen `tests/settings/test_settings_i18n.py`, `tests/settings/test_settings_reachable.py` (fehlende Uebersetzungen bzw. `SETTINGS_META`-Eintraege) und `tests/db/test_schema.py` (Update-Weg der DB von allen bekannten Altstaenden); schlaegt einer fehl, bricht der Commit ab. Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`. Nimmt `.venv` sonst `python` aus dem PATH. Notfall: `git commit --no-verify`.
+- **Tests** (`tests/`, nach Fachthema gruppiert, `pytest.ini` im Stamm): `app/` Infrastruktur, Dialoge, Architektur-Regeln · `assignments/` Zuordnung, Figuren-Menge · `db/` DB-Schema, Update-Weg von Altständen · `lyrics/` Lyrics, Singing-Abschnitte, Heads/Sides · `playback/` Wiedergabe, Pausen-Uhr, Wartemusik · `sequences/` Sequenzen, Filter, Import · `settings/` INI, Einstellungsdialog, Skins · `songs/` Song-Katalog, Metadaten, ZIP-Import, Playlist. Neue Tests in den passenden Ordner, nicht flach nach `tests/`. Laufen aus dem Stamm, aus `tests/` und aus jedem Unterordner.
 
 ## Fallback-Sicherung (PFLICHT)
 

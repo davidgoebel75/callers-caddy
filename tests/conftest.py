@@ -1,18 +1,14 @@
 """Gemeinsame Testeinrichtung.
 
-Legt src/ auf den sys.path — relativ zur eigenen Datei, damit die Tests aus
-jedem Verzeichnis heraus laufen — und stellt die QApplication bereit, die
-Qt-Widgets zum Leben brauchen.
+src/ legt pytest.ini auf den sys.path (pythonpath). Hier: Crash-Handler
+umlenken und die QApplication bereitstellen, die Qt-Widgets zum Leben brauchen.
 """
 import atexit
 import contextlib
 import os
-import sys
 import tempfile
 
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
 # `import main` richtet beim Laden den Crash-Handler mit os.getcwd() ein, also
 # dem Repo-Stamm -> Ausnahmen in Qt-Slots landeten in logs/crashes/ im Repo
@@ -20,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src
 # vorab einen anlegen, der in ein Temp-Verzeichnis schreibt. Muss vor dem
 # Sammeln der Tests passieren (manche importieren main ganz oben).
 # Am Ende wieder weg, solange leer; mit Crash-Log bleibt er zum Nachsehen.
-import crash_handler  # noqa: E402
+import crash_handler
 _crash_dir = tempfile.mkdtemp(prefix="cc-crash-")
 crash_handler._logger = crash_handler.CrashLogger(_crash_dir)
 
