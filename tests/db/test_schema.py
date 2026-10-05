@@ -1,6 +1,6 @@
 """Update-Weg der Datenbank von jedem bekannten Altstand (intern#145).
 
-Spalten stehen nur noch in den _CREATE_*-Konstanten von song_db.py. Fehlende
+Spalten stehen nur noch in den _CREATE_*-Konstanten von song_db_schema.py. Fehlende
 Spalten einer bestehenden DB leitet _add_missing_columns() daraus ab.
 
 Geprueft wird gegen Schema-Abbilder in schemas/: nur CREATE-Statements, keine
@@ -30,7 +30,7 @@ import pytest
 if __name__ == "__main__":  # als Skript (Abbild schreiben): src/ selbst holen
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "src"))
 
-import song_db  # noqa: E402
+import song_db_schema  # noqa: E402
 from song_db import SongDatabase  # noqa: E402
 
 _SCHEMAS = pathlib.Path(__file__).resolve().parent / "schemas"
@@ -83,12 +83,12 @@ def test_update_from_old_schema(schema, tmp_path, fresh_columns):
 def test_unaddable_column_is_reported_not_raised(tmp_path, monkeypatch):
     """Geht beim Nutzer doch etwas schief, startet die App weiter und meldet
     es ueber schema_problems (main zeigt einen Dialog)."""
-    broken = song_db._CREATE_TABLE.replace(
+    broken = song_db_schema._CREATE_TABLE.replace(
         "err             INTEGER NOT NULL DEFAULT 0",
         "err             INTEGER NOT NULL DEFAULT 0,\n    _unaddable_probe TEXT NOT NULL")
-    assert broken != song_db._CREATE_TABLE
-    monkeypatch.setattr(song_db, "_TABLE_SCHEMAS",
-                        (broken,) + song_db._TABLE_SCHEMAS[1:])
+    assert broken != song_db_schema._CREATE_TABLE
+    monkeypatch.setattr(song_db_schema, "_TABLE_SCHEMAS",
+                        (broken,) + song_db_schema._TABLE_SCHEMAS[1:])
     db = _open(_db_from_schema(_SCHEMAS / "0.160.sql", tmp_path / "old.db"))
     problems = db.schema_problems
     db.close()
@@ -100,11 +100,11 @@ def test_every_create_table_is_registered():
     """Eine Tabelle, die nicht in _TABLE_SCHEMAS steht, bekaeme in alten DBs
     nie neue Spalten."""
     created = {re.search(r"CREATE TABLE IF NOT EXISTS (\w+)", v)[1]
-               for k, v in vars(song_db).items()
+               for k, v in vars(song_db_schema).items()
                if k.startswith("_CREATE_") and isinstance(v, str)
                and "CREATE TABLE" in v}
     registered = {re.search(r"CREATE TABLE IF NOT EXISTS (\w+)", v)[1]
-                  for v in song_db._TABLE_SCHEMAS}
+                  for v in song_db_schema._TABLE_SCHEMAS}
     assert created == registered, f"fehlt in _TABLE_SCHEMAS: {created - registered}"
 
 

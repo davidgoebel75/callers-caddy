@@ -9,9 +9,9 @@ gar nicht erst entstehen:
 2. Ausserhalb von song_db.py greift niemand auf ._conn zu. Gemeint ist die
    Verbindung von SongDatabase (db._conn); eigene Verbindungen einer Klasse
    (self._conn, z. B. in migration/) zaehlen nicht.
-3. sqlite3 wird nur in song_db.py, migration/ und tools/ importiert — auch
-   nicht in einer Funktion. Wer sonst eine eigene Verbindung oeffnet, geht
-   an song_db vorbei.
+3. sqlite3 wird nur in song_db.py, song_db_schema.py, migration/ und tools/
+   importiert — auch nicht in einer Funktion. Wer sonst eine eigene
+   Verbindung oeffnet, geht an song_db vorbei.
 
 Ratsche wie in test_settings_reachable.py: die heutigen Verstoesse gegen
 Regel 2 und 3 stehen in _KNOWN_CONN_ACCESS bzw. _KNOWN_SQLITE_IMPORTS. Wer eine
@@ -34,7 +34,8 @@ QT_FREE_MODULES = {
     "pitch_shifter", "rule_definitions", "rule_engine",
     "sequence_filter", "sequence_import", "sequence_mapper",
     "shortcode_parser", "singing_body_detect", "singing_sections",
-    "skin_manager", "song_catalog", "song_db", "song_db_potential", "song_match",
+    "skin_manager", "song_catalog", "song_db", "song_db_potential",
+    "song_db_schema", "song_match",
     "subfolder_duplicate_repair", "time_stretcher", "zip_import",
 }
 
@@ -43,7 +44,7 @@ _KNOWN_CONN_ACCESS = {
 }
 
 # Hier darf sqlite3 importiert werden (Pfade relativ zu src/).
-_SQLITE_ALLOWED = ("song_db.py", "migration/", "tools/")
+_SQLITE_ALLOWED = ("song_db.py", "song_db_schema.py", "migration/", "tools/")
 
 # sqlite3-Importe ausserhalb davon, vorgefunden. Abbau: intern#139.
 _KNOWN_SQLITE_IMPORTS = {
