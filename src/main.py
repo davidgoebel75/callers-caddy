@@ -163,6 +163,7 @@ from evening_planner_widget import EveningPlannerWidget
 import zip_import
 import song_catalog
 import song_match
+import program_selection
 from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
 
@@ -2526,16 +2527,6 @@ class P29MainWindow(QMainWindow):
                     pass
         return out
 
-    def _bands_for_program_ids(self, pids):
-        """MS50: Programm-IDs -> Menge der Programm-Baender (Ganzzahl aus
-        dance_programs.sequence_limit_to, z.B. 30.999999 -> 30). Leer/None -> None
-        (= kein Programm-Filter, alle Sequenzen)."""
-        if not pids:
-            return None
-        limits = {r[0]: r[5] for r in self.db.get_all_dance_programs()}
-        bands = {int(limits[p]) for p in pids if limits.get(p) is not None}
-        return bands or None
-
     def _location_program_ids(self, location):
         """Programm-IDs einer Lokation inkl. Legacy-Fallback auf dance_program_id."""
         if not location or getattr(location, "id", None) is None:
@@ -2544,24 +2535,6 @@ class P29MainWindow(QMainWindow):
         if not ids and getattr(location, "dance_program_id", None) is not None:
             ids = [location.dance_program_id]
         return ids
-
-    def _top_program(self, pids):
-        """Oberstes (hoechstes Band) der gewaehlten Programme -> (program_id, code).
-        Liefert die Basis fuer die Ziel-Tanzdauer. Leer -> (None, '')."""
-        if not pids:
-            return None, ""
-        rows = {r[0]: r for r in self.db.get_all_dance_programs()}
-        best = None  # (band, id, code)
-        for p in pids:
-            r = rows.get(p)
-            if r is None:
-                continue
-            band = r[5] if len(r) > 5 and r[5] is not None else -1
-            if best is None or band > best[0]:
-                best = (band, p, r[1])
-        if best is None:
-            return None, ""
-        return best[1], best[2]
 
     def _apply_program_setting(self, defer_seq_load=False):
         """MS50: session-globale Tanzprogramm-Wahl anwenden — Sequenz-Filter (Band-Menge)
@@ -2572,10 +2545,11 @@ class P29MainWindow(QMainWindow):
         nach window.show() (haelt den Cover-Compute vom kritischen Startpfad fern).
         """
         ids = self._session_program_ids
+        programs = self.db.get_all_dance_programs()
         if getattr(self, "sequences_widget", None) is not None:
             self.sequences_widget.set_program_bands(
-                self._bands_for_program_ids(ids), defer_load=defer_seq_load)
-        top_id, top_code = self._top_program(ids)
+                program_selection.bands_for(programs, ids), defer_load=defer_seq_load)
+        top_id, top_code = program_selection.top_program(programs, ids)
         self.player.set_dance_program(top_id, top_code)
 
     def _set_session_program_ids(self, ids, persist: bool = True):
@@ -2844,18 +2818,15 @@ class P29MainWindow(QMainWindow):
         """
         if not hasattr(self, "sequences_widget"):
             return
-        for row in self.db.get_all_dance_programs():
-            if row[1] == code:
-                seq_limit_to = row[5] if len(row) > 5 else None
-                # BL-190: Contains-Vorschlaege nach dem gewaehlten Programm ordnen
-                # (unabhaengig vom Auto-Sync des Limit-Filters).
-                self.sequences_widget.set_program_sort_to(seq_limit_to)
-                # MS50: Programm-Filter laeuft jetzt ueber die Band-Menge der Lokation
-                # (set_program_bands in _set_current_location). Das alte Schwellwert-
-                # Auto-Sync entfaellt, sonst wuerde doppelt (und mit veraltetem
-                # max_teaching_order) gefiltert. Der Limit-Combo bleibt als manueller
-                # Zusatzfilter erhalten.
-                break
+        # BL-190: Contains-Vorschlaege nach dem gewaehlten Programm ordnen
+        # (unabhaengig vom Auto-Sync des Limit-Filters). MS50: Der Programm-Filter
+        # laeuft ueber die Band-Menge der Lokation (set_program_bands in
+        # _set_current_location); das alte Schwellwert-Auto-Sync entfaellt, der
+        # Limit-Combo bleibt als manueller Zusatzfilter erhalten.
+        programs = self.db.get_all_dance_programs()
+        if any(r[1] == code for r in programs):
+            self.sequences_widget.set_program_sort_to(
+                program_selection.limit_for_code(programs, code))
 
     def _ensure_primary_channel(self):
         """Primaerkanal sicherstellen bevor irgendwo engine.play() direkt aufgerufen wird.
@@ -4952,8 +4923,8 @@ class P29MainWindow(QMainWindow):
         # Vorauswahl: hoechstes der gewaehlten Tanzprogramme (dieselbe Regel wie
         # der Programm-Button im Player) -- trifft den Normalfall am Clubabend.
         label_by_id = {r[0]: (r[2] or r[1]) for r in progs}
-        top_id, _code = self._top_program(
-            getattr(self, '_session_program_ids', []) or [])
+        top_id, _code = program_selection.top_program(
+            progs, getattr(self, '_session_program_ids', []) or [])
         active_label = label_by_id.get(top_id, "")
         if not active_label and progs:
             active_label = progs[0][2] or progs[0][1]
