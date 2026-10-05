@@ -16,4 +16,4 @@ Die harten Regeln (Versions-Bump-Doppelpack, Merge-Commit, Build nur nach Rueckf
 
 - **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
 - Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
-- **Bauen**: `python installer/build.py` — erzeugt EXEs im Build-Ordner, ZIPs im Release-Ordner (`CC_BUILD_DIR` / `CC_RELEASE_DIR`, ohne die Variablen neben dem Klon). **3 ZIP-Typen**: Vollpaket (Neuinstallation), Update (ohne DB/INI/User-Ordner), Source-Code.
+- Bauen, Ordner und ZIP-Typen: `CLAUDE.md`, Abschnitt „Ordner und Entwicklungs-Workflow".

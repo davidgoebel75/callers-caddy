@@ -14,6 +14,7 @@ Version wird aus src/main.py gelesen (__version__).
 
 Ordnerstruktur:
   <Repo-Klon>/      Code + Build-Skripte
+  2_Test/           Testumgebung mit echten Daten (ohne Code)
   3_Build/          PyInstaller-Workspace (CC_BUILD_DIR, sonst neben dem Klon)
   4_Release/        Fertige ZIPs (CC_RELEASE_DIR, sonst neben dem Klon)
 

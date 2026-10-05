@@ -10,7 +10,7 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 - UI-Framework: PySide6 (Qt 6 Widgets), kein WebView
 - DB: SQLite via built-in sqlite3
 - Audio: Eigener Streaming-WSOLA (kein Rubber Band/SoundTouch)
-- `app_dir`: Im Dev-Modus = `os.getcwd()` (Test-Arbeitsverzeichnis), im EXE-Modus = neben der EXE
+- `app_dir`: Im Dev-Modus = `os.getcwd()` (2_Test/), im EXE-Modus = neben der EXE
 
 ## Modularisierung (BL-201)
 
