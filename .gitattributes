@@ -24,3 +24,8 @@
 *.pyd  binary
 *.ttf  binary
 *.otf  binary
+
+# CHANGELOG.md: parallele PRs tragen alle unter "(Unreleased)" ein und
+# kollidieren sonst bei jedem Merge. union behaelt die Zeilen beider Seiten.
+# Gilt fuer lokale Merges (git merge/rebase), nicht fuer den Merge-Button auf GitHub.
+CHANGELOG.md merge=union
