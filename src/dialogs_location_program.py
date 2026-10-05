@@ -991,7 +991,6 @@ class _MultiProgramPickerDialog(QDialog):
         sel = set(selected_ids or [])
         self._checks = []             # [(pid, QCheckBox)]
         self._cb_by_pid = {}          # pid -> QCheckBox
-        self._band_by_pid = {}        # pid -> Band (int) oder None
         self._suppress_cascade = False  # Reentranz-Schutz beim Auto-Anhaken
 
         layout = QVBoxLayout(self)
