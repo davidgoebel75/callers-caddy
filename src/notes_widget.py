@@ -836,10 +836,7 @@ class NotesWidget(QWidget):
 
     def _get_location_name(self, location_id: int) -> str:
         try:
-            row = self._db._conn.execute(
-                "SELECT name FROM locations WHERE id = ?", (location_id,)
-            ).fetchone()
-            return row[0] if row else str(location_id)
+            return self._db.get_location_name(location_id) or str(location_id)
         except Exception:
             return str(location_id)
 

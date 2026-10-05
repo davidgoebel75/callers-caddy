@@ -838,7 +838,7 @@ class _LocationSettingsDialog(QDialog):
             if r != QMessageBox.Yes:
                 return
         self.db.set_shared_history(self._location.id, target_id, migrate=True)
-        eff = self.db._effective_history_id(self._location.id)
+        eff, _group = self.db.get_history_group(self._location.id)
         self._shared_with_id = eff if eff != self._location.id else None
         self._refresh_share_ui()
 

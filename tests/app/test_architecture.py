@@ -40,10 +40,6 @@ QT_FREE_MODULES = {
 
 # ._conn-Zugriffe ausserhalb von song_db.py, vorgefunden. Abbau: intern#138.
 _KNOWN_CONN_ACCESS = {
-    "call_selection.py": 1,
-    "main.py": 1,
-    "notes_widget.py": 1,
-    "sequences_widget.py": 1,
 }
 
 # Hier darf sqlite3 importiert werden (Pfade relativ zu src/).

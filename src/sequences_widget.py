@@ -2347,10 +2347,7 @@ class SequenceImportDialog(QDialog):
         Ueber die volle Callliste (calls_json) statt der 15 Mirror-Felder, damit
         >15-Call-Sequenzen nicht faelschlich als Dublette gelten (BL calls_json)."""
         try:
-            rows = self.db._conn.execute(
-                "SELECT calls_json FROM sequences"
-            ).fetchall()
-            return set(r[0] for r in rows if r[0])
+            return self.db.get_all_calls_json()
         except Exception as e:
             print(f"[SeqImport] Dubletten-Cache fehlgeschlagen: {e}")
             return set()
