@@ -50,6 +50,7 @@
 **Regel fuer Neuentwicklung:** Neue Widgets, Dialoge, Worker oder groessere Hilfslogik NICHT in `main.py` schreiben, sondern gleich in ein passendes bestehendes Modul oder ein neues `*_widget.py` / `dialogs_*.py`. Faustregeln:
 - Module bleiben **zirkelfrei**: kein `import main` zur Ladezeit. Braucht ein Modul etwas aus `main` (z. B. `__version__`), per Lazy-Import in der Funktion holen (Muster `_app_version()` in `potential_widget.py`).
 - Von mehreren Modulen genutzte Helfer/Konstanten/SVGs → nach `ui_helpers.py` (Blatt-Modul, haengt nur an perf/i18n/PySide6).
+- DB-Methoden: `SongDatabase` in `song_db.py` erbt Themenbloecke aus Mixin-Modulen `song_db_*.py` (z. B. `song_db_potential.py`, intern#165). Neue Methoden in den passenden Block; Aufrufer nutzen immer nur `db.methode()`. Mixins brauchen nur `self._conn`; Konstanten aus `song_db` per Lazy-Import in der Methode holen.
 - `main.py` importiert das Widget zurueck und verdrahtet es im Hauptfenster — wie die bestehenden `from *_widget import ...`-Zeilen.
 - Beim Verschieben von Code **Decorator-Zeilen mitnehmen** (`@dataclass` etc.) — der AST-Startpunkt zeigt sonst auf `class`/`def`, nicht auf `@decorator`.
 - Nach dem Aufteilen: `py_compile` + `pyflakes` (undefined = Fehler, unused imports trimmen), dann realer Import-Test.

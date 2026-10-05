@@ -34,7 +34,7 @@ QT_FREE_MODULES = {
     "pitch_shifter", "rule_definitions", "rule_engine",
     "sequence_filter", "sequence_import", "sequence_mapper",
     "shortcode_parser", "singing_body_detect", "singing_sections",
-    "skin_manager", "song_catalog", "song_db", "song_match",
+    "skin_manager", "song_catalog", "song_db", "song_db_potential", "song_match",
     "subfolder_duplicate_repair", "time_stretcher", "zip_import",
 }
 
