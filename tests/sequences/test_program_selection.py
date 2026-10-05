@@ -26,10 +26,9 @@ def test_top_program():
     assert ps.top_program(PROGRAMS, [7, 2]) == (2, "B2")
 
 
-def test_limit_for_code():
-    assert ps.limit_for_code(PROGRAMS, "MS") == 29.999999
-    assert ps.limit_for_code(PROGRAMS, "FREI") is None
-    assert ps.limit_for_code(PROGRAMS, "XX") is None
+def test_program_by_code():
+    assert ps.program_by_code(PROGRAMS, "MS")[5] == 29.999999
+    assert ps.program_by_code(PROGRAMS, "XX") is None
 
 
 def test_primary_program_skips_class_variant():

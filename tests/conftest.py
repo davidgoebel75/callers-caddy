@@ -37,3 +37,12 @@ def qapp():
     """Eine QApplication fuer die ganze Sitzung — Qt vertraegt nur eine."""
     from PySide6.QtWidgets import QApplication
     return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture(autouse=True)
+def _fresh_fuzzy_cache(monkeypatch):
+    """Der Fuzzy-Cache des Call-Mapping-Dialogs haelt die ganze Sitzung
+    (sequence_mapper.fuzzy_suggest_cache). Jeder Test beginnt leer, sonst
+    haengt das Verhalten des Dialogs von der Testreihenfolge ab."""
+    import sequence_mapper
+    monkeypatch.setattr(sequence_mapper, "_fuzzy_cache", (None, {}))

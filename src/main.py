@@ -2811,22 +2811,17 @@ class P29MainWindow(QMainWindow):
         self._suppress_play_log = False
 
     def _on_dance_program_changed(self, code: str):
-        """BL-132: Sequenz-Filter auf aktuelles Tanzprogramm setzen (opt-out via INI).
-
-        Liest sequence_limit_to aus dance_programs und setzt den Combo-Filter
-        per Teaching-Order-Wert (UserRole) — kein Textmatch noetig.
-        """
+        """BL-190: Contains-Vorschlaege nach dem Limit (sequence_limit_to) des
+        aktuellen Tanzprogramms ordnen. Den Limit-Filter setzt die Methode seit
+        MS50 nicht mehr (siehe unten)."""
         if not hasattr(self, "sequences_widget"):
             return
-        # BL-190: Contains-Vorschlaege nach dem gewaehlten Programm ordnen
-        # (unabhaengig vom Auto-Sync des Limit-Filters). MS50: Der Programm-Filter
-        # laeuft ueber die Band-Menge der Lokation (set_program_bands in
-        # _set_current_location); das alte Schwellwert-Auto-Sync entfaellt, der
-        # Limit-Combo bleibt als manueller Zusatzfilter erhalten.
-        programs = self.db.get_all_dance_programs()
-        if any(r[1] == code for r in programs):
-            self.sequences_widget.set_program_sort_to(
-                program_selection.limit_for_code(programs, code))
+        # MS50: Der Programm-Filter laeuft ueber die Band-Menge der Lokation
+        # (set_program_bands in _set_current_location); das alte Schwellwert-
+        # Auto-Sync entfaellt, der Limit-Combo bleibt manueller Zusatzfilter.
+        row = program_selection.program_by_code(self.db.get_all_dance_programs(), code)
+        if row is not None:
+            self.sequences_widget.set_program_sort_to(row[5])
 
     def _ensure_primary_channel(self):
         """Primaerkanal sicherstellen bevor irgendwo engine.play() direkt aufgerufen wird.

@@ -30,6 +30,7 @@ from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
 from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
+                             fuzzy_suggest_cache, optimize_groups, suggestion_differs,
                              suggest_figure_set)
 from sequence_filter import filter_query_args
 
@@ -3008,21 +3009,9 @@ class CallMappingDialog(QDialog):
 
         # CallMatcher: Drei-Stufen-Matching (exakt → Token-Overlap → SequenceMatcher)
         self._matcher = _CallMatcher(to_calls)
-        # Suggest-Cache: der Fuzzy-Vorschlag je Call-Text ist teuer (~2 s ueber
-        # alle ~10k ungemappten). Der Cache wird AM HAUPTFENSTER gehalten, damit
-        # ein erneutes Oeffnen des Dialogs in derselben Sitzung instant ist. Er
-        # wird verworfen, wenn sich die Kanonisch-Call-Liste aendert (Signatur).
+        # Fuzzy-Vorschlag je Call-Text, sitzungsweit gecacht.
         # Key = call_text -> (score, entity_id).
-        sig = hash(tuple((c[0], c[1]) for c in to_calls))
-        parent = self.parent()
-        cache = getattr(parent, "_call_suggest_cache", None) if parent else None
-        if (cache is None
-                or getattr(parent, "_call_suggest_sig", None) != sig):
-            cache = {}
-            if parent is not None:
-                parent._call_suggest_cache = cache
-                parent._call_suggest_sig = sig
-        self._suggest_cache = cache
+        self._suggest_cache = fuzzy_suggest_cache(to_calls)
 
     def _load_table(self):
         """Befuellt die Tabelle gemaess aktivem Filter — alle Zeilen auf einmal."""
@@ -3472,32 +3461,8 @@ class CallMappingDialog(QDialog):
             )
 
     def _suggestion_differs(self, call_text) -> bool:
-        """Filter "Vorschlag weicht ab": es gibt einen Mengen-Vorschlag, und er
-        weicht als MENGE von der Zuordnung ab (Reihenfolge egal)."""
-        sug = self._set_cache.get(call_text)
-        return bool(sug) and set(self._figure_sets.get(call_text) or ()) != set(sug)
-
-    def _optimize_groups(self) -> dict:
-        """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
-        Filters "Vorschlag weicht ab") in drei Gruppen:
-        new    -> bisher ohne Zuordnung
-        extend -> Vorschlag ist echte Obermenge der Zuordnung (fehlende Figuren)
-        change -> Vorschlag weicht anders ab
-        Werte: {call_text: Vorschlag}."""
-        groups = {"new": {}, "extend": {}, "change": {}}
-        for call_text in dict.fromkeys(r[0] for r in self._all_data):
-            if not self._suggestion_differs(call_text):
-                continue
-            sug = self._set_cache[call_text]
-            current = set(self._figure_sets.get(call_text) or ())
-            if not current:
-                key = "new"
-            elif current < set(sug):
-                key = "extend"
-            else:
-                key = "change"
-            groups[key][call_text] = sug
-        return groups
+        return suggestion_differs(self._set_cache.get(call_text),
+                                  self._figure_sets.get(call_text))
 
     def _is_changed(self, item2) -> bool:
         """Ungespeicherte Figuren-Wahl in dieser Figur-Zelle: aktuelle Menge
@@ -3524,7 +3489,8 @@ class CallMappingDialog(QDialog):
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No) != QMessageBox.Yes:
             return
-        groups = self._optimize_groups()
+        groups = optimize_groups((r[0] for r in self._all_data),
+                                 self._set_cache, self._figure_sets)
         if not any(groups.values()):
             QMessageBox.information(self, _t("call_mapping_title"),
                                     _t("call_mapping_optimize_nothing"))

@@ -42,12 +42,9 @@ def top_program(programs, pids):
     return best[1], best[2]
 
 
-def limit_for_code(programs, code):
-    """sequence_limit_to des Programms mit diesem Code, sonst None."""
-    for r in programs:
-        if r[1] == code:
-            return r[5]
-    return None
+def program_by_code(programs, code):
+    """Programmzeile mit diesem Code, sonst None."""
+    return next((r for r in programs if r[1] == code), None)
 
 
 def primary_program_by_band(programs):
