@@ -2275,6 +2275,48 @@ class SongDatabase:
                 result[song_id] = last_played
         return result
 
+    # ---- Statistik (BL-019) ----
+
+    @staticmethod
+    def _song_type_filter(type_key) -> str:
+        return {"pattern": "s.is_pattern = 1",
+                "singing": "s.is_singing = 1"}.get(type_key, "")
+
+    def play_counts(self, location_id, since, type_key) -> list:
+        """Gespielte Songs als [(song_id, title, label, count)], meistgespielt
+        zuerst. location_id=None = alle Lokationen; since = 'YYYY-MM-DD HH:MM:SS'
+        oder None; type_key = 'pattern' | 'singing' | None.
+
+        Geteilte Historie: Plays stehen unter der Senke (log_play), daher hier
+        genauso aufloesen (intern#137)."""
+        parts, params = [], {}
+        if location_id is not None:
+            parts.append("ph.location_id = :loc_id")
+            params["loc_id"] = self._effective_history_id(location_id)
+        if since is not None:
+            parts.append("ph.played_at >= :since")
+            params["since"] = since
+        if type_filter := self._song_type_filter(type_key):
+            parts.append(type_filter)
+        where = ("WHERE " + " AND ".join(parts)) if parts else ""
+        return self._conn.execute(f"""
+            SELECT s.id, s.title, s.label, COUNT(*) AS cnt
+            FROM play_history ph
+            JOIN songs s ON s.id = ph.song_id
+            {where}
+            GROUP BY s.id
+            ORDER BY cnt DESC
+        """, params).fetchall()
+
+    def songs_by_type(self, type_key) -> list:
+        """Alle Songs als [(song_id, title, label)], sortiert nach Label/Titel;
+        type_key wie bei play_counts."""
+        type_filter = self._song_type_filter(type_key)
+        where = f"WHERE {type_filter}" if type_filter else ""
+        return self._conn.execute(
+            f"SELECT s.id, s.title, s.label FROM songs s {where} "
+            "ORDER BY s.label, s.title").fetchall()
+
     def get_planner_candidates(self, target_err: int, location_id,
                                days_fallback: int = 730) -> list:
         """Gibt Songkandidaten fuer den Evening Planner zurueck.

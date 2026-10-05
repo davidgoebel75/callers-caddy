@@ -374,12 +374,9 @@ class StatsWidget(QWidget):
         self._loc_combo.clear()
         self._location_ids = [None]
         self._loc_combo.addItem(_t("stats_location_all"))
-        rows = self.db._conn.execute(
-            "SELECT id, name FROM locations ORDER BY name"
-        ).fetchall()
-        for loc_id, name in rows:
-            self._location_ids.append(loc_id)
-            self._loc_combo.addItem(name)
+        for loc in self.db.get_all_locations():
+            self._location_ids.append(loc.id)
+            self._loc_combo.addItem(loc.name)
         self._loc_combo.blockSignals(False)
 
     def _current_filters(self) -> tuple:
@@ -392,55 +389,10 @@ class StatsWidget(QWidget):
             since = (datetime.now() - timedelta(days=period_days)).strftime("%Y-%m-%d %H:%M:%S")
         return location_id, type_key, since
 
-    def _build_where(self, location_id, since, type_key) -> tuple[str, dict]:
-        parts: list[str] = []
-        params: dict = {}
-        if location_id is not None:
-            parts.append("ph.location_id = :loc_id")
-            params["loc_id"] = location_id
-        if since is not None:
-            parts.append("ph.played_at >= :since")
-            params["since"] = since
-        if type_key == "pattern":
-            parts.append("s.is_pattern = 1")
-        elif type_key == "singing":
-            parts.append("s.is_singing = 1")
-        return ("WHERE " + " AND ".join(parts)) if parts else "", params
-
-    def _query_played(self, location_id, type_key, since) -> list[tuple]:
-        """Alle gespielten Songs als [(song_id, title, label, count)], absteigend."""
-        where, params = self._build_where(location_id, since, type_key)
-        return self.db._conn.execute(f"""
-            SELECT s.id, s.title, s.label, COUNT(*) AS cnt
-            FROM play_history ph
-            JOIN songs s ON s.id = ph.song_id
-            {where}
-            GROUP BY s.id
-            ORDER BY cnt DESC
-        """, params).fetchall()
-
-    def _query_never(self, location_id, type_key, since) -> list[tuple]:
-        """Alle Songs, die unter den aktuellen Filtern nie gespielt wurden."""
-        sub_where, sub_params = self._build_where(location_id, since, type_key=None)
-        type_filter = ""
-        if type_key == "pattern":
-            type_filter = "AND s.is_pattern = 1"
-        elif type_key == "singing":
-            type_filter = "AND s.is_singing = 1"
-        return self.db._conn.execute(f"""
-            SELECT s.id, s.title, s.label
-            FROM songs s
-            WHERE s.id NOT IN (
-                SELECT DISTINCT ph.song_id FROM play_history ph {sub_where}
-            )
-            {type_filter}
-            ORDER BY s.label, s.title
-        """, sub_params).fetchall()
-
     def _refresh(self):
         location_id, type_key, since = self._current_filters()
 
-        played = self._query_played(location_id, type_key, since)
+        played = self.db.play_counts(location_id, since, type_key)
 
         # TOP (meistgespielt, absteigend — Query liefert schon DESC)
         self._fill_list(self._top_list,
@@ -451,21 +403,13 @@ class StatsWidget(QWidget):
         self._fill_list(self._flop_list,
             [(r[0], r[1], r[2], r[3]) for r in flop], show_count=True)
 
-        # Nie gespielt
-        never = self._query_never(location_id, type_key, since)
-        self._fill_list(self._never_list,
-            [(r[0], r[1], r[2], 0) for r in never], show_count=False)
-
-        # Histogramm: alle Songs mit ihrem Count (0 für nie gespielt)
+        # Nie gespielt + Histogramm: alle Songs mit ihrem Count (0 = nie gespielt)
         played_map = {r[0]: r[3] for r in played}
-        type_filter = ""
-        if type_key == "pattern":
-            type_filter = "WHERE is_pattern = 1"
-        elif type_key == "singing":
-            type_filter = "WHERE is_singing = 1"
-        all_songs = self.db._conn.execute(
-            f"SELECT id, title, label FROM songs {type_filter}"
-        ).fetchall()
+        all_songs = self.db.songs_by_type(type_key)
+        self._fill_list(self._never_list,
+            [(sid, title, label, 0) for sid, title, label in all_songs
+             if sid not in played_map], show_count=False)
+
         histogram_data = []
         for sid, title, label in all_songs:
             display = f"{label} – {title}" if label else title
