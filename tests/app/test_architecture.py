@@ -31,7 +31,7 @@ _SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
 QT_FREE_MODULES = {
     "audio_engine", "bpm_detector", "button_grid", "call_selection",
     "ceder_lookup", "heads_sides", "i18n", "loop_finder", "mapping_io",
-    "pitch_shifter", "rule_definitions", "rule_engine",
+    "pitch_shifter", "program_selection", "rule_definitions", "rule_engine",
     "sequence_filter", "sequence_import", "sequence_mapper",
     "shortcode_parser", "singing_body_detect", "singing_sections",
     "skin_manager", "song_catalog", "song_db", "song_db_potential",

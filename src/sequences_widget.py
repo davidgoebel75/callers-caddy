@@ -25,6 +25,7 @@ from PySide6.QtGui import (
 from song_db import SongDatabase, calls_to_json
 import sequence_import as seq_import
 from i18n import _t
+import program_selection
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
@@ -1438,23 +1439,11 @@ class SequencesWidget(QWidget):
 
     def _calls_for_current_bands(self, include_separators: bool):
         """MS50: Figuren-Liste passend zu den aktuell gewaehlten Programm-Baendern
-        (_program_bands). Nur Zeilen, deren Band gewaehlt ist; eine Figur erscheint
-        genau EINMAL, im NIEDRIGSTEN gewaehlten Band. Ohne Programmwahl -> alle
-        Figuren (bisheriges Verhalten). Rueckgabe [(name, entity_id, to), ...] nach
-        Teaching-Order sortiert."""
+        (_program_bands), Regel in program_selection.calls_in_bands.
+        Rueckgabe [(name, entity_id, to), ...] nach Teaching-Order sortiert."""
         from sequence_mapper import get_all_calls_sorted
-        all_calls = get_all_calls_sorted(self.db)
-        bands = self._program_bands
-        if not bands:
-            rows = list(all_calls)
-        else:
-            best = {}   # entity_id -> (name, eid, to) im niedrigsten gewaehlten Band
-            for name, eid, to in all_calls:
-                if to is None or int(to) not in bands:
-                    continue
-                if eid not in best or to < best[eid][2]:
-                    best[eid] = (name, eid, to)
-            rows = sorted(best.values(), key=lambda r: r[2])
+        rows = program_selection.calls_in_bands(get_all_calls_sorted(self.db),
+                                                self._program_bands)
         if not include_separators:
             rows = [r for r in rows if not r[0].startswith("--")]
         return rows
