@@ -467,7 +467,6 @@ def run_interactive(bench: Bench, rep: int = 0) -> list[dict]:
     bei --repeat den Median."""
     window = bench.window
     fb = window.song_list._filter_bar
-    engine = window.player.engine
     out: list[dict] = []
 
     # --- Schritt 2: Suche je Referenz-Song (Typ-Filter "Alle") ---------------

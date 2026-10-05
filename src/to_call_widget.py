@@ -444,7 +444,7 @@ class ToCallFillDialog(QDialog):
         self._combo = QComboBox()
         active_idx = 0
         for i, row in enumerate(self._programs):
-            code, label = row[1], (row[2] or row[1])
+            label = row[2] or row[1]
             self._combo.addItem(label, label)  # userData = Label (= call_programs.program)
             if label == active_label:
                 active_idx = i

@@ -640,7 +640,6 @@ class BundleTest(BaseTestWidget):
         out_path = os.path.join(diagnose_dir(self._app_dir),
                                 f"bundle_{stamp}.zip")
         added = 0
-        skipped = 0
         try:
             with zipfile.ZipFile(out_path, "w",
                                  zipfile.ZIP_DEFLATED) as zf:

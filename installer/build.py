@@ -343,12 +343,12 @@ def main():
     print(f"  callers_caddy.exe: OK ({app_exe.stat().st_size / 1024 / 1024:.1f} MB)")
 
     if not migration_exe.exists():
-        print(f"  WARNUNG: migration.exe wurde nicht erzeugt!")
+        print("  WARNUNG: migration.exe wurde nicht erzeugt!")
     else:
         print(f"  migration.exe: OK ({migration_exe.stat().st_size / 1024 / 1024:.1f} MB)")
 
     if not cd_exe.exists():
-        print(f"  WARNUNG: class_designer.exe wurde nicht erzeugt!")
+        print("  WARNUNG: class_designer.exe wurde nicht erzeugt!")
     else:
         print(f"  class_designer.exe: OK ({cd_exe.stat().st_size / 1024 / 1024:.1f} MB)")
 
@@ -361,7 +361,7 @@ def main():
     logo_src = SOURCE_DIR / "cc-logo.png"
     if logo_src.exists():
         shutil.copy2(str(logo_src), str(app_dir / "cc-logo.png"))
-        print(f"  cc-logo.png -> cc-logo.png")
+        print("  cc-logo.png -> cc-logo.png")
     else:
         print(f"  WARNUNG: cc-logo.png nicht gefunden ({logo_src})")
 
@@ -394,7 +394,7 @@ def main():
         files = list(first_steps_dst.iterdir())
         print(f"  first-steps/ kopiert ({len(files)} Dateien)")
     else:
-        print(f"  WARNUNG: first-steps/ nicht in 1_Source/ gefunden")
+        print("  WARNUNG: first-steps/ nicht in 1_Source/ gefunden")
 
     # HINWEIS (ab 0.148): Referenz-/Import-Sequenzen werden bewusst NICHT mehr
     # in die Setup-ZIPs gepackt. Solche Import-Dateien sollen zentral abgelegt
@@ -423,9 +423,9 @@ def main():
     print(f"  Update-ZIP:    {update_zip_path}")
     print(f"  Source-ZIP:    {source_zip_path}")
     print(f"\n  Release-Ordner: {RELEASES_DIR / version}")
-    print(f"  Vollpaket = Neuinstallation (alles enthalten)")
-    print(f"  Update    = Ueber bestehende Installation drueberextrahieren")
-    print(f"              (DB + INI + Musikordner bleiben erhalten)")
+    print("  Vollpaket = Neuinstallation (alles enthalten)")
+    print("  Update    = Ueber bestehende Installation drueberextrahieren")
+    print("              (DB + INI + Musikordner bleiben erhalten)")
 
 
 if __name__ == "__main__":

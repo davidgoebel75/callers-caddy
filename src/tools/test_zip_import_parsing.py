@@ -14,7 +14,6 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import zip_import  # noqa: E402
 from zip_import import (  # noqa: E402
     ImportLists, analyze, classify_audio, cleanup, split_title_label,
     _smart_titlecase,

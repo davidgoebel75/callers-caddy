@@ -200,7 +200,7 @@ class SequenceViewWidget(QWidget):
             self._btn_edit.setEnabled(True)
             self._btn_to_notes.setEnabled(True)
         self._update_content()
-        _pt = perf_split(f"SeqView.set_sequence: update_content (list={len(seq_ids)})", _t0)
+        perf_split(f"SeqView.set_sequence: update_content (list={len(seq_ids)})", _t0)
         self._notify_sequences_changed()
         self._notify_current_sequence_changed()
         perf_log("SeqView.set_sequence: TOTAL", _t0)

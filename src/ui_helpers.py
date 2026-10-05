@@ -298,8 +298,8 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
         Liegt bereits eine ganzzahlige Variante innerhalb der Toleranz,
         wird KEIN Cut angeboten (ganze Loops = kein Extra-Sprung = sauberer).
         Returns (n, cut_abs_beats, total_seconds) oder None wenn kein Cut sinnvoll."""
-        for _n, _t in options:
-            if abs(_t - desired) <= LOOP_CUT_TOLERANCE_S:
+        for _n, _sec in options:
+            if abs(_sec - desired) <= LOOP_CUT_TOLERANCE_S:
                 return None
         if bpm <= 0:
             return None

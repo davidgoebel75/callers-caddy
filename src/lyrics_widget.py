@@ -3407,7 +3407,7 @@ class LyricsWidget(QWidget):
         box.setText(text)
         b_use = box.addButton(_t("lyric_sync_detect_use"), QMessageBox.AcceptRole)
         b_manual = box.addButton(_t("lyric_sync_detect_manual"), QMessageBox.ActionRole)
-        b_cancel = box.addButton(QMessageBox.Cancel)
+        box.addButton(QMessageBox.Cancel)
         # Bei Mehrdeutigkeit ist "Selbst setzen" der sicherere Default.
         box.setDefaultButton(b_manual if ambiguous else b_use)
         box.exec()

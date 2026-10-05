@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Optional
 
 from PySide6.QtCore import Qt, QPoint, QSize
-from PySide6.QtGui import QIcon, QFont, QPainter, QColor, QTextLayout
+from PySide6.QtGui import QIcon, QFont, QPainter, QColor
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QLineEdit, QSizePolicy, QFileDialog, QMessageBox,

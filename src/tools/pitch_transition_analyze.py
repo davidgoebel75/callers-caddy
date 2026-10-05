@@ -173,7 +173,7 @@ def analyze_transition(t: np.ndarray, f: np.ndarray, t_event: float,
 
     max_dev = float(np.max(np.abs(err)))
     rms_dev = float(np.sqrt(np.mean(err ** 2)))
-    settle_str = f"{settle_t*1000:.0f} ms" if settle_t is not None else f">3000 ms"
+    settle_str = f"{settle_t*1000:.0f} ms" if settle_t is not None else ">3000 ms"
 
     print(f"  {label}")
     print(f"    Ziel-Frequenz:      {f_target:.2f} Hz")
