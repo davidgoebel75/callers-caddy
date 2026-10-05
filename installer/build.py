@@ -13,10 +13,9 @@ einen gemeinsamen _internal/ Ordner dank MERGE im Spec-File.
 Version wird aus src/main.py gelesen (__version__).
 
 Ordnerstruktur:
-  1_Source/         Code + Build-Skripte
-  2_Test/           Testumgebung mit echten Daten
-  3_Build/          PyInstaller-Workspace
-  4_Release/        Fertige ZIPs
+  <Repo-Klon>/      Code + Build-Skripte
+  3_Build/          PyInstaller-Workspace (CC_BUILD_DIR, sonst neben dem Klon)
+  4_Release/        Fertige ZIPs (CC_RELEASE_DIR, sonst neben dem Klon)
 
 Voraussetzungen:
   - pip install pyinstaller
@@ -30,9 +29,9 @@ import sys
 import zipfile
 from pathlib import Path
 
-INSTALLER_DIR = Path(__file__).parent          # 1_Source/installer/
-SOURCE_DIR = INSTALLER_DIR.parent              # 1_Source/
-SRC_DIR = SOURCE_DIR / "src"                   # 1_Source/src/
+INSTALLER_DIR = Path(__file__).parent          # <Repo>/installer/
+SOURCE_DIR = INSTALLER_DIR.parent              # <Repo>/
+SRC_DIR = SOURCE_DIR / "src"                   # <Repo>/src/
 REPO_ROOT = SOURCE_DIR.parent                  # Ordner ueber dem Repo (nur Fallback)
 TEST_DIR = REPO_ROOT / "2_Test"                # 2_Test/ (historisch, ungenutzt)
 # Build-Ausgabe: per Umgebungsvariable ueberschreibbar (siehe C:\Git\build-cc.bat).
@@ -239,10 +238,10 @@ def create_update_zip(app_dir: Path, version: str) -> Path:
 def create_source_zip(version: str) -> Path:
     """Erstellt ein ZIP-Archiv des Source-Codes in 4_Release/<version>/.
 
-    Enthaelt nur 1_Source/ (Code, Installer-Skripte).
+    Enthaelt nur den Repo-Klon (Code, Installer-Skripte).
 
-    WICHTIG (DSGVO): Der Ordner 1_Source/docs/ wird NICHT mitgepackt.
-    Er enthaelt perf_logs/ mit Rechnernamen, IPs und Vornamen aus
+    WICHTIG (DSGVO): Der Ordner docs/ wird NICHT mitgepackt.
+    Lokal liegen dort perf_logs/ mit Rechnernamen, IPs und Vornamen aus
     Testumgebungen — solche personenbezogenen Daten duerfen nicht in
     veroeffentlichten Releases landen.
     """
@@ -255,7 +254,7 @@ def create_source_zip(version: str) -> Path:
         zip_path.unlink()
         print(f"  Altes ZIP entfernt: {zip_name}")
 
-    # Nur 1_Source/ wird eingepackt (der eigentliche Code)
+    # Nur der Repo-Klon wird eingepackt (der eigentliche Code)
     # "docs" steht hier explizit wegen DSGVO — siehe Docstring oben.
     # "docs" steht hier wegen DSGVO — ebenso "logs"/"crash"/"crashes":
     # Crash-Reports enthalten volle Dateipfade und damit den Windows-
@@ -394,7 +393,7 @@ def main():
         files = list(first_steps_dst.iterdir())
         print(f"  first-steps/ kopiert ({len(files)} Dateien)")
     else:
-        print("  WARNUNG: first-steps/ nicht in 1_Source/ gefunden")
+        print("  WARNUNG: first-steps/ nicht im Repo gefunden")
 
     # HINWEIS (ab 0.148): Referenz-/Import-Sequenzen werden bewusst NICHT mehr
     # in die Setup-ZIPs gepackt. Solche Import-Dateien sollen zentral abgelegt
