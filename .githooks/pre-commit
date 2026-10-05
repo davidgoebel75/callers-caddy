@@ -14,6 +14,17 @@ elif [ -x .venv/bin/python ]; then PY=.venv/bin/python
 else PY=python
 fi
 
+# pyflakes: undefinierte Namen nach dem Verschieben von Code, unbenutzte Imports.
+# Fehlt pyflakes in der venv, faengt es die CI.
+if "$PY" -m pyflakes --version >/dev/null 2>&1; then
+    "$PY" -m pyflakes src tests tools installer || {
+        echo
+        echo "pre-commit: pyflakes-Befunde, Commit abgebrochen."
+        echo "Im Notfall: git commit --no-verify"
+        exit 1
+    }
+fi
+
 # ponytail: prueft den Arbeitsstand, nicht nur den gestagten Inhalt.
 # Teil-Staging (git add -p) kann so durchrutschen; die CI faengt es dann.
 QT_QPA_PLATFORM=offscreen "$PY" -m pytest -q --no-header -p no:cacheprovider \

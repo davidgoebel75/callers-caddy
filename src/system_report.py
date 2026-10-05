@@ -185,7 +185,7 @@ def _collect_gpu_info():
         else:
             # Fallback: Windows Registry
             lines.extend(_collect_gpu_from_registry())
-    except Exception as e:
+    except Exception:
         # Fallback: Windows Registry
         try:
             lines.extend(_collect_gpu_from_registry())
@@ -534,7 +534,7 @@ def generate_report(app_version, app_dir, progress_parent=None):
             QApplication.processEvents()
 
     # Header
-    sections.append(f"Callers Caddy — System-Report")
+    sections.append("Callers Caddy — System-Report")
     sections.append(f"Erstellt: {timestamp}")
     sections.append("=" * 60)
 
@@ -580,7 +580,7 @@ def generate_report(app_version, app_dir, progress_parent=None):
     # 9. Timer-Jitter (dauert ~3.5 Sekunden)
     advance(8, "QTimer-Jitter messen (ca. 3 Sek.)...")
     sections.append("\n[QTimer-Jitter]")
-    sections.append(f"Test:           200x 16ms-Timer (PreciseTimer)")
+    sections.append("Test:           200x 16ms-Timer (PreciseTimer)")
     mean, stddev, tmin, tmax, values = _measure_timer_jitter(200, 16)
     sections.append(f"Mittelwert:     {mean:.2f} ms (Soll: 16.00 ms)")
     sections.append(f"Std-Abw.:       {stddev:.2f} ms")
@@ -593,7 +593,7 @@ def generate_report(app_version, app_dir, progress_parent=None):
         for v in values:
             bucket = round(v)
             buckets[bucket] = buckets.get(bucket, 0) + 1
-        sections.append(f"Verteilung:")
+        sections.append("Verteilung:")
         for ms in sorted(buckets.keys()):
             bar = "#" * buckets[ms]
             sections.append(f"    {ms:3d}ms: {bar} ({buckets[ms]}x)")

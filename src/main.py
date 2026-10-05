@@ -38,16 +38,11 @@ from PySide6.QtWidgets import (
     QLabel,
     QFileDialog,
     QDockWidget,
-    QCheckBox,
-    QListWidget,
-    QTableWidget,
     QComboBox,
     QMessageBox,
     QDialog,
-    QDialogButtonBox,
     QInputDialog,
     QAbstractItemView,
-    QTextBrowser,
     QSizePolicy,
     QProgressDialog,
 )
@@ -215,11 +210,8 @@ from ui_helpers import (
     _SVG_MAGNET,
     _make_dock,
     _PlayBarrier,
-    _WrapButtonBar,
-    SectionBarWidget,
     _reco_days_since,
     _weighted_random_order,
-    _style_date_cell,
     _UNRATED_QUALITY,
     opens_combo_popup,
     widen_combo_popup,
@@ -1113,7 +1105,7 @@ class P29MainWindow(QMainWindow):
         self.dock_evening_planner.visibilityChanged.connect(
             self._on_evening_planner_visibility)
 
-        _td13 = perf_split("    EveningPlanner", _td12)
+        perf_split("    EveningPlanner", _td12)
         # --- Tutorial-Engine ---
         self.tutorial_engine = TutorialEngine(self, self._settings, self.skin_mgr)
         self.tutorial_engine.set_tutorials(TUTORIALS)
@@ -1235,7 +1227,7 @@ class P29MainWindow(QMainWindow):
         # Deck, der Break-Dock UND der Rules-Dock haengen an der Engine, deshalb
         # wird sie hier — noch vor dem Layout-Restore — initialisiert.
         from rule_engine import RuleEngine
-        from rule_definitions import register_v1_definitions, SYSTEM_RULES_DEFAULT
+        from rule_definitions import register_v1_definitions
         self.rule_engine = RuleEngine(self._app_dir, settings=self._settings)
         register_v1_definitions(self.rule_engine)
         self.rule_engine.set_context_provider(self._get_rule_context)
@@ -1413,7 +1405,7 @@ class P29MainWindow(QMainWindow):
         # Abgleich NACH dem ebenfalls deferrten setFloating() der Tool-Docks
         # laeuft.
         QTimer.singleShot(0, self._sync_dock_view_actions)
-        _t5 = perf_split("  Layout restore", _t4)
+        perf_split("  Layout restore", _t4)
 
         # Auto-Save Layout alle 60 Sekunden (Safety-Net bei unerwartetem Beenden)
         self._layout_save_timer = QTimer()
@@ -1428,7 +1420,7 @@ class P29MainWindow(QMainWindow):
 
         # Pfade-Info beim Start
         info = self.paths.get_info()
-        print(f"[P28] Pfade-Info:")
+        print("[P28] Pfade-Info:")
         for k, v in info.items():
             print(f"  {k}: {v}")
 
@@ -2058,7 +2050,6 @@ class P29MainWindow(QMainWindow):
         imported = []
         skipped = []
         errors = []
-        music_dir = self.paths.music_dir
         last_imported_path = None
 
         # BL-147: Bei "am Ort belassen" die Wurzel VOR dem Loop als Musik-Slot
@@ -2634,7 +2625,7 @@ class P29MainWindow(QMainWindow):
             print(f"[P21] Lokation gewaehlt: #{location.id} '{location.name}'")
         else:
             self.player.set_planner_warning(False)
-            print(f"[P21] Keine Lokation gewaehlt")
+            print("[P21] Keine Lokation gewaehlt")
 
     def _auto_detect_location_on_startup(self):
         """BL-178: Schlaegt beim Start anhand Wochentag/Uhrzeit eine passende

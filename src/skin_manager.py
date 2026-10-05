@@ -152,8 +152,8 @@ class SkinManager:
                 self._stylesheet = ""
         else:
             self._stylesheet = ""
-            print(f"[SkinManager] Kein skin.qss gefunden, "
-                  f"nur Farbvariablen verfuegbar")
+            print("[SkinManager] Kein skin.qss gefunden, "
+                  "nur Farbvariablen verfuegbar")
 
         self._current_skin = skin_name
         return True
