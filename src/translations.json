@@ -10237,5 +10237,10 @@
     "de": "Call-Mapping für diese Sequenz öffnen",
     "en": "Open Call Mapping for this sequence",
     "ja": "このシーケンスの Call マッピングを開く"
+  },
+  "ctx_open_call_mapping_for_call_text": {
+    "de": "Call-Mapping für diesen Call-Text öffnen",
+    "en": "Open Call Mapping for this call text",
+    "ja": "この Call テキストの Call マッピングを開く"
   }
 }

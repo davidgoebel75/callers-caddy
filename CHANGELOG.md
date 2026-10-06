@@ -8,6 +8,9 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ## (Unreleased — seit 0.160)
 
+### Verbesserungen
+- **Falsche Zuordnung direkt aus dem Sequenz-Detail beheben.** Ein Rechtsklick auf einen Call-Text im Sequenz-Detail bietet jetzt „Call-Mapping für diesen Call-Text öffnen“ an. Das Call-Mapping öffnet sich gefiltert auf genau diesen Call-Text; nach dem Schließen zeigt das Sequenz-Detail sofort die neue Zuordnung und das passende Tanzprogramm. Praktisch, wenn hinter einem Call-Text ein unerwartetes Tanzprogramm steht.
+
 ### Bugfixes
 - **Update von sehr alten Versionen startet wieder.** Wer von einem frühen Stand aus der Zeit vor den Tanzprogrammen (etwa März 2026) direkt auf eine aktuelle Version wechselte, bekam beim Start einen Fehler, und Callers Caddy öffnete sich nicht. Jetzt wird auch eine solche Datenbank beim ersten Start vollständig auf den neuen Stand gebracht. Klappt dabei einmal etwas nicht, startet das Programm trotzdem, zeigt sofort einen deutlichen Hinweis und legt ein Fehlerprotokoll an, das man dem Entwickler schicken kann.
 - **Tanzprogramm hinter jedem Call-Text im Sequenz-Detail.** Bisher stand das kleine graue Tanzprogramm nur hinter einem Teil der Call-Texte, etwa bei „Girls Fold“, aber nicht bei „Dosado“ oder „Swing Thru“. Jetzt steht es hinter jedem zugeordneten Call-Text, passend zur Tanzprogramm-Wahl: das niedrigste angehakte Tanzprogramm, in dem die Figur vorkommt. Sind „Mainstream (2026)“ und „Plus (2026)“ angehakt, steht hinter „Dosado“ also „Mainstream (2026)“. Kommt die Figur in keinem angehakten Tanzprogramm vor oder ist keins angehakt, steht das niedrigste Tanzprogramm überhaupt da. Enthält ein Call-Text mehrere Figuren, zählt die höchste. Ein Wechsel der Tanzprogramm-Wahl wirkt sofort.
