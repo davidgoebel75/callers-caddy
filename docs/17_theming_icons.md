@@ -3,7 +3,7 @@
 ## Grundprinzip (ab P0.106)
 
 **Es gibt ein einziges, gemeinsames Icon-Set für alle Themes.** Alle Grafiken
-liegen genau einmal zentral in `1_Source/src/images/` (vorher: pro Theme dupliziert).
+liegen genau einmal zentral in `src/images/` (vorher: pro Theme dupliziert).
 Geometrie und Design werden zentral gepflegt — **die Farbe kommt ausschließlich aus
 den Theme-Werten** in `skins/<theme>/skin.json`.
 
@@ -39,7 +39,7 @@ Farben mit fester Bedeutung bleiben literal in der SVG und werden vom Theme nich
 - Code über `QIcon(f"{skin_mgr.icon_dir}/<name>.svg")`.
 
 Der Cache wird bei jedem Laden neu erzeugt und nicht ausgeliefert. Praktische
-Pflegehinweise direkt bei den Dateien: `1_Source/src/images/README.md`.
+Pflegehinweise direkt bei den Dateien: `src/images/README.md`.
 
 ## Build
 
