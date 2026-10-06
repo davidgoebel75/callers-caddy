@@ -22,7 +22,8 @@ from PySide6.QtGui import (
     QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
-from song_db import SongDatabase, calls_to_json
+from song_db import SongDatabase
+from song_db_sequences import calls_to_json
 import sequence_import as seq_import
 from i18n import _t
 import program_selection
@@ -3461,6 +3462,7 @@ class CallMappingDialog(QDialog):
             )
 
     def _suggestion_differs(self, call_text) -> bool:
+        """Vorschlag weicht von der Menge ab, siehe sequence_mapper.suggestion_differs."""
         return suggestion_differs(self._set_cache.get(call_text),
                                   self._figure_sets.get(call_text))
 

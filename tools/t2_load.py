@@ -19,8 +19,9 @@ import sys
 _SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
 sys.path.insert(0, os.path.abspath(_SRC))
 
-from song_db import (SongDatabase, calls_to_json, calls_to_mirror_fields,  # noqa: E402
-                     canonicalize_seq_type)
+from song_db import SongDatabase  # noqa: E402
+from song_db_sequences import (calls_to_json, calls_to_mirror_fields,  # noqa: E402
+                               canonicalize_seq_type)
 
 
 def load_scraped(scrape_dir: str) -> list:
