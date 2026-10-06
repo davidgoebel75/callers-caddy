@@ -702,7 +702,11 @@ class SequencesMixin:
         mit call_text_mappings + teaching_order_calls.
 
         Returns:
-            [(position, call_text, entity_id, teaching_order, canonical_name, program), ...]
+            [(position, call_text, entity_id, teaching_order, canonical_name,
+              figure_tos), ...]
+            figure_tos: je Figur aus call_text_figures die Liste ihrer
+            Teaching-Orders; daraus macht program_selection.call_program_label
+            das Programm-Etikett (intern#176).
         """
         cur = self._conn.execute(
             "SELECT calls_json, field_1, field_2, field_3, field_4, field_5, "
@@ -718,14 +722,25 @@ class SequencesMixin:
         # calls_json ist die Quelle; falls (noch) NULL -> aus den Mirror-Feldern.
         calls = calls_from_json(row[0]) if row[0] else clean_calls(row[1:16])
 
+        # intern#176: Teaching-Orders aller Figuren in EINER Abfrage je Sequenz.
+        figure_tos = {}  # call_text -> {entity_id: [teaching_order, ...]}
+        if calls:
+            marks = ",".join("?" * len(set(calls)))
+            for text, eid, to in self._conn.execute(
+                    "SELECT f.call_text, f.entity_id, t.teaching_order "
+                    "FROM call_text_figures f "
+                    "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
+                    f"WHERE f.call_text IN ({marks})", tuple(set(calls))):
+                figure_tos.setdefault(text, {}).setdefault(eid, []).append(to)
+
         results = []
         for i, text in enumerate(calls):
             # intern#87: teaching_order_calls ist eine View mit einer Zeile je
             # (entity_id x Programm). Ohne ORDER BY greift fetchone() willkuerlich
-            # ein Band heraus -> das Programm-Badge der Sequenz-Anzeige wackelt.
-            # Deterministisch das niedrigste Band waehlen (passt zu _eid_min_to).
+            # ein Band heraus. Deterministisch das niedrigste Band waehlen
+            # (passt zu _eid_min_to).
             cur2 = self._conn.execute(
-                "SELECT m.entity_id, t.teaching_order, t.canonical_name, t.program "
+                "SELECT m.entity_id, t.teaching_order, t.canonical_name "
                 "FROM call_text_mappings m "
                 "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
                 "WHERE m.call_text = ? "
@@ -734,8 +749,8 @@ class SequencesMixin:
             )
             mapping = cur2.fetchone()
             if mapping:
-                results.append((i + 1, text, mapping[0], mapping[1],
-                                mapping[2], mapping[3]))
+                results.append((i + 1, text, mapping[0], mapping[1], mapping[2],
+                                list(figure_tos.get(text, {}).values())))
             else:
                 results.append((i + 1, text, None, None, None, None))
         return results

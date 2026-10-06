@@ -122,10 +122,11 @@ def test_sequenz_anzeige_zeigt_deterministisch_das_niedrigste_band(db):
     [sid] = db.get_filtered_sequence_ids()
 
     (row,) = db.get_sequence_calls(sid)
-    # (position, call_text, entity_id, teaching_order, canonical_name, program)
+    # (position, call_text, entity_id, teaching_order, canonical_name, figure_tos)
     assert row[2] == THAR
     assert row[3] == 29.005301
-    assert row[5] == "Mainstream"
+    # intern#176: statt Programmtext je Figur alle Teaching-Orders
+    assert [sorted(tos) for tos in row[5]] == [[29.005301, 40.002601]]
 
 
 def test_haeufigkeit_zaehlt_vorkommen_nicht_baender(db):

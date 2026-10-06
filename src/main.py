@@ -930,10 +930,6 @@ class P29MainWindow(QMainWindow):
         _seq_zoom = int(self._settings.value("sequences/zoom_pct", 100))
         if _seq_zoom != 100:
             self.sequences_widget.set_zoom(_seq_zoom)
-        # MS50: session-globale Tanzprogramm-Wahl auf Filter + Player-Button anwenden.
-        # defer_seq_load: nur Baender setzen; das (kalt teure) Sequenzen-Laden macht
-        # _init_sequences() erst nach window.show() -> nicht auf dem kritischen Pfad.
-        self._apply_program_setting(defer_seq_load=True)
         self.dock_sequences = _make_dock(
             self, _t("dock_sequences"), self.sequences_widget, Qt.RightDockWidgetArea
         )
@@ -945,6 +941,11 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr)
+        # MS50: session-globale Tanzprogramm-Wahl auf Filter, Sequenz-Detail
+        # (intern#176) + Player-Button anwenden. Erst hier, damit beide Widgets
+        # existieren. defer_seq_load: nur Baender setzen; das (kalt teure)
+        # Sequenzen-Laden macht _init_sequences() erst nach window.show().
+        self._apply_program_setting(defer_seq_load=True)
         self.dock_sequence_view = _make_dock(
             self, _t("dock_sequence_view"), self.sequence_view_widget, Qt.RightDockWidgetArea
         )
@@ -2537,9 +2538,11 @@ class P29MainWindow(QMainWindow):
         """
         ids = self._session_program_ids
         programs = self.db.get_all_dance_programs()
+        bands = program_selection.bands_for(programs, ids)
         if getattr(self, "sequences_widget", None) is not None:
-            self.sequences_widget.set_program_bands(
-                program_selection.bands_for(programs, ids), defer_load=defer_seq_load)
+            self.sequences_widget.set_program_bands(bands, defer_load=defer_seq_load)
+        if getattr(self, "sequence_view_widget", None) is not None:
+            self.sequence_view_widget.set_program_bands(bands)
         top_id, top_code = program_selection.top_program(programs, ids)
         self.player.set_dance_program(top_id, top_code)
 
