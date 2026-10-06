@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
-    QFont, QFontMetrics, QKeySequence, QShortcut,
+    QAction, QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
 from song_db import SongDatabase
@@ -425,20 +425,21 @@ class SequenceViewWidget(QWidget):
     def _build_text_menu(self, pos):
         """Kontextmenue des Textfelds: der Eintrag zum Call-Mapping, darunter
         die Standard-Eintraege (Kopieren, Alles auswaehlen)."""
-        menu = QMenu(self)
+        menu = self._text_edit.createStandardContextMenu()
         call_text = self._call_text_at(pos) if self.on_open_call_mapping else None
         if call_text:
-            act = menu.addAction(_t("ctx_open_call_mapping_for_call_text"))
+            first = menu.actions()[0] if menu.actions() else None
+            act = QAction(_t("ctx_open_call_mapping_for_call_text"), menu)
             act.triggered.connect(
                 lambda: self._open_call_mapping_for_call_text(call_text))
-            menu.addSeparator()
-        standard = self._text_edit.createStandardContextMenu()
-        standard.setParent(menu)
-        menu.addActions(standard.actions())
+            menu.insertAction(first, act)
+            menu.insertSeparator(first)
         return menu
 
     def _on_text_context_menu(self, pos):
-        self._build_text_menu(pos).exec(self._text_edit.viewport().mapToGlobal(pos))
+        menu = self._build_text_menu(pos)
+        menu.exec(self._text_edit.viewport().mapToGlobal(pos))
+        menu.deleteLater()
 
     def _open_call_mapping_for_call_text(self, call_text):
         """Call-Mapping oeffnen, gefiltert auf diesen Call-Text. Danach die
