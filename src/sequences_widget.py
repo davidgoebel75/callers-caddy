@@ -3643,18 +3643,8 @@ class CallMappingDialog(QDialog):
                 self.db.delete_call_text_mapping(raw_text)
                 deleted += 1
 
+        # intern#177: keine Bestaetigungsmeldung mehr (ein Klick weniger); das
+        # Ergebnis ist in Sequenzliste und Sequenz-Detail sofort sichtbar.
         print(f"[Call-Mapping] {saved} gespeichert, {deleted} entfernt, "
               f"{split_occ} Splits in {split_seqs} Sequenzen")
-
-        parts = []
-        if saved:
-            parts.append(_t("call_mapping_saved_n", count=saved))
-        if deleted:
-            parts.append(_t("call_mapping_deleted", count=deleted))
-        if split_seqs:
-            parts.append(_t("call_mapping_split_done", seqs=split_seqs, occ=split_occ))
-        QMessageBox.information(
-            self, _t("call_mapping_title"),
-            "\n".join(parts) if parts else _t("call_mapping_nothing")
-        )
         self.accept()
