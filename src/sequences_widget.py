@@ -82,6 +82,9 @@ class SequenceViewWidget(QWidget):
         self._seq_ids = []
         self._current_idx = 0
         self._calls = []
+        # intern#176: Baender der Tanzprogramm-Wahl fuer das Programm-Etikett
+        # hinter jedem Call (None = keine Wahl, z. B. im Beispiel-Betrachter).
+        self._program_bands = None
         # BL-182: Zufalls-Modus (Würfel). Wenn aktiv, springt „Weiter" (Button,
         # Pfeiltaste, Dynamic-Lyrics-advance) zu einer zufälligen anderen Sequenz
         # aus der aktuell gefilterten Liste — Ziehen ohne Zurücklegen. Das
@@ -380,11 +383,25 @@ class SequenceViewWidget(QWidget):
             self._btn_next.setEnabled(len(self._seq_ids) > 1)
         else:
             self._btn_next.setEnabled(self._current_idx < len(self._seq_ids) - 1)
-        self._calls = self._db.get_sequence_calls(seq_id)
+        # intern#176: 6. Spalte (Teaching-Orders je Figur) -> Programm-Etikett.
+        labels = program_selection.label_by_band(self._db.get_all_dance_programs())
+        self._calls = [
+            c[:5] + (program_selection.call_program_label(
+                c[5] or [], self._program_bands, labels),)
+            for c in self._db.get_sequence_calls(seq_id)]
         self._recalc_font_size()
         # Nochmal nach erstem Layout-Pass, damit height()/width() korrekt ist
         QTimer.singleShot(0, self._recalc_font_size)
         QTimer.singleShot(0, self._recalc_header_font)
+
+    def set_program_bands(self, bands):
+        """intern#176: Tanzprogramm-Wahl uebernehmen und das Programm-Etikett
+        der gezeigten Sequenz neu rechnen."""
+        if bands == self._program_bands:
+            return
+        self._program_bands = bands
+        if self._seq_ids:
+            self._update_content()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

@@ -945,6 +945,10 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr)
+        # intern#176: Tanzprogramm-Wahl fuer das Programm-Etikett (der Aufruf
+        # oben kam vor dem Widget an).
+        self.sequence_view_widget.set_program_bands(program_selection.bands_for(
+            self.db.get_all_dance_programs(), self._session_program_ids))
         self.dock_sequence_view = _make_dock(
             self, _t("dock_sequence_view"), self.sequence_view_widget, Qt.RightDockWidgetArea
         )
@@ -2537,9 +2541,11 @@ class P29MainWindow(QMainWindow):
         """
         ids = self._session_program_ids
         programs = self.db.get_all_dance_programs()
+        bands = program_selection.bands_for(programs, ids)
         if getattr(self, "sequences_widget", None) is not None:
-            self.sequences_widget.set_program_bands(
-                program_selection.bands_for(programs, ids), defer_load=defer_seq_load)
+            self.sequences_widget.set_program_bands(bands, defer_load=defer_seq_load)
+        if getattr(self, "sequence_view_widget", None) is not None:
+            self.sequence_view_widget.set_program_bands(bands)
         top_id, top_code = program_selection.top_program(programs, ids)
         self.player.set_dance_program(top_id, top_code)
 

@@ -50,3 +50,27 @@ def test_calls_in_bands_lowest_band_wins():
     assert ps.calls_in_bands(calls, {30, 40}) == [
         ("Dosado", 1, 30.1), ("Recycle", 2, 30.5), ("Spin Chain Thru", 3, 40.2)]
     assert ps.calls_in_bands(calls, {10, 30})[0] == ("Dosado", 1, 10.1)
+
+
+def test_label_by_band_takes_regular_program():
+    assert ps.label_by_band(PROGRAMS) == {
+        10: "Basic 1", 20: "Basic 2", 29: "Mainstream", 30: "Mainstream 2026",
+        40: "Plus 2026"}
+
+
+def test_call_program_label():
+    # intern#176: niedrigstes gewaehltes Band der Figur, sonst niedrigstes
+    # ueberhaupt; bei mehreren Figuren das hoechste dieser Baender.
+    labels = ps.label_by_band(PROGRAMS)
+    dosado = [10.0003, 30.0002]
+    fold = [29.0062, 30.0048]
+    peel = [40.0043]
+    label = ps.call_program_label
+    assert label([dosado], {10, 30}, labels) == "Basic 1"
+    assert label([dosado], {30, 40}, labels) == "Mainstream 2026"
+    assert label([fold], {30}, labels) == "Mainstream 2026"
+    assert label([fold], None, labels) == "Mainstream"         # keine Wahl
+    assert label([peel], {30}, labels) == "Plus 2026"          # ausserhalb der Wahl
+    assert label([dosado, peel], {30, 40}, labels) == "Plus 2026"  # mehrere Figuren
+    assert label([[None]], {30}, labels) == ""                 # Figur ohne Band
+    assert label([], {30}, labels) == ""

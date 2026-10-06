@@ -702,7 +702,11 @@ class SequencesMixin:
         mit call_text_mappings + teaching_order_calls.
 
         Returns:
-            [(position, call_text, entity_id, teaching_order, canonical_name, program), ...]
+            [(position, call_text, entity_id, teaching_order, canonical_name,
+              figure_tos), ...]
+            figure_tos: je Figur aus call_text_figures die Liste ihrer
+            Teaching-Orders; daraus macht program_selection.call_program_label
+            das Programm-Etikett (intern#176).
         """
         cur = self._conn.execute(
             "SELECT calls_json, field_1, field_2, field_3, field_4, field_5, "
@@ -722,10 +726,10 @@ class SequencesMixin:
         for i, text in enumerate(calls):
             # intern#87: teaching_order_calls ist eine View mit einer Zeile je
             # (entity_id x Programm). Ohne ORDER BY greift fetchone() willkuerlich
-            # ein Band heraus -> das Programm-Badge der Sequenz-Anzeige wackelt.
-            # Deterministisch das niedrigste Band waehlen (passt zu _eid_min_to).
+            # ein Band heraus. Deterministisch das niedrigste Band waehlen
+            # (passt zu _eid_min_to).
             cur2 = self._conn.execute(
-                "SELECT m.entity_id, t.teaching_order, t.canonical_name, t.program "
+                "SELECT m.entity_id, t.teaching_order, t.canonical_name "
                 "FROM call_text_mappings m "
                 "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
                 "WHERE m.call_text = ? "
@@ -734,8 +738,15 @@ class SequencesMixin:
             )
             mapping = cur2.fetchone()
             if mapping:
+                tos = {}
+                for eid, to in self._conn.execute(
+                        "SELECT f.entity_id, t.teaching_order "
+                        "FROM call_text_figures f "
+                        "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
+                        "WHERE f.call_text = ?", (text,)):
+                    tos.setdefault(eid, []).append(to)
                 results.append((i + 1, text, mapping[0], mapping[1],
-                                mapping[2], mapping[3]))
+                                mapping[2], list(tos.values())))
             else:
                 results.append((i + 1, text, None, None, None, None))
         return results

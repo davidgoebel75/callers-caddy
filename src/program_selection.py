@@ -91,3 +91,31 @@ def calls_in_bands(all_calls, bands):
         if eid not in best or to < best[eid][2]:
             best[eid] = (name, eid, to)
     return sorted(best.values(), key=lambda r: r[2])
+
+
+def label_by_band(programs):
+    """Band -> Name des regulaeren Programms (kleinster sort_order im Band),
+    also "Mainstream (2026)" und nicht die Class-Variante (intern#176)."""
+    labels = {r[0]: r[2] for r in programs}
+    return {band: labels[pid] for band, pid in primary_program_by_band(programs).items()}
+
+
+def call_program_label(figure_tos, bands, labels):
+    """Tanzprogramm-Etikett eines Calls im Sequenz-Detail (intern#176).
+
+    figure_tos: je zugeordneter Figur die Liste ihrer Teaching-Orders.
+    Je Figur zaehlt das niedrigste Band unter den gewaehlten `bands`; liegt
+    die Figur in keinem davon (oder ist nichts gewaehlt), ihr niedrigstes Band
+    ueberhaupt. Bei mehreren Figuren gilt das hoechste dieser Baender — wie bei
+    der Frage, ob eine Sequenz tanzbar ist (BL-210). Ohne Band -> "".
+    """
+    per_figure = []
+    for tos in figure_tos:
+        fig_bands = sorted({band_of(t) for t in tos if t is not None})
+        if not fig_bands:
+            continue
+        chosen = [b for b in fig_bands if bands and b in bands]
+        per_figure.append(chosen[0] if chosen else fig_bands[0])
+    if not per_figure:
+        return ""
+    return labels.get(max(per_figure), "")
