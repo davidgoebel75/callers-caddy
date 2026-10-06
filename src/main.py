@@ -6209,15 +6209,20 @@ class P29MainWindow(QMainWindow):
             return
         # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
         # Ergaenzen/Aendern ("Optimieren", intern#97).
+        # intern#177: Das Sequenz-Detail soll danach dieselbe Sequenz mit der
+        # neuen Zuordnung zeigen (das Neuladen der Liste stellt es sonst um).
+        shown = self.sequence_view_widget.shown_state()
         dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
+            self.sequence_view_widget.restore_shown(shown)
         elif dlg.wrote_assignments:
             # "Optimieren" (intern#97) hat schon geschrieben und die Baender
             # nachgerechnet -> bei Abbrechen nur die Sequenzansicht neu laden,
             # nicht noch einmal rechnen (~120 ms auf dem Main-Thread).
             self.sequences_widget.load_sequences()
+            self.sequence_view_widget.restore_shown(shown)
 
     def _on_mapping_export(self):
         """Menue: Call-Maps als JSON exportieren (v2 mit Header, intern#79)."""

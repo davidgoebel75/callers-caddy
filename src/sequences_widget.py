@@ -401,11 +401,29 @@ class SequenceViewWidget(QWidget):
         QTimer.singleShot(0, self._recalc_font_size)
         QTimer.singleShot(0, self._recalc_header_font)
 
-    def refresh(self):
-        """Gezeigte Sequenz neu aus der DB lesen (z. B. nach geaenderter
-        Zuordnung)."""
-        if self._seq_ids and self._current_idx < len(self._seq_ids):
-            self._update_content()
+    def shown_state(self):
+        """Merker fuer restore_shown: (Sequenzliste, Index) der gezeigten
+        Sequenz, None ohne Sequenz."""
+        if not self._seq_ids or self._current_idx >= len(self._seq_ids):
+            return None
+        return list(self._seq_ids), self._current_idx
+
+    def restore_shown(self, state):
+        """intern#177: Nach einer Aenderung am Call-Mapping wieder dieselbe
+        Sequenz zeigen und neu aus der DB lesen. Das Neuladen der Sequenzliste
+        kann das Detail inzwischen auf eine andere Sequenz gestellt haben; ist
+        die gemerkte Sequenz nicht mehr in der Liste (etwa jetzt ausgeblendet),
+        gilt die gemerkte Liste weiter."""
+        if state is None:
+            return
+        ids, idx = state
+        seq_id = ids[idx]
+        if seq_id in self._seq_ids:
+            self._current_idx = self._seq_ids.index(seq_id)
+        else:
+            self._seq_ids, self._current_idx = ids, idx
+        self._update_content()
+        self._notify_current_sequence_changed()
 
     # ---- Rechtsklick: Call-Mapping fuer einen Call-Text (intern#177) ----
 
@@ -442,10 +460,9 @@ class SequenceViewWidget(QWidget):
         menu.deleteLater()
 
     def _open_call_mapping_for_call_text(self, call_text):
-        """Call-Mapping oeffnen, gefiltert auf diesen Call-Text. Danach die
-        Sequenz neu lesen, damit Zuordnung und Tanzprogramm sofort stimmen."""
+        """Call-Mapping oeffnen, gefiltert auf diesen Call-Text. Das Neuladen
+        danach macht der Aufgerufene (P29MainWindow._open_call_mapping)."""
         self.on_open_call_mapping([call_text])
-        self.refresh()
 
     def set_program_bands(self, bands):
         """intern#176: Tanzprogramm-Wahl uebernehmen und das Programm-Etikett
