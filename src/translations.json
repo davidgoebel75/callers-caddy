@@ -9063,6 +9063,26 @@
     "en": "Select audio output device",
     "ja": "オーディオ出力デバイスを選択"
   },
+  "audio_favorite_tooltip": {
+    "de": "Audio-Ausgang: Favorit {active} – {device}\nKlick schaltet auf Favorit {target} – {target_device}\n\n1 = Hauptausgang, 2 = Vorhör-Kanal (Einstellungen → Audio). Eine Auswahl in der Liste rechts wird der neue Favorit 1.",
+    "en": "Audio output: favorite {active} – {device}\nClick switches to favorite {target} – {target_device}\n\n1 = main output, 2 = audition channel (Settings → Audio). A selection in the list on the right becomes the new favorite 1.",
+    "ja": "オーディオ出力：お気に入り {active} – {device}\nクリックでお気に入り {target} – {target_device} に切り替え\n\n1 = メイン出力、2 = 試聴チャンネル（設定 → オーディオ）。右のリストで選択したデバイスが新しいお気に入り 1 になります。"
+  },
+  "audio_favorite_device_missing": {
+    "de": "Gerät nicht in der Liste",
+    "en": "device not in the list",
+    "ja": "リストにないデバイス"
+  },
+  "audio_favorite_missing": {
+    "de": "Favorit {favorite} zeigt auf ein Audio-Gerät, das nicht in der Liste steht. Bitte unter Einstellungen → Audio neu wählen.",
+    "en": "Favorite {favorite} points to an audio device that is not in the list. Please choose it again under Settings → Audio.",
+    "ja": "お気に入り {favorite} はリストにないオーディオデバイスを指しています。設定 → オーディオで選び直してください。"
+  },
+  "audio_favorite_blocked_audition": {
+    "de": "Während des Vorhörens lässt sich der Audio-Ausgang nicht umschalten.",
+    "en": "The audio output cannot be switched while auditioning.",
+    "ja": "試聴中はオーディオ出力を切り替えられません。"
+  },
   "chk_random_tiebreaker": {
     "de": "Zufall",
     "en": "Shuffle",

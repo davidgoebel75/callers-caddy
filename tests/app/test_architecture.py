@@ -29,6 +29,7 @@ _SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
 # Crash-Header system_report nach, das Qt braucht) und tutorial_definitions
 # (baut auf tutorial_engine auf, einem Qt-Overlay).
 QT_FREE_MODULES = {
+    "audio_favorites",
     "audio_engine", "bpm_detector", "button_grid", "call_selection",
     "ceder_lookup", "heads_sides", "i18n", "loop_finder", "mapping_io",
     "pitch_shifter", "program_selection", "rule_definitions", "rule_engine",
