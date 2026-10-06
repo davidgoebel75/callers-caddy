@@ -722,6 +722,17 @@ class SequencesMixin:
         # calls_json ist die Quelle; falls (noch) NULL -> aus den Mirror-Feldern.
         calls = calls_from_json(row[0]) if row[0] else clean_calls(row[1:16])
 
+        # intern#176: Teaching-Orders aller Figuren in EINER Abfrage je Sequenz.
+        figure_tos = {}  # call_text -> {entity_id: [teaching_order, ...]}
+        if calls:
+            marks = ",".join("?" * len(set(calls)))
+            for text, eid, to in self._conn.execute(
+                    "SELECT f.call_text, f.entity_id, t.teaching_order "
+                    "FROM call_text_figures f "
+                    "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
+                    f"WHERE f.call_text IN ({marks})", tuple(set(calls))):
+                figure_tos.setdefault(text, {}).setdefault(eid, []).append(to)
+
         results = []
         for i, text in enumerate(calls):
             # intern#87: teaching_order_calls ist eine View mit einer Zeile je
@@ -738,15 +749,8 @@ class SequencesMixin:
             )
             mapping = cur2.fetchone()
             if mapping:
-                tos = {}
-                for eid, to in self._conn.execute(
-                        "SELECT f.entity_id, t.teaching_order "
-                        "FROM call_text_figures f "
-                        "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
-                        "WHERE f.call_text = ?", (text,)):
-                    tos.setdefault(eid, []).append(to)
-                results.append((i + 1, text, mapping[0], mapping[1],
-                                mapping[2], list(tos.values())))
+                results.append((i + 1, text, mapping[0], mapping[1], mapping[2],
+                                list(figure_tos.get(text, {}).values())))
             else:
                 results.append((i + 1, text, None, None, None, None))
         return results

@@ -930,10 +930,6 @@ class P29MainWindow(QMainWindow):
         _seq_zoom = int(self._settings.value("sequences/zoom_pct", 100))
         if _seq_zoom != 100:
             self.sequences_widget.set_zoom(_seq_zoom)
-        # MS50: session-globale Tanzprogramm-Wahl auf Filter + Player-Button anwenden.
-        # defer_seq_load: nur Baender setzen; das (kalt teure) Sequenzen-Laden macht
-        # _init_sequences() erst nach window.show() -> nicht auf dem kritischen Pfad.
-        self._apply_program_setting(defer_seq_load=True)
         self.dock_sequences = _make_dock(
             self, _t("dock_sequences"), self.sequences_widget, Qt.RightDockWidgetArea
         )
@@ -945,10 +941,11 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr)
-        # intern#176: Tanzprogramm-Wahl fuer das Programm-Etikett (der Aufruf
-        # oben kam vor dem Widget an).
-        self.sequence_view_widget.set_program_bands(program_selection.bands_for(
-            self.db.get_all_dance_programs(), self._session_program_ids))
+        # MS50: session-globale Tanzprogramm-Wahl auf Filter, Sequenz-Detail
+        # (intern#176) + Player-Button anwenden. Erst hier, damit beide Widgets
+        # existieren. defer_seq_load: nur Baender setzen; das (kalt teure)
+        # Sequenzen-Laden macht _init_sequences() erst nach window.show().
+        self._apply_program_setting(defer_seq_load=True)
         self.dock_sequence_view = _make_dock(
             self, _t("dock_sequence_view"), self.sequence_view_widget, Qt.RightDockWidgetArea
         )

@@ -261,11 +261,11 @@ class SequenceViewWidget(QWidget):
         # Der normale Dock setzt das Attribut nie -> keine Verhaltensaenderung.
         hl = getattr(self, "_highlight_text", None)
         parts = []
-        for i, (_pos, call_text, entity_id, _to, _canonical, program) in enumerate(self._calls):
-            if entity_id and program:
+        for i, (_pos, call_text, entity_id, _to, _canonical, program_label) in enumerate(self._calls):
+            if entity_id and program_label:
                 badge = (f'&nbsp;<span style="font-size:{badge_size}px;color:#aaa;'
                          f'border:1px solid #666;padding:1px 3px;'
-                         f'border-radius:2px;">{program}</span>')
+                         f'border-radius:2px;">{program_label}</span>')
             elif entity_id is None:
                 badge = '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
             else:
@@ -383,7 +383,8 @@ class SequenceViewWidget(QWidget):
             self._btn_next.setEnabled(len(self._seq_ids) > 1)
         else:
             self._btn_next.setEnabled(self._current_idx < len(self._seq_ids) - 1)
-        # intern#176: 6. Spalte (Teaching-Orders je Figur) -> Programm-Etikett.
+        # intern#176: 6. Spalte (Teaching-Orders je Figur) wird hier durch das
+        # fertige Programm-Etikett (Text) ersetzt; _make_html liest nur dieses.
         labels = program_selection.label_by_band(self._db.get_all_dance_programs())
         self._calls = [
             c[:5] + (program_selection.call_program_label(
