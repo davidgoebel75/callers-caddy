@@ -148,9 +148,9 @@ def test_apply_case(text, mode, expected):
     assert si.apply_case(text, mode) == expected
 
 
-# ---- Invariante zu song_db ----
+# ---- Invariante zu song_db_sequences ----
 
 def test_seqtype_namen_sind_kanonisch():
-    from song_db import canonicalize_seq_type
+    from song_db_sequences import canonicalize_seq_type
     for name in si.SEQTYPE_NAMES.values():
         assert canonicalize_seq_type(name) == name

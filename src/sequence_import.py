@@ -30,7 +30,7 @@ CASE_TITLE = "title"  # 3. Erster Buchstabe je Wort gross, Rest klein
 
 # CSDS-SEQTYPE-Nummer -> lesbarer Name. Kanonische Ceder-Konvention:
 # "Singer (...)" und Pfeil "➔" als Trenner. Muss unter
-# song_db.canonicalize_seq_type unveraendert bleiben (Test sichert das),
+# song_db_sequences.canonicalize_seq_type unveraendert bleiben (Test sichert das),
 # sonst entstehen doppelte Filter-Kategorien.
 SEQTYPE_NAMES = {
     "5":   "Static Set ➔ Resolve",

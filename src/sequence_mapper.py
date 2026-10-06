@@ -654,8 +654,6 @@ def get_all_calls_sorted(db) -> list[tuple]:
     return [(name, eid, to) for eid, name, to, _prog in rows]
 
 
-
-
 # ---- Zuordnungs-Logik des Call-Mapping-Dialogs (intern#143) ----
 
 def suggestion_differs(suggestion, current) -> bool:

@@ -2,6 +2,10 @@
 
 Mixin: SongDatabase erbt die Methoden, Aufrufer schreiben weiter
 db.potential_no_bpm() usw. Braucht nur self._conn.
+
+Die acht Methoden ohne potential_-Praefix (z. B. songs_bpm_empty,
+singing_no_start) sind kein eigener Check, sondern liefern die Songlisten fuer
+die Stapel-Aktionen im Potential-Dock. Sie gehoeren deshalb trotzdem hierher.
 """
 
 
