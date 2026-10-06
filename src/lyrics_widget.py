@@ -14,6 +14,7 @@ import difflib
 
 import perf
 import singing_sections
+import reading_band_path
 import heads_sides
 from i18n import _t
 from path_manager import PathManager
@@ -158,6 +159,18 @@ class _ReadingBandOverlay(QWidget):
         color.setAlpha(int(255 * self._owner._reading_band_opacity_pct / 100.0))
         painter = QPainter(self)
         painter.fillRect(rect, color)
+        beats = self._owner._band_countdown
+        if beats:
+            # intern#148: In-Lesebalken Countdown am rechten inneren Rand
+            font = painter.font()
+            font.setBold(True)
+            font.setPixelSize(max(10, min(64, int(rect.height() * 0.6))))
+            painter.setFont(font)
+            painter.setPen(self._owner._browser.palette().text().color())
+            margin = max(6, rect.height() // 4)
+            painter.drawText(rect.adjusted(0, 0, -margin, 0),
+                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                             str(beats))
         painter.end()
 
 
@@ -488,11 +501,6 @@ class LyricsWidget(QWidget):
     # und dort einen Set Point setzen kann. Jedes weitere Scrollen verlaengert
     # das Fenster; danach laeuft der Auto-Scroll von selbst wieder an.
     _MANUAL_SCROLL_PAUSE_SEC = 6.0
-    # BL-160: Bei Rueckwaerts-Sprung (z.B. wiederholte Sequenz) Position halten
-    # und erst diese Sekunden vor dem Ziel schnell zurueckscrollen — sonst kriecht
-    # der Text langsam rueckwaerts und ist nicht lesbar.
-    _SYNC_BACK_SNAP_SECONDS = 1.5
-
     # Standard-CSS fuer Square-Dance-Cuesheets (cuesheet2.css u.a.)
     _CUESHEET_CSS = """
         .title { font-size: 18pt; font-weight: bold; }
@@ -708,6 +716,10 @@ class LyricsWidget(QWidget):
         self._reading_band_enabled = True
         self._reading_band_height_pct = 20
         self._reading_band_opacity_pct = 30
+        self._band_countdown_enabled = True   # intern#148: In-Lesebalken Countdown
+        self._band_countdown_beats = 8        # Vorlauf in Beats
+        self._band_countdown = None           # gerade gezeigte Zahl oder None
+        self._geom_cache = None               # (Schluessel, Geometrie) der Anker
         self._reading_band = _ReadingBandOverlay(self)
         self._browser.verticalScrollBar().valueChanged.connect(
             lambda _v: self._reading_band.update())
@@ -2551,6 +2563,13 @@ class LyricsWidget(QWidget):
             "false", "0", "no", "off", "")
         self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 2, 60)
         self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 5, 100)
+        raw = self._settings.value("lyrics/reading_band_countdown", True)
+        self._band_countdown_enabled = str(raw).strip().lower() not in (
+            "false", "0", "no", "off", "")
+        self._band_countdown_beats = int(_num(
+            "lyrics/reading_band_countdown_beats", 8, 2, 16))
+        if not self._band_countdown_enabled:
+            self._band_countdown = None
         self._scroll_last_val = -1
         if getattr(self, "_reading_band", None) is not None:
             self._reading_band.update()
@@ -4502,7 +4521,7 @@ class LyricsWidget(QWidget):
         Tick sofort zurueckreisst. Nach Ablauf laeuft der Auto-Scroll wieder an."""
         self._manual_scroll_until = time.monotonic() + self._MANUAL_SCROLL_PAUSE_SEC
 
-    def update_scroll(self, pos: float, dur: float):
+    def update_scroll(self, pos: float, dur: float, bpm: float = 0.0):
         """Scrollt zum Song-Fortschritt.
 
         Ohne Sync-Punkte: rein proportional (Songzeit -> Scrollbalken).
@@ -4515,6 +4534,7 @@ class LyricsWidget(QWidget):
         Args:
             pos: aktuelle Wiedergabeposition in Sekunden
             dur: Songdauer in Sekunden
+            bpm: Base-BPM des Songs (fuer den In-Lesebalken Countdown)
         """
         # Position auch im Sync-Modus merken (fuers Setzen neuer Anker)
         self._sync_last_pos = pos
@@ -4540,12 +4560,16 @@ class LyricsWidget(QWidget):
         # Ankerberechnung laeuft je Takt: sparen, wenn niemand sie braucht.
         if not (self._reading_band_enabled or self._auto_scroll_enabled):
             return
-        anchors = self._anchor_doc_points() if self._active_anchors() else []
+        geom = self._reading_geometry() if self._active_anchors() else None
         # intern#76: Lesebalken folgt dem gesungenen Text (ohne Textsprung-
         # Verschiebung), auch waehrend manuellen Scrollens; gemalt wird relativ
         # zum Scroll-Wert.
         if self._reading_band_enabled:
-            self._update_reading_band(self._sung_doc_y(pos, dur, anchors))
+            beats = None
+            if self._band_countdown_enabled and geom:
+                beats = reading_band_path.beats_until_change(
+                    pos, geom["changes"], bpm, self._band_countdown_beats)
+            self._update_reading_band(self._sung_doc_y(pos, dur, geom), beats)
 
         if not self._auto_scroll_enabled:
             return
@@ -4561,13 +4585,13 @@ class LyricsWidget(QWidget):
             return
 
         snapping = False
-        if anchors:
-            target = self._sync_scroll_target(pos, dur, max_val, anchors)
+        if geom:
+            target = self._sync_scroll_target(pos, dur, max_val, geom)
             snapping = self._interp_snapping
         else:
             # Ohne Anker proportional, der gesungene Text steht dabei auf der
             # Leseposition (intern#76; vorher lief er oben am Fenster).
-            target = int(self._sung_doc_y(pos, dur, anchors) - self._read_offset())
+            target = int(self._sung_doc_y(pos, dur, geom) - self._read_offset())
 
         target = max(0, min(max_val, target))
         # Kleines Rueckwaerts-Zittern durch Audio-Positions-Jitter unterdruecken.
@@ -4590,19 +4614,20 @@ class LyricsWidget(QWidget):
         if not (self._lyrics_loaded and self._reading_band_enabled and dur > 0):
             self._update_reading_band(None)
             return
-        anchors = self._anchor_doc_points() if self._active_anchors() else []
-        self._update_reading_band(self._sung_doc_y(self._sync_last_pos, dur, anchors))
+        geom = self._reading_geometry() if self._active_anchors() else None
+        self._update_reading_band(self._sung_doc_y(self._sync_last_pos, dur, geom),
+                                  self._band_countdown)
 
-    def _update_reading_band(self, doc_y):
-        """intern#76: Neue Position des Lesebalkens, neu malen nur bei Aenderung."""
+    def _update_reading_band(self, doc_y, beats=None):
+        """intern#76: Neue Position des Lesebalkens (und Zahl des In-Lesebalken
+        Countdowns, intern#148), neu malen nur bei Aenderung."""
         new = None if doc_y is None else int(doc_y)
-        if new != self._band_doc_y:
+        if doc_y is None:
+            beats = None
+        if new != self._band_doc_y or beats != self._band_countdown:
             self._band_doc_y = new
+            self._band_countdown = beats
             self._reading_band.update()
-
-    # Folgt der naechste SyncPoint innerhalb dieser Zeit, beendet der Anker
-    # einen Abschnitt (danach springt der Text woanders hin), intern#76.
-    _SECTION_END_GAP_SEC = 2.0
 
     def _line_geom(self, pristine_pos: int, doc, layout, max_pos: int):
         """(block, Zeilenindex im Block) der sichtbaren Zeile an pristine_pos."""
@@ -4652,8 +4677,61 @@ class LyricsWidget(QWidget):
             return False
         return _ss.classify_heading(raw, _ss.DEFAULT_SECTIONS, self._heading_kw) is not None
 
-    def _anchor_doc_points(self):
-        """Anker als [(Sekunde, Dokument-Y der gesungenen Stelle)], nach Zeit.
+    @staticmethod
+    def _prev_line(block, idx):
+        """Vorige Zeile (block, idx) im Dokument oder None."""
+        if idx > 0:
+            return block, idx - 1
+        prv = block.previous()
+        if not prv.isValid():
+            return None
+        blay = prv.layout()
+        return prv, max(0, (blay.lineCount() if blay is not None else 1) - 1)
+
+    _SECTION_SCAN_MAX_LINES = 400
+
+    def _section_span(self, block, idx, layout):
+        """Abschnitt um die Zeile (block, idx): (Kennung, Y-Mitte der ersten
+        Textzeile, Y-Unterkante der letzten Textzeile). Ein Abschnitt reicht
+        von der Zeile nach seiner Ueberschrift bis zur Zeile vor der naechsten
+        (intern#76); ohne Ueberschrift davor beginnt er am Dokumentanfang."""
+        top, height, text = self._line_box(block, idx, layout)
+        on_heading = self._is_heading_text(text)
+        has_text = bool(text.strip()) and not on_heading
+        first = top + height / 2 if has_text else None
+        last = top + height if has_text else None
+        sid = (block.position(), idx) if on_heading else None
+        cur = (block, idx)
+        for _ in range(0 if on_heading else self._SECTION_SCAN_MAX_LINES):
+            cur = self._prev_line(*cur)
+            if cur is None:
+                break
+            p_top, p_h, p_text = self._line_box(cur[0], cur[1], layout)
+            if self._is_heading_text(p_text):
+                sid = (cur[0].position(), cur[1])
+                break
+            if p_text.strip():
+                first = p_top + p_h / 2
+        cur = (block, idx)
+        for _ in range(self._SECTION_SCAN_MAX_LINES):
+            cur = self._next_line(*cur)
+            if cur is None:
+                break
+            n_top, n_h, n_text = self._line_box(cur[0], cur[1], layout)
+            if self._is_heading_text(n_text):
+                break
+            if n_text.strip():
+                last = n_top + n_h
+                if first is None:
+                    first = n_top + n_h / 2
+        return sid, first, last
+
+    def _reading_geometry(self):
+        """Geometrie der Anker fuer Scroll, Lesebalken und Countdown:
+        anchors  [(Sekunde, Dokument-Y der gesungenen Stelle)], nach Zeit
+        start_y  Y der ersten Textzeile im Abschnitt des ersten Ankers
+        end_ys   je Anker die Unterkante seines Abschnitts
+        changes  Zeiten der Abschnittswechsel (In-Lesebalken Countdown)
 
         Echte Zeiten, ohne "Textsprung timen" und ohne Leseposition. Die
         gespeicherten SyncPoints bleiben unveraendert; nur fuer Scroll und
@@ -4662,102 +4740,95 @@ class LyricsWidget(QWidget):
         naechsten Schluesselwort.
         - Anker auf einer Ueberschrift -> Mitte der ersten Textzeile danach
         - Anker, der einen Abschnitt beendet (naechster Anker folgt binnen
-          _SECTION_END_GAP_SEC, oder letzter Anker) -> Unterkante seiner Zeile
+          SECTION_END_GAP_SEC, oder letzter Anker) -> Unterkante seiner Zeile
         - sonst -> Mitte seiner Zeile (dort wird gerade gesungen)
         Der Lesebalken ist um diesen Punkt zentriert.
+
+        Laeuft je Takt, deshalb gecacht: neu gerechnet wird nur, wenn sich
+        Anker, Dokument oder Layout geaendert haben (Audio-Prioritaet).
         """
         doc = self._browser.document()
-        layout = doc.documentLayout()
-        max_pos = doc.characterCount() - 1
         raw = sorted(((float(a[0]), int(a[1])) for a in self._active_anchors()),
                      key=lambda a: a[0])
-        out = []
+        size = doc.size()
+        key = (tuple(raw), doc.revision(), size.width(), size.height())
+        if self._geom_cache is not None and self._geom_cache[0] == key:
+            return self._geom_cache[1]
+        layout = doc.documentLayout()
+        max_pos = doc.characterCount() - 1
+        times = [sec for sec, _p in raw]
+        anchors, end_ys, section_ids = [], [], []
+        start_y = None
         for i, (sec, p) in enumerate(raw):
             geom = self._line_geom(p, doc, layout, max_pos)
             if geom is None:
                 continue
             block, idx = geom
             top, height, text = self._line_box(block, idx, layout)
+            sid, first, last = self._section_span(block, idx, layout)
             if self._is_heading_text(text):
-                nxt = self._next_line(block, idx)
-                for _ in range(5):       # Leerzeilen nach der Ueberschrift ueberspringen
-                    if nxt is None:
-                        break
-                    n_top, n_h, n_text = self._line_box(nxt[0], nxt[1], layout)
-                    if n_text.strip():
-                        top, height = n_top, n_h
-                        break
-                    nxt = self._next_line(*nxt)
-                out.append((sec, float(top + height / 2)))
-                continue
-            is_end = (i == len(raw) - 1
-                      or raw[i + 1][0] - sec <= self._SECTION_END_GAP_SEC)
-            out.append((sec, float(top + height) if is_end else float(top + height / 2)))
-        return out
+                y = first if first is not None else top + height / 2
+            elif reading_band_path.ends_section(times, i):
+                y = top + height
+            else:
+                y = top + height / 2
+            if not anchors:
+                start_y = first
+            anchors.append((sec, float(y)))
+            end_ys.append(last)
+            section_ids.append(sid)
+        result = {
+            "anchors": anchors, "start_y": start_y, "end_ys": end_ys,
+            "changes": reading_band_path.section_change_times(anchors, section_ids),
+        }
+        self._geom_cache = (key, result)
+        return result
 
-    def _interpolate(self, pos: float, points) -> float:
-        """Stueckweise lineare Interpolation ueber (Zeit, Y)-Stuetzpunkte.
+    def _anchor_doc_points(self):
+        """Anker als [(Sekunde, Dokument-Y der gesungenen Stelle)], nach Zeit
+        (siehe _reading_geometry)."""
+        return self._reading_geometry()["anchors"]
 
-        Rueckwaerts-Segmente (Sprung zu frueherer Textzeile) halten die
-        Position und springen erst kurz vor dem Ziel schnell zurueck.
-        """
-        points = sorted(points, key=lambda p: p[0])
-        self._interp_snapping = False
-        for i in range(len(points) - 1):
-            t0, y0 = points[i]
-            t1, y1 = points[i + 1]
-            if pos <= t1:
-                if t1 <= t0:
-                    return float(y1)
-                if y1 < y0:
-                    snap = min(self._SYNC_BACK_SNAP_SECONDS, t1 - t0)
-                    snap_start = t1 - snap
-                    if pos <= snap_start:
-                        return float(y0)
-                    self._interp_snapping = True
-                    frac = max(0.0, min(1.0, (pos - snap_start) / snap))
-                    return y0 + frac * (y1 - y0)
-                frac = max(0.0, min(1.0, (pos - t0) / (t1 - t0)))
-                return y0 + frac * (y1 - y0)
-        return float(points[-1][1])
+    def _reading_path(self, geom, dur: float, shift: float = 0.0):
+        """Kurve (reading_band_path) zu einer Geometrie; shift verschiebt die
+        Anker zeitlich und haelt sie innerhalb des Songs."""
+        doc_h = float(self._browser.document().size().height())
+        anchors = geom["anchors"]
+        if shift:
+            anchors = [(max(0.0, min(float(dur), sec + shift)), y)
+                       for sec, y in anchors]
+        return reading_band_path.build_path(
+            anchors, dur, doc_h, geom["start_y"], geom["end_ys"])
 
     def _read_offset(self) -> int:
         """Leseposition in Pixeln von der Viewport-Oberkante (intern#76)."""
         return int(self._browser.viewport().height() * self._SYNC_ANCHOR_VIEWPORT_FRAC)
 
     def _sync_scroll_target(self, pos: float, dur: float, max_val: int,
-                            anchors=None) -> int:
-        """Berechnet die Ziel-Scrollposition per stueckweiser Interpolation.
-
-        Stuetzpunkte: (0s -> 0px), die sortierten Anker (Sekunde -> Zeilen-Y,
-        so verschoben, dass die Ankerzeile auf der Leseposition steht),
-        (dur -> max_val). Das Zeilen-Y wird zur Laufzeit aus der Zeichenposition
-        bestimmt, damit es bei Zoom/Auto-Size stabil bleibt.
+                            geom=None) -> int:
+        """Ziel-Scrollposition: die Lesebalken-Kurve (reading_band_path), so
+        verschoben, dass der gesungene Text auf der Leseposition steht. Das
+        Zeilen-Y wird zur Laufzeit aus der Zeichenposition bestimmt, damit es
+        bei Zoom/Auto-Size stabil bleibt.
         """
-        if anchors is None:
-            anchors = self._anchor_doc_points()
-        read_offset = self._read_offset()
+        if geom is None:
+            geom = self._reading_geometry()
         # intern#115: "Textsprung timen" verschiebt die Anker zeitlich (nur fuer
-        # die Anzeige, gespeichert bleibt die echte Zeit). Innerhalb des Songs
-        # halten, sonst ueberholt ein Anker die festen Endpunkte. Im SyncPoint-
-        # Modus nicht: Dort prueft und setzt man SyncPoints gegen die echte Zeit.
+        # die Anzeige, gespeichert bleibt die echte Zeit). Im SyncPoint-Modus
+        # nicht: Dort prueft und setzt man SyncPoints gegen die echte Zeit.
         shift = 0.0 if self._sync_mode else float(self._text_jump_offset)
-        points = [(0.0, 0)]
-        for sec, y in anchors:
-            t = max(0.0, min(float(dur), sec + shift))
-            points.append((t, max(0, y - read_offset)))
-        points.append((float(dur), max_val))
-        return int(self._interpolate(pos, points))
+        y, self._interp_snapping = reading_band_path.position(
+            pos, self._reading_path(geom, dur, shift))
+        return max(0, min(int(max_val), int(y - self._read_offset())))
 
-    def _sung_doc_y(self, pos: float, dur: float, anchors) -> float:
+    def _sung_doc_y(self, pos: float, dur: float, geom) -> float:
         """intern#76: Dokument-Y des gerade gesungenen Texts, OHNE "Textsprung
-        timen". Mit Ankern: Interpolation Songanfang (0) -> Anker -> Songende
-        (Dokumenthoehe). Ohne Anker: proportional zur Songzeit."""
-        doc_h = float(self._browser.document().size().height())
-        if not anchors:
+        timen". Mit Ankern: Lesebalken-Kurve (reading_band_path). Ohne Anker:
+        proportional zur Songzeit."""
+        if not geom or not geom["anchors"]:
+            doc_h = float(self._browser.document().size().height())
             return (pos / dur) * doc_h if dur > 0 else 0.0
-        points = [(0.0, 0.0)] + list(anchors) + [(float(dur), doc_h)]
-        return self._interpolate(pos, points)
+        return reading_band_path.position(pos, self._reading_path(geom, dur))[0]
 
     # ---- Refit nach Song-Wechsel ----
 

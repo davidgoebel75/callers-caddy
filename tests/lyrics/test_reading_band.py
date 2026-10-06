@@ -203,3 +203,79 @@ def test_grenzen_wie_im_einstellungsdialog(widget, ini):
     widget.reload_reading_settings()
     assert widget._reading_band_height_pct == 60
     assert widget._reading_band_opacity_pct == 5
+
+
+# ---------------------------------------------------------------------------
+# intern#172: Anlauf vor dem ersten SyncPoint, Weiterlaufen vor dem Ruecksprung
+# ---------------------------------------------------------------------------
+
+def test_vor_dem_ersten_syncpoint_wartet_der_balken_auf_der_ersten_textzeile(song):
+    w, pos, box = song
+    w._active_anchors = lambda: [(28.0, pos(4)), (60.0, pos(8))]
+    w.update_scroll(0.0, DUR)
+    assert w._band_doc_y == int(box(2)[2])          # Mitte "Circle left"
+
+
+def test_vor_dem_ruecksprung_laeuft_der_balken_zum_abschnittsende(song):
+    w, pos, box = song
+    w._active_anchors = lambda: [(8.0, pos(2)), (60.0, pos(7)),
+                                 (150.0, pos(6)), (170.0, pos(8))]
+    assert w._reading_geometry()["end_ys"][1] == pytest.approx(box(8)[1])
+    w.update_scroll(140.0, DUR)                     # lange vor dem Ruecksprung
+    assert w._band_doc_y == int(box(8)[1])          # Ende von "Promenade home"
+
+
+def test_geometrie_wird_nur_bei_aenderung_neu_gerechnet(song):
+    w, pos, _box = song
+    w._active_anchors = lambda: [(8.0, pos(2)), (60.0, pos(8))]
+    first = w._reading_geometry()
+    assert w._reading_geometry() is first
+    w._active_anchors = lambda: [(9.0, pos(2)), (60.0, pos(8))]
+    assert w._reading_geometry() is not first
+
+
+# ---------------------------------------------------------------------------
+# intern#148: In-Lesebalken Countdown
+# ---------------------------------------------------------------------------
+
+def _countdown_song(song):
+    w, pos, _box = song
+    w._active_anchors = lambda: [(8.0, pos(1)), (36.0, pos(4)), (37.0, pos(5)),
+                                 (60.0, pos(8)), (90.0, pos(6)), (120.0, pos(8))]
+    return w
+
+
+def test_abschnittswechsel_aus_ueberschrift_und_ruecksprung(song):
+    w = _countdown_song(song)
+    assert w._reading_geometry()["changes"] == [37.0, 90.0]
+
+
+def test_countdown_zaehlt_die_beats_bis_zum_wechsel(song):
+    w = _countdown_song(song)
+    w.update_scroll(30.0, DUR, 120.0)               # 14 Beats entfernt
+    assert w._band_countdown is None
+    w.update_scroll(33.1, DUR, 120.0)
+    assert w._band_countdown == 8
+    w.update_scroll(36.9, DUR, 120.0)
+    assert w._band_countdown == 1
+    assert not w._reading_band.grab().isNull()      # Malen mit Zahl laeuft durch
+
+
+def test_countdown_abschaltbar_und_vorlauf_einstellbar(song, ini):
+    w = _countdown_song(song)
+    ini.setValue("lyrics/reading_band_countdown_beats", "4")
+    w.reload_reading_settings()
+    w.update_scroll(33.1, DUR, 120.0)
+    assert w._band_countdown is None
+    w.update_scroll(35.6, DUR, 120.0)
+    assert w._band_countdown == 3
+    ini.setValue("lyrics/reading_band_countdown", "false")
+    w.reload_reading_settings()
+    w.update_scroll(35.6, DUR, 120.0)
+    assert w._band_countdown is None
+
+
+def test_ohne_bpm_kein_countdown(song):
+    w = _countdown_song(song)
+    w.update_scroll(36.0, DUR)
+    assert w._band_countdown is None
