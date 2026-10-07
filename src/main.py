@@ -6837,6 +6837,9 @@ class P29MainWindow(QMainWindow):
             "lyrics/reading_band_enabled": "true",
             "lyrics/reading_band_height": "20",
             "lyrics/reading_band_opacity": "30",
+            # intern#148: In-Lesebalken Countdown (Beats bis zum Abschnittswechsel)
+            "lyrics/reading_band_countdown": "true",
+            "lyrics/reading_band_countdown_beats": "8",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6943,7 +6946,9 @@ class P29MainWindow(QMainWindow):
             elif key in ("lyrics/reading_position_pct",
                          "lyrics/reading_band_enabled",
                          "lyrics/reading_band_height",
-                         "lyrics/reading_band_opacity"):
+                         "lyrics/reading_band_opacity",
+                         "lyrics/reading_band_countdown",
+                         "lyrics/reading_band_countdown_beats"):
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.reload_reading_settings()
 
@@ -7625,7 +7630,7 @@ class P29MainWindow(QMainWindow):
             pos = self.engine.get_position_seconds()
             dur = self.engine.get_original_duration()
             if dur > 0:
-                self.lyrics_widget.update_scroll(pos, dur)
+                self.lyrics_widget.update_scroll(pos, dur, self.player._base_bpm)
 
             # Play Timer fuer Rules (alle 10 Sekunden)
             import time as _t2

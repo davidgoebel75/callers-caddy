@@ -417,6 +417,22 @@ SETTINGS_META: dict[str, dict] = {
         "default": 30,
         "tooltip": "Deckkraft des Lesebalkens. Die Farbe kommt aus dem Theme.",
     },
+    # intern#148: In-Lesebalken Countdown
+    "lyrics/reading_band_countdown": {
+        "label": "In-Lesebalken Countdown",
+        "widget": "checkbox",
+        "default": True,
+        "tooltip": "Zählt rechts im Lesebalken die Beats bis zum nächsten "
+                   "Abschnittswechsel herunter.",
+    },
+    "lyrics/reading_band_countdown_beats": {
+        "label": "In-Lesebalken Countdown: Vorlauf",
+        "widget": "spinbox",
+        "min": 2, "max": 16, "step": 1, "suffix": " Beats",
+        "default": 8,
+        "tooltip": "Ab wie vielen Beats vor dem Abschnittswechsel der "
+                   "Countdown erscheint.",
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",
