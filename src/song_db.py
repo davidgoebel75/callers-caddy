@@ -48,6 +48,7 @@ from typing import Optional, List
 from song_db_potential import PotentialMixin
 from song_db_schema import SchemaMixin
 from song_db_sequences import SequencesMixin
+import song_types
 
 
 def _chunked(seq, size: int = 900):
@@ -1420,8 +1421,7 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
 
     @staticmethod
     def _song_type_filter(type_key) -> str:
-        return {"pattern": "s.is_pattern = 1",
-                "singing": "s.is_singing = 1"}.get(type_key, "")
+        return song_types.SQL_FILTER.get(type_key, "")
 
     def play_counts(self, location_id, since, type_key) -> list:
         """Gespielte Songs als [(song_id, title, label, count)], meistgespielt

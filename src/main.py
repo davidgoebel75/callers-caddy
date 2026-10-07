@@ -158,6 +158,7 @@ from evening_planner_widget import EveningPlannerWidget
 import zip_import
 import song_catalog
 import song_match
+import song_types
 import program_selection
 from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
@@ -1838,7 +1839,7 @@ class P29MainWindow(QMainWindow):
         else:
             return  # Abbruch
 
-        # 2) Songtyp ganz am Ende (Pattern / Singing / Both)
+        # 2) Songtyp ganz am Ende (Pattern / Singing / Both / Other)
         type_dlg = QMessageBox(self)
         type_dlg.setWindowTitle(_t("import_type_title"))
         type_dlg.setText(_t("import_type_text"))
@@ -1846,6 +1847,7 @@ class P29MainWindow(QMainWindow):
         btn_pattern = type_dlg.addButton(_t("import_type_pattern"), QMessageBox.ActionRole)
         btn_singing = type_dlg.addButton(_t("import_type_singing"), QMessageBox.ActionRole)
         btn_both = type_dlg.addButton(_t("import_type_both"), QMessageBox.ActionRole)
+        btn_other = type_dlg.addButton(_t("import_type_other"), QMessageBox.ActionRole)
         type_dlg.addButton(QMessageBox.Cancel)
         type_dlg.setDefaultButton(btn_both)
         type_dlg.exec()
@@ -1856,6 +1858,8 @@ class P29MainWindow(QMainWindow):
             self._import_is_pattern, self._import_is_singing = 0, 1
         elif type_clicked == btn_both:
             self._import_is_pattern, self._import_is_singing = 1, 1
+        elif type_clicked == btn_other:
+            self._import_is_pattern, self._import_is_singing = 0, 0
         else:
             return  # Abbruch
 
@@ -4024,6 +4028,9 @@ class P29MainWindow(QMainWindow):
         return {
             "song_type_is_singing": bool(song and getattr(song, 'is_singing', False)),
             "song_type_is_patter": bool(song and getattr(song, 'is_pattern', False)),
+            "song_type_is_other": bool(song and song_types.is_other(
+                getattr(song, 'is_pattern', False),
+                getattr(song, 'is_singing', False))),
             "lyrics_available": has_lyrics,
             "lyrics_not_available": not has_lyrics,
             "loop_set": loop_set,
@@ -4046,6 +4053,8 @@ class P29MainWindow(QMainWindow):
                               lambda ctx, p: ctx.get("song_type_is_singing", False))
         re.register_condition("song_type_is_patter",
                               lambda ctx, p: ctx.get("song_type_is_patter", False))
+        re.register_condition("song_type_is_other",
+                              lambda ctx, p: ctx.get("song_type_is_other", False))
         re.register_condition("lyrics_available",
                               lambda ctx, p: ctx.get("lyrics_available", False))
         re.register_condition("lyrics_not_available",
@@ -4672,11 +4681,13 @@ class P29MainWindow(QMainWindow):
         lpm = getattr(self.song_list, "_last_played_map", {}) or {}
         start_date = getattr(self.song_list, "_start_date", date.today())
 
-        # Typ-Filter (Singing/Patter)
-        if want_type.startswith("sing"):
-            songs = [s for s in songs if s.is_singing]
-        else:
-            songs = [s for s in songs if s.is_pattern]
+        # Typ-Filter (Singing/Patter/Other)
+        type_key, filter_id = (
+            (song_types.SINGING, 2) if want_type.startswith("sing")
+            else (song_types.OTHER, 3) if want_type.startswith("oth")
+            else (song_types.PATTER, 1))
+        songs = [s for s in songs
+                 if song_types.matches(s.is_pattern, s.is_singing, type_key)]
         if not songs:
             self.statusBar().showMessage(
                 _t("rule_load_song_none", type=params.get("type", "")), 4000)
@@ -4720,7 +4731,7 @@ class P29MainWindow(QMainWindow):
         try:
             fb = getattr(self.song_list, "_filter_bar", None)
             if fb is not None:
-                fb.set_type_filter(2 if want_type.startswith("sing") else 1)
+                fb.set_type_filter(filter_id)
         except Exception:
             pass
 

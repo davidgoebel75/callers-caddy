@@ -560,6 +560,31 @@
     "en": "Song usable as patter",
     "ja": "曲を Patter として使用可能"
   },
+  "chk_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
+  "tooltip_other": {
+    "de": "Weder Patter noch Singing Call, zum Beispiel Friendship Ring oder Happy Birthday. Wird nicht in Tips eingeplant.",
+    "en": "Neither patter nor singing call, for example Friendship Ring or Happy Birthday. Is not scheduled into tips.",
+    "ja": "Patter でも Singing Call でもない曲（例: Friendship Ring、Happy Birthday）。Tip には組み込まれません。"
+  },
+  "rb_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
+  "stats_type_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
+  "import_type_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
   "chk_singing": {
     "de": "Singing Call",
     "en": "Singing Call",
@@ -5278,9 +5303,9 @@
     "ja": "タイプ"
   },
   "stats_type_both": {
-    "de": "Beide",
-    "en": "Both",
-    "ja": "両方"
+    "de": "Alle",
+    "en": "All",
+    "ja": "すべて"
   },
   "stats_type_pattern": {
     "de": "Patter",
