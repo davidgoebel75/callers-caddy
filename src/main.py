@@ -1631,6 +1631,10 @@ class P29MainWindow(QMainWindow):
             if name != conflict.name:
                 for song_id in song_ids:
                     self.db.update_lyrics_file(song_id, name)
+        # Wurde die gerade angezeigte Datei ersetzt, den neuen Text zeigen.
+        if self._current_song and any(
+                self.lyrics_widget.is_showing(c.dest) for c, _ids in entries):
+            self._reload_current_lyrics()
 
     def _on_find_loop(self):
         """Find-Loop-Button: Zeigt das Loop-Finder-Dock an."""
@@ -3429,17 +3433,21 @@ class P29MainWindow(QMainWindow):
     def _on_player_pitch_changed(self, pitch_semitones):
         self.song_data.update_pitch(pitch_semitones)
 
+    def _reload_current_lyrics(self):
+        """Lyrics des geladenen Songs neu von der Platte lesen."""
+        # Lyric-Variante beibehalten falls aktiv, sonst Standard laden
+        if self._lyric_variant_filename:
+            self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
+        else:
+            self.lyrics_widget.load_song(self._current_song)
+        self._push_lyrics_sync_identity(offer_copy=False)
+
     def _on_song_saved(self):
         self.song_list.refresh()
         self.playlist_manager.refresh()
         if self._current_song:
             self._current_song = self.db.get_by_id(self._current_song.id)
-            # Lyric-Variante beibehalten falls aktiv, sonst Standard laden
-            if self._lyric_variant_filename:
-                self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
-            else:
-                self.lyrics_widget.load_song(self._current_song)
-            self._push_lyrics_sync_identity(offer_copy=False)
+            self._reload_current_lyrics()
             # BPM-Anzeige im Player aktualisieren (z.B. nach Auto-BPM)
             self.player.apply_song_settings(self._current_song)
 

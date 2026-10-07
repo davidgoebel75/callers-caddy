@@ -56,6 +56,7 @@ def ask_lyrics_conflict(parent, conflict: LyricsConflict):
         _t(f"lyrics_conflict_guess_{_guess_key(conflict)}"),
         "",
         _t("lyrics_conflict_bak_hint", name=conflict.name),
+        _t("lyrics_conflict_sync_hint"),
     ]))
     buttons = {
         msg.addButton(_t(key), QMessageBox.AcceptRole): decision
@@ -124,7 +125,8 @@ class LyricsConflictDialog(QDialog):
         all_row.addStretch(1)
         layout.addLayout(all_row)
 
-        hint = QLabel(_t("lyrics_conflict_list_bak_hint"))
+        hint = QLabel(_t("lyrics_conflict_list_bak_hint") + " "
+                      + _t("lyrics_conflict_sync_hint"))
         hint.setWordWrap(True)
         layout.addWidget(hint)
 

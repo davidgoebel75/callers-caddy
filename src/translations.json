@@ -10318,6 +10318,11 @@
     "en": "When replacing, the previous version is kept as “{name}.bak” in the lyrics folder.",
     "ja": "置き換える場合、以前の版は「{name}.bak」として Lyrics フォルダーに残ります。"
   },
+  "lyrics_conflict_sync_hint": {
+    "de": "Hat der Song SyncPoints, bitte nach dem Ersetzen prüfen: Sie bleiben an ihrer bisherigen Stelle und können im geänderten Text verrutscht sein.",
+    "en": "If the song has SyncPoints, please check them after replacing: they stay at their previous position and may be misplaced in the changed text.",
+    "ja": "この曲に SyncPoint がある場合は、置き換え後に確認してください。SyncPoint は元の位置のままなので、変更後のテキストではずれている可能性があります。"
+  },
   "lyrics_conflict_btn_replace": {
     "de": "Ersetzen",
     "en": "Replace",

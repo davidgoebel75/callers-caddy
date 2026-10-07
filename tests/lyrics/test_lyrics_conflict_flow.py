@@ -154,6 +154,7 @@ class _Fenster:
     def __init__(self, lyrics):
         self.paths = _paths(lyrics)
         self.updated = []
+        self._current_song = None       # kein Song geladen
         self.db = SimpleNamespace(
             update_lyrics_file=lambda sid, name: self.updated.append((sid, name)))
 
@@ -211,3 +212,22 @@ def test_import_ohne_konflikte_zeigt_keinen_dialog(dirs, monkeypatch):
 
     monkeypatch.setattr(main, "resolve_with_dialog", _no_dialog)
     _Fenster(lyrics)._resolve_import_lyrics_conflicts([])
+
+
+@pytest.mark.parametrize("shown, reloads", [("B.html", 1), ("Anderer.html", 0)])
+def test_nach_dem_ersetzen_zeigt_das_lyric_fenster_den_neuen_text(
+        qapp, two_conflicts, monkeypatch, shown, reloads):
+    conflicts, lyrics = two_conflicts
+    monkeypatch.setattr(LyricsConflictDialog, "exec", lambda self: QDialog.Accepted)
+    monkeypatch.setattr(LyricsConflictDialog, "decisions", lambda self: [REPLACE])
+    monkeypatch.setattr(
+        main, "resolve_with_dialog",
+        lambda _parent, c: dialogs_lyrics_conflict.resolve_with_dialog(None, c))
+    fenster = _Fenster(lyrics)
+    fenster._current_song = SimpleNamespace(id=3)
+    shown_path = str(lyrics / shown)
+    fenster.lyrics_widget = SimpleNamespace(is_showing=lambda p: p == shown_path)
+    calls = []
+    fenster._reload_current_lyrics = lambda: calls.append(1)
+    fenster._resolve_import_lyrics_conflicts([(3, conflicts[1])])
+    assert len(calls) == reloads
