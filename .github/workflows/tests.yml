@@ -24,6 +24,9 @@ jobs:
         run: python -m pyflakes src tests tools installer
 
       - name: Run tests
+        # Laengster Testschritt bisher: knapp 3 Minuten. Ein haengender Test
+        # (intern#178) lief sonst bis zum GitHub-Limit von 6 Stunden.
+        timeout-minutes: 5
         run: pytest tests/
         env:
           QT_QPA_PLATFORM: offscreen
