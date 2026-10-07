@@ -4720,6 +4720,8 @@ class LyricsWidget(QWidget):
                     break
                 if p_text.strip():
                     first = p_top + p_h / 2
+                    if last is None:
+                        last = p_top + p_h
             else:
                 complete = False
         cur = (block, idx)
