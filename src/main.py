@@ -5308,7 +5308,7 @@ class P29MainWindow(QMainWindow):
         device = self._audio_favorite_devices()[target]
         combo = self._audio_device_combo
         idx = -1 if device is audio_favorites.UNREADABLE else combo.findData(device)
-        if getattr(self, "_in_audition", False):
+        if self.player._audition_active:
             # Das Vorhoeren stellt danach das gemerkte Geraet wieder her.
             self.statusBar().showMessage(_t("audio_favorite_blocked_audition"), 6000)
         elif idx < 0:
@@ -7576,6 +7576,8 @@ class P29MainWindow(QMainWindow):
             self.tutorial_engine.refresh_overlay()
             # BL-204: Magnet-Icons im Ansicht-Menue neu einfaerben (Snap-Zustand)
             self._refresh_all_view_magnets()
+            # Favoriten-Knopf und Geraeteliste nutzen Skin-Farben
+            self._refresh_audio_favorite_ui()
             print(f"[Skin] Gewechselt auf '{skin_name}'")
             return True
         return False

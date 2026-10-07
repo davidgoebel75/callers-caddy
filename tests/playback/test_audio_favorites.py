@@ -69,7 +69,7 @@ class _Fenster:
         self._settings = ini
         self.skin_mgr = None
         self.engine = _Engine()
-        self._in_audition = False
+        self.player = SimpleNamespace(_audition_active=False)
         self.messages = []
         self._status = SimpleNamespace(
             showMessage=lambda text, _ms=0: self.messages.append(text))
@@ -145,7 +145,7 @@ def test_favorit_ohne_geraet_in_der_liste_schaltet_nicht(fenster):
 
 
 def test_waehrend_des_vorhoerens_gesperrt(fenster):
-    fenster._in_audition = True
+    fenster.player._audition_active = True
     fenster._on_audio_favorite_toggle()
     assert fenster.engine.switches == []
     assert fenster._btn_audio_favorite.text() == "1"
