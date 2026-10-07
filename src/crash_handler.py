@@ -127,6 +127,12 @@ class CrashLogger:
         except OSError:
             crash_dir = self._app_dir  # Fallback bei Permission-Fehler
         log_path = os.path.join(crash_dir, f"crash_{timestamp}.log")
+        # Die Uhr rueckt unter Windows nur etwa jede Millisekunde weiter: bei
+        # gleichem Namen Zaehler anhaengen ('_1' sortiert nach '.log').
+        n = 0
+        while os.path.exists(log_path):
+            n += 1
+            log_path = os.path.join(crash_dir, f"crash_{timestamp}_{n}.log")
 
         lines = self._collect_header(reason)
 
@@ -215,7 +221,7 @@ def report_once(settings, reason: str, problems: list) -> str:
     geaendert hat. Das Log gilt sofort als gemeldet: Der Caller sieht dazu
     schon den eigenen Dialog, der Start-Hinweis soll es nicht nochmal zeigen.
     Pfad des neuen Logs, "" wenn keins geschrieben wurde."""
-    # ponytail: Vermerk bleibt stehen, wenn die Probleme verschwinden. Kommt
+    # Bewusst einfach: Vermerk bleibt stehen, wenn die Probleme verschwinden. Kommt
     # genau dieselbe Liste spaeter zurueck, gibt es kein neues Log (Dialog schon).
     fingerprint = " | ".join(sorted(problems))
     if fingerprint == str(settings.value(REPORTED_PROBLEMS_KEY, "") or ""):

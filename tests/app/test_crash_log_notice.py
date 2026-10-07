@@ -107,3 +107,23 @@ def test_mark_notified_never_moves_back():
     crash_handler.mark_notified(settings, "/x/crash_20261001_080000_000001.log")
     assert settings[crash_handler.LAST_NOTIFIED_KEY] == \
         "crash_20261007_080000_000001.log"
+
+
+def test_write_log_same_timestamp_keeps_both(tmp_path, monkeypatch):
+    """Die Uhr rueckt unter Windows nur etwa jede Millisekunde weiter. Zwei
+    Logs mit gleichem Zeitstempel duerfen sich nicht ueberschreiben, und das
+    zweite muss als neuer gelten."""
+    from datetime import datetime as real_datetime
+
+    class _FrozenClock(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 10, 7, 8, 0, 0, 123456)
+
+    monkeypatch.setattr(crash_handler, "datetime", _FrozenClock)
+    logger = CrashLogger(str(tmp_path))
+    first = logger.write_report("A")
+    second = logger.write_report("B")
+
+    assert first != second
+    assert _logs(tmp_path) == [second, first]
