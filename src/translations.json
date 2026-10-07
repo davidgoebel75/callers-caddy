@@ -1436,9 +1436,9 @@
     "ja": "リーディングバンドを表示"
   },
   "setting_tip_lyrics_reading_band_enabled": {
-    "de": "Hinterlegt den gerade gesungenen Text farbig, damit man ihn nach einem Blick weg sofort wiederfindet. Der Balken folgt dem gesungenen Text, auch wenn „Textsprung timen“ früher scrollt.",
-    "en": "Highlights the text currently being sung with a colored band, so you find it again right away after looking away. The band follows the sung text, even when \"Text jump timing\" scrolls earlier.",
-    "ja": "現在歌われているテキストを色付きの帯で強調し、目を離した後もすぐに見つけられるようにします。「テキストジャンプのタイミング」で早くスクロールしても、帯は歌われているテキストに追従します。"
+    "de": "Hinterlegt den gerade gesungenen Text farbig, damit man ihn nach einem Blick weg sofort wiederfindet. Der Balken folgt dem gesungenen Text, auch wenn „Textsprung timen“ früher scrollt. Er richtet sich nach den Sync-Punkten: Je mehr Punkte gesetzt sind (etwa auf der ersten gesungenen Zeile und der letzten Zeile jeder Figure), desto genauer läuft er.",
+    "en": "Highlights the text currently being sung with a colored band, so you find it again right away after looking away. The band follows the sung text, even when \"Text jump timing\" scrolls earlier. It is guided by the sync points: the more points you set (for example on the first sung line and the last line of each figure), the more precisely it runs.",
+    "ja": "現在歌われているテキストを色付きの帯で強調し、目を離した後もすぐに見つけられるようにします。「テキストジャンプのタイミング」で早くスクロールしても、帯は歌われているテキストに追従します。帯はシンクポイントに従って動きます。ポイントを多く設定するほど（例：最初に歌う行や各フィギュアの最終行）、より正確に動きます。"
   },
   "setting_label_lyrics_reading_band_height": {
     "de": "Lesebalken-Höhe",
@@ -1459,6 +1459,26 @@
     "de": "Deckkraft des Lesebalkens in Prozent. Die Farbe kommt aus dem Theme.",
     "en": "Opacity of the reading band in percent. The color comes from the theme.",
     "ja": "リーディングバンドの不透明度（％）。色はテーマから取得されます。"
+  },
+  "setting_label_lyrics_reading_band_countdown": {
+    "de": "In-Lesebalken Countdown",
+    "en": "In-band countdown",
+    "ja": "バンド内カウントダウン"
+  },
+  "setting_tip_lyrics_reading_band_countdown": {
+    "de": "Zählt am rechten Rand des Lesebalkens die Beats bis zum nächsten Abschnittswechsel herunter (Opener, Figure, Middle Break, Closer). Der Wechsel wird an den Sync-Punkten erkannt; ohne BPM-Wert des Songs erscheint kein Countdown.",
+    "en": "Counts down the beats until the next section change (opener, figure, middle break, closer) at the right edge of the reading band. The change is detected from the sync points; without a BPM value for the song no countdown is shown.",
+    "ja": "リーディングバンドの右端に、次のセクション切り替え（オープナー、フィギュア、ミドルブレイク、クローザー）までのビート数をカウントダウン表示します。切り替えはシンクポイントから判定され、曲の BPM 値がない場合は表示されません。"
+  },
+  "setting_label_lyrics_reading_band_countdown_beats": {
+    "de": "In-Lesebalken Countdown: Vorlauf",
+    "en": "In-band countdown: lead time",
+    "ja": "バンド内カウントダウン：開始ビート数"
+  },
+  "setting_tip_lyrics_reading_band_countdown_beats": {
+    "de": "Ab wie vielen Beats vor dem Abschnittswechsel der Countdown erscheint (2 bis 16, empfohlen 8).",
+    "en": "How many beats before the section change the countdown appears (2 to 16, 8 recommended).",
+    "ja": "セクション切り替えの何ビート前からカウントダウンを表示するか（2〜16、推奨 8）。"
   },
   "dynamic_invert_opt_hhss": {
     "de": "HHSS – Figure 3 und 4 tauschen",
@@ -10257,5 +10277,10 @@
     "de": "Call-Mapping für diese Sequenz öffnen",
     "en": "Open Call Mapping for this sequence",
     "ja": "このシーケンスの Call マッピングを開く"
+  },
+  "ctx_open_call_mapping_for_call_text": {
+    "de": "Call-Mapping für diesen Call ändern",
+    "en": "Change the Call Mapping for this call",
+    "ja": "この Call の Call マッピングを変更"
   }
 }

@@ -34,6 +34,7 @@ QT_FREE_MODULES = {
     "ceder_lookup", "heads_sides", "i18n", "loop_finder", "mapping_io",
     "pitch_shifter", "program_selection", "rule_definitions", "rule_engine",
     "sequence_filter", "sequence_import", "sequence_mapper",
+    "reading_band_path",
     "shortcode_parser", "singing_body_detect", "singing_sections",
     "skin_manager", "song_catalog", "song_db", "song_db_potential",
     "song_db_schema", "song_db_sequences", "song_match",
