@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
-    QFont, QFontMetrics, QKeySequence, QShortcut,
+    QAction, QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
 from song_db import SongDatabase
@@ -95,6 +95,9 @@ class SequenceViewWidget(QWidget):
         self.on_add_to_notes = None   # callback(seq_id)
         self.on_edit_sequence = None  # callback(seq_id) → Editor oeffnen
         self.on_delete_sequence = None  # callback(seq_id) → Sequenz loeschen
+        # intern#177: callback(call_texts) → Call-Mapping mit Fokus. Nur im Dock
+        # gesetzt; der Beispiel-Betrachter des Call-Mappings bleibt ohne Eintrag.
+        self.on_open_call_mapping = None
         # BL-173: Callback, wenn sich die Sequenzliste aendert (fuer das Gating
         # des Dynamic-Lyrics-Buttons im Lyrics-Widget).
         self.on_sequences_changed = None
@@ -133,6 +136,9 @@ class SequenceViewWidget(QWidget):
         self._text_edit.setFrameShape(QFrame.NoFrame)
         self._text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # intern#177: Rechtsklick auf einen Call-Text -> Call-Mapping
+        self._text_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._text_edit.customContextMenuRequested.connect(self._on_text_context_menu)
         layout.addWidget(self._text_edit, 1)
 
         nav_layout = QHBoxLayout()
@@ -394,6 +400,69 @@ class SequenceViewWidget(QWidget):
         # Nochmal nach erstem Layout-Pass, damit height()/width() korrekt ist
         QTimer.singleShot(0, self._recalc_font_size)
         QTimer.singleShot(0, self._recalc_header_font)
+
+    def shown_state(self):
+        """Merker fuer restore_shown: (Sequenzliste, Index) der gezeigten
+        Sequenz, None ohne Sequenz."""
+        if not self._seq_ids or self._current_idx >= len(self._seq_ids):
+            return None
+        return list(self._seq_ids), self._current_idx
+
+    def restore_shown(self, state):
+        """intern#177: Nach einer Aenderung am Call-Mapping wieder dieselbe
+        Sequenz zeigen und neu aus der DB lesen. Das Neuladen der Sequenzliste
+        kann das Detail inzwischen auf eine andere Sequenz gestellt haben; ist
+        die gemerkte Sequenz nicht mehr in der Liste (etwa jetzt ausgeblendet),
+        gilt die gemerkte Liste weiter."""
+        if state is None:
+            return
+        ids, idx = state
+        seq_id = ids[idx]
+        if seq_id in self._seq_ids:
+            self._current_idx = self._seq_ids.index(seq_id)
+        else:
+            self._seq_ids, self._current_idx = ids, idx
+        self._update_content()
+        self._notify_current_sequence_changed()
+
+    # ---- Rechtsklick: Call-Mapping fuer einen Call-Text (intern#177) ----
+
+    def _call_text_at(self, pos):
+        """Call-Text der Zeile unter pos (Viewport-Koordinaten des Textfelds)
+        oder None. _make_html trennt die Calls mit <br>: die Zahl der
+        Zeilenumbrueche vor der Cursor-Position ist der Index in _calls."""
+        if not self._calls:
+            return None
+        cursor = self._text_edit.cursorForPosition(pos)
+        rect = self._text_edit.cursorRect(cursor)
+        if not rect.top() <= pos.y() <= rect.bottom():
+            return None     # unterhalb der letzten Zeile
+        idx = self._text_edit.toPlainText()[:cursor.position()].count("\n")
+        return self._calls[idx][1] if idx < len(self._calls) else None
+
+    def _build_text_menu(self, pos):
+        """Kontextmenue des Textfelds: der Eintrag zum Call-Mapping, darunter
+        die Standard-Eintraege (Kopieren, Alles auswaehlen)."""
+        menu = self._text_edit.createStandardContextMenu()
+        call_text = self._call_text_at(pos) if self.on_open_call_mapping else None
+        if call_text:
+            first = menu.actions()[0] if menu.actions() else None
+            act = QAction(_t("ctx_open_call_mapping_for_call_text"), menu)
+            act.triggered.connect(
+                lambda: self._open_call_mapping_for_call_text(call_text))
+            menu.insertAction(first, act)
+            menu.insertSeparator(first)
+        return menu
+
+    def _on_text_context_menu(self, pos):
+        menu = self._build_text_menu(pos)
+        menu.exec(self._text_edit.viewport().mapToGlobal(pos))
+        menu.deleteLater()
+
+    def _open_call_mapping_for_call_text(self, call_text):
+        """Call-Mapping oeffnen, gefiltert auf diesen Call-Text. Das Neuladen
+        danach macht der Aufgerufene (P29MainWindow._open_call_mapping)."""
+        self.on_open_call_mapping([call_text])
 
     def set_program_bands(self, bands):
         """intern#176: Tanzprogramm-Wahl uebernehmen und das Programm-Etikett
@@ -3574,18 +3643,8 @@ class CallMappingDialog(QDialog):
                 self.db.delete_call_text_mapping(raw_text)
                 deleted += 1
 
+        # intern#177: keine Bestaetigungsmeldung mehr (ein Klick weniger); das
+        # Ergebnis ist in Sequenzliste und Sequenz-Detail sofort sichtbar.
         print(f"[Call-Mapping] {saved} gespeichert, {deleted} entfernt, "
               f"{split_occ} Splits in {split_seqs} Sequenzen")
-
-        parts = []
-        if saved:
-            parts.append(_t("call_mapping_saved_n", count=saved))
-        if deleted:
-            parts.append(_t("call_mapping_deleted", count=deleted))
-        if split_seqs:
-            parts.append(_t("call_mapping_split_done", seqs=split_seqs, occ=split_occ))
-        QMessageBox.information(
-            self, _t("call_mapping_title"),
-            "\n".join(parts) if parts else _t("call_mapping_nothing")
-        )
         self.accept()

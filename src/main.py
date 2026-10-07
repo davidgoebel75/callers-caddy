@@ -970,6 +970,7 @@ class P29MainWindow(QMainWindow):
         self.sequences_widget.on_add_filter_to_notes = self._notes_add_seq_with_filters
         self.sequences_widget.on_sequences_deleted = self._on_sequences_deleted
         self.sequences_widget.on_open_call_mapping = self._open_call_mapping
+        self.sequence_view_widget.on_open_call_mapping = self._open_call_mapping
         self.sequence_view_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequence_view_widget.on_edit_sequence = self._on_sequence_editor
         self.sequence_view_widget.on_delete_sequence = self._on_sequence_view_delete
@@ -6208,15 +6209,20 @@ class P29MainWindow(QMainWindow):
             return
         # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
         # Ergaenzen/Aendern ("Optimieren", intern#97).
+        # intern#177: Das Sequenz-Detail soll danach dieselbe Sequenz mit der
+        # neuen Zuordnung zeigen (das Neuladen der Liste stellt es sonst um).
+        shown = self.sequence_view_widget.shown_state()
         dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
+            self.sequence_view_widget.restore_shown(shown)
         elif dlg.wrote_assignments:
             # "Optimieren" (intern#97) hat schon geschrieben und die Baender
             # nachgerechnet -> bei Abbrechen nur die Sequenzansicht neu laden,
             # nicht noch einmal rechnen (~120 ms auf dem Main-Thread).
             self.sequences_widget.load_sequences()
+            self.sequence_view_widget.restore_shown(shown)
 
     def _on_mapping_export(self):
         """Menue: Call-Maps als JSON exportieren (v2 mit Header, intern#79)."""
