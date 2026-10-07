@@ -64,6 +64,7 @@ class _Fenster:
     _refresh_audio_favorite_ui = W._refresh_audio_favorite_ui
     _on_audio_favorite_toggle = W._on_audio_favorite_toggle
     _on_audio_device_changed = W._on_audio_device_changed
+    _on_settings_applied = W._on_settings_applied
 
     def __init__(self, ini):
         self._settings = ini
@@ -150,6 +151,41 @@ def test_waehrend_des_vorhoerens_gesperrt(fenster):
     assert fenster.engine.switches == []
     assert fenster._btn_audio_favorite.text() == "1"
     assert len(fenster.messages) == 1
+
+
+# ---- Geraetewechsel in den Einstellungen waehrend des Vorhoerens (intern#180) ----
+
+def _start_audition(fenster):
+    """Wie _on_player_audition: Geraet merken, auf den Vorhoer-Kanal schalten."""
+    fenster._pre_audition_device = fenster.engine.device
+    fenster.engine.set_output_device(HEADSET)
+    fenster.player._audition_active = True
+    fenster.engine.switches.clear()
+
+
+def test_neuer_favorit_2_im_vorhoeren_gilt_auch_nach_dem_vorhoeren(fenster):
+    fenster._on_audio_favorite_toggle()                     # auf 2
+    _start_audition(fenster)
+    fenster._settings.setValue("audio/secondary_device", str(OTHER))
+    fenster._on_settings_applied(["audio/secondary_device"])
+    assert fenster.engine.device == OTHER
+    assert fenster._pre_audition_device == OTHER
+    assert fenster._btn_audio_favorite.text() == "2"
+
+
+def test_neuer_favorit_1_im_vorhoeren_schaltet_erst_danach(fenster):
+    _start_audition(fenster)
+    fenster._settings.setValue("audio/primary_device", str(OTHER))
+    fenster._on_settings_applied(["audio/primary_device"])
+    assert fenster.engine.switches == []                    # Vorhoeren bleibt, wo es ist
+    assert fenster._pre_audition_device == OTHER
+    assert fenster._btn_audio_favorite.text() == "1"
+
+
+def test_neuer_favorit_1_ohne_vorhoeren_schaltet_sofort(fenster):
+    fenster._settings.setValue("audio/primary_device", str(OTHER))
+    fenster._on_settings_applied(["audio/primary_device"])
+    assert fenster.engine.device == OTHER
 
 
 def test_tooltip_nennt_beide_geraete(fenster):

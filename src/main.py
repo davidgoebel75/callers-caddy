@@ -6970,7 +6970,12 @@ class P29MainWindow(QMainWindow):
             elif key == "audio/primary_device":
                 try:
                     dev = int(val) if val else None
-                    self.engine.set_output_device(dev)
+                    if self.player._audition_active:
+                        # intern#180: Das Vorhoeren bleibt auf dem Vorhoer-
+                        # Kanal; sein Ende schaltet auf das neue Geraet.
+                        self._pre_audition_device = dev
+                    else:
+                        self.engine.set_output_device(dev)
                     combo_idx = self._audio_device_combo.findData(dev)
                     if combo_idx >= 0:
                         self._audio_device_combo.blockSignals(True)
@@ -6990,6 +6995,10 @@ class P29MainWindow(QMainWindow):
                     combo_idx = self._audio_device_combo.findData(dev)
                     if self._audio_favorite == 2 and combo_idx >= 0:
                         self.engine.set_output_device(dev)
+                        if self.player._audition_active:
+                            # intern#180: sonst stellt das Ende des Vorhoerens
+                            # das alte Geraet wieder her.
+                            self._pre_audition_device = dev
                         self._audio_device_combo.blockSignals(True)
                         self._audio_device_combo.setCurrentIndex(combo_idx)
                         self._audio_device_combo.blockSignals(False)
