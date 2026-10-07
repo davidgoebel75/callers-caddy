@@ -7933,17 +7933,21 @@ def main():
         perf.perf_write(f"[Perf] === GESAMT ab Prozessstart bis SICHTBAR: {_visible_total_ms:.0f}ms ===")
 
     # Neue Crash-Logs seit dem letzten Hinweis pruefen und Hinweis anzeigen
+    # Die Suche laeuft vor dem DB-Report: dessen Protokoll gehoert nicht in den
+    # Hinweis auf neue Fehlerprotokolle.
     crash_logs = _crash_handler.CrashLogger.find_crash_logs(
         app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
-    if crash_logs:
+    if window.db.schema_problems:
+        # intern#166: Erst der Dialog zum DB-Update, danach (falls noetig) der
+        # Hinweis auf neue Fehlerprotokolle, nie beide uebereinander.
+        def _startup_notices():
+            _report_db_update_problems(window, window.db.schema_problems, settings)
+            if crash_logs:
+                _show_crash_log_notice(window, crash_logs, settings)
+        QTimer.singleShot(500, _startup_notices)
+    elif crash_logs:
         QTimer.singleShot(
             800, lambda: _show_crash_log_notice(window, crash_logs, settings))
-    # Erst nach der Suche oben: der Report dieses Starts gehoert nicht in den
-    # Hinweis auf alte Fehlerprotokolle (spaetere Starts: report_once).
-    if window.db.schema_problems:
-        QTimer.singleShot(
-            500, lambda: _report_db_update_problems(
-                window, window.db.schema_problems, settings))
 
     # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
     # nicht auf dem Main-Thread parsen (intern#126).

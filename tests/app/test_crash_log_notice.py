@@ -6,6 +6,7 @@ Start-Hinweis deshalb bei jedem Start alle jemals geschriebenen Logs. Mit
 """
 import os
 
+import crash_handler
 from crash_handler import CrashLogger
 
 
@@ -53,9 +54,6 @@ def test_new_name_with_microseconds_sorts_after_old_name_same_second(tmp_path):
 
 
 # --- intern#166: DB-Update-Problem bei jedem Start -------------------------
-
-import crash_handler
-
 
 class _Settings(dict):
     """Ersatz fuer QSettings: value/setValue/sync auf einem Dict."""

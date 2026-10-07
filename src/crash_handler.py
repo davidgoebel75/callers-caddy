@@ -217,7 +217,7 @@ def report_once(settings, reason: str, problems: list) -> str:
     Pfad des neuen Logs, "" wenn keins geschrieben wurde."""
     # ponytail: Vermerk bleibt stehen, wenn die Probleme verschwinden. Kommt
     # genau dieselbe Liste spaeter zurueck, gibt es kein neues Log (Dialog schon).
-    fingerprint = " | ".join(problems)
+    fingerprint = " | ".join(sorted(problems))
     if fingerprint == str(settings.value(REPORTED_PROBLEMS_KEY, "") or ""):
         return ""
     path = write_report(reason, [f"  {p}" for p in problems])
