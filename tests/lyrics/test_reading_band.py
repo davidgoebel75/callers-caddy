@@ -234,6 +234,47 @@ def test_geometrie_wird_nur_bei_aenderung_neu_gerechnet(song):
     assert w._reading_geometry() is not first
 
 
+def test_jeder_abschnitt_wird_nur_einmal_durchsucht(song):
+    """Mehrere Anker im selben Abschnitt: eine Suche je Abschnitt, gleiches
+    Ergebnis wie mit einer Suche je Anker (Audio-Prioritaet, Review zu #95)."""
+    w, pos, _box = song
+    w._active_anchors = lambda: [(8.0, pos(1)), (20.0, pos(2)), (30.0, pos(3)),
+                                 (36.0, pos(4)), (37.0, pos(5)), (60.0, pos(8)),
+                                 (90.0, pos(6)), (120.0, pos(8))]
+    calls = []
+    orig = w._section_span
+
+    def counting(block, idx, layout):
+        calls.append((block.blockNumber(), idx))
+        return orig(block, idx, layout)
+    w._section_span = counting
+    cached = w._reading_geometry()
+    assert len(calls) == 2                          # OPENER und FIGURE
+
+    def uncached(block, idx, layout):
+        return orig(block, idx, layout)[:3] + (None, None)
+    w._section_span = uncached
+    w._geom_cache = None
+    assert w._reading_geometry() == cached
+
+
+@pytest.mark.parametrize("first_line, second_line", [(4, 2), (2, 4), (5, 3), (3, 5)])
+def test_abschnittsende_haengt_nicht_von_der_ankerzeile_ab(song, qapp,
+                                                           first_line, second_line):
+    """Anker auf einer Leerzeile hinter der letzten Textzeile: Der Abschnitt
+    endet trotzdem an deren Unterkante, egal welcher Anker zuerst kommt
+    (Review zu #100)."""
+    w, pos, box = song
+    w._browser.setPlainText("\n".join(
+        ["Titel", "OPENER", "Circle left", "Last line", "", "",
+         "FIGURE", "Heads square thru"]))
+    qapp.processEvents()
+    w._active_anchors = lambda: [(8.0, pos(first_line)), (20.0, pos(second_line)),
+                                 (40.0, pos(7))]
+    end = pytest.approx(box(3)[1])                  # Ende von "Last line"
+    assert w._reading_geometry()["end_ys"][:2] == [end, end]
+
+
 # ---------------------------------------------------------------------------
 # intern#148: In-Lesebalken Countdown
 # ---------------------------------------------------------------------------

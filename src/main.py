@@ -159,6 +159,7 @@ import zip_import
 import song_catalog
 import song_match
 import audio_favorites
+import song_types
 import program_selection
 from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
@@ -1839,7 +1840,7 @@ class P29MainWindow(QMainWindow):
         else:
             return  # Abbruch
 
-        # 2) Songtyp ganz am Ende (Pattern / Singing / Both)
+        # 2) Songtyp ganz am Ende (Pattern / Singing / Both / Other)
         type_dlg = QMessageBox(self)
         type_dlg.setWindowTitle(_t("import_type_title"))
         type_dlg.setText(_t("import_type_text"))
@@ -1847,6 +1848,7 @@ class P29MainWindow(QMainWindow):
         btn_pattern = type_dlg.addButton(_t("import_type_pattern"), QMessageBox.ActionRole)
         btn_singing = type_dlg.addButton(_t("import_type_singing"), QMessageBox.ActionRole)
         btn_both = type_dlg.addButton(_t("import_type_both"), QMessageBox.ActionRole)
+        btn_other = type_dlg.addButton(_t("import_type_other"), QMessageBox.ActionRole)
         type_dlg.addButton(QMessageBox.Cancel)
         type_dlg.setDefaultButton(btn_both)
         type_dlg.exec()
@@ -1857,6 +1859,8 @@ class P29MainWindow(QMainWindow):
             self._import_is_pattern, self._import_is_singing = 0, 1
         elif type_clicked == btn_both:
             self._import_is_pattern, self._import_is_singing = 1, 1
+        elif type_clicked == btn_other:
+            self._import_is_pattern, self._import_is_singing = 0, 0
         else:
             return  # Abbruch
 
@@ -4025,6 +4029,9 @@ class P29MainWindow(QMainWindow):
         return {
             "song_type_is_singing": bool(song and getattr(song, 'is_singing', False)),
             "song_type_is_patter": bool(song and getattr(song, 'is_pattern', False)),
+            "song_type_is_other": bool(song and song_types.is_other(
+                getattr(song, 'is_pattern', False),
+                getattr(song, 'is_singing', False))),
             "lyrics_available": has_lyrics,
             "lyrics_not_available": not has_lyrics,
             "loop_set": loop_set,
@@ -4047,6 +4054,8 @@ class P29MainWindow(QMainWindow):
                               lambda ctx, p: ctx.get("song_type_is_singing", False))
         re.register_condition("song_type_is_patter",
                               lambda ctx, p: ctx.get("song_type_is_patter", False))
+        re.register_condition("song_type_is_other",
+                              lambda ctx, p: ctx.get("song_type_is_other", False))
         re.register_condition("lyrics_available",
                               lambda ctx, p: ctx.get("lyrics_available", False))
         re.register_condition("lyrics_not_available",
@@ -4673,11 +4682,14 @@ class P29MainWindow(QMainWindow):
         lpm = getattr(self.song_list, "_last_played_map", {}) or {}
         start_date = getattr(self.song_list, "_start_date", date.today())
 
-        # Typ-Filter (Singing/Patter)
-        if want_type.startswith("sing"):
-            songs = [s for s in songs if s.is_singing]
-        else:
-            songs = [s for s in songs if s.is_pattern]
+        # Typ-Filter (Singing/Patter/Other)
+        type_key = (
+            song_types.SINGING if want_type.startswith("sing")
+            else song_types.OTHER if want_type.startswith("oth")
+            else song_types.PATTER)
+        filter_id = song_types.FILTER_ID[type_key]
+        songs = [s for s in songs
+                 if song_types.matches(s.is_pattern, s.is_singing, type_key)]
         if not songs:
             self.statusBar().showMessage(
                 _t("rule_load_song_none", type=params.get("type", "")), 4000)
@@ -4721,7 +4733,7 @@ class P29MainWindow(QMainWindow):
         try:
             fb = getattr(self.song_list, "_filter_bar", None)
             if fb is not None:
-                fb.set_type_filter(2 if want_type.startswith("sing") else 1)
+                fb.set_type_filter(filter_id)
         except Exception:
             pass
 
@@ -7837,13 +7849,14 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
-def _report_db_update_problems(parent, problems: list):
+def _report_db_update_problems(parent, problems: list, settings):
     """intern#145: Das DB-Update hat nicht alles geschafft. Die App laeuft
     weiter, aber der Caller soll es sofort merken, nicht erst am Tanzabend:
-    Crash-Report fuer die Details, dazu ein unuebersehbarer Dialog."""
-    _crash_handler.write_report(
-        "Datenbank-Update unvollstaendig (intern#145)",
-        [f"  {p}" for p in problems])
+    Crash-Report fuer die Details, dazu ein unuebersehbarer Dialog.
+    intern#166: Den Report gibt es nur bei geaenderter Problemliste, den
+    Dialog bei jedem Start."""
+    _crash_handler.report_once(
+        settings, "Datenbank-Update unvollstaendig (intern#145)", problems)
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("db_update_problem_title"))
     msg.setIcon(QMessageBox.Warning)
@@ -7859,8 +7872,7 @@ def _show_crash_log_notice(parent, crash_logs: list, settings):
     damit beim naechsten Start nur neu hinzugekommene Logs gemeldet werden."""
     count = len(crash_logs)
     newest = crash_logs[0]
-    settings.setValue(_crash_handler.LAST_NOTIFIED_KEY, os.path.basename(newest))
-    settings.sync()
+    _crash_handler.mark_notified(settings, newest)
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("crash_notice_title"))
     msg.setIcon(QMessageBox.Information)
@@ -8054,17 +8066,18 @@ def main():
         _visible_total_ms = (_startup_time.time() - _T_PROCESS_CREATE_EPOCH) * 1000.0
         perf.perf_write(f"[Perf] === GESAMT ab Prozessstart bis SICHTBAR: {_visible_total_ms:.0f}ms ===")
 
-    # Neue Crash-Logs seit dem letzten Hinweis pruefen und Hinweis anzeigen
-    crash_logs = _crash_handler.CrashLogger.find_crash_logs(
-        app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
-    if crash_logs:
-        QTimer.singleShot(
-            800, lambda: _show_crash_log_notice(window, crash_logs, settings))
-    # Erst nach der Suche oben: der Report dieses Starts gehoert nicht in den
-    # Hinweis auf alte Fehlerprotokolle.
-    if window.db.schema_problems:
-        QTimer.singleShot(
-            500, lambda: _report_db_update_problems(window, window.db.schema_problems))
+    # intern#166: Erst der Dialog zum DB-Update, danach (falls noetig) der
+    # Hinweis auf neue Fehlerprotokolle, nie beide uebereinander.
+    def _startup_notices():
+        # Suche direkt vor dem DB-Report: dessen Protokoll gehoert nicht in den
+        # Hinweis, ein bis hierher entstandenes anderes Protokoll aber schon.
+        crash_logs = _crash_handler.CrashLogger.find_crash_logs(
+            app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
+        if window.db.schema_problems:
+            _report_db_update_problems(window, window.db.schema_problems, settings)
+        if crash_logs:
+            _show_crash_log_notice(window, crash_logs, settings)
+    QTimer.singleShot(500, _startup_notices)
 
     # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
     # nicht auf dem Main-Thread parsen (intern#126).

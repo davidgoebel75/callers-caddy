@@ -2057,7 +2057,7 @@ class PotentialWidget(QWidget):
         elif is_singing:
             type_txt = "Singing"
         else:
-            type_txt = "—"
+            type_txt = "Other"
         self._qe_lbl_label.setText(
             f"{type_txt}   |   Label: {label_txt or '—'}   |   Quality: {q_txt}   |   ERR: {e_txt}"
         )
