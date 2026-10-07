@@ -95,13 +95,29 @@ def adopt(src: str, lyrics_dir: str) -> str:
     return os.path.basename(dest)
 
 
-def _free_name(dest: str) -> str:
-    """Erster freier Pfad 'Name_1.ext', 'Name_2.ext', ..."""
+def _numbered_name(src: str, dest: str) -> str:
+    """Pfad 'Name_1.ext', 'Name_2.ext', ... fuer die neue Datei: eine dort
+    schon liegende Kopie mit dem Inhalt von src, sonst der erste freie."""
     root, ext = os.path.splitext(dest)
     k = 1
     while os.path.exists(f"{root}_{k}{ext}"):
+        if filecmp.cmp(src, f"{root}_{k}{ext}", shallow=False):
+            break
         k += 1
     return f"{root}_{k}{ext}"
+
+
+def _copy_replacing(src: str, dest: str):
+    """Ersetzt dest durch src in einem Schritt: Bricht das Kopieren ab,
+    bleibt dest vollstaendig, wie es war."""
+    tmp = dest + ".tmp"
+    try:
+        shutil.copy2(src, tmp)
+        os.replace(tmp, dest)
+    except OSError:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
 
 
 def resolve(conflict: LyricsConflict, decision: str) -> str:
@@ -110,11 +126,12 @@ def resolve(conflict: LyricsConflict, decision: str) -> str:
     if decision == REPLACE:
         # Alte Fassung sichern; eine fruehere Sicherung wird ersetzt.
         shutil.copy2(conflict.dest, conflict.dest + ".bak")
-        shutil.copy2(conflict.src, conflict.dest)
+        _copy_replacing(conflict.src, conflict.dest)
         return conflict.name
     if decision == KEEP_BOTH:
-        dest = _free_name(conflict.dest)
-        shutil.copy2(conflict.src, dest)
+        dest = _numbered_name(conflict.src, conflict.dest)
+        if not os.path.exists(dest):
+            shutil.copy2(conflict.src, dest)
         return os.path.basename(dest)
     if decision == USE_EXISTING:
         return conflict.name

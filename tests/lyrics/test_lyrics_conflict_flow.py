@@ -134,6 +134,61 @@ def test_fuer_alle_setzt_jede_zeile(qapp, two_conflicts):
     assert dlg.decisions() == [KEEP_BOTH, KEEP_BOTH]
 
 
+@pytest.fixture
+def same_target(dirs):
+    """Zwei juengere, verschiedene Song.html aus zwei Ordnern, beide mit
+    demselben Ziel im Lyrics-Ordner (Review zu #101)."""
+    outside, lyrics = dirs
+    _write(lyrics / "Song.html", "alt", mtime=OLDER)
+    conflicts = []
+    for sub in ("A", "B"):
+        (outside / sub).mkdir()
+        src = _write(outside / sub / "Song.html", f"neu {sub}", mtime=NEWER)
+        conflicts.append(lyrics_files.find_conflict(src, str(lyrics)))
+    return conflicts, lyrics
+
+
+def test_dieselbe_zieldatei_ersetzt_nur_die_erste_zeile(qapp, same_target):
+    conflicts, _lyrics = same_target
+    dlg = LyricsConflictDialog(conflicts)
+    assert dlg.decisions() == [REPLACE, KEEP_BOTH]
+    second = dlg._combos[1]
+    assert not second.model().item(second.findData(REPLACE)).isEnabled()
+    dlg._combo_all.setCurrentIndex(dlg._combo_all.findData(REPLACE))
+    dlg._apply_to_all(dlg._combo_all.currentIndex())
+    assert dlg.decisions() == [REPLACE, KEEP_BOTH]
+
+
+def test_dieselbe_zieldatei_bisherige_fassung_bleibt_als_bak(
+        qapp, same_target, monkeypatch):
+    conflicts, lyrics = same_target
+    monkeypatch.setattr(LyricsConflictDialog, "exec", lambda self: QDialog.Accepted)
+    names = dialogs_lyrics_conflict.resolve_with_dialog(None, conflicts)
+    assert names == ["Song.html", "Song_1.html"]
+    assert (lyrics / "Song.html.bak").read_text(encoding="utf-8") == "alt"
+    assert (lyrics / "Song.html").read_text(encoding="utf-8") == "neu A"
+    assert (lyrics / "Song_1.html").read_text(encoding="utf-8") == "neu B"
+
+
+def test_fehler_im_listen_dialog_werden_gesammelt_gemeldet(
+        qapp, two_conflicts, monkeypatch):
+    conflicts, lyrics = two_conflicts
+    monkeypatch.setattr(LyricsConflictDialog, "exec", lambda self: QDialog.Accepted)
+    monkeypatch.setattr(LyricsConflictDialog, "decisions",
+                        lambda self: [REPLACE, REPLACE])
+
+    def failing(_conflict, _decision):
+        raise OSError("gesperrt")
+    monkeypatch.setattr(lyrics_files, "resolve", failing)
+    shown = []
+    monkeypatch.setattr(dialogs_lyrics_conflict.QMessageBox, "warning",
+                        lambda _parent, _title, text: shown.append(text))
+    names = dialogs_lyrics_conflict.resolve_with_dialog(None, conflicts)
+    assert names == ["A.html", "B.html"]            # vorhandene bleiben verknuepft
+    assert len(shown) == 1
+    assert "A.html: gesperrt" in shown[0] and "B.html: gesperrt" in shown[0]
+
+
 def test_abbrechen_im_listen_dialog_aendert_nichts(qapp, two_conflicts, monkeypatch):
     conflicts, lyrics = two_conflicts
     monkeypatch.setattr(LyricsConflictDialog, "exec", lambda self: QDialog.Rejected)

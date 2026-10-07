@@ -5,6 +5,7 @@ in den Song-Daten) und ein Listen-Dialog fuer mehrere Dateien nach einem
 Import. Die Regel selbst steht in lyrics_files. Zirkelfrei: keine
 Rueckbezuege auf main.py.
 """
+import os
 from datetime import datetime
 
 from PySide6.QtWidgets import (
@@ -95,7 +96,16 @@ class LyricsConflictDialog(QDialog):
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setSelectionMode(QAbstractItemView.NoSelection)
         self._combos = []
+        # Wollen mehrere neue Dateien dieselbe Datei im Lyrics-Ordner
+        # ersetzen, darf das nur die erste: Sonst ueberschriebe die zweite die
+        # .bak der ersten, und die bisherige Fassung waere weg.
+        self._replace_locked = []
+        seen_dests = set()
         for row, c in enumerate(self._conflicts):
+            dest_key = os.path.normcase(os.path.abspath(c.dest))
+            locked = dest_key in seen_dests
+            seen_dests.add(dest_key)
+            self._replace_locked.append(locked)
             cells = (
                 c.name,
                 _stamp(c.dest_mtime, c.dest_size),
@@ -107,7 +117,11 @@ class LyricsConflictDialog(QDialog):
                 item.setToolTip(c.src if col == self._COL_NEW else text)
                 self._table.setItem(row, col, item)
             combo = self._decision_combo()
-            combo.setCurrentIndex(combo.findData(default_decision(c)))
+            if locked:
+                combo.model().item(combo.findData(REPLACE)).setEnabled(False)
+                combo.setToolTip(_t("lyrics_conflict_replace_locked_tip"))
+            combo.setCurrentIndex(
+                combo.findData(self._allowed(row, default_decision(c))))
             self._table.setCellWidget(row, self._COL_ACTION, combo)
             self._combos.append(combo)
         header = self._table.horizontalHeader()
@@ -144,12 +158,19 @@ class LyricsConflictDialog(QDialog):
             combo.addItem(_t(key), decision)
         return combo
 
+    def _allowed(self, row: int, decision: str) -> str:
+        """Die Entscheidung fuer diese Zeile; wo "Ersetzen" gesperrt ist,
+        stattdessen "Beide behalten"."""
+        if decision == REPLACE and self._replace_locked[row]:
+            return KEEP_BOTH
+        return decision
+
     def _apply_to_all(self, _index):
         decision = self._combo_all.currentData()
         if decision is None:
             return
-        for combo in self._combos:
-            combo.setCurrentIndex(combo.findData(decision))
+        for row, combo in enumerate(self._combos):
+            combo.setCurrentIndex(combo.findData(self._allowed(row, decision)))
 
     def decisions(self) -> list:
         """Entscheidung je Datei, in der Reihenfolge der uebergebenen Liste."""
@@ -167,9 +188,15 @@ def resolve_with_dialog(parent, conflicts: list) -> list:
     dlg = LyricsConflictDialog(conflicts, parent)
     if dlg.exec() != QDialog.Accepted:
         return names
+    failed = []
     for i, (conflict, decision) in enumerate(zip(conflicts, dlg.decisions())):
         try:
             names[i] = lyrics_files.resolve(conflict, decision)
         except OSError as e:
             print(f"[Lyrics] {conflict.name}: {decision} fehlgeschlagen: {e}")
+            failed.append(f"{conflict.name}: {e}")
+    if failed:
+        QMessageBox.warning(
+            parent, _t("lyrics_conflict_title"),
+            _t("lyrics_conflict_failed", files="\n".join(failed)))
     return names

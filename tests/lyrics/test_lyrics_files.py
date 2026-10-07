@@ -99,6 +99,33 @@ def test_beide_behalten_legt_die_neue_mit_nummer_daneben(conflict):
     assert (lyrics / "Song_1.html").read_text(encoding="utf-8") == "belegt"
 
 
+def test_beide_behalten_verwendet_eine_inhaltsgleiche_kopie_wieder(conflict):
+    c, lyrics = conflict
+    (lyrics / "Song_1.html").write_text("belegt", encoding="utf-8")
+    assert lyrics_files.resolve(c, KEEP_BOTH) == "Song_2.html"
+    assert lyrics_files.resolve(c, KEEP_BOTH) == "Song_2.html"
+    assert sorted(p.name for p in lyrics.iterdir()) == [
+        "Song.html", "Song_1.html", "Song_2.html"]
+
+
+def test_abgebrochenes_ersetzen_laesst_die_vorhandene_datei_ganz(conflict, monkeypatch):
+    c, lyrics = conflict
+    real_copy2 = lyrics_files.shutil.copy2
+
+    def half_copy(src, dest):
+        if src == c.src:                # Sicherung klappt, die neue Datei nicht
+            with open(dest, "w", encoding="utf-8") as f:
+                f.write("ne")
+            raise OSError("Platte voll")
+        return real_copy2(src, dest)
+
+    monkeypatch.setattr(lyrics_files.shutil, "copy2", half_copy)
+    with pytest.raises(OSError):
+        lyrics_files.resolve(c, REPLACE)
+    assert (lyrics / "Song.html").read_text(encoding="utf-8") == "alt"
+    assert sorted(p.name for p in lyrics.iterdir()) == ["Song.html", "Song.html.bak"]
+
+
 def test_vorhandene_weiterverwenden_aendert_nichts(conflict):
     c, lyrics = conflict
     assert lyrics_files.resolve(c, USE_EXISTING) == "Song.html"
