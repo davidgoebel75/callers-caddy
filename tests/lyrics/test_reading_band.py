@@ -233,6 +233,29 @@ def test_geometrie_wird_nur_bei_aenderung_neu_gerechnet(song):
     w._active_anchors = lambda: [(9.0, pos(2)), (60.0, pos(8))]
     assert w._reading_geometry() is not first
 
+def test_jeder_abschnitt_wird_nur_einmal_durchsucht(song):
+    """Mehrere Anker im selben Abschnitt: eine Suche je Abschnitt, gleiches
+    Ergebnis wie mit einer Suche je Anker (Audio-Prioritaet, Review zu #95)."""
+    w, pos, _box = song
+    w._active_anchors = lambda: [(8.0, pos(1)), (20.0, pos(2)), (30.0, pos(3)),
+                                 (36.0, pos(4)), (37.0, pos(5)), (60.0, pos(8)),
+                                 (90.0, pos(6)), (120.0, pos(8))]
+    calls = []
+    orig = w._section_span
+
+    def counting(block, idx, layout):
+        calls.append((block.blockNumber(), idx))
+        return orig(block, idx, layout)
+    w._section_span = counting
+    cached = w._reading_geometry()
+    assert len(calls) == 2                          # OPENER und FIGURE
+
+    def uncached(block, idx, layout):
+        return orig(block, idx, layout)[:3] + (None, None)
+    w._section_span = uncached
+    w._geom_cache = None
+    assert w._reading_geometry() == cached
+
 
 # ---------------------------------------------------------------------------
 # intern#148: In-Lesebalken Countdown

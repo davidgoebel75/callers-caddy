@@ -4692,26 +4692,36 @@ class LyricsWidget(QWidget):
 
     def _section_span(self, block, idx, layout):
         """Abschnitt um die Zeile (block, idx): (Kennung, Y-Mitte der ersten
-        Textzeile, Y-Unterkante der letzten Textzeile). Ein Abschnitt reicht
-        von der Zeile nach seiner Ueberschrift bis zur Zeile vor der naechsten
-        (intern#76); ohne Ueberschrift davor beginnt er am Dokumentanfang."""
+        Textzeile, Y-Unterkante der letzten Textzeile, erste Zeile, letzte
+        Zeile). Ein Abschnitt reicht von der Zeile nach seiner Ueberschrift
+        bis zur Zeile vor der naechsten (intern#76); ohne Ueberschrift davor
+        beginnt er am Dokumentanfang. Erste/letzte Zeile als (Blocknummer,
+        Zeilenindex) samt Ueberschrift, damit _reading_geometry weitere Anker
+        desselben Abschnitts ohne neue Suche zuordnen kann; None, wenn die
+        Suche an _SECTION_SCAN_MAX_LINES endete."""
         top, height, text = self._line_box(block, idx, layout)
         on_heading = self._is_heading_text(text)
         has_text = bool(text.strip()) and not on_heading
         first = top + height / 2 if has_text else None
         last = top + height if has_text else None
         sid = (block.position(), idx) if on_heading else None
+        lo = hi = (block.blockNumber(), idx)
+        complete = True
         cur = (block, idx)
-        for _ in range(0 if on_heading else self._SECTION_SCAN_MAX_LINES):
-            cur = self._prev_line(*cur)
-            if cur is None:
-                break
-            p_top, p_h, p_text = self._line_box(cur[0], cur[1], layout)
-            if self._is_heading_text(p_text):
-                sid = (cur[0].position(), cur[1])
-                break
-            if p_text.strip():
-                first = p_top + p_h / 2
+        if not on_heading:
+            for _ in range(self._SECTION_SCAN_MAX_LINES):
+                cur = self._prev_line(*cur)
+                if cur is None:
+                    break
+                lo = (cur[0].blockNumber(), cur[1])
+                p_top, p_h, p_text = self._line_box(cur[0], cur[1], layout)
+                if self._is_heading_text(p_text):
+                    sid = (cur[0].position(), cur[1])
+                    break
+                if p_text.strip():
+                    first = p_top + p_h / 2
+            else:
+                complete = False
         cur = (block, idx)
         for _ in range(self._SECTION_SCAN_MAX_LINES):
             cur = self._next_line(*cur)
@@ -4720,11 +4730,16 @@ class LyricsWidget(QWidget):
             n_top, n_h, n_text = self._line_box(cur[0], cur[1], layout)
             if self._is_heading_text(n_text):
                 break
+            hi = (cur[0].blockNumber(), cur[1])
             if n_text.strip():
                 last = n_top + n_h
                 if first is None:
                     first = n_top + n_h / 2
-        return sid, first, last
+        else:
+            complete = False
+        if not complete:
+            lo = hi = None
+        return sid, first, last, lo, hi
 
     def _reading_geometry(self):
         """Geometrie der Anker fuer Scroll, Lesebalken und Countdown:
@@ -4759,13 +4774,21 @@ class LyricsWidget(QWidget):
         times = [sec for sec, _p in raw]
         anchors, end_ys, section_ids = [], [], []
         start_y = None
+        # Je Abschnitt nur einmal suchen: (erste Zeile, letzte Zeile, Ergebnis)
+        spans = []
         for i, (sec, p) in enumerate(raw):
             geom = self._line_geom(p, doc, layout, max_pos)
             if geom is None:
                 continue
             block, idx = geom
             top, height, text = self._line_box(block, idx, layout)
-            sid, first, last = self._section_span(block, idx, layout)
+            line = (block.blockNumber(), idx)
+            span = next((s for lo, hi, s in spans if lo <= line <= hi), None)
+            if span is None:
+                *span, lo, hi = self._section_span(block, idx, layout)
+                if lo is not None:
+                    spans.append((lo, hi, span))
+            sid, first, last = span
             if self._is_heading_text(text):
                 y = first if first is not None else top + height / 2
             elif reading_band_path.ends_section(times, i):
