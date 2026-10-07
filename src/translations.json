@@ -1631,12 +1631,12 @@
     "ja": "同期ポイントを設定"
   },
   "lyric_sync_choice_text": {
-    "de": "Wie möchtest du die 7 Abschnitte dieses Singing Calls markieren?\n\nAutomatisch: Lied abspielen und nur Start (Beginn 1. Teil) und Ende (Ende 7. Teil) markieren. Caller's Caddy verteilt die 7 Abschnitte gleichmässig.\n\nManüll: Marker selbst durch Anklicken der Textzeilen setzen.",
+    "de": "Wie möchtest du die 7 Abschnitte dieses Singing Calls markieren?\n\nAutomatisch: Lied abspielen und nur Start (Beginn 1. Teil) und Ende (Ende 7. Teil) markieren. Caller's Caddy verteilt die 7 Abschnitte gleichmässig.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
     "en": "How do you want to mark the 7 sections of this singing call?\n\nAutomatic: play the song and only mark Start (beginning of part 1) and End (end of part 7). Caller's Caddy spreads the 7 sections evenly.\n\nManual: set markers yourself by clicking the text lines.",
     "ja": "このシンギングコールの7つのセクションをどのように設定しますか?\n\n自動: 曲を再生し、開始(第1部の始め)と終了(第7部の終わり)だけを設定します。\n\n手動: 歌詞行をクリックして自分でマーカーを設定します。"
   },
   "lyric_sync_choice_text_saved": {
-    "de": "Für diesen Song sind bereits Start ({start}) und Ende ({end}) gespeichert.\n\nJetzt berechnen: Sync-Punkte sofort aus den gespeicherten Zeiten berechnen.\n\nNeu messen: Start und Ende erneut per Knopfdruck im laufenden Lied erfassen.\n\nManüll: Marker selbst durch Anklicken der Textzeilen setzen.",
+    "de": "Für diesen Song sind bereits Start ({start}) und Ende ({end}) gespeichert.\n\nJetzt berechnen: Sync-Punkte sofort aus den gespeicherten Zeiten berechnen.\n\nNeu messen: Start und Ende erneut per Knopfdruck im laufenden Lied erfassen.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
     "en": "Start ({start}) and end ({end}) are already saved for this song.\n\nCalculate now: calculate sync points immediately from the saved times.\n\nRe-measure: capture start and end again by button press during playback.\n\nManual: set markers yourself by clicking the text lines.",
     "ja": "このソングにはすでに開始({start})と終了({end})が保存されています。\n\n今計算: 保存済みの時間からすぐに計算。\n\n再計測: 再生中にボタンで開始と終了を再度設定。\n\n手動: 歌詞行をクリックして自分で設定。"
   },
@@ -5538,7 +5538,7 @@
     "ja": "空のロケーションを削除"
   },
   "pot_fix_all_loop_confirm": {
-    "de": "{count} Songs sollen automatisch mit einem Loop versehen werden.\n\nZürst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nHinweis: Je nach Songanzahl und PC-Leistung kann dies mehrere Minuten dauern.\n\nFortfahren?",
+    "de": "{count} Songs sollen automatisch mit einem Loop versehen werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nHinweis: Je nach Songanzahl und PC-Leistung kann dies mehrere Minuten dauern.\n\nFortfahren?",
     "en": "{count} songs will be automatically given a loop.\n\nFirst, the estimated duration will be measured using {sample} samples.\n\nNote: Depending on the number of songs and PC performance, this may take several minutes.\n\nProceed?",
     "ja": "{count} 曲に自動的に Loop が設定されます。\n\nまず {sample} 件のサンプルを使って所要時間を見積もります。\n\n注意: 曲数と PC の性能によっては数分かかることがあります。\n\n続行しますか？"
   },
@@ -5548,7 +5548,7 @@
     "ja": "推定所要時間: {count} 曲で約 {minutes:.0f} 分。\n\n続行しますか？"
   },
   "pot_fix_all_beatsnap_confirm": {
-    "de": "{count} Songs sollen auf die nächstgelegenen Beats gesnapped werden.\n\nZürst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nFortfahren?",
+    "de": "{count} Songs sollen auf die nächstgelegenen Beats gesnapped werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nFortfahren?",
     "en": "{count} songs will be snapped to the nearest beats.\n\nFirst, the estimated duration will be measured using {sample} samples.\n\nProceed?",
     "ja": "{count} 曲が最寄りのビートにスナップされます。\n\nまず {sample} 件のサンプルを使って所要時間を見積もります。\n\n続行しますか？"
   },
@@ -5603,7 +5603,7 @@
     "ja": "{count} 曲は処理できませんでした — 音声ファイルがありません（「MP3 なし」タブを参照）:"
   },
   "pot_no_bpm_confirm": {
-    "de": "Für {count} Song(s) soll die BPM automatisch ermittelt werden.\n\nZürst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt übernommen werden).\n\nFortfahren?",
+    "de": "Für {count} Song(s) soll die BPM automatisch ermittelt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt übernommen werden).\n\nFortfahren?",
     "en": "BPM will be detected automatically for {count} song(s).\n\nFirst, the estimated duration is measured using {sample} samples (whose results are kept).\n\nProceed?",
     "ja": "{count} 曲の BPM を自動検出します。\n\nまず {sample} 件のサンプルで所要時間を見積もります（その結果はそのまま使用されます）。\n\n続行しますか？"
   },
@@ -5658,7 +5658,7 @@
     "ja": "該当する曲が見つかりませんでした。"
   },
   "pot_no_sstart_confirm": {
-    "de": "Für {count} Song(s) soll der Anfang automatisch ermittelt werden.\n\nZürst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt übernommen werden).\n\nFortfahren?",
+    "de": "Für {count} Song(s) soll der Anfang automatisch ermittelt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt übernommen werden).\n\nFortfahren?",
     "en": "The start will be detected automatically for {count} song(s).\n\nFirst, the estimated duration is measured using {sample} samples (whose results are kept).\n\nProceed?",
     "ja": "{count} 曲の開始位置を自動検出します。\n\nまず {sample} 件のサンプルで所要時間を見積もります（その結果はそのまま使用されます）。\n\n続行しますか？"
   },
@@ -5828,7 +5828,7 @@
     "ja": "リスト内のすべての曲を補完"
   },
   "pot_sync_confirm": {
-    "de": "Für {count} Song(s) sollen die Sync-Punkte automatisch gesetzt werden.\n\nZürst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt eingetragen werden).\n\nFortfahren?",
+    "de": "Für {count} Song(s) sollen die Sync-Punkte automatisch gesetzt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt eingetragen werden).\n\nFortfahren?",
     "en": "Sync points will be set automatically for {count} song(s).\n\nFirst the expected duration is measured using {sample} samples (their results are saved right away).\n\nProceed?",
     "ja": "{count} 曲の Sync ポイントを自動で設定します。\n\n最初に {sample} 曲で所要時間を測定します（その結果はそのまま保存されます）。\n\n続行しますか？"
   },
@@ -6093,7 +6093,7 @@
     "ja": "最適化する Loop 付きの Patter 曲がありません。"
   },
   "pot_loop_optimize_confirm": {
-    "de": "{count} Patter-Songs mit Loop sollen optimiert werden (Suchbereich ±{margin} %).\n\nZürst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nHinweis: Je nach Songanzahl und PC-Leistung kann dies mehrere Minuten dauern.\n\nFortfahren?",
+    "de": "{count} Patter-Songs mit Loop sollen optimiert werden (Suchbereich ±{margin} %).\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nHinweis: Je nach Songanzahl und PC-Leistung kann dies mehrere Minuten dauern.\n\nFortfahren?",
     "en": "{count} patter songs with a loop will be optimized (search range ±{margin}%).\n\nFirst, the estimated duration will be measured using {sample} samples.\n\nNote: Depending on the number of songs and PC performance, this may take several minutes.\n\nProceed?",
     "ja": "{count} 件の Loop 付き Patter 曲が最適化されます（検索範囲 ±{margin}%）。\n\nまず {sample} 件のサンプルを使って所要時間を見積もります。\n\n注意: 曲数と PC の性能によっては数分かかることがあります。\n\n続行しますか？"
   },
