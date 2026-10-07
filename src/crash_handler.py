@@ -23,6 +23,8 @@ _logger = None  # Singleton
 
 # INI-Key: Dateiname des zuletzt beim Start gemeldeten Crash-Logs
 LAST_NOTIFIED_KEY = "crash/last_notified"
+# INI-Key: Problemliste, zu der report_once zuletzt ein Log geschrieben hat
+REPORTED_PROBLEMS_KEY = "crash/db_update_reported"
 
 
 class CrashLogger:
@@ -109,12 +111,12 @@ class CrashLogger:
 
         Fuer Faelle, die wir GEZIELT abfangen (z.B. Audio-Backend nicht ladbar)
         und mit eigenen Diagnose-Zeilen anreichern wollen, statt auf eine
-        unbehandelte Exception zu warten."""
-        self._write_log(reason=reason, extra_lines=extra_lines)
+        unbehandelte Exception zu warten. Gibt den Pfad des Logs zurueck."""
+        return self._write_log(reason=reason, extra_lines=extra_lines)
 
     def _write_log(self, reason: str, exc_type=None, exc_value=None, exc_tb=None,
                    extra_lines=None):
-        """Schreibt sofort ein Crash-Logfile auf Disk."""
+        """Schreibt sofort ein Crash-Logfile auf Disk. Pfad, "" bei Fehler."""
         # Mikrosekunden: zwei Fehler in derselben Sekunde ueberschreiben sich
         # nicht; sortiert trotzdem korrekt nach alten Namen ('.' < '_').
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -147,7 +149,8 @@ class CrashLogger:
             with open(log_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
         except Exception:
-            pass
+            return ""
+        return log_path
 
     def _on_unhandled_exception(self, exc_type, exc_value, exc_tb):
         self._write_log(
@@ -188,12 +191,40 @@ def setup(app_dir: str) -> CrashLogger:
     return _logger
 
 
-def write_report(reason: str, extra_lines=None) -> bool:
-    """Schreibt ein Diagnose-Log (no-op wenn nicht initialisiert). True bei Erfolg."""
+def write_report(reason: str, extra_lines=None) -> str:
+    """Schreibt ein Diagnose-Log (no-op wenn nicht initialisiert).
+    Pfad des Logs, "" wenn nichts geschrieben wurde."""
     if _logger:
-        _logger.write_report(reason, extra_lines)
-        return True
-    return False
+        return _logger.write_report(reason, extra_lines)
+    return ""
+
+
+def mark_notified(settings, log_path: str):
+    """Vermerkt ein Log als gemeldet, damit der Start-Hinweis es nicht mehr
+    zeigt. Der Vermerk laeuft nur vorwaerts: ein aelteres Log setzt ihn nicht
+    zurueck (sonst kaeme ein neueres beim naechsten Start wieder hoch)."""
+    name = os.path.basename(log_path)
+    if name > str(settings.value(LAST_NOTIFIED_KEY, "") or ""):
+        settings.setValue(LAST_NOTIFIED_KEY, name)
+        settings.sync()
+
+
+def report_once(settings, reason: str, problems: list) -> str:
+    """Log zu einem Problem, das bei jedem Start wieder auftritt (intern#166).
+    Geschrieben wird nur, wenn sich die Problemliste seit dem letzten Log
+    geaendert hat. Das Log gilt sofort als gemeldet: Der Caller sieht dazu
+    schon den eigenen Dialog, der Start-Hinweis soll es nicht nochmal zeigen.
+    Pfad des neuen Logs, "" wenn keins geschrieben wurde."""
+    # ponytail: Vermerk bleibt stehen, wenn die Probleme verschwinden. Kommt
+    # genau dieselbe Liste spaeter zurueck, gibt es kein neues Log (Dialog schon).
+    fingerprint = " | ".join(problems)
+    if fingerprint == str(settings.value(REPORTED_PROBLEMS_KEY, "") or ""):
+        return ""
+    path = write_report(reason, [f"  {p}" for p in problems])
+    if path:
+        settings.setValue(REPORTED_PROBLEMS_KEY, fingerprint)
+        mark_notified(settings, path)
+    return path
 
 
 def log_action(action: str):

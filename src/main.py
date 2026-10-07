@@ -7715,13 +7715,14 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
-def _report_db_update_problems(parent, problems: list):
+def _report_db_update_problems(parent, problems: list, settings):
     """intern#145: Das DB-Update hat nicht alles geschafft. Die App laeuft
     weiter, aber der Caller soll es sofort merken, nicht erst am Tanzabend:
-    Crash-Report fuer die Details, dazu ein unuebersehbarer Dialog."""
-    _crash_handler.write_report(
-        "Datenbank-Update unvollstaendig (intern#145)",
-        [f"  {p}" for p in problems])
+    Crash-Report fuer die Details, dazu ein unuebersehbarer Dialog.
+    intern#166: Den Report gibt es nur bei geaenderter Problemliste, den
+    Dialog bei jedem Start."""
+    _crash_handler.report_once(
+        settings, "Datenbank-Update unvollstaendig (intern#145)", problems)
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("db_update_problem_title"))
     msg.setIcon(QMessageBox.Warning)
@@ -7737,8 +7738,7 @@ def _show_crash_log_notice(parent, crash_logs: list, settings):
     damit beim naechsten Start nur neu hinzugekommene Logs gemeldet werden."""
     count = len(crash_logs)
     newest = crash_logs[0]
-    settings.setValue(_crash_handler.LAST_NOTIFIED_KEY, os.path.basename(newest))
-    settings.sync()
+    _crash_handler.mark_notified(settings, newest)
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("crash_notice_title"))
     msg.setIcon(QMessageBox.Information)
@@ -7939,10 +7939,11 @@ def main():
         QTimer.singleShot(
             800, lambda: _show_crash_log_notice(window, crash_logs, settings))
     # Erst nach der Suche oben: der Report dieses Starts gehoert nicht in den
-    # Hinweis auf alte Fehlerprotokolle.
+    # Hinweis auf alte Fehlerprotokolle (spaetere Starts: report_once).
     if window.db.schema_problems:
         QTimer.singleShot(
-            500, lambda: _report_db_update_problems(window, window.db.schema_problems))
+            500, lambda: _report_db_update_problems(
+                window, window.db.schema_problems, settings))
 
     # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
     # nicht auf dem Main-Thread parsen (intern#126).

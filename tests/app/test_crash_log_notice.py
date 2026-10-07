@@ -50,3 +50,62 @@ def test_new_name_with_microseconds_sorts_after_old_name_same_second(tmp_path):
         str(tmp_path), newer_than="crash_20260925_080000.log")
     assert [os.path.basename(p) for p in new] == [
         "crash_20260925_080000_123456.log"]
+
+
+# --- intern#166: DB-Update-Problem bei jedem Start -------------------------
+
+import crash_handler
+
+
+class _Settings(dict):
+    """Ersatz fuer QSettings: value/setValue/sync auf einem Dict."""
+
+    def value(self, key, default=None):
+        return self.get(key, default)
+
+    def setValue(self, key, value):
+        self[key] = value
+
+    def sync(self):
+        pass
+
+
+def _logs(tmp_path):
+    return CrashLogger.find_crash_logs(str(tmp_path))
+
+
+def test_report_once_writes_only_when_problems_change(tmp_path, monkeypatch):
+    monkeypatch.setattr(crash_handler, "_logger", CrashLogger(str(tmp_path)))
+    settings = _Settings()
+
+    first = crash_handler.report_once(settings, "DB", ["songs.x: kaputt"])
+    assert first and len(_logs(tmp_path)) == 1
+
+    # Naechster Start, gleiches Problem: kein weiteres Log
+    assert crash_handler.report_once(settings, "DB", ["songs.x: kaputt"]) == ""
+    assert len(_logs(tmp_path)) == 1
+
+    # Problemliste geaendert: neues Log
+    assert crash_handler.report_once(settings, "DB", ["songs.y: kaputt"])
+    assert len(_logs(tmp_path)) == 2
+
+
+def test_report_once_log_counts_as_notified(tmp_path, monkeypatch):
+    """Das Log erscheint beim naechsten Start nicht im allgemeinen Hinweis,
+    sonst liegen zwei Dialoge uebereinander."""
+    monkeypatch.setattr(crash_handler, "_logger", CrashLogger(str(tmp_path)))
+    settings = _Settings()
+
+    crash_handler.report_once(settings, "DB", ["songs.x: kaputt"])
+
+    assert CrashLogger.find_crash_logs(
+        str(tmp_path),
+        newer_than=settings.value(crash_handler.LAST_NOTIFIED_KEY, "")) == []
+
+
+def test_mark_notified_never_moves_back():
+    settings = _Settings()
+    crash_handler.mark_notified(settings, "/x/crash_20261007_080000_000001.log")
+    crash_handler.mark_notified(settings, "/x/crash_20261001_080000_000001.log")
+    assert settings[crash_handler.LAST_NOTIFIED_KEY] == \
+        "crash_20261007_080000_000001.log"
