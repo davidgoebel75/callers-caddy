@@ -230,6 +230,8 @@ from dialogs_location_program import (
 # --- Call-Map Export/Import mit Konfliktklaerung (intern#79)
 import mapping_io
 from dialogs_mapping_conflict import run_mapping_import
+from dialogs_lyrics_conflict import resolve_with_dialog
+import lyrics_files
 
 
 # ===========================================================================
@@ -1543,7 +1545,8 @@ class P29MainWindow(QMainWindow):
             result.setdefault(dkey, fname)
         return result
 
-    def _find_and_import_lyrics(self, stem: str, source_dir: str) -> str:
+    def _find_and_import_lyrics(self, stem: str, source_dir: str,
+                                conflicts: list = None) -> str:
         """Sucht eine passende Lyrics-Datei und kopiert sie ggf. in den Lyrics-Ordner.
 
         Das Matching ist tolerant (4-stufig, wie in der SqView-Migration): exakt,
@@ -1558,6 +1561,9 @@ class P29MainWindow(QMainWindow):
         Args:
             stem:       Dateiname ohne Extension (z.B. 'Ring Of Fire-RYL818')
             source_dir: Ordner der importierten MP3
+            conflicts:  Liste, an die ein LyricsConflict gehaengt wird, wenn
+                        im Lyrics-Ordner schon eine gleichnamige Datei mit
+                        anderem Inhalt liegt (intern#167)
 
         Returns:
             Dateiname der Lyrics-Datei (nur Name, kein Pfad) oder ''
@@ -1587,13 +1593,17 @@ class P29MainWindow(QMainWindow):
             match = _match(source_dir)
             if match:
                 src = os.path.join(source_dir, match)
-                dest = os.path.join(lyrics_dir, match)
-                if not os.path.exists(dest):
-                    try:
-                        shutil.copy2(src, dest)
-                    except Exception as e:
-                        print(f"[Import] Lyrics kopieren fehlgeschlagen: {e}")
-                        match = ''
+                try:
+                    # intern#167: Eine abweichende gleichnamige Datei bleibt
+                    # vorerst verknuepft und wird gemerkt; der Caller
+                    # entscheidet nach dem Import.
+                    conflict = lyrics_files.find_conflict(src, lyrics_dir)
+                    if conflict is not None and conflicts is not None:
+                        conflicts.append(conflict)
+                    match = lyrics_files.adopt(src, lyrics_dir)
+                except Exception as e:
+                    print(f"[Import] Lyrics kopieren fehlgeschlagen: {e}")
+                    match = ''
                 if match:
                     return match
 
@@ -1604,6 +1614,23 @@ class P29MainWindow(QMainWindow):
                 return match
 
         return ''
+
+    def _resolve_import_lyrics_conflicts(self, found: list):
+        """intern#167: found = [(song_id, LyricsConflict)] aus einem Import.
+        Fragt einmal fuer alle abweichenden Lyrics-Dateien; bei "beide
+        behalten" wechseln die betroffenen Songs auf die neue Datei."""
+        songs_by_file = {}      # (src, dest) -> (LyricsConflict, [song_id])
+        for song_id, conflict in found:
+            songs_by_file.setdefault(
+                (conflict.src, conflict.dest), (conflict, []))[1].append(song_id)
+        if not songs_by_file:
+            return
+        entries = list(songs_by_file.values())
+        names = resolve_with_dialog(self, [c for c, _ids in entries])
+        for (conflict, song_ids), name in zip(entries, names):
+            if name != conflict.name:
+                for song_id in song_ids:
+                    self.db.update_lyrics_file(song_id, name)
 
     def _on_find_loop(self):
         """Find-Loop-Button: Zeigt das Loop-Finder-Dock an."""
@@ -1878,7 +1905,8 @@ class P29MainWindow(QMainWindow):
     def _import_single_audio(self, filepath: str, copy_mode: bool,
                              is_pattern: int, is_singing: int,
                              auto_lyrics: bool = True,
-                             genre_ids: list = None) -> dict:
+                             genre_ids: list = None,
+                             lyrics_conflicts: list = None) -> dict:
         """Importiert EINE Audiodatei in die Bibliothek (gekapselter Kern).
 
         Wird vom normalen Import (_import_files) und vom ZIP-Import genutzt.
@@ -1951,14 +1979,18 @@ class P29MainWindow(QMainWindow):
 
         # 3b) Lyrics-Co-Import (gleichnamig, tolerant) — beim ZIP abgeschaltet
         if auto_lyrics:
+            found = []
             lyrics_file = self._find_and_import_lyrics(
                 stem=os.path.splitext(basename)[0],
                 source_dir=os.path.dirname(filepath),
+                conflicts=found,
             )
             if lyrics_file:
                 song.lyrics_file = lyrics_file
                 self.db.update(song)
                 print(f"[Import] Lyrics verknuepft: {lyrics_file}")
+                if lyrics_conflicts is not None:
+                    lyrics_conflicts.extend((song.id, c) for c in found)
 
         # 3c) Genre-Vorschlaege aus Dateiname (Keyword-Matching)
         name_lower = os.path.splitext(basename)[0].lower()
@@ -2052,6 +2084,7 @@ class P29MainWindow(QMainWindow):
         imported = []
         skipped = []
         errors = []
+        lyrics_conflicts = []    # [(song_id, LyricsConflict)], intern#167
         last_imported_path = None
 
         # BL-147: Bei "am Ort belassen" die Wurzel VOR dem Loop als Musik-Slot
@@ -2089,6 +2122,7 @@ class P29MainWindow(QMainWindow):
                     getattr(self, '_import_is_singing', 1),
                     auto_lyrics=True,
                     genre_ids=genre_ids,
+                    lyrics_conflicts=lyrics_conflicts,
                 )
                 if r["status"] == "dup":
                     skipped.append(r["store_name"])
@@ -2099,6 +2133,10 @@ class P29MainWindow(QMainWindow):
                 errors.append(f"{basename}: {e}")
                 print(f"[Import] Fehler: {basename} — {e}")
                 continue
+
+        # 4b) intern#167: abweichende Lyrics-Dateien — der Caller entscheidet.
+        # Vor dem Laden des letzten Songs, damit der schon den Endstand zeigt.
+        self._resolve_import_lyrics_conflicts(lyrics_conflicts)
 
         # 5) Letztes Import-Verzeichnis merken
         if filepaths:
