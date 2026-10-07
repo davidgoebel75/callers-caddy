@@ -22,10 +22,10 @@ from PySide6.QtCore import Qt, QThread, Signal, QEvent
 from PySide6.QtGui import QColor
 
 from song_db import SongDatabase, Song, SONG_PROPERTY_KEYS
+import song_types
 from path_manager import PathManager
 from i18n import _t
 import song_data_io
-import song_types
 from perf import perf_start, perf_split, perf_log
 from stats_widget import add_song_rating_actions
 from ui_helpers import (
