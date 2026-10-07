@@ -1685,8 +1685,7 @@ class SongDataWidget(QWidget):
 
 
 # Typ-Filter der Filterleiste: Radio-Button-ID -> Song-Typ (0 = Alle)
-_TYPE_BY_FILTER_ID = {1: song_types.PATTER, 2: song_types.SINGING,
-                      3: song_types.OTHER}
+_TYPE_BY_FILTER_ID = {v: k for k, v in song_types.FILTER_ID.items()}
 
 
 class SongFilterBar(QWidget):
@@ -2385,12 +2384,9 @@ class SongListWidget(QWidget):
         self.table.setRowCount(len(filtered))
 
         for row_idx, song in enumerate(filtered):
-            # Typ-Kuerzel: P=Patter, S=Singing, PS=beides, O=Other
-            type_tag = song_types.type_tag(song.is_pattern, song.is_singing)
-
             display = song.title or song.filename
-            if type_tag:
-                display += f"  ({type_tag})"
+            # Typ-Kuerzel: P=Patter, S=Singing, PS=beides, O=Other
+            display += f"  ({song_types.type_tag(song.is_pattern, song.is_singing)})"
             if song.label:
                 display += f"  [{song.label}]"
             if song.quality > 0:

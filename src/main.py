@@ -4682,10 +4682,11 @@ class P29MainWindow(QMainWindow):
         start_date = getattr(self.song_list, "_start_date", date.today())
 
         # Typ-Filter (Singing/Patter/Other)
-        type_key, filter_id = (
-            (song_types.SINGING, 2) if want_type.startswith("sing")
-            else (song_types.OTHER, 3) if want_type.startswith("oth")
-            else (song_types.PATTER, 1))
+        type_key = (
+            song_types.SINGING if want_type.startswith("sing")
+            else song_types.OTHER if want_type.startswith("oth")
+            else song_types.PATTER)
+        filter_id = song_types.FILTER_ID[type_key]
         songs = [s for s in songs
                  if song_types.matches(s.is_pattern, s.is_singing, type_key)]
         if not songs:

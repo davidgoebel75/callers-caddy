@@ -23,6 +23,9 @@ SQL_FILTER = {
     OTHER: "s.is_pattern = 0 AND s.is_singing = 0",
 }
 
+# Nummer je Typ im Typ-Filter der Songliste (0 = Alle).
+FILTER_ID = {PATTER: 1, SINGING: 2, OTHER: 3}
+
 
 def is_other(is_pattern, is_singing) -> bool:
     return not is_pattern and not is_singing

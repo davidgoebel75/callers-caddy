@@ -1426,7 +1426,7 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
     def play_counts(self, location_id, since, type_key) -> list:
         """Gespielte Songs als [(song_id, title, label, count)], meistgespielt
         zuerst. location_id=None = alle Lokationen; since = 'YYYY-MM-DD HH:MM:SS'
-        oder None; type_key = 'pattern' | 'singing' | None.
+        oder None; type_key = 'pattern' | 'singing' | 'other' | None.
 
         Geteilte Historie: Plays stehen unter der Senke (log_play), daher hier
         genauso aufloesen (intern#137)."""
