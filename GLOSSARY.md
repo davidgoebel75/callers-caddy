@@ -114,6 +114,12 @@ ist. Folgt dem gesungenen Text, auch wenn "Textsprung timen" frueher scrollt.
 _EN_: Reading Band
 _Avoid_: Band, Leseband
 
+**In-Lesebalken Countdown**:
+Zahl am rechten Rand des Lesebalkens, die die Beats bis zum naechsten
+Abschnittswechsel herunterzaehlt (Opener, Figure, Middle Break, Closer). Braucht
+SyncPoints und einen BPM-Wert des Songs.
+_EN_: In-band countdown
+
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
@@ -157,7 +163,7 @@ _Avoid_: Programmfilter
 Eine im offiziellen Katalog definierte Tanzbewegung mit festem Namen, z. B. "Swing Thru".
 Gehoert zu mindestens einem Programm.
 _EN_: Figure
-_Avoid_: Call (mehrdeutig: meint mal die Figur, mal den Call-Text), Entity
+_Avoid_: Entity
 
 **Konzept**:
 Eintrag des Katalogs, der eine andere Figur abwandelt statt selbst getanzt zu werden,
@@ -189,7 +195,14 @@ _EN_: Sequence
 Eine Zeile einer Sequenz, so wie der Caller sie ruft, z. B. "Heads Chase Right and Roll".
 Kann mehrere Figuren enthalten.
 _EN_: Call Text
-_Avoid_: Call, Feld
+_Avoid_: Feld
+
+**Call**:
+Das, was der Caller ruft. In Texten fuer den Nutzer (Menues, Changelog) der kurze
+Name fuer einen Call-Text, z. B. "Call-Mapping fuer diesen Call aendern". Kommt es
+auf den Unterschied an, heisst es weiter Call-Text (die Zeile) oder Figur (der
+Katalog-Eintrag).
+_EN_: Call
 
 **Zusammengesetzter Call-Text**:
 Call-Text, der erkennbar mehrere Figuren enthaelt, z. B. "All 8 Right & Left Thru"
