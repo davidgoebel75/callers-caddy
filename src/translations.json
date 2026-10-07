@@ -560,6 +560,31 @@
     "en": "Song usable as patter",
     "ja": "曲を Patter として使用可能"
   },
+  "chk_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
+  "tooltip_other": {
+    "de": "Weder Patter noch Singing Call, zum Beispiel Friendship Ring oder Happy Birthday. Wird nicht in Tips eingeplant.",
+    "en": "Neither patter nor singing call, for example Friendship Ring or Happy Birthday. Is not scheduled into tips.",
+    "ja": "Patter でも Singing Call でもない曲（例: Friendship Ring、Happy Birthday）。Tip には組み込まれません。"
+  },
+  "rb_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
+  "stats_type_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
+  "import_type_other": {
+    "de": "Sonstiges",
+    "en": "Other",
+    "ja": "その他"
+  },
   "chk_singing": {
     "de": "Singing Call",
     "en": "Singing Call",
@@ -5277,10 +5302,10 @@
     "en": "Type",
     "ja": "タイプ"
   },
-  "stats_type_both": {
-    "de": "Beide",
-    "en": "Both",
-    "ja": "両方"
+  "stats_type_all": {
+    "de": "Alle",
+    "en": "All",
+    "ja": "すべて"
   },
   "stats_type_pattern": {
     "de": "Patter",
@@ -6719,9 +6744,9 @@
     "ja": "フィルターと並べ替え"
   },
   "tutorial.planner.filters.text": {
-    "de": "Filtere den Song-Pool nach Patter/Singing Call, Genre und Sortierung. So findest du schnell den richtigen Song.",
-    "en": "Filter the song pool by patter/singing call, genre and sort order. Find the right song quickly.",
-    "ja": "曲プールを Patter/Singing Call、ジャンル、並び順で絞り込みます。適切な曲をすばやく見つけられます。"
+    "de": "Filtere den Song-Pool nach Patter/Singing Call/Sonstiges, Genre und Sortierung. So findest du schnell den richtigen Song.",
+    "en": "Filter the song pool by patter/singing call/other, genre and sort order. Find the right song quickly.",
+    "ja": "曲プールを Patter/Singing Call/その他、ジャンル、並び順で絞り込みます。適切な曲をすばやく見つけられます。"
   },
   "tutorial.planner.step1.title": {
     "de": "Song-Pool",

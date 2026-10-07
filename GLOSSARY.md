@@ -58,6 +58,11 @@ Song mit fest gesungener Choreografie. Jeder Song kann beides sein — Patter od
 Singing Call —, die Nutzungsart ergibt sich aus dem Playlist-Eintrag.
 _Avoid_: Singer
 
+**Other** (deutsch "Sonstiges"):
+Song, der weder Patter noch Singing Call ist, etwa Friendship Ring oder Happy
+Birthday. Wird nicht in Tips eingeplant.
+_Avoid_: Round Dance als eigener Typ, "ohne Typ"
+
 **Body**:
 Der gesungene Kern eines Singing Calls: sieben Abschnitte à 64 Beats. Intro und
 Outro liegen davor und danach.

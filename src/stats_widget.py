@@ -60,9 +60,10 @@ _PERIODS = [
 
 # ---- Typ-Definitionen: (i18n-Key, SQL-Filterwert) ----
 _TYPES = [
-    ("stats_type_both",    None),
+    ("stats_type_all",     None),
     ("stats_type_pattern", "pattern"),
     ("stats_type_singing", "singing"),
+    ("stats_type_other",   "other"),
 ]
 
 _TOOLTIP_SONGS = 5   # max. Songs im Balken-Tooltip
