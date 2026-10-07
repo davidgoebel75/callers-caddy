@@ -183,8 +183,9 @@ def test_quit_during_check_without_qt_fatal(tmp_path):
     # intern#178: Ausgabe in eine Datei statt capture_output. Unter Windows
     # startet capture_output zwei Lese-Threads; deren Start blieb im vollen
     # Lauf manchmal haengen, und timeout=30 griff nie. Ohne Threads wartet
-    # run() nur auf den Prozess. gc.collect() raeumt Qt-Objekte aus den Tests
-    # davor im Main-Thread ab, nicht in einem fremden Thread.
+    # run() nur auf den Prozess. Verdacht, nicht belegt: Der Thread-Start raeumt
+    # per GC Qt-Objekte aus den Tests davor ab. gc.collect() tut das vorher
+    # im Main-Thread.
     gc.collect()
     log = tmp_path / "child.log"
     with open(log, "w", encoding="utf-8") as out:
