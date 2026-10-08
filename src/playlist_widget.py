@@ -26,6 +26,7 @@ from i18n import _t
 from perf import perf_start, perf_log
 from stats_widget import add_song_rating_actions
 from songdata_widget import SongFilterBar
+import song_types
 from ui_helpers import (
     _make_icon, _reco_score, _style_date_cell, _WrapButtonBar,
     _SVG_AUTOFILL, calc_auto_loop, show_loop_count_dialog,
@@ -1186,15 +1187,7 @@ class PlaylistManagerWidget(QWidget):
         self._pool_table.setRowCount(len(sorted_songs))
         for idx, song in enumerate(sorted_songs):
             display = song.title or song.filename
-            type_tag = ""
-            if song.is_pattern and song.is_singing:
-                type_tag = "PS"
-            elif song.is_pattern:
-                type_tag = "P"
-            elif song.is_singing:
-                type_tag = "S"
-            if type_tag:
-                display += f"  ({type_tag})"
+            display += f"  ({song_types.type_tag(song.is_pattern, song.is_singing)})"
             if song.label:
                 display += f"  [{song.label}]"
 

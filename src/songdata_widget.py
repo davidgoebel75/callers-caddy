@@ -22,6 +22,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QEvent
 from PySide6.QtGui import QColor
 
 from song_db import SongDatabase, Song, SONG_PROPERTY_KEYS
+import song_types
 from path_manager import PathManager
 from i18n import _t
 import song_data_io
@@ -1097,16 +1098,21 @@ class SongDataWidget(QWidget):
         self.lyric_variants_widget.setVisible(False)
         form.addRow("", self.lyric_variants_widget)
 
-        # Pattern / Singing Call Checkboxen
+        # Patter / Singing Call / Other. "Other" ist kein eigener Schalter,
+        # sondern "weder Patter noch Singing" (intern#170, song_types).
         type_layout = QHBoxLayout()
         self.chk_pattern = QCheckBox(_t("chk_pattern"))
         self.chk_pattern.setToolTip(_t("tooltip_pattern"))
-        self.chk_pattern.toggled.connect(self._auto_save)
+        self.chk_pattern.toggled.connect(self._on_type_toggled)
         type_layout.addWidget(self.chk_pattern)
         self.chk_singing = QCheckBox(_t("chk_singing"))
         self.chk_singing.setToolTip(_t("tooltip_singing"))
-        self.chk_singing.toggled.connect(self._auto_save)
+        self.chk_singing.toggled.connect(self._on_type_toggled)
         type_layout.addWidget(self.chk_singing)
+        self.chk_other = QCheckBox(_t("chk_other"))
+        self.chk_other.setToolTip(_t("tooltip_other"))
+        self.chk_other.toggled.connect(self._on_other_toggled)
+        type_layout.addWidget(self.chk_other)
         type_layout.addStretch()
         form.addRow(_t("form_type"), type_layout)
 
@@ -1425,6 +1431,8 @@ class SongDataWidget(QWidget):
         self.edit_lyrics.setText(song.lyrics_file)
         self.chk_pattern.setChecked(bool(song.is_pattern))
         self.chk_singing.setChecked(bool(song.is_singing))
+        # Auch ohne toggled-Signal (gleiche Stellung wie beim Song davor)
+        self._sync_other_checkbox()
         self.label_date_added.setText(song.date_added if song.date_added else "\u2014")
         self._loading = False
 
@@ -1502,6 +1510,30 @@ class SongDataWidget(QWidget):
                 self._current_song.loop_out = loop_out
         finally:
             self._loading = prev
+
+    def _sync_other_checkbox(self):
+        """'Other' folgt den beiden Schaltern: an, wenn beide aus sind."""
+        self.chk_other.blockSignals(True)
+        self.chk_other.setChecked(song_types.is_other(
+            self.chk_pattern.isChecked(), self.chk_singing.isChecked()))
+        self.chk_other.blockSignals(False)
+
+    def _on_type_toggled(self, _checked=False):
+        self._sync_other_checkbox()
+        self._auto_save()
+
+    def _on_other_toggled(self, checked: bool):
+        """'Other' angekreuzt: Patter und Singing gehen aus. Abwaehlen geht
+        nur, indem Patter oder Singing angekreuzt wird — sonst bliebe ein Song
+        ohne Typ, und genau das ist Other."""
+        if not checked:
+            self._sync_other_checkbox()
+            return
+        for chk in (self.chk_pattern, self.chk_singing):
+            chk.blockSignals(True)
+            chk.setChecked(False)
+            chk.blockSignals(False)
+        self._auto_save()
 
     def _auto_save(self, *args):
         # TIC-0026: Guard — DB kann durch closeEvent schon geschlossen sein
@@ -1678,6 +1710,10 @@ class SongDataWidget(QWidget):
         self._loading = False
 
 
+# Typ-Filter der Filterleiste: Radio-Button-ID -> Song-Typ (0 = Alle)
+_TYPE_BY_FILTER_ID = {v: k for k, v in song_types.FILTER_ID.items()}
+
+
 class SongFilterBar(QWidget):
     """Gemeinsamer Filter- und Sortier-Header fuer SongListWidget und PlaylistManagerWidget.
 
@@ -1736,13 +1772,16 @@ class SongFilterBar(QWidget):
         self._rb_all     = QRadioButton(_t("rb_all"))
         self._rb_pattern = QRadioButton(_t("rb_pattern"))
         self._rb_singing = QRadioButton(_t("rb_singing"))
+        self._rb_other   = QRadioButton(_t("rb_other"))
         self._rb_all.setChecked(True)
         self._filter_group.addButton(self._rb_all,     0)
         self._filter_group.addButton(self._rb_pattern, 1)
         self._filter_group.addButton(self._rb_singing, 2)
+        self._filter_group.addButton(self._rb_other,   3)
         filter_row.addWidget(self._rb_all)
         filter_row.addWidget(self._rb_pattern)
         filter_row.addWidget(self._rb_singing)
+        filter_row.addWidget(self._rb_other)
         filter_row.addStretch()
         if self._show_custom_filter:
             self._btn_custom = QPushButton(_t("btn_custom_filter"))
@@ -1859,12 +1898,12 @@ class SongFilterBar(QWidget):
 
     @property
     def type_filter(self) -> int:
-        """0 = Alle, 1 = Patter, 2 = Singing."""
+        """0 = Alle, 1 = Patter, 2 = Singing, 3 = Other."""
         return self._filter_group.checkedId()
 
     def set_type_filter(self, filter_id: int):
         """Setzt den Typ-Filter programmatisch (0 = Alle, 1 = Patter,
-        2 = Singing). Wirkt wie ein Klick auf den Radio-Button und loest
+        2 = Singing, 3 = Other). Wirkt wie ein Klick auf den Radio-Button und loest
         ueber idToggled das sig_changed-Signal aus (Liste baut neu auf).
         No-op, wenn der gewuenschte Filter bereits aktiv ist — vermeidet
         einen ueberfluessigen Listen-Refresh."""
@@ -2056,10 +2095,10 @@ class SongFilterBar(QWidget):
 
         # Typ-Filter
         ft = self.type_filter
-        if ft == 1:
-            songs = [s for s in songs if s.is_pattern]
-        elif ft == 2:
-            songs = [s for s in songs if s.is_singing]
+        if ft in _TYPE_BY_FILTER_ID:
+            type_key = _TYPE_BY_FILTER_ID[ft]
+            songs = [s for s in songs
+                     if song_types.matches(s.is_pattern, s.is_singing, type_key)]
 
         # Genre-Filter
         gid = self.genre_id
@@ -2371,18 +2410,9 @@ class SongListWidget(QWidget):
         self.table.setRowCount(len(filtered))
 
         for row_idx, song in enumerate(filtered):
-            # Typ-Kuerzel: P=Patter, S=Singing, PS=beides
-            type_tag = ""
-            if song.is_pattern and song.is_singing:
-                type_tag = "PS"
-            elif song.is_pattern:
-                type_tag = "P"
-            elif song.is_singing:
-                type_tag = "S"
-
             display = song.title or song.filename
-            if type_tag:
-                display += f"  ({type_tag})"
+            # Typ-Kuerzel: P=Patter, S=Singing, PS=beides, O=Other
+            display += f"  ({song_types.type_tag(song.is_pattern, song.is_singing)})"
             if song.label:
                 display += f"  [{song.label}]"
             if song.quality > 0:

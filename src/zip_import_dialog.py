@@ -418,7 +418,8 @@ class ZipImportPreviewDialog(QDialog):
         combo_type = QComboBox()
         combo_type.addItems([_t("import_type_pattern"),
                              _t("import_type_singing"),
-                             _t("import_type_both")])
+                             _t("import_type_both"),
+                             _t("import_type_other")])
         # Singing nur mit passenden Lyrics im ZIP, sonst Patter (intern#125).
         combo_type.setCurrentIndex(1 if bundle.singing_suggested else 0)
         form.addRow(_t("zip_preview_song_title"), edit_title)
@@ -572,6 +573,7 @@ class ZipImportPreviewDialog(QDialog):
         """Liefert die finalen Import-Entscheidungen je Bundle."""
         out = []
         for ui in self._bundles_ui:
+            # 0 = Patter, 1 = Singing, 2 = beides, 3 = Other (keins von beiden)
             ti = ui["type"].currentIndex()
             is_pattern = 1 if ti in (0, 2) else 0
             is_singing = 1 if ti in (1, 2) else 0

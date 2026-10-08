@@ -73,6 +73,7 @@ def register_v1_definitions(engine: RuleEngine):
     # --- Bedingungen ---
     reg.add_condition("song_type_is_singing",  "Song Type = Singing Call")
     reg.add_condition("song_type_is_patter",   "Song Type = Patter")
+    reg.add_condition("song_type_is_other",    "Song Type = Other")
     reg.add_condition("lyrics_available",       "Lyrics Available")
     reg.add_condition("lyrics_not_available",   "Lyrics Not Available")
     reg.add_condition("loop_set",               "Loop Set")
@@ -242,7 +243,7 @@ def register_v1_definitions(engine: RuleEngine):
     # Auslösen neu und liefern daher wechselnde Songs.
     reg.add_action("load_song", "Load Song",
                    {"type": {"type": "choice",
-                             "choices": ["Singing", "Patter"],
+                             "choices": ["Singing", "Patter", "Other"],
                              "default": "Singing"},
                     "sort": {"type": "choice",
                              "choices": ["Recommendation", "Weighted Random (Balanced Roulette)",
