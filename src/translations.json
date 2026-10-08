@@ -111,7 +111,7 @@
     "ja": "Fade Out"
   },
   "tooltip_fade_out": {
-    "de": "Song ueber 5 Sekunden ausblenden",
+    "de": "Song über 5 Sekunden ausblenden",
     "en": "Fade out song over 5 seconds",
     "ja": "5秒かけて曲をフェードアウト"
   },
@@ -121,7 +121,7 @@
     "ja": "本日のテンポ"
   },
   "tooltip_today_tempo": {
-    "de": "Session-Tempo (gilt fuer alle Songs)",
+    "de": "Session-Tempo (gilt für alle Songs)",
     "en": "Session tempo (applies to all songs)",
     "ja": "セッションのテンポ（すべての曲に適用）"
   },
@@ -141,7 +141,7 @@
     "ja": "Pitch"
   },
   "tooltip_pitch": {
-    "de": "Pitch in Halbtoenen (-6.0 bis +6.0)",
+    "de": "Pitch in Halbtönen (-6.0 bis +6.0)",
     "en": "Pitch in semitones (-6.0 to +6.0)",
     "ja": "ピッチ（半音単位、-6.0〜+6.0）"
   },
@@ -151,7 +151,7 @@
     "ja": "Live Vol"
   },
   "tooltip_live_volume": {
-    "de": "Live-Lautstaerke (Session, nicht gespeichert). Wird bei Song-Wechsel auf 100% zurueckgesetzt.",
+    "de": "Live-Lautstärke (Session, nicht gespeichert). Wird bei Song-Wechsel auf 100% zurückgesetzt.",
     "en": "Live volume (session only, not saved). Resets to 100% on song change.",
     "ja": "ライブ音量（セッションのみ、保存されません）。曲を変えると100%にリセットされます。"
   },
@@ -161,7 +161,7 @@
     "ja": "ロケーション"
   },
   "tooltip_location": {
-    "de": "Lokation auswaehlen (L)",
+    "de": "Lokation auswählen (L)",
     "en": "Select location (L)",
     "ja": "ロケーションを選択 (L)"
   },
@@ -246,7 +246,7 @@
     "ja": "新しい曲をインポート"
   },
   "tooltip_new_song": {
-    "de": "Neue Songs importieren (MP3-Dateien oeffnen)\noder MP3/ZIP/Ordner direkt auf diesen Button ziehen",
+    "de": "Neue Songs importieren (MP3-Dateien öffnen)\noder MP3/ZIP/Ordner direkt auf diesen Button ziehen",
     "en": "Import new songs (open MP3 files)\nor drag MP3/ZIP/folder straight onto this button",
     "ja": "新しい曲をインポート（MP3 ファイルを開く）\nまたは MP3／ZIP／フォルダをこのボタンにドラッグ"
   },
@@ -331,7 +331,7 @@
     "ja": "Snap"
   },
   "beat_snap_adjust_tip": {
-    "de": "Beide Marker exakt auf den naechsten Beat verschieben",
+    "de": "Beide Marker exakt auf den nächsten Beat verschieben",
     "en": "Snap both markers to the nearest beat",
     "ja": "両方のマーカーを最寄りのビートに移動"
   },
@@ -401,12 +401,12 @@
     "ja": "Loop-Out を設定"
   },
   "label_loop_length": {
-    "de": "Loop-Laenge: {time}",
+    "de": "Loop-Länge: {time}",
     "en": "Loop length: {time}",
     "ja": "ループ長: {time}"
   },
   "label_loop_length_default": {
-    "de": "Loop-Laenge: --",
+    "de": "Loop-Länge: --",
     "en": "Loop length: --",
     "ja": "ループ長: --"
   },
@@ -456,12 +456,12 @@
     "ja": "ジャンル:"
   },
   "tooltip_quality": {
-    "de": "Qualitaetsbewertung 0 (unbewertet) bis 10 (exzellent)",
+    "de": "Qualitätsbewertung 0 (unbewertet) bis 10 (exzellent)",
     "en": "Quality rating 0 (unrated) to 10 (excellent)",
     "ja": "品質評価 0（未評価）〜10（最高）"
   },
   "form_quality": {
-    "de": "Qualitaet (0-10):",
+    "de": "Qualität (0-10):",
     "en": "Quality (0-10):",
     "ja": "品質 (0-10):"
   },
@@ -506,22 +506,22 @@
     "ja": "標準テンポ:"
   },
   "tooltip_pitch_semitones": {
-    "de": "Halbtoene (0.0 = Original)",
+    "de": "Halbtöne (0.0 = Original)",
     "en": "Semitones (0.0 = original)",
     "ja": "半音（0.0 = オリジナル）"
   },
   "form_pitch": {
-    "de": "Pitch (Halbtoene):",
+    "de": "Pitch (Halbtöne):",
     "en": "Pitch (semitones):",
     "ja": "Pitch（半音）:"
   },
   "tooltip_volume": {
-    "de": "1.00 = Normallautstaerke",
+    "de": "1.00 = Normallautstärke",
     "en": "1.00 = normal volume",
     "ja": "1.00 = 標準音量"
   },
   "form_volume": {
-    "de": "Lautstaerke:",
+    "de": "Lautstärke:",
     "en": "Volume:",
     "ja": "音量:"
   },
@@ -981,7 +981,7 @@
     "ja": "アルファベット順"
   },
   "sort_quality": {
-    "de": "Qualitaet",
+    "de": "Qualität",
     "en": "Quality",
     "ja": "品質"
   },
@@ -1016,32 +1016,32 @@
     "ja": "Q"
   },
   "tooltip_add_to_playlist": {
-    "de": "Song zur Playlist hinzufuegen",
+    "de": "Song zur Playlist hinzufügen",
     "en": "Add song to playlist",
     "ja": "曲をプレイリストに追加"
   },
   "tooltip_remove_from_playlist": {
-    "de": "Ausgewaehlten Song aus der Playlist entfernen",
+    "de": "Ausgewählten Song aus der Playlist entfernen",
     "en": "Remove selected song from playlist",
     "ja": "選択した曲をプレイリストから削除"
   },
   "tooltip_confirm_playlist": {
-    "de": "Playlist uebernehmen und Manager schliessen",
+    "de": "Playlist übernehmen und Manager schliessen",
     "en": "Apply playlist and close manager",
     "ja": "プレイリストを適用してマネージャーを閉じる"
   },
   "tooltip_clear_playlist": {
-    "de": "Gesamte Playlist loeschen",
+    "de": "Gesamte Playlist löschen",
     "en": "Clear entire playlist",
     "ja": "プレイリスト全体を消去"
   },
   "confirm_clear_playlist_title": {
-    "de": "Playlist loeschen",
+    "de": "Playlist löschen",
     "en": "Clear Playlist",
     "ja": "プレイリストを消去"
   },
   "confirm_clear_playlist_msg": {
-    "de": "Soll die gesamte Playlist wirklich geloescht werden?",
+    "de": "Soll die gesamte Playlist wirklich gelöscht werden?",
     "en": "Do you really want to clear the entire playlist?",
     "ja": "本当にプレイリスト全体を消去しますか？"
   },
@@ -1121,7 +1121,7 @@
     "ja": "停止"
   },
   "info_semitones": {
-    "de": "{value} Halbtoene",
+    "de": "{value} Halbtöne",
     "en": "{value} semitones",
     "ja": "{value} 半音"
   },
@@ -1146,7 +1146,7 @@
     "ja": "文字を小さく"
   },
   "tooltip_zoom_in": {
-    "de": "Schrift vergroessern",
+    "de": "Schrift vergrössern",
     "en": "Increase font size",
     "ja": "文字を大きく"
   },
@@ -1156,7 +1156,7 @@
     "ja": "Remapping: Teaching Order の割り当てを再計算"
   },
   "label_contains": {
-    "de": "Enthaelt:",
+    "de": "Enthält:",
     "en": "Contains:",
     "ja": "含む:"
   },
@@ -1296,7 +1296,7 @@
     "ja": "シーケンスがありません。\nまずシーケンスをインポートしてください。"
   },
   "remapping_confirm": {
-    "de": "Sequenzen neu zuordnen?\n\nFehlende Auto-Mappings fuer eindeutige Call-Texte werden ergaenzt, dann max_teaching_order neu berechnet. Manuelle Zuordnungen bleiben unberuehrt.",
+    "de": "Sequenzen neu zuordnen?\n\nFehlende Auto-Mappings für eindeutige Call-Texte werden ergänzt, dann max_teaching_order neu berechnet. Manuelle Zuordnungen bleiben unberührt.",
     "en": "Remap sequences?\n\nMissing auto mappings for unambiguous call texts are added, then max_teaching_order is recalculated. Manual mappings stay untouched.",
     "ja": "シーケンスを再マッピングしますか？\n\n一意に決まる Call テキストの不足している自動マッピングを追加し、max_teaching_order を再計算します。手動のマッピングはそのまま保持されます。"
   },
@@ -1326,7 +1326,7 @@
     "ja": "Dynamic Lyrics"
   },
   "tooltip_dynamic_lyrics": {
-    "de": "Figuren-Text durch die im Sequence-View gewaehlten Sequenzen ersetzen (Datei bleibt unveraendert). Auto-Scroll folgt weiter den SyncPoints.",
+    "de": "Figuren-Text durch die im Sequence-View gewählten Sequenzen ersetzen (Datei bleibt unverändert). Auto-Scroll folgt weiter den SyncPoints.",
     "en": "Replace the figure text with the sequences selected in the Sequence View (the file stays unchanged). Auto-scroll keeps following the sync points.",
     "ja": "フィギュアのテキストを Sequence View で選択したシーケンスに置き換えます（ファイルは変更されません）。自動スクロールは同期ポイントに従います。"
   },
@@ -1336,7 +1336,7 @@
     "ja": "ここに区切りを配置"
   },
   "ctx_figure_cut_delete": {
-    "de": "Trenner loeschen",
+    "de": "Trenner löschen",
     "en": "Remove separator",
     "ja": "区切りを削除"
   },
@@ -1356,12 +1356,12 @@
     "ja": "Dynamic Lyrics: フィギュアのセクションが検出されません。"
   },
   "dynamic_reason_no_sequences": {
-    "de": "Dynamic Lyrics: keine Sequenz im Sequence-View gewaehlt.",
+    "de": "Dynamic Lyrics: keine Sequenz im Sequence-View gewählt.",
     "en": "Dynamic Lyrics: no sequence selected in the Sequence View.",
     "ja": "Dynamic Lyrics: Sequence View でシーケンスが選択されていません。"
   },
   "dynamic_reason_busy": {
-    "de": "Dynamic Lyrics: im Sync- oder Bearbeiten-Modus nicht verfuegbar.",
+    "de": "Dynamic Lyrics: im Sync- oder Bearbeiten-Modus nicht verfügbar.",
     "en": "Dynamic Lyrics: not available in sync or edit mode.",
     "ja": "Dynamic Lyrics: 同期モードまたは編集モードでは使用できません。"
   },
@@ -1371,7 +1371,7 @@
     "ja": "Dynamic Lyrics の設定"
   },
   "dynamic_mode_intro": {
-    "de": "Wie sollen die gewaehlten Sequenzen auf die vier Figuren verteilt werden?\n\nDiese Wahl wird gespeichert und laesst sich in den Einstellungen (Lyrics) aendern.",
+    "de": "Wie sollen die gewählten Sequenzen auf die vier Figuren verteilt werden?\n\nDiese Wahl wird gespeichert und lässt sich in den Einstellungen (Lyrics) ändern.",
     "en": "How should the selected sequences be distributed across the four figures?\n\nThis choice is saved and can be changed in Settings (Lyrics).",
     "ja": "選択したシーケンスを4つのフィギュアにどう割り当てますか?\n\nこの選択は保存され、設定 (Lyrics) で変更できます。"
   },
@@ -1381,7 +1381,7 @@
     "ja": "同じシーケンスを4つのフィギュアすべてに"
   },
   "dynamic_mode_opt2": {
-    "de": "Ab aktueller Sequenz durchblaettern",
+    "de": "Ab aktueller Sequenz durchblättern",
     "en": "Advance from the current sequence",
     "ja": "現在のシーケンスから順に進める"
   },
@@ -1391,7 +1391,7 @@
     "ja": "Dynamic Lyrics 有効"
   },
   "setting_tip_lyrics_dynamic_enabled": {
-    "de": "Blendet die im Sequence-View gewaehlte Choreografie in die Figuren-Abschnitte ein. Laesst sich auch ueber den Button im Lyric-Fenster umschalten.",
+    "de": "Blendet die im Sequence-View gewählte Choreografie in die Figuren-Abschnitte ein. Lässt sich auch über den Button im Lyric-Fenster umschalten.",
     "en": "Shows the choreography selected in the Sequence View inside the figure sections. Can also be toggled via the button in the lyrics window.",
     "ja": "Sequence View で選択した振り付けをフィギュアのセクションに表示します。歌詞ウィンドウのボタンでも切り替えられます。"
   },
@@ -1401,7 +1401,7 @@
     "ja": "Dynamic Lyrics モード"
   },
   "setting_tip_lyrics_dynamic_mode": {
-    "de": "Verteilung der im Sequence-View gewaehlten Sequenzen auf die vier Figuren-Abschnitte, wenn Dynamic Lyrics aktiv ist.",
+    "de": "Verteilung der im Sequence-View gewählten Sequenzen auf die vier Figuren-Abschnitte, wenn Dynamic Lyrics aktiv ist.",
     "en": "How the sequences selected in the Sequence View are distributed across the four figure sections when Dynamic Lyrics is active.",
     "ja": "Dynamic Lyrics 有効時に、Sequence View で選択したシーケンスを4つのフィギュアセクションにどう割り当てるか。"
   },
@@ -1536,7 +1536,7 @@
     "ja": "同期"
   },
   "tooltip_lyric_sync": {
-    "de": "Sync-Punkte setzen: Lied abspielen und in die passende Textzeile klicken. Rechtsklick auf einen Marker = bearbeiten/loeschen.",
+    "de": "Sync-Punkte setzen: Lied abspielen und in die passende Textzeile klicken. Rechtsklick auf einen Marker = bearbeiten/löschen.",
     "en": "Set sync points: play the song and click the matching text line. Right-click a marker to edit/delete.",
     "ja": "同期ポイントを設定: 曲を再生し、該当する歌詞行をクリック。マーカーを右クリックで編集/削除。"
   },
@@ -1561,17 +1561,17 @@
     "ja": "別の歌詞行へ移動"
   },
   "lyric_sync_delete": {
-    "de": "Sync-Punkt loeschen",
+    "de": "Sync-Punkt löschen",
     "en": "Delete sync point",
     "ja": "同期ポイントを削除"
   },
   "lyric_sync_clear_all": {
-    "de": "Alle Sync-Punkte loeschen",
+    "de": "Alle Sync-Punkte löschen",
     "en": "Delete all sync points",
     "ja": "すべての同期ポイントを削除"
   },
   "lyric_sync_clear_all_confirm": {
-    "de": "Wirklich alle {count} Sync-Punkte dieser Datei loeschen?",
+    "de": "Wirklich alle {count} Sync-Punkte dieser Datei löschen?",
     "en": "Really delete all {count} sync points of this file?",
     "ja": "このファイルの同期ポイント {count} 個をすべて削除しますか?"
   },
@@ -1581,12 +1581,12 @@
     "ja": "すべての同期ポイントをずらす"
   },
   "lyric_sync_shift_all_earlier": {
-    "de": "1 Sek. frueher (−1 s)",
+    "de": "1 Sek. früher (−1 s)",
     "en": "1 sec earlier (−1 s)",
     "ja": "1 秒早く (−1 s)"
   },
   "lyric_sync_shift_all_later": {
-    "de": "1 Sek. spaeter (+1 s)",
+    "de": "1 Sek. später (+1 s)",
     "en": "1 sec later (+1 s)",
     "ja": "1 秒遅く (+1 s)"
   },
@@ -1601,22 +1601,22 @@
     "ja": "時間を mm:ss (例 1:23) または秒で:"
   },
   "lyric_sync_time_invalid": {
-    "de": "Ungueltige Zeitangabe.",
+    "de": "Ungültige Zeitangabe.",
     "en": "Invalid time value.",
     "ja": "無効な時間値です。"
   },
   "lyric_sync_copy_title": {
-    "de": "Sync-Punkte uebernehmen?",
+    "de": "Sync-Punkte übernehmen?",
     "en": "Copy sync points?",
     "ja": "同期ポイントをコピーしますか?"
   },
   "lyric_sync_copy_msg": {
-    "de": "Fuer diese Variante gibt es noch keine Sync-Punkte. {count} Punkte von '{variant}' kopieren?",
+    "de": "Für diese Variante gibt es noch keine Sync-Punkte. {count} Punkte von '{variant}' kopieren?",
     "en": "This variant has no sync points yet. Copy {count} points from '{variant}'?",
     "ja": "このバリアントにはまだ同期ポイントがありません。'{variant}' から {count} 個コピーしますか?"
   },
   "lyric_sync_copy_choose": {
-    "de": "Sync-Punkte von welcher Variante uebernehmen?",
+    "de": "Sync-Punkte von welcher Variante übernehmen?",
     "en": "Copy sync points from which variant?",
     "ja": "どのバリアントから同期ポイントをコピーしますか?"
   },
@@ -1631,12 +1631,12 @@
     "ja": "同期ポイントを設定"
   },
   "lyric_sync_choice_text": {
-    "de": "Wie moechtest du die 7 Abschnitte dieses Singing Calls markieren?\n\nAutomatisch: Lied abspielen und nur Start (Beginn 1. Teil) und Ende (Ende 7. Teil) markieren. Caller's Caddy verteilt die 7 Abschnitte gleichmaessig.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
+    "de": "Wie möchtest du die 7 Abschnitte dieses Singing Calls markieren?\n\nAutomatisch: Lied abspielen und nur Start (Beginn 1. Teil) und Ende (Ende 7. Teil) markieren. Caller's Caddy verteilt die 7 Abschnitte gleichmässig.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
     "en": "How do you want to mark the 7 sections of this singing call?\n\nAutomatic: play the song and only mark Start (beginning of part 1) and End (end of part 7). Caller's Caddy spreads the 7 sections evenly.\n\nManual: set markers yourself by clicking the text lines.",
     "ja": "このシンギングコールの7つのセクションをどのように設定しますか?\n\n自動: 曲を再生し、開始(第1部の始め)と終了(第7部の終わり)だけを設定します。\n\n手動: 歌詞行をクリックして自分でマーカーを設定します。"
   },
   "lyric_sync_choice_text_saved": {
-    "de": "Fuer diesen Song sind bereits Start ({start}) und Ende ({end}) gespeichert.\n\nJetzt berechnen: Sync-Punkte sofort aus den gespeicherten Zeiten berechnen.\n\nNeu messen: Start und Ende erneut per Knopfdruck im laufenden Lied erfassen.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
+    "de": "Für diesen Song sind bereits Start ({start}) und Ende ({end}) gespeichert.\n\nJetzt berechnen: Sync-Punkte sofort aus den gespeicherten Zeiten berechnen.\n\nNeu messen: Start und Ende erneut per Knopfdruck im laufenden Lied erfassen.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
     "en": "Start ({start}) and end ({end}) are already saved for this song.\n\nCalculate now: calculate sync points immediately from the saved times.\n\nRe-measure: capture start and end again by button press during playback.\n\nManual: set markers yourself by clicking the text lines.",
     "ja": "このソングにはすでに開始({start})と終了({end})が保存されています。\n\n今計算: 保存済みの時間からすぐに計算。\n\n再計測: 再生中にボタンで開始と終了を再度設定。\n\n手動: 歌詞行をクリックして自分で設定。"
   },
@@ -1736,12 +1736,12 @@
     "ja": "+1 s"
   },
   "tooltip_sync_shift_earlier": {
-    "de": "Songstart und alle SyncPoints 1 Sekunde frueher (−1 s)",
+    "de": "Songstart und alle SyncPoints 1 Sekunde früher (−1 s)",
     "en": "Move song start and all sync points 1 second earlier (−1 s)",
     "ja": "曲の開始とすべての同期ポイントを1秒早く (−1 s)"
   },
   "tooltip_sync_shift_later": {
-    "de": "Songstart und alle SyncPoints 1 Sekunde spaeter (+1 s)",
+    "de": "Songstart und alle SyncPoints 1 Sekunde später (+1 s)",
     "en": "Move song start and all sync points 1 second later (+1 s)",
     "ja": "曲の開始とすべての同期ポイントを1秒遅く (+1 s)"
   },
@@ -1781,7 +1781,7 @@
     "ja": "同期ポイントを計算しました(開始 {start}、終了 {end})。\n\n{detected} セクションを自動検出。独自のテキストがない部分(停止): {held}。\n\n右クリックで個別に微調整できます。"
   },
   "lyric_sync_auto_fail_msg": {
-    "de": "Es konnten keine Abschnitts-Ueberschriften (Opener/Figure/Break/Closer) erkannt werden. Bitte die Sync-Punkte manuell setzen.",
+    "de": "Es konnten keine Abschnitts-Überschriften (Opener/Figure/Break/Closer) erkannt werden. Bitte die Sync-Punkte manuell setzen.",
     "en": "No section headings (opener/figure/break/closer) could be detected. Please set the sync points manually.",
     "ja": "セクション見出し(opener/figure/break/closer)を検出できませんでした。同期ポイントを手動で設定してください。"
   },
@@ -1791,7 +1791,7 @@
     "ja": "Auto-Size"
   },
   "tooltip_auto_size": {
-    "de": "Automatische Schriftgroesse ein/aus",
+    "de": "Automatische Schriftgrösse ein/aus",
     "en": "Toggle automatic font size",
     "ja": "自動文字サイズのオン/オフ"
   },
@@ -1801,12 +1801,12 @@
     "ja": "Auto-Width"
   },
   "tooltip_auto_width": {
-    "de": "Schriftgroesse an die Fensterbreite anpassen",
+    "de": "Schriftgrösse an die Fensterbreite anpassen",
     "en": "Fit font size to window width",
     "ja": "文字サイズをウィンドウ幅に合わせる"
   },
   "tooltip_loop_count": {
-    "de": "Aktuelle / geplante Loop-Durchlaeufe",
+    "de": "Aktuelle / geplante Loop-Durchläufe",
     "en": "Current / planned loop iterations",
     "ja": "現在 / 予定のループ回数"
   },
@@ -1821,7 +1821,7 @@
     "ja": "この曲にはループ点が設定されていません。"
   },
   "loop_count_desired_time": {
-    "de": "Gewuenschte Dauer:",
+    "de": "Gewünschte Dauer:",
     "en": "Desired duration:",
     "ja": "希望の長さ:"
   },
@@ -1851,7 +1851,7 @@
     "ja": "ぴったり一致！"
   },
   "loop_count_error": {
-    "de": "Berechnung nicht moeglich.",
+    "de": "Berechnung nicht möglich.",
     "en": "Calculation not possible.",
     "ja": "計算できません。"
   },
@@ -1896,7 +1896,7 @@
     "ja": "ファイルが見つかりません: {filename}"
   },
   "lyrics_format_unsupported": {
-    "de": "Format nicht unterstuetzt: {ext}\n({filename})",
+    "de": "Format nicht unterstützt: {ext}\n({filename})",
     "en": "Unsupported format: {ext}\n({filename})",
     "ja": "サポートされていない形式: {ext}\n({filename})"
   },
@@ -1911,7 +1911,7 @@
     "ja": "歌詞ファイルの書式エラー"
   },
   "lyrics_html_broken_text": {
-    "de": "Diese Datei enthaelt einen Formatierungsfehler ({tags}), der ab dieser Stelle den automatischen Zeilenumbruch verhindert - der Text laeuft ueber den Rand hinaus statt umzubrechen.\n\nJetzt dauerhaft reparieren?",
+    "de": "Diese Datei enthält einen Formatierungsfehler ({tags}), der ab dieser Stelle den automatischen Zeilenumbruch verhindert - der Text läuft über den Rand hinaus statt umzubrechen.\n\nJetzt dauerhaft reparieren?",
     "en": "This file contains a formatting error ({tags}) that prevents automatic line wrapping from this point on - the text runs off the edge instead of wrapping.\n\nFix it permanently now?",
     "ja": "このファイルには書式エラー（{tags}）があり、この箇所以降は自動改行が機能しません - テキストが折り返されずにはみ出します。\n\n今すぐ恒久的に修正しますか？"
   },
@@ -1926,7 +1926,7 @@
     "ja": "無視"
   },
   "lyrics_pdf_missing": {
-    "de": "PDF-Anzeige benoetigt 'pypdf'.\nInstallation: pip install pypdf",
+    "de": "PDF-Anzeige benötigt 'pypdf'.\nInstallation: pip install pypdf",
     "en": "PDF display requires 'pypdf'.\nInstall: pip install pypdf",
     "ja": "PDF 表示には 'pypdf' が必要です。\nインストール: pip install pypdf"
   },
@@ -1936,7 +1936,7 @@
     "ja": "PDF ファイルを読み込めませんでした: {error}\n({filename})"
   },
   "lyrics_pdf_no_text": {
-    "de": "Dieses PDF enthaelt keinen extrahierbaren Text (evtl. gescannt).\n({filename})",
+    "de": "Dieses PDF enthält keinen extrahierbaren Text (evtl. gescannt).\n({filename})",
     "en": "This PDF contains no extractable text (possibly scanned).\n({filename})",
     "ja": "この PDF には抽出可能なテキストが含まれていません（スキャンされた可能性があります）。\n({filename})"
   },
@@ -1946,12 +1946,12 @@
     "ja": "編集可能な HTML に変換しますか？"
   },
   "lyrics_convert_offer_msg": {
-    "de": "{filename} ist ein reines Anzeige-Format und kann nicht direkt bearbeitet werden.\n\nSoll eine bearbeitbare HTML-Kopie angelegt werden? Die Originaldatei bleibt unveraendert.",
+    "de": "{filename} ist ein reines Anzeige-Format und kann nicht direkt bearbeitet werden.\n\nSoll eine bearbeitbare HTML-Kopie angelegt werden? Die Originaldatei bleibt unverändert.",
     "en": "{filename} is a display-only format and cannot be edited directly.\n\nCreate an editable HTML copy? The original file stays unchanged.",
     "ja": "{filename} は表示専用の形式で、直接編集できません。\n\n編集可能な HTML コピーを作成しますか？元のファイルは変更されません。"
   },
   "lyrics_rtf_missing": {
-    "de": "RTF-Anzeige benoetigt 'striprtf'.\nInstallation: pip install striprtf",
+    "de": "RTF-Anzeige benötigt 'striprtf'.\nInstallation: pip install striprtf",
     "en": "RTF display requires 'striprtf'.\nInstall: pip install striprtf",
     "ja": "RTF 表示には 'striprtf' が必要です。\nインストール: pip install striprtf"
   },
@@ -1991,7 +1991,7 @@
     "ja": "下線 (Ctrl+U)"
   },
   "tooltip_lyrics_font_size": {
-    "de": "Schriftgroesse",
+    "de": "Schriftgrösse",
     "en": "Font size",
     "ja": "文字サイズ"
   },
@@ -2016,27 +2016,27 @@
     "ja": "本文"
   },
   "lyrics_heading_h1": {
-    "de": "Ueberschrift 1",
+    "de": "Überschrift 1",
     "en": "Heading 1",
     "ja": "見出し 1"
   },
   "lyrics_heading_h2": {
-    "de": "Ueberschrift 2",
+    "de": "Überschrift 2",
     "en": "Heading 2",
     "ja": "見出し 2"
   },
   "lyrics_heading_h3": {
-    "de": "Ueberschrift 3",
+    "de": "Überschrift 3",
     "en": "Heading 3",
     "ja": "見出し 3"
   },
   "lyrics_discard_title": {
-    "de": "Aenderungen verwerfen?",
+    "de": "Änderungen verwerfen?",
     "en": "Discard changes?",
     "ja": "変更を破棄しますか？"
   },
   "lyrics_discard_msg": {
-    "de": "Du hast die Lyrics bearbeitet. Aenderungen wirklich verwerfen?",
+    "de": "Du hast die Lyrics bearbeitet. Änderungen wirklich verwerfen?",
     "en": "You have edited the lyrics. Really discard changes?",
     "ja": "Lyrics を編集しました。本当に変更を破棄しますか？"
   },
@@ -2056,22 +2056,22 @@
     "ja": "ファイルを HTML に変換しました"
   },
   "lyrics_migrated_msg": {
-    "de": "Die Lyrics wurden als HTML-Datei gespeichert:\n{new}\n\nDas Original ({old}) bleibt unveraendert im Lyrics-Ordner.",
+    "de": "Die Lyrics wurden als HTML-Datei gespeichert:\n{new}\n\nDas Original ({old}) bleibt unverändert im Lyrics-Ordner.",
     "en": "The lyrics were saved as an HTML file:\n{new}\n\nThe original ({old}) remains unchanged in the lyrics folder.",
     "ja": "Lyrics は HTML ファイルとして保存されました:\n{new}\n\n元のファイル ({old}) は Lyrics フォルダ内に変更されずに残ります。"
   },
   "lyrics_no_song_loaded": {
-    "de": "Kein Song geladen — Speichern nicht moeglich.",
+    "de": "Kein Song geladen — Speichern nicht möglich.",
     "en": "No song loaded — cannot save.",
     "ja": "曲が読み込まれていません — 保存できません。"
   },
   "dialog_location_title": {
-    "de": "Lokation auswaehlen",
+    "de": "Lokation auswählen",
     "en": "Select location",
     "ja": "ロケーションを選択"
   },
   "dialog_location_info": {
-    "de": "Lokation auswaehlen oder neue anlegen:",
+    "de": "Lokation auswählen oder neue anlegen:",
     "en": "Select or create a location:",
     "ja": "ロケーションを選択するか、新規作成してください:"
   },
@@ -2091,17 +2091,17 @@
     "ja": "名前を変更"
   },
   "tooltip_rename": {
-    "de": "Ausgewaehlte Lokation umbenennen",
+    "de": "Ausgewählte Lokation umbenennen",
     "en": "Rename selected location",
     "ja": "選択したロケーションの名前を変更"
   },
   "btn_delete": {
-    "de": "Loeschen",
+    "de": "Löschen",
     "en": "Delete",
     "ja": "削除"
   },
   "tooltip_delete": {
-    "de": "Ausgewaehlte Lokation loeschen",
+    "de": "Ausgewählte Lokation löschen",
     "en": "Delete selected location",
     "ja": "選択したロケーションを削除"
   },
@@ -2211,12 +2211,12 @@
     "ja": "標準"
   },
   "dlg_add_variant_title_music": {
-    "de": "Musik-Variante hinzufuegen",
+    "de": "Musik-Variante hinzufügen",
     "en": "Add Music Variant",
     "ja": "音楽バリアントを追加"
   },
   "dlg_add_variant_title_lyric": {
-    "de": "Lyric-Variante hinzufuegen",
+    "de": "Lyric-Variante hinzufügen",
     "en": "Add Lyric Variant",
     "ja": "Lyric バリアントを追加"
   },
@@ -2236,7 +2236,7 @@
     "ja": "例: ライブバージョン"
   },
   "tooltip_delete_variant": {
-    "de": "Variante loeschen",
+    "de": "Variante löschen",
     "en": "Delete variant",
     "ja": "バリアントを削除"
   },
@@ -2266,7 +2266,7 @@
     "ja": "ジャンプマーカーを設定"
   },
   "marker_add_prompt": {
-    "de": "Beschriftung fuer den Marker bei {time}:",
+    "de": "Beschriftung für den Marker bei {time}:",
     "en": "Caption for the marker at {time}:",
     "ja": "{time} のマーカーのキャプション:"
   },
@@ -2306,7 +2306,7 @@
     "ja": "時刻を編集"
   },
   "marker_ctx_delete": {
-    "de": "Marker loeschen",
+    "de": "Marker löschen",
     "en": "Delete marker",
     "ja": "マーカーを削除"
   },
@@ -2321,7 +2321,7 @@
     "ja": "ジャンプマーカー"
   },
   "marker_dialog_hint": {
-    "de": "Marker werden im Player mit „Marker setzen\" an der Abspielposition angelegt. Hier lassen sich Beschriftung und Zeit bearbeiten oder loeschen.",
+    "de": "Marker werden im Player mit „Marker setzen\" an der Abspielposition angelegt. Hier lassen sich Beschriftung und Zeit bearbeiten oder löschen.",
     "en": "Markers are created in the player via \"Set Marker\" at the playback position. Here you can edit their caption and time or delete them.",
     "ja": "マーカーはプレーヤーの「マーカー設定」で再生位置に作成されます。ここではキャプションと時刻の編集や削除ができます。"
   },
@@ -2416,42 +2416,42 @@
     "ja": "メモに追加"
   },
   "btn_delete_song": {
-    "de": "Song loeschen",
+    "de": "Song löschen",
     "en": "Delete song",
     "ja": "曲を削除"
   },
   "tooltip_delete_song": {
-    "de": "Loescht den Song-Datensatz aus der Datenbank (Dateien bleiben erhalten)",
+    "de": "Löscht den Song-Datensatz aus der Datenbank (Dateien bleiben erhalten)",
     "en": "Deletes the song record from the database (files are kept)",
     "ja": "データベースから曲のレコードを削除します（ファイルは残ります）"
   },
   "dialog_delete_song": {
-    "de": "Song loeschen",
+    "de": "Song löschen",
     "en": "Delete song",
     "ja": "曲を削除"
   },
   "confirm_delete_song": {
-    "de": "Song '{title}' (#{id}) wirklich loeschen?",
+    "de": "Song '{title}' (#{id}) wirklich löschen?",
     "en": "Really delete song '{title}' (#{id})?",
     "ja": "曲「{title}」(#{id}) を本当に削除しますか？"
   },
   "confirm_delete_song_info": {
-    "de": "Der Datensatz und die zugehoerige Historie werden geloescht.\nMP3- und Lyrics-Dateien bleiben erhalten.",
+    "de": "Der Datensatz und die zugehörige Historie werden gelöscht.\nMP3- und Lyrics-Dateien bleiben erhalten.",
     "en": "The record and related play history will be deleted.\nMP3 and lyrics files are kept.",
     "ja": "レコードと関連する再生履歴が削除されます。\nMP3 と Lyrics ファイルは残ります。"
   },
   "dialog_delete_location": {
-    "de": "Lokation loeschen",
+    "de": "Lokation löschen",
     "en": "Delete location",
     "ja": "ロケーションを削除"
   },
   "confirm_delete_location": {
-    "de": "Lokation '{name}' wirklich loeschen?",
+    "de": "Lokation '{name}' wirklich löschen?",
     "en": "Really delete location '{name}'?",
     "ja": "ロケーション「{name}」を本当に削除しますか？"
   },
   "delete_location_history": {
-    "de": "Historiendaten zu dieser Lokation ebenfalls loeschen",
+    "de": "Historiendaten zu dieser Lokation ebenfalls löschen",
     "en": "Also delete play history for this location",
     "ja": "このロケーションの再生履歴も削除する"
   },
@@ -2976,7 +2976,7 @@
     "ja": "名前を変更"
   },
   "genre_delete_btn": {
-    "de": "Loeschen",
+    "de": "Löschen",
     "en": "Delete",
     "ja": "削除"
   },
@@ -2991,7 +2991,7 @@
     "ja": "ジャンルの名前を変更"
   },
   "genre_delete_title": {
-    "de": "Genre loeschen",
+    "de": "Genre löschen",
     "en": "Delete genre",
     "ja": "ジャンルを削除"
   },
@@ -3011,7 +3011,7 @@
     "ja": "単に削除する（曲からこのジャンルが外れます）"
   },
   "genre_delete_confirm": {
-    "de": "Genre \"{name}\" wirklich loeschen?",
+    "de": "Genre \"{name}\" wirklich löschen?",
     "en": "Really delete genre \"{name}\"?",
     "ja": "ジャンル「{name}」を本当に削除しますか？"
   },
@@ -3021,7 +3021,7 @@
     "ja": "ジャンルを編集"
   },
   "genre_edit_hint": {
-    "de": "Genres auswaehlen oder neues Genre eingeben:",
+    "de": "Genres auswählen oder neues Genre eingeben:",
     "en": "Select genres or enter a new genre:",
     "ja": "ジャンルを選択するか、新しいジャンルを入力してください:"
   },
@@ -3036,7 +3036,7 @@
     "ja": "ジャンル名..."
   },
   "import_genre_title": {
-    "de": "Genres fuer diesen Import",
+    "de": "Genres für diesen Import",
     "en": "Genres for this import",
     "ja": "このインポートのジャンル"
   },
@@ -3081,7 +3081,7 @@
     "ja": "ヘッダー"
   },
   "seq_editor_lines_hint": {
-    "de": "Ein Call pro Zeile. Gruene Zeilen sind erkannt (gemappt oder exakter Treffer), gelbe haben einen Vorschlag mit noch fehlenden Figuren. Doppelklick auf eine Zeile oeffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
+    "de": "Ein Call pro Zeile. Grüne Zeilen sind erkannt (gemappt oder exakter Treffer), gelbe haben einen Vorschlag mit noch fehlenden Figuren. Doppelklick auf eine Zeile öffnet die Zuordnung. Maximal 15 Calls pro Sequenz.",
     "en": "One call per line. Green lines are recognized (mapped or exact match), yellow lines have a suggestion with figures still missing. Double-click a line to edit its assignment. Maximum 15 calls per sequence.",
     "ja": "1行に1つの Call。緑色の行は認識済み（マッピング済みまたは完全一致）、黄色の行にはまだ割り当てられていないフィギュアの提案があります。行をダブルクリックすると割り当てを開きます。1シーケンスあたり最大15 Call。"
   },
@@ -3136,12 +3136,12 @@
     "ja": "保存"
   },
   "seq_editor_btn_dup": {
-    "de": "Auf Duplikate pruefen",
+    "de": "Auf Duplikate prüfen",
     "en": "Check for duplicates",
     "ja": "重複をチェック"
   },
   "seq_editor_btn_dup_tooltip": {
-    "de": "Prueft, ob diese Sequenz bereits in der Datenbank existiert",
+    "de": "Prüft, ob diese Sequenz bereits in der Datenbank existiert",
     "en": "Checks whether this sequence already exists in the database",
     "ja": "このシーケンスがすでにデータベースに存在するか確認します"
   },
@@ -3166,7 +3166,7 @@
     "ja": "少なくとも1つの Call を入力してください。"
   },
   "seq_editor_too_many": {
-    "de": "{count} Calls eingegeben, aber maximal {max} sind moeglich. Bitte kuerzen.",
+    "de": "{count} Calls eingegeben, aber maximal {max} sind möglich. Bitte kürzen.",
     "en": "{count} calls entered, but the maximum is {max}. Please shorten.",
     "ja": "{count} Calls が入力されましたが、最大は {max} です。短くしてください。"
   },
@@ -3226,32 +3226,32 @@
     "ja": "重複グループ:"
   },
   "dedup_stat_delete": {
-    "de": "Zu loeschende Zeilen:",
+    "de": "Zu löschende Zeilen:",
     "en": "Rows to delete:",
     "ja": "削除する行:"
   },
   "dedup_hint": {
-    "de": "Verglichen werden alle 15 Call-Felder. Bei Duplikaten bleibt der aelteste Eintrag erhalten. Anschliessend wird die Datenbank komprimiert (VACUUM).",
+    "de": "Verglichen werden alle 15 Call-Felder. Bei Duplikaten bleibt der älteste Eintrag erhalten. Anschliessend wird die Datenbank komprimiert (VACUUM).",
     "en": "All 15 call fields are compared. For duplicates, the oldest entry is kept. The database is then compressed (VACUUM).",
     "ja": "15個すべての Call フィールドが比較されます。重複の場合は最も古いエントリが保持されます。その後データベースが圧縮されます (VACUUM)。"
   },
   "dedup_btn_clean": {
-    "de": "Duplikate loeschen",
+    "de": "Duplikate löschen",
     "en": "Delete duplicates",
     "ja": "重複を削除"
   },
   "dedup_confirm_title": {
-    "de": "Bestaetigung",
+    "de": "Bestätigung",
     "en": "Confirm",
     "ja": "確認"
   },
   "dedup_confirm_msg": {
-    "de": "{groups} Duplikat-Gruppen gefunden. {to_delete} Zeilen werden unwiderruflich geloescht. Fortfahren?",
+    "de": "{groups} Duplikat-Gruppen gefunden. {to_delete} Zeilen werden unwiderruflich gelöscht. Fortfahren?",
     "en": "{groups} duplicate groups found. {to_delete} rows will be permanently deleted. Continue?",
     "ja": "{groups} 個の重複グループが見つかりました。{to_delete} 行が完全に削除されます。続行しますか？"
   },
   "dedup_done": {
-    "de": "{deleted} Duplikate geloescht. Datenbank komprimiert.",
+    "de": "{deleted} Duplikate gelöscht. Datenbank komprimiert.",
     "en": "{deleted} duplicates deleted. Database compressed.",
     "ja": "{deleted} 件の重複を削除しました。データベースを圧縮しました。"
   },
@@ -3486,7 +3486,7 @@
     "ja": "ソース …"
   },
   "call_mapping_hint": {
-    "de": "Rot = kein Vorschlag, gelb = unsicherer Vorschlag oder Vorschlag mit mehreren Figuren (bitte pruefen), gruen = sicherer Vorschlag. Figur-Spalte: Doppelklick oder F2 oeffnet die Auswahl, Figuren anhaken. Leere Auswahl = nicht zuordnen. \"Vorschlag weicht ab\" zeigt auch gemappte Zeilen, deren Figuren vom Vorschlag abweichen.",
+    "de": "Rot = kein Vorschlag, gelb = unsicherer Vorschlag oder Vorschlag mit mehreren Figuren (bitte prüfen), grün = sicherer Vorschlag. Figur-Spalte: Doppelklick oder F2 öffnet die Auswahl, Figuren anhaken. Leere Auswahl = nicht zuordnen. \"Vorschlag weicht ab\" zeigt auch gemappte Zeilen, deren Figuren vom Vorschlag abweichen.",
     "en": "Red = no suggestion, yellow = uncertain suggestion or suggestion with several figures (please check), green = confident suggestion. Figure column: double-click or F2 opens the picker, check the figures. Empty selection = skip. \"Suggestion differs\" also shows mapped rows whose figures differ from the suggestion.",
     "ja": "赤色の行には自動提案がありません。黄色の行は不確実な提案または複数の図形の提案です（確認してください）。緑色の行は確実な提案です。図形の列: ダブルクリックまたは F2 で図形にチェックを入れてください。空の選択 = 割り当てない。「提案相違」はマッピング済みの行も表示します（図形が提案と相違する場合）。"
   },
@@ -3671,12 +3671,12 @@
     "ja": "{count} 件の割り当てを保存しました。"
   },
   "call_mapping_split_done": {
-    "de": "{occ} Komma-Splits in {seqs} Sequenzen durchgefuehrt.",
+    "de": "{occ} Komma-Splits in {seqs} Sequenzen durchgeführt.",
     "en": "{occ} comma splits applied across {seqs} sequences.",
     "ja": "{seqs} シーケンスにわたって {occ} 件のカンマ分割を適用しました。"
   },
   "call_mapping_nothing": {
-    "de": "Keine Aenderungen vorgenommen.",
+    "de": "Keine Änderungen vorgenommen.",
     "en": "No changes made.",
     "ja": "変更はありませんでした。"
   },
@@ -3781,7 +3781,7 @@
     "ja": "各単語の先頭を大文字"
   },
   "seq_import_status_empty": {
-    "de": "Keine Datei gewaehlt.",
+    "de": "Keine Datei gewählt.",
     "en": "No file selected.",
     "ja": "ファイルが選択されていません。"
   },
@@ -3801,22 +3801,22 @@
     "ja": "ファイルを解析できませんでした:\n{error}"
   },
   "seq_import_mdb_only_first": {
-    "de": "MDB-Import unterstuetzt nur eine Datei. Es wird die erste verwendet.",
+    "de": "MDB-Import unterstützt nur eine Datei. Es wird die erste verwendet.",
     "en": "MDB import supports a single file only. The first one will be used.",
     "ja": "MDB インポートは1ファイルのみ対応しています。最初のファイルが使用されます。"
   },
   "seq_import_dialog_select": {
-    "de": "Sequenz-Datei(en) waehlen",
+    "de": "Sequenz-Datei(en) wählen",
     "en": "Select sequence file(s)",
     "ja": "シーケンスファイルを選択"
   },
   "seq_import_filter": {
-    "de": "Alle unterstuetzten (*.mdb *.accdb *.json *.in *.csds *.txt *.md);;MDB (*.mdb *.accdb);;JSON (*.json);;CSDS (*.in *.csds);;Textdateien (*.txt *.md);;Alle Dateien (*.*)",
+    "de": "Alle unterstützten (*.mdb *.accdb *.json *.in *.csds *.txt *.md);;MDB (*.mdb *.accdb);;JSON (*.json);;CSDS (*.in *.csds);;Textdateien (*.txt *.md);;Alle Dateien (*.*)",
     "en": "All supported (*.mdb *.accdb *.json *.in *.csds *.txt *.md);;MDB (*.mdb *.accdb);;JSON (*.json);;CSDS (*.in *.csds);;Text files (*.txt *.md);;All files (*.*)",
     "ja": "対応するすべて (*.mdb *.accdb *.json *.in *.csds *.txt *.md);;MDB (*.mdb *.accdb);;JSON (*.json);;CSDS (*.in *.csds);;テキストファイル (*.txt *.md);;すべてのファイル (*.*)"
   },
   "seq_import_done": {
-    "de": "{inserted} Sequenzen importiert, {dupes} Duplikat(e) uebersprungen.",
+    "de": "{inserted} Sequenzen importiert, {dupes} Duplikat(e) übersprungen.",
     "en": "{inserted} sequences imported, {dupes} duplicate(s) skipped.",
     "ja": "{inserted} シーケンスをインポート、{dupes} 重複をスキップしました。"
   },
@@ -3866,7 +3866,7 @@
     "ja": "ロケーション"
   },
   "menu_select_location": {
-    "de": "Lokation auswaehlen...",
+    "de": "Lokation auswählen...",
     "en": "Select location...",
     "ja": "ロケーションを選択..."
   },
@@ -3896,12 +3896,12 @@
     "ja": "音楽パスを管理..."
   },
   "menu_change_import_dir": {
-    "de": "Import-Verzeichnis aendern...",
+    "de": "Import-Verzeichnis ändern...",
     "en": "Change import directory...",
     "ja": "インポートディレクトリを変更..."
   },
   "menu_change_lyrics_dir": {
-    "de": "Lyrics-Verzeichnis aendern...",
+    "de": "Lyrics-Verzeichnis ändern...",
     "en": "Change lyrics directory...",
     "ja": "Lyrics ディレクトリを変更..."
   },
@@ -3911,7 +3911,7 @@
     "ja": "情報"
   },
   "menu_about": {
-    "de": "Ueber Callers Caddy",
+    "de": "Über Callers Caddy",
     "en": "About Callers Caddy",
     "ja": "Callers Caddy について"
   },
@@ -3921,12 +3921,12 @@
     "ja": "言語"
   },
   "about_title": {
-    "de": "Ueber Callers Caddy",
+    "de": "Über Callers Caddy",
     "en": "About Callers Caddy",
     "ja": "Callers Caddy について"
   },
   "about_text": {
-    "de": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy ist unter der GNU General Public License (GPL) veroeffentlicht.</p><p>Hergestellt von David Goebel.</p>",
+    "de": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy ist unter der GNU General Public License (GPL) veröffentlicht.</p><p>Hergestellt von David Goebel.</p>",
     "en": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy is released under the GNU General Public License (GPL).</p><p>Created by David Goebel.</p>",
     "ja": "<h3>Callers Caddy</h3><p>バージョン {version}</p><p>Callers Caddy は GNU General Public License (GPL) の下で公開されています。</p><p>制作: David Goebel。</p>"
   },
@@ -3961,7 +3961,7 @@
     "ja": "{count} 曲をインポートしました"
   },
   "import_songs_skipped": {
-    "de": "{count} uebersprungen (bereits vorhanden)",
+    "de": "{count} übersprungen (bereits vorhanden)",
     "en": "{count} skipped (already exists)",
     "ja": "{count} スキップ（すでに存在）"
   },
@@ -3981,7 +3981,7 @@
     "ja": "ファイル '{filename}' が見つかりませんでした。\n\n検索場所:\n  音楽: {music_dir}\n  アプリ: {app_dir}"
   },
   "rule_seqtype_not_found": {
-    "de": "Sequenz-Typ '{seq_type}' nicht gefunden — Filter unveraendert.",
+    "de": "Sequenz-Typ '{seq_type}' nicht gefunden — Filter unverändert.",
     "en": "Sequence type '{seq_type}' not found — filter unchanged.",
     "ja": "シーケンスタイプ '{seq_type}' が見つかりません — フィルターは変更されません。"
   },
@@ -4001,7 +4001,7 @@
     "ja": "パス情報"
   },
   "dialog_music_dir": {
-    "de": "Musik-Verzeichnis waehlen",
+    "de": "Musik-Verzeichnis wählen",
     "en": "Select music directory",
     "ja": "音楽ディレクトリを選択"
   },
@@ -4016,7 +4016,7 @@
     "ja": "新しい音楽ディレクトリ:\n{path}\n\nINI に相対パスとして保存されました。"
   },
   "dialog_import_dir": {
-    "de": "Import-Verzeichnis waehlen",
+    "de": "Import-Verzeichnis wählen",
     "en": "Select import directory",
     "ja": "インポートディレクトリを選択"
   },
@@ -4031,7 +4031,7 @@
     "ja": "新しいインポートディレクトリ:\n{path}"
   },
   "dialog_lyrics_dir": {
-    "de": "Lyrics-Verzeichnis waehlen",
+    "de": "Lyrics-Verzeichnis wählen",
     "en": "Select lyrics directory",
     "ja": "Lyrics ディレクトリを選択"
   },
@@ -4051,7 +4051,7 @@
     "ja": "テーマを読み込み"
   },
   "dialog_skin_prompt": {
-    "de": "Theme auswaehlen:",
+    "de": "Theme auswählen:",
     "en": "Select theme:",
     "ja": "テーマを選択:"
   },
@@ -4076,7 +4076,7 @@
     "ja": "レイアウトファイル (*.ini);;すべてのファイル (*)"
   },
   "language_restart_title": {
-    "de": "Sprache geaendert",
+    "de": "Sprache geändert",
     "en": "Language changed",
     "ja": "言語が変更されました"
   },
@@ -4086,12 +4086,12 @@
     "ja": "言語の変更は再起動後に有効になります。"
   },
   "tooltip_browse_lyrics": {
-    "de": "Lyrics-Datei auswaehlen",
+    "de": "Lyrics-Datei auswählen",
     "en": "Select lyrics file",
     "ja": "Lyrics ファイルを選択"
   },
   "dialog_select_lyrics": {
-    "de": "Lyrics-Datei auswaehlen",
+    "de": "Lyrics-Datei auswählen",
     "en": "Select lyrics file",
     "ja": "Lyrics ファイルを選択"
   },
@@ -4101,12 +4101,12 @@
     "ja": "Lyrics ファイル (*.txt *.rtf *.htm *.html *.docx *.pdf);;すべてのファイル (*.*)"
   },
   "tooltip_browse_audio": {
-    "de": "Audio-Datei auswaehlen",
+    "de": "Audio-Datei auswählen",
     "en": "Select audio file",
     "ja": "オーディオファイルを選択"
   },
   "dialog_select_audio": {
-    "de": "Audio-Datei auswaehlen",
+    "de": "Audio-Datei auswählen",
     "en": "Select audio file",
     "ja": "オーディオファイルを選択"
   },
@@ -4161,12 +4161,12 @@
     "ja": "フォルダ（サブフォルダを含む）"
   },
   "dialog_import_folder": {
-    "de": "Ordner mit Audio-Dateien waehlen",
+    "de": "Ordner mit Audio-Dateien wählen",
     "en": "Select folder with audio files",
     "ja": "オーディオファイルのあるフォルダを選択"
   },
   "import_folder_empty": {
-    "de": "Im gewaehlten Ordner wurden keine Audio-Dateien gefunden.",
+    "de": "Im gewählten Ordner wurden keine Audio-Dateien gefunden.",
     "en": "No audio files found in the selected folder.",
     "ja": "選択したフォルダにオーディオファイルが見つかりませんでした。"
   },
@@ -4201,7 +4201,7 @@
     "ja": "両方"
   },
   "import_result_hint_songlist": {
-    "de": "Die neuen Songs wurden der Songliste hinzugefuegt.",
+    "de": "Die neuen Songs wurden der Songliste hinzugefügt.",
     "en": "The new songs have been added to the Song List.",
     "ja": "新しい曲が曲リストに追加されました。"
   },
@@ -4236,7 +4236,7 @@
     "ja": "ソースパスを音楽パス {slot} として追加しますか？\n\n{path}"
   },
   "import_slots_full": {
-    "de": "Alle 4 Musikpfade sind bereits belegt.\nBitte einen Pfad manuell freigeben\n(Menue → Pfade → Musikpfade verwalten).",
+    "de": "Alle 4 Musikpfade sind bereits belegt.\nBitte einen Pfad manuell freigeben\n(Menü → Pfade → Musikpfade verwalten).",
     "en": "All 4 music paths are already occupied.\nPlease free a slot manually\n(Menu → Paths → Manage music paths).",
     "ja": "4つの音楽パスはすべて使用済みです。\n手動でスロットを空けてください\n（メニュー → パス → 音楽パスを管理）。"
   },
@@ -4246,7 +4246,7 @@
     "ja": "音楽ライブラリを再インデックス..."
   },
   "reindex_no_slots": {
-    "de": "Es sind keine Musikpfade konfiguriert.\nBitte zuerst einen Musikpfad eintragen\n(Menue → Pfade → Musikpfade verwalten).",
+    "de": "Es sind keine Musikpfade konfiguriert.\nBitte zuerst einen Musikpfad eintragen\n(Menü → Pfade → Musikpfade verwalten).",
     "en": "No music paths are configured.\nPlease add a music path first\n(Menu → Paths → Manage music paths).",
     "ja": "音楽パスが設定されていません。\nまず音楽パスを追加してください\n（メニュー → パス → 音楽パスを管理）。"
   },
@@ -4301,7 +4301,7 @@
     "ja": "音楽パスを保存しました。"
   },
   "music_dirs_dialog_title": {
-    "de": "Pfad {slot} waehlen",
+    "de": "Pfad {slot} wählen",
     "en": "Select path {slot}",
     "ja": "パス {slot} を選択"
   },
@@ -4327,12 +4327,12 @@
     "ja": "Callers Caddy — 移行ツール"
   },
   "mig_source_group": {
-    "de": "Quellsystem waehlen",
+    "de": "Quellsystem wählen",
     "en": "Select source system",
     "ja": "ソースシステムを選択"
   },
   "mig_source_question": {
-    "de": "Von welchem Programm moechten Sie Ihre Daten uebernehmen?",
+    "de": "Von welchem Programm möchten Sie Ihre Daten übernehmen?",
     "en": "Which program would you like to import your data from?",
     "ja": "どのプログラムからデータを取り込みますか？"
   },
@@ -4357,12 +4357,12 @@
     "ja": "SDPlayer"
   },
   "mig_coming_soon": {
-    "de": "Kommt demnaechst",
+    "de": "Kommt demnächst",
     "en": "Coming soon",
     "ja": "近日公開"
   },
   "mig_coming_soon_detail": {
-    "de": "Migration von {source}\n\nDiese Funktion wird in einer zukuenftigen\nVersion verfuegbar sein.",
+    "de": "Migration von {source}\n\nDiese Funktion wird in einer zukünftigen\nVersion verfügbar sein.",
     "en": "Migration from {source}\n\nThis feature will be available\nin a future version.",
     "ja": "{source} からの移行\n\nこの機能は今後の\nバージョンで利用可能になります。"
   },
@@ -4372,7 +4372,7 @@
     "ja": "⚠ まだテスト段階です。自己責任でご利用ください！"
   },
   "mig_sqv_beta_warning": {
-    "de": "⚠ ACHTUNG: Die SqView-Migration befindet sich noch im Test-Stadium.\nBenutzung auf eigene Gefahr! Bitte pruefen Sie die migrierten Daten sorgfaeltig.",
+    "de": "⚠ ACHTUNG: Die SqView-Migration befindet sich noch im Test-Stadium.\nBenutzung auf eigene Gefahr! Bitte prüfen Sie die migrierten Daten sorgfältig.",
     "en": "⚠ WARNING: The SqView migration is still in testing.\nUse at your own risk! Please check the migrated data carefully.",
     "ja": "⚠ 警告: SqView 移行はまだテスト段階です。\n自己責任でご利用ください！移行されたデータを慎重に確認してください。"
   },
@@ -4387,7 +4387,7 @@
     "ja": "SqView フォルダ"
   },
   "mig_sqv_browse_folder": {
-    "de": "SqView-Ordner waehlen",
+    "de": "SqView-Ordner wählen",
     "en": "Select SqView folder",
     "ja": "SqView フォルダを選択"
   },
@@ -4407,7 +4407,7 @@
     "ja": "Lyrics フォルダ（任意）"
   },
   "mig_sqv_browse_db": {
-    "de": "SqView-Datenbank waehlen",
+    "de": "SqView-Datenbank wählen",
     "en": "Select SqView database",
     "ja": "SqView データベースを選択"
   },
@@ -4422,12 +4422,12 @@
     "ja": "✅ SqView DB: {songs} 曲、{locations} ロケーション、{history} 再生、{lyrics} Lyrics 関連付け"
   },
   "mig_sqv_status_db_missing": {
-    "de": "❌ Bitte sqview.db auswaehlen",
+    "de": "❌ Bitte sqview.db auswählen",
     "en": "❌ Please select sqview.db",
     "ja": "❌ sqview.db を選択してください"
   },
   "mig_sqv_confirm_msg": {
-    "de": "SqView-Migration starten?\n\nDie Daten werden in den Zielordner kopiert.\nVorhandene Dateien werden nicht ueberschrieben.\n\n⚠ Diese Funktion ist noch im Test-Stadium!",
+    "de": "SqView-Migration starten?\n\nDie Daten werden in den Zielordner kopiert.\nVorhandene Dateien werden nicht überschrieben.\n\n⚠ Diese Funktion ist noch im Test-Stadium!",
     "en": "Start SqView migration?\n\nData will be copied to the target folder.\nExisting files will not be overwritten.\n\n⚠ This feature is still in testing!",
     "ja": "SqView 移行を開始しますか？\n\nデータは対象フォルダにコピーされます。\n既存のファイルは上書きされません。\n\n⚠ この機能はまだテスト段階です！"
   },
@@ -4447,7 +4447,7 @@
     "ja": "次へ"
   },
   "mig_btn_back": {
-    "de": "Zurueck",
+    "de": "Zurück",
     "en": "Back",
     "ja": "戻る"
   },
@@ -4497,7 +4497,7 @@
     "ja": "プログラムフォルダ:"
   },
   "mig_status_choose": {
-    "de": "Bitte Quelle und Ziel waehlen.",
+    "de": "Bitte Quelle und Ziel wählen.",
     "en": "Please select source and target.",
     "ja": "ソースとターゲットを選択してください。"
   },
@@ -4507,32 +4507,32 @@
     "ja": "  ✔ 移行  "
   },
   "mig_browse_mdb": {
-    "de": "Access-Datenbank waehlen",
+    "de": "Access-Datenbank wählen",
     "en": "Select Access database",
     "ja": "Access データベースを選択"
   },
   "mig_browse_songs": {
-    "de": "Songs-Ordner waehlen",
+    "de": "Songs-Ordner wählen",
     "en": "Select songs folder",
     "ja": "Songs フォルダを選択"
   },
   "mig_browse_lyrics": {
-    "de": "Lyrics-Ordner waehlen",
+    "de": "Lyrics-Ordner wählen",
     "en": "Select lyrics folder",
     "ja": "Lyrics フォルダを選択"
   },
   "mig_browse_playlists": {
-    "de": "Playlists-Ordner waehlen",
+    "de": "Playlists-Ordner wählen",
     "en": "Select playlists folder",
     "ja": "Playlists フォルダを選択"
   },
   "mig_browse_notes": {
-    "de": "Notes-Ordner waehlen",
+    "de": "Notes-Ordner wählen",
     "en": "Select notes folder",
     "ja": "Notes フォルダを選択"
   },
   "mig_browse_target": {
-    "de": "Zielordner waehlen",
+    "de": "Zielordner wählen",
     "en": "Select target folder",
     "ja": "ターゲットフォルダを選択"
   },
@@ -4552,7 +4552,7 @@
     "ja": "✗ データベース: エラー ({error})"
   },
   "mig_status_db_missing": {
-    "de": "✗ Datenbank: nicht gewaehlt",
+    "de": "✗ Datenbank: nicht gewählt",
     "en": "✗ Database: not selected",
     "ja": "✗ データベース: 未選択"
   },
@@ -4562,7 +4562,7 @@
     "ja": "✓ Songs フォルダ: {count} MP3 ファイル"
   },
   "mig_status_songs_missing": {
-    "de": "✗ Songs-Ordner: nicht gewaehlt",
+    "de": "✗ Songs-Ordner: nicht gewählt",
     "en": "✗ Songs folder: not selected",
     "ja": "✗ Songs フォルダ: 未選択"
   },
@@ -4572,7 +4572,7 @@
     "ja": "✓ Lyrics: {count} ファイル"
   },
   "mig_status_lyrics_optional": {
-    "de": "⚠ Lyrics: nicht gewaehlt (optional)",
+    "de": "⚠ Lyrics: nicht gewählt (optional)",
     "en": "⚠ Lyrics: not selected (optional)",
     "ja": "⚠ Lyrics: 未選択（任意）"
   },
@@ -4582,7 +4582,7 @@
     "ja": "✓ Playlists: {count} ファイル"
   },
   "mig_status_playlists_optional": {
-    "de": "⚠ Playlists: nicht gewaehlt (optional)",
+    "de": "⚠ Playlists: nicht gewählt (optional)",
     "en": "⚠ Playlists: not selected (optional)",
     "ja": "⚠ Playlists: 未選択（任意）"
   },
@@ -4592,7 +4592,7 @@
     "ja": "✓ Notes: {count} ファイル"
   },
   "mig_status_notes_optional": {
-    "de": "⚠ Notes: nicht gewaehlt (optional)",
+    "de": "⚠ Notes: nicht gewählt (optional)",
     "en": "⚠ Notes: not selected (optional)",
     "ja": "⚠ Notes: 未選択（任意）"
   },
@@ -4602,7 +4602,7 @@
     "ja": "✓ ターゲットフォルダ: {path}"
   },
   "mig_status_target_missing": {
-    "de": "✗ Zielordner: nicht gewaehlt",
+    "de": "✗ Zielordner: nicht gewählt",
     "en": "✗ Target folder: not selected",
     "ja": "✗ ターゲットフォルダ: 未選択"
   },
@@ -4642,7 +4642,7 @@
     "ja": "音楽ライブラリのルートフォルダを選択してください。曲はこのフォルダからの相対パスで保存されます（サブフォルダは保持されます）。"
   },
   "mig_confirm_msg": {
-    "de": "Sollen die Daten jetzt migriert werden?\n\nBestehende Daten im Zielordner werden NICHT ueberschrieben.",
+    "de": "Sollen die Daten jetzt migriert werden?\n\nBestehende Daten im Zielordner werden NICHT überschrieben.",
     "en": "Migrate data now?\n\nExisting data in the target folder will NOT be overwritten.",
     "ja": "今すぐデータを移行しますか？\n\nターゲットフォルダ内の既存データは上書きされません。"
   },
@@ -4673,7 +4673,7 @@
     "ja": "Access 97 データベースを読み込み中..."
   },
   "mig_log_mdb_summary": {
-    "de": "  {songs} Songs, {groups} Gruppen, {history} Historie-Eintraege gelesen.",
+    "de": "  {songs} Songs, {groups} Gruppen, {history} Historie-Einträge gelesen.",
     "en": "  {songs} songs, {groups} groups, {history} history entries read.",
     "ja": "  {songs} 曲、{groups} グループ、{history} 履歴エントリを読み込みました。"
   },
@@ -4758,7 +4758,7 @@
     "ja": "    うち {lyrics} 件は Lyrics 付き、{bpm} 件は BPM 付き、{loops} 件は Loop マーク付き、{quality} 件は評価付き"
   },
   "mig_log_genres_done": {
-    "de": "  Genres: {genres} Genres, {links} Verknuepfungen.",
+    "de": "  Genres: {genres} Genres, {links} Verknüpfungen.",
     "en": "  Genres: {genres} genres, {links} links.",
     "ja": "  Genres: {genres} ジャンル、{links} 関連付け。"
   },
@@ -4773,22 +4773,22 @@
     "ja": "  ロケーション: {count} 件を移行しました。"
   },
   "mig_log_migrating_history": {
-    "de": "\nMigriere {count} Historie-Eintraege...",
+    "de": "\nMigriere {count} Historie-Einträge...",
     "en": "\nMigrating {count} history entries...",
     "ja": "\n{count} 件の履歴エントリを移行中..."
   },
   "mig_log_history_done": {
-    "de": "  Historie: {count} Eintraege migriert.",
+    "de": "  Historie: {count} Einträge migriert.",
     "en": "  History: {count} entries migrated.",
     "ja": "  履歴: {count} 件のエントリを移行しました。"
   },
   "mig_log_history_no_song": {
-    "de": "  ⚠ {count} Eintraege ohne Song-Match uebersprungen.",
+    "de": "  ⚠ {count} Einträge ohne Song-Match übersprungen.",
     "en": "  ⚠ {count} entries without song match skipped.",
     "ja": "  ⚠ 曲と一致しない {count} 件のエントリをスキップしました。"
   },
   "mig_log_history_no_group": {
-    "de": "  ⚠ {count} Eintraege ohne Gruppen-Match (location_id=NULL).",
+    "de": "  ⚠ {count} Einträge ohne Gruppen-Match (location_id=NULL).",
     "en": "  ⚠ {count} entries without group match (location_id=NULL).",
     "ja": "  ⚠ グループと一致しない {count} 件のエントリ (location_id=NULL)。"
   },
@@ -4908,7 +4908,7 @@
     "ja": "  {count} 件の明示的な曲-Lyrics 割り当て (marry) を検出しました"
   },
   "mig_sqv_log_blind_mode": {
-    "de": "Kein MP3-Ordner angegeben — Blind-Import: Songs werden ohne Datei eingetragen und koennen spaeter per normalen Import aktiviert werden.",
+    "de": "Kein MP3-Ordner angegeben — Blind-Import: Songs werden ohne Datei eingetragen und können später per normalen Import aktiviert werden.",
     "en": "No MP3 folder given — blind import: songs are recorded without a file and can be activated later via the normal import.",
     "ja": "MP3 フォルダが指定されていません — ブラインドインポート: 曲はファイルなしで登録され、後で通常のインポートで有効化できます。"
   },
@@ -4963,7 +4963,7 @@
     "ja": "{count} 件は MP3 ファイル付き（{copied} 件を新規コピー）"
   },
   "mig_sqv_songs_blind": {
-    "de": "{count} Blind-Eintraege (MP3 fehlt — spaeter per Import nachladbar)",
+    "de": "{count} Blind-Einträge (MP3 fehlt — später per Import nachladbar)",
     "en": "{count} blind entries (MP3 missing — loadable later via import)",
     "ja": "{count} 件のブラインドエントリ（MP3 なし — 後でインポートで読み込み可能）"
   },
@@ -4978,7 +4978,7 @@
     "ja": "{count} 件は Loop 点付き"
   },
   "mig_sqv_songs_pitch": {
-    "de": "{count} mit Pitch-Aenderung",
+    "de": "{count} mit Pitch-Änderung",
     "en": "{count} with pitch change",
     "ja": "{count} 件は Pitch 変更付き"
   },
@@ -5018,7 +5018,7 @@
     "ja": "{count} 件の再生は曲と一致しませんでした"
   },
   "mig_sqv_summary_songs": {
-    "de": "  Songs:      {count}  (davon {blind} Blind-Eintraege ohne MP3)",
+    "de": "  Songs:      {count}  (davon {blind} Blind-Einträge ohne MP3)",
     "en": "  Songs:      {count}  ({blind} blind entries without MP3)",
     "ja": "  曲:         {count}  （うち {blind} 件は MP3 なしのブラインドエントリ）"
   },
@@ -5028,7 +5028,7 @@
     "ja": "  分類:       {patter} Patter、{singing} Singing（うち {both} 件 P&S）"
   },
   "mig_sqv_summary_blind_note": {
-    "de": "Blind-Songs: MP3s spaeter per 'Dateien importieren' nachliefern — bestehende Eintraege werden automatisch aktiviert.",
+    "de": "Blind-Songs: MP3s später per 'Dateien importieren' nachliefern — bestehende Einträge werden automatisch aktiviert.",
     "en": "Blind songs: add MP3s later via 'Import files' — existing entries are activated automatically.",
     "ja": "ブラインド曲: 後で「ファイルをインポート」で MP3 を追加してください — 既存のエントリは自動的に有効化されます。"
   },
@@ -5228,7 +5228,7 @@
     "ja": "システムレポート"
   },
   "system_report_done": {
-    "de": "System-Report erstellt:\n\n{path}\n\nDer Ordner wird geoeffnet.",
+    "de": "System-Report erstellt:\n\n{path}\n\nDer Ordner wird geöffnet.",
     "en": "System report created:\n\n{path}\n\nOpening folder.",
     "ja": "システムレポートを作成しました:\n\n{path}\n\nフォルダを開きます。"
   },
@@ -5488,7 +5488,7 @@
     "ja": "MP3 なし"
   },
   "pot_no_quality": {
-    "de": "Ohne Qualitaet",
+    "de": "Ohne Qualität",
     "en": "No Quality",
     "ja": "品質なし"
   },
@@ -5503,7 +5503,7 @@
     "ja": "問題"
   },
   "pot_col_count": {
-    "de": "Eintraege",
+    "de": "Einträge",
     "en": "Entries",
     "ja": "エントリ"
   },
@@ -5518,27 +5518,27 @@
     "ja": "すべて整理"
   },
   "pot_cleanup_confirm": {
-    "de": "{count} verwaiste Historieneintraege loeschen?",
+    "de": "{count} verwaiste Historieneinträge löschen?",
     "en": "Delete {count} orphaned history entries?",
     "ja": "{count} 件の孤立した履歴エントリを削除しますか？"
   },
   "pot_cleanup_done": {
-    "de": "{count} Eintraege bereinigt.",
+    "de": "{count} Einträge bereinigt.",
     "en": "{count} entries cleaned up.",
     "ja": "{count} 件のエントリを整理しました。"
   },
   "pot_fix_all_loop": {
-    "de": "Auto-Loop fuer alle",
+    "de": "Auto-Loop für alle",
     "en": "Auto-loop all",
     "ja": "すべて自動 Loop"
   },
   "pot_fix_all_beatsnap": {
-    "de": "Beat-Snap fuer alle",
+    "de": "Beat-Snap für alle",
     "en": "Beat-snap all",
     "ja": "すべて Beat-Snap"
   },
   "pot_fix_all_locations": {
-    "de": "Leere Lokationen loeschen",
+    "de": "Leere Lokationen löschen",
     "en": "Delete empty locations",
     "ja": "空のロケーションを削除"
   },
@@ -5548,12 +5548,12 @@
     "ja": "{count} 曲に自動的に Loop が設定されます。\n\nまず {sample} 件のサンプルを使って所要時間を見積もります。\n\n注意: 曲数と PC の性能によっては数分かかることがあります。\n\n続行しますか？"
   },
   "pot_fix_all_loop_timing": {
-    "de": "Geschaetzte Dauer: ~{minutes:.0f} Minute(n) fuer {count} Songs.\n\nFortfahren?",
+    "de": "Geschätzte Dauer: ~{minutes:.0f} Minute(n) für {count} Songs.\n\nFortfahren?",
     "en": "Estimated duration: ~{minutes:.0f} minute(s) for {count} songs.\n\nProceed?",
     "ja": "推定所要時間: {count} 曲で約 {minutes:.0f} 分。\n\n続行しますか？"
   },
   "pot_fix_all_beatsnap_confirm": {
-    "de": "{count} Songs sollen auf die naechstgelegenen Beats gesnapped werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nFortfahren?",
+    "de": "{count} Songs sollen auf die nächstgelegenen Beats gesnapped werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen.\n\nFortfahren?",
     "en": "{count} songs will be snapped to the nearest beats.\n\nFirst, the estimated duration will be measured using {sample} samples.\n\nProceed?",
     "ja": "{count} 曲が最寄りのビートにスナップされます。\n\nまず {sample} 件のサンプルを使って所要時間を見積もります。\n\n続行しますか？"
   },
@@ -5563,7 +5563,7 @@
     "ja": "BPM なし"
   },
   "pot_no_bpm_desc": {
-    "de": "Songs ohne gesetzte BPM oder mit unplausiblem Wert (kleiner 100 oder groesser 150). Diese sind Kandidaten fuer die automatische BPM-Ermittlung.",
+    "de": "Songs ohne gesetzte BPM oder mit unplausiblem Wert (kleiner 100 oder grösser 150). Diese sind Kandidaten für die automatische BPM-Ermittlung.",
     "en": "Songs without a BPM value or with an implausible one (below 100 or above 150). These are candidates for automatic BPM detection.",
     "ja": "BPM が未設定、または妥当でない値（100 未満または 150 超）の曲。自動 BPM 検出の候補です。"
   },
@@ -5608,17 +5608,17 @@
     "ja": "{count} 曲は処理できませんでした — 音声ファイルがありません（「MP3 なし」タブを参照）:"
   },
   "pot_no_bpm_confirm": {
-    "de": "Fuer {count} Song(s) soll die BPM automatisch ermittelt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt uebernommen werden).\n\nFortfahren?",
+    "de": "Für {count} Song(s) soll die BPM automatisch ermittelt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt übernommen werden).\n\nFortfahren?",
     "en": "BPM will be detected automatically for {count} song(s).\n\nFirst, the estimated duration is measured using {sample} samples (whose results are kept).\n\nProceed?",
     "ja": "{count} 曲の BPM を自動検出します。\n\nまず {sample} 件のサンプルで所要時間を見積もります（その結果はそのまま使用されます）。\n\n続行しますか？"
   },
   "pot_no_bpm_confirm_direct": {
-    "de": "Fuer {count} Song(s) soll die BPM automatisch ermittelt werden.\n\nFortfahren?",
+    "de": "Für {count} Song(s) soll die BPM automatisch ermittelt werden.\n\nFortfahren?",
     "en": "BPM will be detected automatically for {count} song(s).\n\nProceed?",
     "ja": "{count} 曲の BPM を自動検出します。\n\n続行しますか？"
   },
   "pot_no_bpm_all_warn": {
-    "de": "Achtung: Der BPM-Finder wird ueber ALLE {count} Songs in der Datenbank laufen — auch ueber solche mit bereits gesetzter, gueltiger BPM. Bestehende Werte werden dabei ueberschrieben.\n\nWirklich alle ermitteln?",
+    "de": "Achtung: Der BPM-Finder wird über ALLE {count} Songs in der Datenbank laufen — auch über solche mit bereits gesetzter, gültiger BPM. Bestehende Werte werden dabei überschrieben.\n\nWirklich alle ermitteln?",
     "en": "Warning: The BPM finder will run over ALL {count} songs in the database — including those with an already valid BPM. Existing values will be overwritten.\n\nReally detect all?",
     "ja": "警告: BPM ファインダーはデータベース内の {count} 曲すべて（既に有効な BPM がある曲を含む）に対して実行され、既存の値は上書きされます。\n\n本当にすべて検出しますか？"
   },
@@ -5628,7 +5628,7 @@
     "ja": "曲頭なし"
   },
   "pot_no_sstart_desc": {
-    "de": "Singing Calls, fuer die noch kein Musik-Startpunkt gesetzt ist. Der Anfang (und das daraus abgeleitete Ende) wird automatisch aus SyncPoints und Song-Analyse ermittelt. Unsichere Treffer werden trotzdem gesetzt, bekommen aber das Genre „CHECK: START\" als To-Do — danach filterbar zur manuellen Pruefung.",
+    "de": "Singing Calls, für die noch kein Musik-Startpunkt gesetzt ist. Der Anfang (und das daraus abgeleitete Ende) wird automatisch aus SyncPoints und Song-Analyse ermittelt. Unsichere Treffer werden trotzdem gesetzt, bekommen aber das Genre „CHECK: START\" als To-Do — danach filterbar zur manuellen Prüfung.",
     "en": "Singing calls without a music start point set. The start (and the end derived from it) is detected automatically from sync points and song analysis. Uncertain matches are still written but tagged with the 'CHECK: START' genre as a to-do — filter by it for manual review.",
     "ja": "音楽の開始位置が未設定の Singing Call。開始位置（およびそこから導かれる終了位置）は SyncPoint と曲解析から自動検出されます。不確実な結果も書き込まれますが、To-Do として「CHECK: START」ジャンルが付与され、後で絞り込んで手動確認できます。"
   },
@@ -5663,27 +5663,27 @@
     "ja": "該当する曲が見つかりませんでした。"
   },
   "pot_no_sstart_confirm": {
-    "de": "Fuer {count} Song(s) soll der Anfang automatisch ermittelt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt uebernommen werden).\n\nFortfahren?",
+    "de": "Für {count} Song(s) soll der Anfang automatisch ermittelt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt übernommen werden).\n\nFortfahren?",
     "en": "The start will be detected automatically for {count} song(s).\n\nFirst, the estimated duration is measured using {sample} samples (whose results are kept).\n\nProceed?",
     "ja": "{count} 曲の開始位置を自動検出します。\n\nまず {sample} 件のサンプルで所要時間を見積もります（その結果はそのまま使用されます）。\n\n続行しますか？"
   },
   "pot_no_sstart_confirm_direct": {
-    "de": "Fuer {count} Song(s) soll der Anfang automatisch ermittelt werden.\n\nFortfahren?",
+    "de": "Für {count} Song(s) soll der Anfang automatisch ermittelt werden.\n\nFortfahren?",
     "en": "The start will be detected automatically for {count} song(s).\n\nProceed?",
     "ja": "{count} 曲の開始位置を自動検出します。\n\n続行しますか？"
   },
   "pot_no_sstart_all_warn": {
-    "de": "Achtung: Die Analyse laeuft ueber ALLE {count} Singing Calls — auch ueber solche mit bereits gesetztem Startpunkt. Bestehende Start-/End-Werte werden dabei ueberschrieben.\n\nWirklich alle analysieren?",
+    "de": "Achtung: Die Analyse läuft über ALLE {count} Singing Calls — auch über solche mit bereits gesetztem Startpunkt. Bestehende Start-/End-Werte werden dabei überschrieben.\n\nWirklich alle analysieren?",
     "en": "Warning: The analysis will run over ALL {count} singing calls — including those with a start point already set. Existing start/end values will be overwritten.\n\nReally analyze all?",
     "ja": "警告: 解析はすべての {count} 件の Singing Call（既に開始位置が設定されている曲を含む）に対して実行され、既存の開始/終了値は上書きされます。\n\n本当にすべて解析しますか？"
   },
   "pot_no_sstart_done": {
-    "de": "{done} von {total} Songs mit Anfang + Ende versehen. {skipped} uebersprungen (keine Erkennung moeglich).",
+    "de": "{done} von {total} Songs mit Anfang + Ende versehen. {skipped} übersprungen (keine Erkennung möglich).",
     "en": "{done} of {total} songs given a start + end. {skipped} skipped (no detection possible).",
     "ja": "{total} 曲中 {done} 曲に開始+終了を設定しました。{skipped} 件をスキップ（検出できませんでした）。"
   },
   "pot_no_sstart_marked_hint": {
-    "de": "{count} Song(s) waren unsicher — gesetzt, aber mit dem Genre „CHECK: START\" markiert. Nach diesem Genre filtern und im Sync-Modus pruefen (der Marker verschwindet beim Neusetzen automatisch):",
+    "de": "{count} Song(s) waren unsicher — gesetzt, aber mit dem Genre „CHECK: START\" markiert. Nach diesem Genre filtern und im Sync-Modus prüfen (der Marker verschwindet beim Neusetzen automatisch):",
     "en": "{count} song(s) were uncertain — set, but tagged with the 'CHECK: START' genre. Filter by it and review them in sync mode (the marker clears automatically when you re-set the start):",
     "ja": "{count} 曲は不確実でした — 設定済みですが「CHECK: START」ジャンルが付与されています。このジャンルで絞り込み、Sync モードで確認してください（再設定するとマーカーは自動的に消えます）:"
   },
@@ -5693,12 +5693,12 @@
     "ja": "キャンセル"
   },
   "pot_fix_all_locations_confirm": {
-    "de": "{count} Lokation(en) ohne Abspielhistorie loeschen?\n\nDiese Lokationen wurden noch nie bespielt.",
+    "de": "{count} Lokation(en) ohne Abspielhistorie löschen?\n\nDiese Lokationen wurden noch nie bespielt.",
     "en": "Delete {count} location(s) without play history?\n\nThese locations have never been played.",
     "ja": "再生履歴のない {count} 件のロケーションを削除しますか？\n\nこれらのロケーションは一度も使用されていません。"
   },
   "pot_fix_all_done": {
-    "de": "{done} von {total} Songs erfolgreich bearbeitet. {skipped} uebersprungen (Datei nicht gefunden).",
+    "de": "{done} von {total} Songs erfolgreich bearbeitet. {skipped} übersprungen (Datei nicht gefunden).",
     "en": "{done} of {total} songs processed successfully. {skipped} skipped (file not found).",
     "ja": "{total} 曲中 {done} 曲を正常に処理しました。{skipped} 件をスキップ（ファイルが見つかりません）。"
   },
@@ -5793,7 +5793,7 @@
     "ja": "孤立した履歴を整理"
   },
   "pot_fix_all_locations_done": {
-    "de": "{count} Lokation(en) geloescht.",
+    "de": "{count} Lokation(en) gelöscht.",
     "en": "{count} location(s) deleted.",
     "ja": "{count} 件のロケーションを削除しました。"
   },
@@ -5823,42 +5823,42 @@
     "ja": "Lyrics はあるが Sync ポイントのない Singing Call"
   },
   "pot_fix_sel_sync": {
-    "de": "Selektierte Lieder ergaenzen",
+    "de": "Selektierte Lieder ergänzen",
     "en": "Fill selected songs",
     "ja": "選択した曲を補完"
   },
   "pot_fix_all_sync": {
-    "de": "Alle Lieder der Liste ergaenzen",
+    "de": "Alle Lieder der Liste ergänzen",
     "en": "Fill all songs in list",
     "ja": "リスト内のすべての曲を補完"
   },
   "pot_sync_confirm": {
-    "de": "Fuer {count} Song(s) sollen die Sync-Punkte automatisch gesetzt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt eingetragen werden).\n\nFortfahren?",
+    "de": "Für {count} Song(s) sollen die Sync-Punkte automatisch gesetzt werden.\n\nZuerst wird die voraussichtliche Dauer anhand von {sample} Stichproben gemessen (deren Ergebnisse direkt eingetragen werden).\n\nFortfahren?",
     "en": "Sync points will be set automatically for {count} song(s).\n\nFirst the expected duration is measured using {sample} samples (their results are saved right away).\n\nProceed?",
     "ja": "{count} 曲の Sync ポイントを自動で設定します。\n\n最初に {sample} 曲で所要時間を測定します（その結果はそのまま保存されます）。\n\n続行しますか？"
   },
   "pot_sync_confirm_direct": {
-    "de": "Fuer {count} Song(s) sollen die Sync-Punkte automatisch gesetzt werden.\n\nFortfahren?",
+    "de": "Für {count} Song(s) sollen die Sync-Punkte automatisch gesetzt werden.\n\nFortfahren?",
     "en": "Sync points will be set automatically for {count} song(s).\n\nProceed?",
     "ja": "{count} 曲の Sync ポイントを自動で設定します。\n\n続行しますか？"
   },
   "pot_sync_done": {
-    "de": "{done} von {total} Songs mit Sync-Punkten versehen. {skipped} uebersprungen.",
+    "de": "{done} von {total} Songs mit Sync-Punkten versehen. {skipped} übersprungen.",
     "en": "{done} of {total} songs given sync points. {skipped} skipped.",
     "ja": "{total} 曲中 {done} 曲に Sync ポイントを設定しました。{skipped} 曲はスキップされました。"
   },
   "pot_sync_none": {
-    "de": "Keine Songs zu ergaenzen.",
+    "de": "Keine Songs zu ergänzen.",
     "en": "No songs to fill.",
     "ja": "補完する曲はありません。"
   },
   "pot_sync_skipped_hint": {
-    "de": "{count} Song(s) uebersprungen — die Lyrics liessen keine Abschnitte erkennen:",
+    "de": "{count} Song(s) übersprungen — die Lyrics liessen keine Abschnitte erkennen:",
     "en": "{count} song(s) skipped — no sections could be detected in the lyrics:",
     "ja": "{count} 曲をスキップ — Lyrics からセクションを検出できませんでした:"
   },
   "pot_sync_missing_hint": {
-    "de": "{count} Song(s) uebersprungen — Voraussetzungen nicht erfuellt:",
+    "de": "{count} Song(s) übersprungen — Voraussetzungen nicht erfüllt:",
     "en": "{count} song(s) skipped — prerequisites not met:",
     "ja": "{count} 曲をスキップ — 前提条件を満たしていません:"
   },
@@ -5903,7 +5903,7 @@
     "ja": "再生履歴のないロケーション"
   },
   "pot_desc_history_orphaned": {
-    "de": "Geloeschte Lokation (ID {id})",
+    "de": "Gelöschte Lokation (ID {id})",
     "en": "Deleted location (ID {id})",
     "ja": "削除されたロケーション (ID {id})"
   },
@@ -5918,7 +5918,7 @@
     "ja": "MP3 ファイルが見つかりません"
   },
   "pot_desc_no_quality": {
-    "de": "Qualitaet nicht bewertet",
+    "de": "Qualität nicht bewertet",
     "en": "Quality not rated",
     "ja": "品質が未評価"
   },
@@ -6078,7 +6078,7 @@
     "ja": "Loop を最適化"
   },
   "pot_loop_optimize_desc": {
-    "de": "Optimiert die Sprungmarken aller Patter-Songs, die bereits einen Loop haben — ideal nach dem Import aus SqView. Es wird in einem engen Fenster um die vorhandenen Marken nach dem klanglich saubersten Loop gesucht. Songs ohne Loop bleiben unberuehrt (dafuer gibt es den Reiter 'Pattern ohne Loop').",
+    "de": "Optimiert die Sprungmarken aller Patter-Songs, die bereits einen Loop haben — ideal nach dem Import aus SqView. Es wird in einem engen Fenster um die vorhandenen Marken nach dem klanglich saubersten Loop gesucht. Songs ohne Loop bleiben unberührt (dafür gibt es den Reiter 'Pattern ohne Loop').",
     "en": "Optimizes the loop markers of all patter songs that already have a loop — ideal after importing from SqView. It searches a tight window around the existing markers for the cleanest-sounding loop. Songs without a loop are left untouched (use the 'Pattern without loop' tab for those).",
     "ja": "すでに Loop を持つすべての Patter 曲の Loop マーカーを最適化します — SqView からのインポート後に最適です。既存のマーカー周辺の狭い範囲で最もクリーンに聞こえる Loop を探します。Loop のない曲はそのままです（その場合は「Loop のない Patter」タブを使用してください）。"
   },
@@ -6269,7 +6269,7 @@
     "ja": "Tutorials"
   },
   "tutorial.menu_reset_all": {
-    "de": "Alle Tutorials zuruecksetzen",
+    "de": "Alle Tutorials zurücksetzen",
     "en": "Reset all tutorials",
     "ja": "すべてのチュートリアルをリセット"
   },
@@ -6349,7 +6349,7 @@
     "ja": "レイアウトツアーを開始"
   },
   "tutorial.layout.offer_text": {
-    "de": "Darf ich dir die Moeglichkeiten zeigen, wie du dir dein eigenes Layout optimierst?",
+    "de": "Darf ich dir die Möglichkeiten zeigen, wie du dir dein eigenes Layout optimierst?",
     "en": "May I show you how to customize your own layout?",
     "ja": "自分だけのレイアウトを最適化する方法をご紹介しましょうか？"
   },
@@ -6364,7 +6364,7 @@
     "ja": "すべてのウィジェットにはタイトルバーがあります。マウスでドラッグしてウィジェットを別の位置に移動できます。ウィジェットは並べて、上下に重ねて、またはタブとして重ねて配置できます。青いプレビューがドッキング先を示します。"
   },
   "tutorial.layout.undock.title": {
-    "de": "Widget herausloesen",
+    "de": "Widget herauslösen",
     "en": "Undock Widget",
     "ja": "ウィジェットを切り離す"
   },
@@ -6374,12 +6374,12 @@
     "ja": "ウィジェットをメインウィンドウの外へドラッグすると、独立した浮動ウィンドウになります。画面上の好きな場所に配置できます。"
   },
   "tutorial.layout.resize.title": {
-    "de": "Groesse anpassen",
+    "de": "Grösse anpassen",
     "en": "Resize",
     "ja": "サイズを調整"
   },
   "tutorial.layout.resize.text": {
-    "de": "Ziehe die Grenzlinien zwischen Widgets, um ihre Groesse anzupassen. Jedes Widget kann breiter oder schmaler gemacht werden.",
+    "de": "Ziehe die Grenzlinien zwischen Widgets, um ihre Grösse anzupassen. Jedes Widget kann breiter oder schmaler gemacht werden.",
     "en": "Drag the border lines between widgets to resize them. Each widget can be made wider or narrower.",
     "ja": "ウィジェット間の境界線をドラッグしてサイズを変更します。各ウィジェットを広くも狭くもできます。"
   },
@@ -6389,7 +6389,7 @@
     "ja": "レイアウトを保存"
   },
   "tutorial.layout.save.text": {
-    "de": "Dein Layout wird automatisch gespeichert. Im Menu Design kannst du Layouts mit eigenem Namen speichern und laden — z.B. 'Live.ini' und 'Workshop.ini' fuer verschiedene Situationen.",
+    "de": "Dein Layout wird automatisch gespeichert. Im Menu Design kannst du Layouts mit eigenem Namen speichern und laden — z.B. 'Live.ini' und 'Workshop.ini' für verschiedene Situationen.",
     "en": "Your layout is saved automatically. In the Design menu you can save and load named layouts — e.g. 'Live.ini' and 'Workshop.ini' for different situations.",
     "ja": "レイアウトは自動的に保存されます。設定メニューでは、名前を付けたレイアウトを保存・読み込みできます — 例: さまざまな状況用に 'Live.ini' や 'Workshop.ini'。"
   },
@@ -6399,12 +6399,12 @@
     "ja": "次へ"
   },
   "tutorial.btn_back": {
-    "de": "Zurueck",
+    "de": "Zurück",
     "en": "Back",
     "ja": "戻る"
   },
   "tutorial.btn_skip": {
-    "de": "Ueberspringen",
+    "de": "Überspringen",
     "en": "Skip",
     "ja": "スキップ"
   },
@@ -6414,12 +6414,12 @@
     "ja": "完了"
   },
   "tutorial.offer_title": {
-    "de": "Kurzfuehrung",
+    "de": "Kurzführung",
     "en": "Quick Tour",
     "ja": "クイックツアー"
   },
   "tutorial.offer_text": {
-    "de": "Moechtest du eine kurze Einfuehrung in dieses Fenster?",
+    "de": "Möchtest du eine kurze Einführung in dieses Fenster?",
     "en": "Would you like a quick tour of this panel?",
     "ja": "このパネルの簡単なツアーをご覧になりますか？"
   },
@@ -6449,7 +6449,7 @@
     "ja": "Stop"
   },
   "tutorial.player.stop.text": {
-    "de": "Stoppt die Wiedergabe. Der naechste Song in der Playlist wird automatisch aktiviert.",
+    "de": "Stoppt die Wiedergabe. Der nächste Song in der Playlist wird automatisch aktiviert.",
     "en": "Stops playback. The next song in the playlist is activated automatically.",
     "ja": "再生を停止します。プレイリストの次の曲が自動的に有効になります。"
   },
@@ -6469,7 +6469,7 @@
     "ja": "本日のテンポ"
   },
   "tutorial.player.today_tempo.text": {
-    "de": "Hier passt du das Tempo fuer den heutigen Abend an. Dieser Wert wird nicht am Song gespeichert — er gilt nur fuer heute.",
+    "de": "Hier passt du das Tempo für den heutigen Abend an. Dieser Wert wird nicht am Song gespeichert — er gilt nur für heute.",
     "en": "Adjust the tempo for tonight. This value is not saved to the song — it only applies for today.",
     "ja": "今夜のテンポを調整します。この値は曲には保存されません — 本日のみ適用されます。"
   },
@@ -6484,12 +6484,12 @@
     "ja": "曲の標準テンポをパーセントで表します。この値は曲データに保存されます。"
   },
   "tutorial.player.pitch.title": {
-    "de": "Tonhoehe",
+    "de": "Tonhöhe",
     "en": "Pitch",
     "ja": "Pitch"
   },
   "tutorial.player.pitch.text": {
-    "de": "Veraendert die Tonhoehe unabhaengig vom Tempo — in Schritten von 0.2 Halbtoenen. Wird am Song gespeichert.",
+    "de": "Verändert die Tonhöhe unabhängig vom Tempo — in Schritten von 0.2 Halbtönen. Wird am Song gespeichert.",
     "en": "Changes the pitch independently from tempo — in steps of 0.2 semitones. Saved to the song data.",
     "ja": "テンポとは独立してピッチを変更します — 0.2 半音刻み。曲データに保存されます。"
   },
@@ -6514,12 +6514,12 @@
     "ja": "7 つのセグメントは Singing Call の構成を示します: Opener、Figure 1〜4、Middle Break、Closer。曲のどこにいるか常に把握できます。"
   },
   "tutorial.player.location.title": {
-    "de": "Jetzt: Lokation waehlen!",
+    "de": "Jetzt: Lokation wählen!",
     "en": "Now: Choose Your Location!",
     "ja": "次に: ロケーションを選択！"
   },
   "tutorial.player.location.text": {
-    "de": "Bevor du loslegst, waehle deine Lokation — Club, Workshop oder Special. Druecke jetzt auf 'Fertig' und der Lokation-Dialog oeffnet sich automatisch!",
+    "de": "Bevor du loslegst, wähle deine Lokation — Club, Workshop oder Special. Drücke jetzt auf 'Fertig' und der Lokation-Dialog öffnet sich automatisch!",
     "en": "Before you start, choose your location — club, workshop or special. Press 'Finish' now and the location dialog will open automatically!",
     "ja": "始める前に、ロケーション（クラブ、ワークショップ、スペシャル）を選択してください。今すぐ「完了」を押すと、ロケーションダイアログが自動的に開きます！"
   },
@@ -6549,7 +6549,7 @@
     "ja": "曲リスト"
   },
   "tutorial.songlist.step2.text": {
-    "de": "Doppelklick laedt den Song in den Player. Die Spalte 'Gespielt' zeigt den heutigen Status.",
+    "de": "Doppelklick lädt den Song in den Player. Die Spalte 'Gespielt' zeigt den heutigen Status.",
     "en": "Double-click loads the song into the player. The 'Played' column shows today's status.",
     "ja": "ダブルクリックで曲を Player に読み込みます。「再生回数」列は本日のステータスを示します。"
   },
@@ -6599,7 +6599,7 @@
     "ja": "サンプル曲を今すぐインポート！"
   },
   "tutorial.loop.step1.text": {
-    "de": "Im Ordner first-steps liegt \"YRR 049 - Electro Blues.mp3\" — klick diesen Button und folge den Dialogen:\n1. Songtyp: \"Beides\" waehlen\n2. Dateien kopieren: \"Kopieren\" waehlen\n3. Importquelle: \"Einzelne Dateien\" → MP3 im first-steps-Ordner auswaehlen",
+    "de": "Im Ordner first-steps liegt \"YRR 049 - Electro Blues.mp3\" — klick diesen Button und folge den Dialogen:\n1. Songtyp: \"Beides\" wählen\n2. Dateien kopieren: \"Kopieren\" wählen\n3. Importquelle: \"Einzelne Dateien\" → MP3 im first-steps-Ordner auswählen",
     "en": "The folder first-steps contains \"YRR 049 - Electro Blues.mp3\" — click this button and follow the dialogs:\n1. Song type: choose \"Both\"\n2. Copy files: choose \"Copy\"\n3. Source: \"Individual files\" → select the MP3 from the first-steps folder",
     "ja": "フォルダ first-steps に「YRR 049 - Electro Blues.mp3」があります — このボタンをクリックしてダイアログに従ってください:\n1. 曲のタイプ:「両方」を選択\n2. ファイルをコピー:「コピー」を選択\n3. インポート元:「個別のファイル」→ first-steps フォルダから MP3 を選択"
   },
@@ -6609,7 +6609,7 @@
     "ja": "Loop を自動的に見つける"
   },
   "tutorial.loop.step2.text": {
-    "de": "Lied importiert? Dann spiel es kurz an und klick diesen Button — der Loop Finder analysiert das Lied und schlaegt dir die besten Sprungpunkte vor. Einfach einen Eintrag auswaehlen und uebernehmen.",
+    "de": "Lied importiert? Dann spiel es kurz an und klick diesen Button — der Loop Finder analysiert das Lied und schlägt dir die besten Sprungpunkte vor. Einfach einen Eintrag auswählen und übernehmen.",
     "en": "Song imported? Play it briefly then click this button — the Loop Finder analyses the track and suggests the best loop points. Just pick an entry and confirm.",
     "ja": "曲をインポートしましたか？少し再生してからこのボタンをクリックすると、Loop Finder が曲を分析して最適な Loop 点を提案します。エントリを選んで承認するだけです。"
   },
@@ -6629,7 +6629,7 @@
     "ja": "Beat Snap"
   },
   "tutorial.loop.step3.text": {
-    "de": "Oeffnet den Beat-Snap-Dialog — hier kannst du Loop-Punkte exakt auf den Beat setzen.",
+    "de": "Öffnet den Beat-Snap-Dialog — hier kannst du Loop-Punkte exakt auf den Beat setzen.",
     "en": "Opens the Beat Snap dialog — set loop points precisely on the beat.",
     "ja": "Beat Snap ダイアログを開きます — Loop 点を正確にビートに合わせられます。"
   },
@@ -6664,12 +6664,12 @@
     "ja": "下の波形は再開点 (Loop-In) を示します。このマーカーもマウスでドラッグできます。"
   },
   "tutorial.beat_snap.audition.title": {
-    "de": "Vorhoeren",
+    "de": "Vorhören",
     "en": "Preview",
     "ja": "試聴"
   },
   "tutorial.beat_snap.audition.text": {
-    "de": "Springt 5 Sekunden vor den Sprungpunkt und laesst dich reinhoeren, ob der Uebergang sauber klingt.",
+    "de": "Springt 5 Sekunden vor den Sprungpunkt und lässt dich reinhören, ob der Übergang sauber klingt.",
     "en": "Jumps 5 seconds before the jump point and lets you preview whether the transition sounds clean.",
     "ja": "ジャンプ点の 5 秒前にジャンプし、切り替えがきれいに聞こえるか試聴できます。"
   },
@@ -6679,17 +6679,17 @@
     "ja": "Snap"
   },
   "tutorial.beat_snap.snap.text": {
-    "de": "Verschiebt beide Marker exakt auf den naechsten ermittelten Taktschlag. So sitzt der Loop perfekt im Rhythmus.",
+    "de": "Verschiebt beide Marker exakt auf den nächsten ermittelten Taktschlag. So sitzt der Loop perfekt im Rhythmus.",
     "en": "Moves both markers exactly to the nearest detected beat. This ensures the loop sits perfectly in rhythm.",
     "ja": "両方のマーカーを検出された最寄りのビートに正確に移動します。これにより Loop がリズムにぴったり収まります。"
   },
   "tutorial.beat_snap.apply.title": {
-    "de": "Uebernehmen oder Verwerfen",
+    "de": "Übernehmen oder Verwerfen",
     "en": "Apply or Discard",
     "ja": "適用または破棄"
   },
   "tutorial.beat_snap.apply.text": {
-    "de": "Mit Uebernehmen speicherst du die neuen Loop-Punkte. Schliessen verwirft die Aenderungen.",
+    "de": "Mit Übernehmen speicherst du die neuen Loop-Punkte. Schliessen verwirft die Änderungen.",
     "en": "Apply saves the new loop points. Close discards the changes.",
     "ja": "「適用」で新しい Loop 点を保存します。「閉じる」で変更を破棄します。"
   },
@@ -6709,17 +6709,17 @@
     "ja": "タイトル & アーティスト"
   },
   "tutorial.songdata.step1.text": {
-    "de": "Hier bearbeitest du die Song-Metadaten. Aenderungen werden automatisch gespeichert.",
+    "de": "Hier bearbeitest du die Song-Metadaten. Änderungen werden automatisch gespeichert.",
     "en": "Edit song metadata here. Changes are saved automatically.",
     "ja": "ここで曲のメタデータを編集します。変更は自動的に保存されます。"
   },
   "tutorial.songdata.step2.title": {
-    "de": "Datei waehlen",
+    "de": "Datei wählen",
     "en": "Choose File",
     "ja": "ファイルを選択"
   },
   "tutorial.songdata.step2.text": {
-    "de": "Verknuepfe den Datenbank-Eintrag mit einer Audiodatei. Im Ordner first-steps findest du \"YRR 049 - Electro Blues.mp3\" von Jon Hansell Nilsson als Einstiegsbeispiel.",
+    "de": "Verknüpfe den Datenbank-Eintrag mit einer Audiodatei. Im Ordner first-steps findest du \"YRR 049 - Electro Blues.mp3\" von Jon Hansell Nilsson als Einstiegsbeispiel.",
     "en": "Link the database entry to an audio file. The folder first-steps contains \"YRR 049 - Electro Blues.mp3\" by Jon Hansell Nilsson as a ready-to-use example.",
     "ja": "データベースのエントリをオーディオファイルにリンクします。フォルダ first-steps には、すぐに使える例として Jon Hansell Nilsson の「YRR 049 - Electro Blues.mp3」があります。"
   },
@@ -6759,7 +6759,7 @@
     "ja": "曲プール"
   },
   "tutorial.planner.step1.text": {
-    "de": "Alle verfuegbaren Songs. Verschiebe Songs per Drag & Drop oder mit Enter in die Playlist.",
+    "de": "Alle verfügbaren Songs. Verschiebe Songs per Drag & Drop oder mit Enter in die Playlist.",
     "en": "All available songs. Move songs to the playlist with drag & drop or Enter.",
     "ja": "利用可能なすべての曲。ドラッグ＆ドロップまたは Enter で曲をプレイリストに移動します。"
   },
@@ -6774,12 +6774,12 @@
     "ja": "計画したプレイリスト。ドラッグ＆ドロップで並べ替え、Delete で削除します。"
   },
   "tutorial.planner.step3.title": {
-    "de": "Bestaetigen",
+    "de": "Bestätigen",
     "en": "Confirm",
     "ja": "確定"
   },
   "tutorial.planner.step3.text": {
-    "de": "Uebernimmt die geplante Playlist in die aktive Playlist.",
+    "de": "Übernimmt die geplante Playlist in die aktive Playlist.",
     "en": "Applies the planned playlist to the active playlist.",
     "ja": "計画したプレイリストを有効なプレイリストに適用します。"
   },
@@ -6789,7 +6789,7 @@
     "ja": "表示メニュー"
   },
   "tutorial.playlist_manager.menu.text": {
-    "de": "Den Planner findest du im Menu Ansicht → Planner. Oder druecke 'P'.",
+    "de": "Den Planner findest du im Menu Ansicht → Planner. Oder drücke 'P'.",
     "en": "Find the Planner under View → Planner. Or press 'P'.",
     "ja": "Planner は 表示 → Planner にあります。または 'P' を押してください。"
   },
@@ -6854,12 +6854,12 @@
     "ja": "シーケンスは 表示 → シーケンス にあります。"
   },
   "tutorial.reports.step1.title": {
-    "de": "Lokation waehlen",
+    "de": "Lokation wählen",
     "en": "Choose Location",
     "ja": "ロケーションを選択"
   },
   "tutorial.reports.step1.text": {
-    "de": "Waehle eine Lokation, um die Setlist oder GEMA-Musikfolgeliste zu sehen.",
+    "de": "Wähle eine Lokation, um die Setlist oder GEMA-Musikfolgeliste zu sehen.",
     "en": "Choose a location to view the setlist or GEMA music report.",
     "ja": "ロケーションを選択して、セットリストまたは GEMA 音楽レポートを表示します。"
   },
@@ -6869,7 +6869,7 @@
     "ja": "エクスポート"
   },
   "tutorial.reports.step2.text": {
-    "de": "Exportiert die Setlist als Textdatei — z.B. fuer die GEMA-Meldung.",
+    "de": "Exportiert die Setlist als Textdatei — z.B. für die GEMA-Meldung.",
     "en": "Exports the setlist as a text file — e.g. for GEMA reporting.",
     "ja": "セットリストをテキストファイルとしてエクスポートします — 例: GEMA 報告用。"
   },
@@ -6884,7 +6884,7 @@
     "ja": "Reports は 表示 → Reports にあります。"
   },
   "tutorial.potential.step1.title": {
-    "de": "Datenqualitaet",
+    "de": "Datenqualität",
     "en": "Data Quality",
     "ja": "データ品質"
   },
@@ -6924,12 +6924,12 @@
     "ja": "独自のユーザールールを作成できます。ここをクリックして新しいルールを追加します。"
   },
   "tutorial.rules.name.title": {
-    "de": "Name und Ausfuehrung",
+    "de": "Name und Ausführung",
     "en": "Name and Execution",
     "ja": "名前と実行"
   },
   "tutorial.rules.name.text": {
-    "de": "Lege den Namen und die Art der Ausfuehrung fest. 'Aktiv' schaltet die Regel ein/aus, 'Einmal pro Song' verhindert mehrfache Ausfuehrung.",
+    "de": "Lege den Namen und die Art der Ausführung fest. 'Aktiv' schaltet die Regel ein/aus, 'Einmal pro Song' verhindert mehrfache Ausführung.",
     "en": "Set the name and execution type. 'Active' toggles the rule on/off, 'Once per Song' prevents repeated execution.",
     "ja": "名前と実行タイプを設定します。「Active」でルールのオン/オフを切り替え、「Once per Song」で繰り返し実行を防ぎます。"
   },
@@ -6949,7 +6949,7 @@
     "ja": "条件"
   },
   "tutorial.rules.conditions.text": {
-    "de": "Schraenke es weiter ein: Ist es ein Singing Call? Fehlen noch Loop-Marker? Du kannst UND/ODER-Verknuepfungen nutzen.",
+    "de": "Schränke es weiter ein: Ist es ein Singing Call? Fehlen noch Loop-Marker? Du kannst UND/ODER-Verknüpfungen nutzen.",
     "en": "Narrow it down: Is it a singing call? Are loop markers missing? You can use AND/OR combinations.",
     "ja": "さらに絞り込みます: Singing Call か？Loop マーカーが欠けているか？AND/OR の組み合わせが使えます。"
   },
@@ -6959,7 +6959,7 @@
     "ja": "アクション"
   },
   "tutorial.rules.actions.text": {
-    "de": "WAS soll passieren? Mehrere Aktionen koennen hintereinander gestartet werden — z.B. Dock oeffnen, Layout laden, Nachricht anzeigen.",
+    "de": "WAS soll passieren? Mehrere Aktionen können hintereinander gestartet werden — z.B. Dock öffnen, Layout laden, Nachricht anzeigen.",
     "en": "WHAT should happen? Multiple actions can run in sequence — e.g. open a dock, load a layout, show a message.",
     "ja": "何を起こすか？複数のアクションを連続して実行できます — 例: ドックを開く、レイアウトを読み込む、メッセージを表示する。"
   },
@@ -6999,7 +6999,7 @@
     "ja": "検索ウィンドウ"
   },
   "tutorial.loop_finder.window.text": {
-    "de": "Wieviele Beats sollen verglichen werden? Groessere Fenster finden praezisere Loops, kleinere sind flexibler.",
+    "de": "Wieviele Beats sollen verglichen werden? Grössere Fenster finden präzisere Loops, kleinere sind flexibler.",
     "en": "How many beats should be compared? Larger windows find more precise loops, smaller ones are more flexible.",
     "ja": "いくつのビートを比較しますか？大きいウィンドウはより正確な Loop を見つけ、小さいものはより柔軟です。"
   },
@@ -7009,7 +7009,7 @@
     "ja": "分析"
   },
   "tutorial.loop_finder.analyze.text": {
-    "de": "Startet die Suche nach passenden Loop-Punkten im gewaehlten Bereich.",
+    "de": "Startet die Suche nach passenden Loop-Punkten im gewählten Bereich.",
     "en": "Starts searching for matching loop points in the selected region.",
     "ja": "選択した範囲で一致する Loop 点の検索を開始します。"
   },
@@ -7019,17 +7019,17 @@
     "ja": "結果"
   },
   "tutorial.loop_finder.results.text": {
-    "de": "Doppelklick, um in den Sprung reinzuhoeren. Hoher Score und ein Vielfaches von 64 Beats sind bei Singing Calls die besten Treffer.",
+    "de": "Doppelklick, um in den Sprung reinzuhören. Hoher Score und ein Vielfaches von 64 Beats sind bei Singing Calls die besten Treffer.",
     "en": "Double-click to audition the loop jump. High score and multiples of 64 beats are the best matches for singing calls.",
     "ja": "ダブルクリックで Loop ジャンプを試聴します。高いスコアと 64 ビートの倍数が、Singing Call に最適な一致です。"
   },
   "tutorial.loop_finder.apply.title": {
-    "de": "Uebernehmen",
+    "de": "Übernehmen",
     "en": "Apply",
     "ja": "適用"
   },
   "tutorial.loop_finder.apply.text": {
-    "de": "Bestaetige deine Auswahl — die Loop-Marken werden in den Song uebernommen.",
+    "de": "Bestätige deine Auswahl — die Loop-Marken werden in den Song übernommen.",
     "en": "Confirm your selection — the loop markers will be applied to the song.",
     "ja": "選択を確定します — Loop マーカーが曲に適用されます。"
   },
@@ -7039,7 +7039,7 @@
     "ja": "ロケーション"
   },
   "tutorial.location.list.text": {
-    "de": "Hier siehst du alle deine Lokationen — Clubs, Workshops, Specials. Waehle eine Lokation aus, um sie fuer heute zu aktivieren. Doppelklick uebernimmt sofort.",
+    "de": "Hier siehst du alle deine Lokationen — Clubs, Workshops, Specials. Wähle eine Lokation aus, um sie für heute zu aktivieren. Doppelklick übernimmt sofort.",
     "en": "Here you see all your locations — clubs, workshops, specials. Select one to activate it for today. Double-click to confirm immediately.",
     "ja": "すべてのロケーション（クラブ、ワークショップ、スペシャル）が表示されます。1つ選択して本日有効にします。ダブルクリックですぐに確定します。"
   },
@@ -7059,7 +7059,7 @@
     "ja": "名前を変更"
   },
   "tutorial.location.rename.text": {
-    "de": "Waehle eine Lokation in der Liste und klicke hier, um sie umzubenennen.",
+    "de": "Wähle eine Lokation in der Liste und klicke hier, um sie umzubenennen.",
     "en": "Select a location in the list and click here to rename it.",
     "ja": "リストでロケーションを選択し、ここをクリックして名前を変更します。"
   },
@@ -7094,12 +7094,12 @@
     "ja": "分析中..."
   },
   "lf_status_no_results": {
-    "de": "Keine Vorschlaege gefunden",
+    "de": "Keine Vorschläge gefunden",
     "en": "No suggestions found",
     "ja": "提案が見つかりませんでした"
   },
   "lf_status_found": {
-    "de": "{count} Vorschlaege gefunden",
+    "de": "{count} Vorschläge gefunden",
     "en": "{count} suggestions found",
     "ja": "{count} 件の提案が見つかりました"
   },
@@ -7109,7 +7109,7 @@
     "ja": "エラー: {msg}"
   },
   "lf_status_applied": {
-    "de": "Loop uebernommen: {loop_in} - {loop_out}",
+    "de": "Loop übernommen: {loop_in} - {loop_out}",
     "en": "Loop applied: {loop_in} - {loop_out}",
     "ja": "Loop を適用しました: {loop_in} - {loop_out}"
   },
@@ -7139,7 +7139,7 @@
     "ja": "Beats"
   },
   "lf_window_tooltip": {
-    "de": "Vergleichsfenster: Anzahl Beats fuer Aehnlichkeitsvergleich",
+    "de": "Vergleichsfenster: Anzahl Beats für Ähnlichkeitsvergleich",
     "en": "Compare window: number of beats for similarity comparison",
     "ja": "比較ウィンドウ: 類似度比較のためのビート数"
   },
@@ -7149,7 +7149,7 @@
     "ja": "Audition"
   },
   "lf_apply": {
-    "de": "Uebernehmen",
+    "de": "Übernehmen",
     "en": "Apply",
     "ja": "適用"
   },
@@ -7169,7 +7169,7 @@
     "ja": "プリセットを保存"
   },
   "lf_preset_save_prompt": {
-    "de": "Name fuer das neue Preset:",
+    "de": "Name für das neue Preset:",
     "en": "Name for the new preset:",
     "ja": "新しいプリセットの名前:"
   },
@@ -7209,7 +7209,7 @@
     "ja": "（アイコンなし — 頭文字）"
   },
   "streamdeck.icon_preview": {
-    "de": "Vorschau des gewaehlten Icons",
+    "de": "Vorschau des gewählten Icons",
     "en": "Preview of the selected icon",
     "ja": "選択したアイコンのプレビュー"
   },
@@ -7244,7 +7244,7 @@
     "ja": "複製"
   },
   "rule.btn_delete": {
-    "de": "Loeschen",
+    "de": "Löschen",
     "en": "Delete",
     "ja": "削除"
   },
@@ -7284,27 +7284,27 @@
     "ja": "+ 条件"
   },
   "rule.confirm_delete_title": {
-    "de": "Regel loeschen",
+    "de": "Regel löschen",
     "en": "Delete Rule",
     "ja": "ルールを削除"
   },
   "rule.confirm_delete": {
-    "de": "Diese Regel wirklich loeschen?",
+    "de": "Diese Regel wirklich löschen?",
     "en": "Really delete this rule?",
     "ja": "このルールを本当に削除しますか？"
   },
   "rule.confirm_delete_multi": {
-    "de": "{n} Regeln wirklich loeschen?",
+    "de": "{n} Regeln wirklich löschen?",
     "en": "Really delete {n} rules?",
     "ja": "{n} 件のルールを本当に削除しますか？"
   },
   "form_date_added": {
-    "de": "Hinzugefuegt",
+    "de": "Hinzugefügt",
     "en": "Date Added",
     "ja": "追加日"
   },
   "btn_clear_loop": {
-    "de": "Loop loeschen",
+    "de": "Loop löschen",
     "en": "Clear Loop",
     "ja": "Loop を消去"
   },
@@ -8304,12 +8304,12 @@
     "ja": "Dance Program が選択されていません"
   },
   "tutorial.songdata.step4.title": {
-    "de": "Lyricsheet verknuepfen",
+    "de": "Lyricsheet verknüpfen",
     "en": "Link Lyrics File",
     "ja": "Lyrics ファイルをリンク"
   },
   "tutorial.songdata.step4.text": {
-    "de": "Verbinde den Song mit einem Lyricsheet (HTM, RTF o.ae.). Im Ordner first-steps liegt \"YRR 049 - Electro Blues.htm\" — ein fertiges Beispiel inklusive Call-Texten.",
+    "de": "Verbinde den Song mit einem Lyricsheet (HTM, RTF o.ä.). Im Ordner first-steps liegt \"YRR 049 - Electro Blues.htm\" — ein fertiges Beispiel inklusive Call-Texten.",
     "en": "Link the song to a lyrics sheet (HTM, RTF etc.). The folder first-steps contains \"YRR 049 - Electro Blues.htm\" — a ready-made example including call texts.",
     "ja": "曲を歌詞シート (HTM、RTF など) にリンクします。フォルダ first-steps には、Call テキストを含む完成例「YRR 049 - Electro Blues.htm」があります。"
   },
@@ -8319,12 +8319,12 @@
     "ja": "+Playlist"
   },
   "tooltip_to_playlist_song": {
-    "de": "Aktuell gewaehlten Song zur Playlist hinzufuegen",
+    "de": "Aktuell gewählten Song zur Playlist hinzufügen",
     "en": "Add selected song to playlist",
     "ja": "選択した曲をプレイリストに追加"
   },
   "ctx_add_to_playlist": {
-    "de": "Zur Playlist hinzufuegen",
+    "de": "Zur Playlist hinzufügen",
     "en": "Add to playlist",
     "ja": "プレイリストに追加"
   },
@@ -8429,7 +8429,7 @@
     "ja": "Tips:"
   },
   "ep_label_tip_len": {
-    "de": "Tipp-Laenge:",
+    "de": "Tipp-Länge:",
     "en": "Tip length:",
     "ja": "Tip の長さ:"
   },
@@ -8804,17 +8804,17 @@
     "ja": "{count} 曲に一致 — 緑 = 一意、黄 = 曖昧（ダブルクリックで選択）"
   },
   "lf_preset_combo_tooltip": {
-    "de": "Suchbereich-Preset auswaehlen",
+    "de": "Suchbereich-Preset auswählen",
     "en": "Select search range preset",
     "ja": "検索範囲プリセットを選択"
   },
   "lf_preset_optimize_needs_marks": {
-    "de": "Optimize benoetigt vorhandene Sprungmarken im Song",
+    "de": "Optimize benötigt vorhandene Sprungmarken im Song",
     "en": "Optimize requires existing loop markers in the song",
     "ja": "Optimize には曲内に既存の Loop マーカーが必要です"
   },
   "lf_preset_load_tooltip": {
-    "de": "Ausgewaehltes Preset laden",
+    "de": "Ausgewähltes Preset laden",
     "en": "Load selected preset",
     "ja": "選択したプリセットを読み込み"
   },
@@ -8824,7 +8824,7 @@
     "ja": "現在の設定をプリセットとして保存"
   },
   "lf_strategy_tooltip": {
-    "de": "Strategie: Wie wird der beste Loop-Kandidat ausgewaehlt",
+    "de": "Strategie: Wie wird der beste Loop-Kandidat ausgewählt",
     "en": "Strategy: How the best loop candidate is selected",
     "ja": "戦略: 最適な Loop 候補の選び方"
   },
@@ -9519,12 +9519,12 @@
     "ja": "歌詞のあるすべての曲を再計算"
   },
   "pot_fix_every_confirm": {
-    "de": "Dieser Lauf betrifft {total} Singing Calls mit Lyrics — auch die, die nicht in dieser Liste stehen.\n\nAchtung: {existing} davon haben bereits Sync-Punkte. Diese werden GELOESCHT und neu berechnet. Von Hand gesetzte oder korrigierte Marken gehen dabei verloren.\n\nWirklich fortfahren?",
+    "de": "Dieser Lauf betrifft {total} Singing Calls mit Lyrics — auch die, die nicht in dieser Liste stehen.\n\nAchtung: {existing} davon haben bereits Sync-Punkte. Diese werden GELÖSCHT und neu berechnet. Von Hand gesetzte oder korrigierte Marken gehen dabei verloren.\n\nWirklich fortfahren?",
     "en": "This run affects {total} singing calls with lyrics — including those not shown in this list.\n\nWarning: {existing} of them already have sync points. Those will be DELETED and recalculated. Manually set or corrected markers will be lost.\n\nReally continue?",
     "ja": "この処理は歌詞のある {total} 曲に影響します（このリストにない曲も含む）。\n\n注意：うち {existing} 曲には既に Sync Point があります。これらは削除され再計算されます。手動で設定・修正したマーカーは失われます。\n\n続行しますか？"
   },
   "pot_lyrics_fill": {
-    "de": "Lyrics ergaenzen",
+    "de": "Lyrics ergänzen",
     "en": "Fill lyrics",
     "ja": "歌詞を補完"
   },
@@ -9549,7 +9549,7 @@
     "ja": "検索：「{title}」・レーベル：{label}"
   },
   "ceder_fallback_title": {
-    "de": "Hinweis: Mit Label gab es keinen Treffer — es wurde nur nach dem Titel gesucht. Bitte Plattennummer genau pruefen.",
+    "de": "Hinweis: Mit Label gab es keinen Treffer — es wurde nur nach dem Titel gesucht. Bitte Plattennummer genau prüfen.",
     "en": "Note: no match with the label — searched by title only. Please check the record number carefully.",
     "ja": "注意：レーベル指定では該当なし。タイトルのみで検索しました。レコード番号をご確認ください。"
   },
@@ -9584,7 +9584,7 @@
     "ja": "年"
   },
   "ceder_col_why": {
-    "de": "Begruendung",
+    "de": "Begründung",
     "en": "Reasons",
     "ja": "根拠"
   },
@@ -9609,12 +9609,12 @@
     "ja": "タイトル一致"
   },
   "ceder_why_title_similar": {
-    "de": "Titel aehnlich ({pct})",
+    "de": "Titel ähnlich ({pct})",
     "en": "Title similar ({pct})",
     "ja": "タイトル類似（{pct}）"
   },
   "ceder_why_title_far": {
-    "de": "Titel entfernt aehnlich ({pct})",
+    "de": "Titel entfernt ähnlich ({pct})",
     "en": "Title loosely similar ({pct})",
     "ja": "タイトルやや類似（{pct}）"
   },
@@ -9629,7 +9629,7 @@
     "ja": "レーベル一致"
   },
   "ceder_why_label_similar": {
-    "de": "Label aehnlich",
+    "de": "Label ähnlich",
     "en": "Label similar",
     "ja": "レーベル類似"
   },
@@ -9674,7 +9674,7 @@
     "ja": "先にリストから曲を選択してください。"
   },
   "ceder_no_title": {
-    "de": "Dieser Song hat keinen Titel — ohne Titel ist keine Suche moeglich.",
+    "de": "Dieser Song hat keinen Titel — ohne Titel ist keine Suche möglich.",
     "en": "This song has no title — a search is not possible without one.",
     "ja": "この曲にはタイトルがありません。検索できません。"
   },
@@ -9699,7 +9699,7 @@
     "ja": "保存に失敗しました：\n{msg}"
   },
   "ceder_saved": {
-    "de": "Cue Sheet gespeichert als „{file}“ und dem Song „{title}“ zugeordnet.\n\nNur fuer den persoenlichen Gebrauch — nicht weitergeben.",
+    "de": "Cue Sheet gespeichert als „{file}“ und dem Song „{title}“ zugeordnet.\n\nNur für den persönlichen Gebrauch — nicht weitergeben.",
     "en": "Cue sheet saved as “{file}” and assigned to “{title}”.\n\nFor personal use only — do not redistribute.",
     "ja": "Cue Sheet を「{file}」として保存し、「{title}」に割り当てました。\n\n個人利用のみ。再配布しないでください。"
   },
@@ -9709,12 +9709,12 @@
     "ja": "ガラクタ箱から探す"
   },
   "krabbel_btn_choose": {
-    "de": "Ordner waehlen …",
+    "de": "Ordner wählen …",
     "en": "Choose folder …",
     "ja": "フォルダーを選択 …"
   },
   "krabbel_info_text": {
-    "de": "Gleich waehlst du einen Ordner aus, der nach passenden Lyric-Dateien durchsucht wird. Fuer jeden Singing Call ohne Lyrics wird anhand von Titel, Label und Plattennummer der beste Treffer gesucht — sowohl im Dateinamen als auch im Inhalt der Dateien. Danach kannst du die Vorschlaege pruefen und uebernehmen.",
+    "de": "Gleich wählst du einen Ordner aus, der nach passenden Lyric-Dateien durchsucht wird. Für jeden Singing Call ohne Lyrics wird anhand von Titel, Label und Plattennummer der beste Treffer gesucht — sowohl im Dateinamen als auch im Inhalt der Dateien. Danach kannst du die Vorschläge prüfen und übernehmen.",
     "en": "Next you'll pick a folder that will be searched for matching lyric files. For every singing call without lyrics the best match is found by title, label and record number — from both the file name and the file content. You can then review and accept the suggestions.",
     "ja": "次に、歌詞ファイルを検索するフォルダーを選びます。歌詞のない各シンギングコールについて、タイトル・レーベル・レコード番号をもとに、ファイル名と内容の両方から最も一致する候補を探します。その後、提案を確認して適用できます。"
   },
@@ -9729,7 +9729,7 @@
     "ja": "サブフォルダーも含む（再帰的）"
   },
   "krabbel_choose_folder": {
-    "de": "Ordner zum Durchsuchen waehlen",
+    "de": "Ordner zum Durchsuchen wählen",
     "en": "Choose a folder to search",
     "ja": "検索するフォルダーを選択"
   },
@@ -9764,7 +9764,7 @@
     "ja": "見つかった歌詞を割り当て"
   },
   "krabbel_result_intro": {
-    "de": "{count} Vorschlaege. Alle sind vorausgewaehlt — abwaehlen, was nicht passt. Klick auf eine Spaltenueberschrift sortiert (z.B. nach Wahrscheinlichkeit).",
+    "de": "{count} Vorschläge. Alle sind vorausgewählt — abwählen, was nicht passt. Klick auf eine Spaltenüberschrift sortiert (z.B. nach Wahrscheinlichkeit).",
     "en": "{count} suggestions. All are pre-selected — uncheck what doesn't fit. Click a column header to sort (e.g. by confidence).",
     "ja": "{count} 件の提案。すべて選択済みです — 合わないものはチェックを外してください。列見出しをクリックすると並べ替えできます（例：確度順）。"
   },
@@ -9814,7 +9814,7 @@
     "ja": "出所"
   },
   "krabbel_col_why": {
-    "de": "Begruendung",
+    "de": "Begründung",
     "en": "Reasons",
     "ja": "根拠"
   },
@@ -9839,7 +9839,7 @@
     "ja": "なし"
   },
   "krabbel_btn_apply": {
-    "de": "Uebernehmen",
+    "de": "Übernehmen",
     "en": "Apply",
     "ja": "適用"
   },

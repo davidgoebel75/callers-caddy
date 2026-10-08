@@ -446,13 +446,25 @@ _SVG_MAGNET = (
 )
 
 
-def _make_icon(svg_template: str, color: str) -> QIcon:
-    """Erzeugt ein QIcon aus einem SVG-Template mit eingefuegter Farbe."""
+def _make_icon(svg_template: str, color: str,
+               disabled_color: str | None = None) -> QIcon:
+    """Erzeugt ein QIcon aus einem SVG-Template mit eingefuegter Farbe.
+
+    Mit ``disabled_color`` bekommt das Icon ein eigenes Bild fuer den
+    deaktivierten Zustand; sonst graut Qt es mit einem skin-fremden Grau aus
+    (intern#168).
+    """
     from PySide6.QtGui import QPixmap
-    svg_bytes = svg_template.format(c=color).encode("utf-8")
-    pixmap = QPixmap()
-    pixmap.loadFromData(svg_bytes, "SVG")
-    return QIcon(pixmap)
+
+    def _pixmap(c: str) -> QPixmap:
+        pixmap = QPixmap()
+        pixmap.loadFromData(svg_template.format(c=c).encode("utf-8"), "SVG")
+        return pixmap
+
+    icon = QIcon(_pixmap(color))
+    if disabled_color:
+        icon.addPixmap(_pixmap(disabled_color), QIcon.Disabled)
+    return icon
 
 
 # Kaffeetasse von der Seite, einfarbig/flach (kein 3D): Tasse, Henkel, Untertasse.
