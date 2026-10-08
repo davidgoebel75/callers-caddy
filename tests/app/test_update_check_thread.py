@@ -6,6 +6,7 @@ Hauptfenster zerstoert -> Qt Fatal "QThread: Destroyed while thread is still
 running". Geprueft wird: das Ergebnis kommt im Main-Thread an, und ein
 Beenden waehrend der Pruefung endet sauber.
 """
+import gc
 import os
 import subprocess
 import sys
@@ -156,7 +157,7 @@ def test_emit_after_checker_destroyed_is_swallowed(qapp, monkeypatch):
     assert errors == []
 
 
-def test_quit_during_check_without_qt_fatal():
+def test_quit_during_check_without_qt_fatal(tmp_path):
     """Regression intern#134: Fenster schliessen und App beenden, waehrend die
     Netzabfrage noch laeuft. Mit dem alten QThread brach Qt hier ab
     ("QThread: Destroyed while thread '' is still running", Exit-Code != 0)."""
@@ -179,9 +180,18 @@ def test_quit_during_check_without_qt_fatal():
         print("ENDE", flush=True)
     """)
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
-    run = subprocess.run([sys.executable, "-c", script], capture_output=True,
-                          text=True, timeout=30, env=env)
-    output = run.stdout + run.stderr
+    # intern#178: Ausgabe in eine Datei statt capture_output. Unter Windows
+    # startet capture_output zwei Lese-Threads; deren Start blieb im vollen
+    # Lauf manchmal haengen, und timeout=30 griff nie. Ohne Threads wartet
+    # run() nur auf den Prozess. Verdacht, nicht belegt: Der Thread-Start raeumt
+    # per GC Qt-Objekte aus den Tests davor ab. gc.collect() tut das vorher
+    # im Main-Thread.
+    gc.collect()
+    log = tmp_path / "child.log"
+    with open(log, "w", encoding="utf-8") as out:
+        run = subprocess.run([sys.executable, "-c", script], stdout=out,
+                             stderr=subprocess.STDOUT, timeout=30, env=env)
+    output = log.read_text(encoding="utf-8", errors="replace")
     assert "Destroyed while thread" not in output
-    assert "ENDE" in run.stdout
+    assert "ENDE" in output
     assert run.returncode == 0, output
