@@ -80,3 +80,36 @@ def test_typ_spalte_zeigt_song_typ(qapp):
     pw.add_entry(PlaylistEntry(song=_song(True, True), play_mode=PlayMode.ONCE))
     assert [pw._pl_table.item(r, 1).text() for r in range(2)] == ["O", "PS"]
     assert [pw._pl_table.item(r, 3).text() for r in range(2)] == ["1", "1"]
+
+
+
+@pytest.mark.parametrize("loop_in, loop_out, ergebnis", [
+    (0.0, 0.0, False),
+    (0.0, 180.0, False),   # Loop-Out am Songende: beim Laden gefuellt, kein Loop
+    (10.0, 180.0, True),
+    (0.0, 40.0, True),
+])
+def test_loop_punkte(loop_in, loop_out, ergebnis):
+    assert song_types.has_loop_points(loop_in, loop_out, 180.0) is ergebnis
+
+
+@pytest.mark.parametrize("vorgegeben", [PlayMode.LOOP, PlayMode.ONCE])
+@pytest.mark.parametrize("loop_out", [0.0, 180.0])
+def test_song_ohne_loop_punkte_spielt_einmal(vorgegeben, loop_out):
+    # intern#183: PS-Song ohne Loop-Punkte, auch wenn Auto-Fill oder Abendplaner LOOP vorgeben
+    song = Song(filename="x.mp3", is_pattern=1, is_singing=1, loop_out=loop_out)
+    entry = PlaylistManagerWidget._make_entry(_manager(), song, vorgegeben)
+    assert entry.play_mode is PlayMode.ONCE
+    assert entry.loop_count == 0
+
+
+def test_song_mit_loop_punkten_behaelt_vorgegebene_abspielart():
+    entry = PlaylistManagerWidget._make_entry(_manager(), _song(True, True), PlayMode.LOOP)
+    assert entry.play_mode is PlayMode.LOOP
+
+
+def test_loops_spalte_ohne_loop_punkte(qapp):
+    pw = PlaylistWidget(db=None, paths=SimpleNamespace(find_song_file=lambda f: None))
+    song = Song(filename="x.mp3", is_pattern=1, is_singing=1)
+    pw.add_entry(PlaylistManagerWidget._make_entry(_manager(), song, PlayMode.LOOP))
+    assert pw._pl_table.item(0, 3).text() == "1"

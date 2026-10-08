@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 
 from i18n import _t
 from perf import perf_start, perf_split
-from song_types import PlayMode
+from song_types import PlayMode, has_loop_points
 
 
 # BL-170: Ersatz-Qualitaet fuer unbewertete Songs beim gewichteten Zufall.
@@ -226,10 +226,6 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
     """
     import soundfile as sf
 
-    if song.loop_in <= 0 and song.loop_out <= 0:
-        QMessageBox.information(parent, _t("dock_playlist"), _t("loop_count_no_loop"))
-        return None
-
     filepath = paths.find_song_file(song.filename)
     if not filepath:
         QMessageBox.warning(parent, _t("error"), _t("file_not_found"))
@@ -238,6 +234,10 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
         info = sf.info(filepath)
         song_duration = info.duration
     except Exception:
+        return None
+
+    if not has_loop_points(song.loop_in, song.loop_out, song_duration):
+        QMessageBox.information(parent, _t("dock_playlist"), _t("loop_count_no_loop"))
         return None
 
     loop_in = song.loop_in

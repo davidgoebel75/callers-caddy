@@ -73,3 +73,14 @@ def play_mode(is_pattern, is_singing) -> PlayMode:
     """Abspielart je Song-Typ: Patter (auch PS) loopt, Singing und Other
     spielen einmal durch."""
     return PlayMode.LOOP if is_pattern else PlayMode.ONCE
+
+
+def has_loop_points(loop_in, loop_out, duration) -> bool:
+    """Hat der Song Loop-Punkte? Loop-In vom Anfang weg ODER Loop-Out vor dem
+    Songende. Ein Loop-Out genau am Ende zaehlt nicht: Beim Laden wird ein
+    leeres Loop-Out mit der Songdauer gefuellt und kann so in die DB geraten.
+    Ohne Loop-Punkte gibt es nichts zu loopen (intern#183). Dauer unbekannt
+    (<= 0): jedes Loop-Out zaehlt."""
+    if duration <= 0:
+        return loop_in > 0.1 or loop_out > 0.0
+    return loop_in > 0.1 or 0.0 < loop_out < duration - 0.5

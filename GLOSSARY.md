@@ -65,8 +65,8 @@ _Avoid_: Round Dance als eigener Typ, "ohne Typ"
 
 **Abspielart**:
 Wie ein Playlist-Eintrag laeuft: endlos loopen (mit Patter-Fuellung) oder einmal
-durchspielen. Folgt beim Einfuegen dem Song-Typ — Other spielt einmal durch —
-und laesst sich im Loop-Dialog umstellen.
+durchspielen. Folgt beim Einfuegen dem Song-Typ — Other und Songs ohne
+Loop-Punkte spielen einmal durch — und laesst sich im Loop-Dialog umstellen.
 _EN_: Play Mode
 _Avoid_: Modus, P/S (meint mal den Song-Typ, mal die Abspielart)
 

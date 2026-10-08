@@ -18,6 +18,7 @@ from PySide6.QtCore import Qt
 
 from i18n import _t
 from button_grid import compute_cells
+import song_types
 
 
 class _JumpButton(QPushButton):
@@ -120,10 +121,10 @@ class JumpMarkersWidget(QWidget):
         loop_in = max(0.0, self._engine.loop_in_seconds or 0.0)
         loop_out = self._engine.loop_out_seconds or 0.0
         # "Loop gesetzt?" — gleiche Definition wie im Loop-Widget (Beat-Snap-
-        # Freischaltung): Loop-In vom Anfang weg ODER Loop-Out vor dem Songende.
+        # Freischaltung) und in der Playlist.
         # Start bleibt der einzige feste Button; Loop-Start/-Ende nur bei Loop,
         # ein "Ende"-Button ergibt keinen Sinn und entfaellt.
-        has_loop = (loop_in > 0.1) or (0.0 < loop_out < dur - 0.5)
+        has_loop = song_types.has_loop_points(loop_in, loop_out, dur)
 
         targets = [(_t("jumpmarkers_start"), 0.0)]
         if has_loop:
