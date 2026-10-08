@@ -18,7 +18,7 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 
 **Regel fuer Neuentwicklung:** Neue Widgets, Dialoge, Worker oder groessere Hilfslogik NICHT in `main.py` schreiben, sondern gleich in ein passendes bestehendes Modul oder ein neues `*_widget.py` / `dialogs_*.py`. Faustregeln:
 - Module bleiben **zirkelfrei**: kein `import main` zur Ladezeit. Braucht ein Modul etwas aus `main` (z. B. `__version__`), per Lazy-Import in der Funktion holen (Muster `_app_version()` in `potential_widget.py`).
-- Von mehreren Modulen genutzte Helfer/Konstanten/SVGs → nach `ui_helpers.py` (Blatt-Modul, haengt nur an perf/i18n/PySide6).
+- Von mehreren Modulen genutzte Helfer/Konstanten/SVGs → nach `ui_helpers.py` (Blatt-Modul, haengt nur an perf/i18n/song_types/PySide6).
 - DB-Methoden: `SongDatabase` in `song_db.py` erbt Themenbloecke aus Mixin-Modulen `song_db_*.py` (z. B. `song_db_potential.py`, intern#165). Neue Methoden in den passenden Block; Aufrufer nutzen immer nur `db.methode()`. Mixins haben kein eigenes `__init__`: Zustand, den sie brauchen (`self._conn`, `schema_problems`, Band-Cache), legt `SongDatabase.__init__` an. Mixins duerfen Methoden von `SongDatabase` aufrufen (z. B. `SchemaMixin` → `_insert_default_dance_programs()`). Konstanten aus `song_db` per Lazy-Import in der Methode holen.
 - `main.py` importiert das Widget zurueck und verdrahtet es im Hauptfenster — wie die bestehenden `from *_widget import ...`-Zeilen.
 - Beim Verschieben von Code **Decorator-Zeilen mitnehmen** (`@dataclass` etc.) — der AST-Startpunkt zeigt sonst auf `class`/`def`, nicht auf `@decorator`.

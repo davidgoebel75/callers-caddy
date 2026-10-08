@@ -8,7 +8,11 @@ Patter und Singing Call zugleich sein, aber nicht Other und etwas anderes.
 
 Ohne Qt und ohne DB, damit Oberflaeche, Regeln und Abfragen dieselbe
 Definition benutzen.
+
+Getrennt davon die Abspielart (intern#179): wie ein Playlist-Eintrag laeuft.
+Song-Typen kann es viele geben, Abspielarten nur zwei.
 """
+from enum import StrEnum
 
 # Schluessel wie in Statistik und Regeln. "pattern" ist der historische
 # interne Name fuer Patter (siehe GLOSSARY.md).
@@ -52,3 +56,20 @@ def type_tag(is_pattern, is_singing) -> str:
     if is_singing:
         return "S"
     return "O"
+
+
+class PlayMode(StrEnum):
+    """Abspielart eines Playlist-Eintrags. Der Wert ist das Kuerzel, das in
+    Playlist-Datei, Textexport und Notiz-Shortcode steht."""
+    LOOP = "P"   # endlos loopen, Patter-Fuellung greift
+    ONCE = "S"   # einmal durchspielen
+
+    @property
+    def loops(self) -> bool:
+        return self is PlayMode.LOOP
+
+
+def play_mode(is_pattern, is_singing) -> PlayMode:
+    """Abspielart je Song-Typ: Patter (auch PS) loopt, Singing und Other
+    spielen einmal durch."""
+    return PlayMode.LOOP if is_pattern else PlayMode.ONCE
