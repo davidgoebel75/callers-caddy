@@ -1026,7 +1026,7 @@
     "ja": "選択した曲をプレイリストから削除"
   },
   "tooltip_confirm_playlist": {
-    "de": "Playlist übernehmen und Manager schliessen",
+    "de": "Playlist übernehmen und Manager schließen",
     "en": "Apply playlist and close manager",
     "ja": "プレイリストを適用してマネージャーを閉じる"
   },
@@ -1146,7 +1146,7 @@
     "ja": "文字を小さく"
   },
   "tooltip_zoom_in": {
-    "de": "Schrift vergrössern",
+    "de": "Schrift vergrößern",
     "en": "Increase font size",
     "ja": "文字を大きく"
   },
@@ -1281,7 +1281,7 @@
     "ja": "自由なタグ／カテゴリ（例：\"Once and a half\"）。候補には既存のタグが表示されます。"
   },
   "btn_close": {
-    "de": "Schliessen",
+    "de": "Schließen",
     "en": "Close",
     "ja": "閉じる"
   },
@@ -1631,7 +1631,7 @@
     "ja": "同期ポイントを設定"
   },
   "lyric_sync_choice_text": {
-    "de": "Wie möchtest du die 7 Abschnitte dieses Singing Calls markieren?\n\nAutomatisch: Lied abspielen und nur Start (Beginn 1. Teil) und Ende (Ende 7. Teil) markieren. Caller's Caddy verteilt die 7 Abschnitte gleichmässig.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
+    "de": "Wie möchtest du die 7 Abschnitte dieses Singing Calls markieren?\n\nAutomatisch: Lied abspielen und nur Start (Beginn 1. Teil) und Ende (Ende 7. Teil) markieren. Caller's Caddy verteilt die 7 Abschnitte gleichmäßig.\n\nManuell: Marker selbst durch Anklicken der Textzeilen setzen.",
     "en": "How do you want to mark the 7 sections of this singing call?\n\nAutomatic: play the song and only mark Start (beginning of part 1) and End (end of part 7). Caller's Caddy spreads the 7 sections evenly.\n\nManual: set markers yourself by clicking the text lines.",
     "ja": "このシンギングコールの7つのセクションをどのように設定しますか?\n\n自動: 曲を再生し、開始(第1部の始め)と終了(第7部の終わり)だけを設定します。\n\n手動: 歌詞行をクリックして自分でマーカーを設定します。"
   },
@@ -1791,7 +1791,7 @@
     "ja": "Auto-Size"
   },
   "tooltip_auto_size": {
-    "de": "Automatische Schriftgrösse ein/aus",
+    "de": "Automatische Schriftgröße ein/aus",
     "en": "Toggle automatic font size",
     "ja": "自動文字サイズのオン/オフ"
   },
@@ -1801,7 +1801,7 @@
     "ja": "Auto-Width"
   },
   "tooltip_auto_width": {
-    "de": "Schriftgrösse an die Fensterbreite anpassen",
+    "de": "Schriftgröße an die Fensterbreite anpassen",
     "en": "Fit font size to window width",
     "ja": "文字サイズをウィンドウ幅に合わせる"
   },
@@ -1991,7 +1991,7 @@
     "ja": "下線 (Ctrl+U)"
   },
   "tooltip_lyrics_font_size": {
-    "de": "Schriftgrösse",
+    "de": "Schriftgröße",
     "en": "Font size",
     "ja": "文字サイズ"
   },
@@ -2806,7 +2806,7 @@
     "ja": "Zoom"
   },
   "setting_label_lyrics_auto_size": {
-    "de": "Automatische Schriftgrösse",
+    "de": "Automatische Schriftgröße",
     "en": "Auto font size",
     "ja": "自動文字サイズ"
   },
@@ -2866,7 +2866,7 @@
     "ja": "各曲の終了後に短い評価ダイアログを表示します。"
   },
   "setting_tip_notes_first_note_factor": {
-    "de": "Schriftgrössen-Faktor für die erste offene Notiz.",
+    "de": "Schriftgrößen-Faktor für die erste offene Notiz.",
     "en": "Font size factor for the first open note.",
     "ja": "最初の開いているメモの文字サイズ係数。"
   },
@@ -3231,7 +3231,7 @@
     "ja": "削除する行:"
   },
   "dedup_hint": {
-    "de": "Verglichen werden alle 15 Call-Felder. Bei Duplikaten bleibt der älteste Eintrag erhalten. Anschliessend wird die Datenbank komprimiert (VACUUM).",
+    "de": "Verglichen werden alle 15 Call-Felder. Bei Duplikaten bleibt der älteste Eintrag erhalten. Anschließend wird die Datenbank komprimiert (VACUUM).",
     "en": "All 15 call fields are compared. For duplicates, the oldest entry is kept. The database is then compressed (VACUUM).",
     "ja": "15個すべての Call フィールドが比較されます。重複の場合は最も古いエントリが保持されます。その後データベースが圧縮されます (VACUUM)。"
   },
@@ -3776,7 +3776,7 @@
     "ja": "すべて大文字"
   },
   "seq_import_case_title": {
-    "de": "Erster Buchstabe je Wort gross",
+    "de": "Erster Buchstabe je Wort groß",
     "en": "First Letter Of Each Word",
     "ja": "各単語の先頭を大文字"
   },
@@ -5563,7 +5563,7 @@
     "ja": "BPM なし"
   },
   "pot_no_bpm_desc": {
-    "de": "Songs ohne gesetzte BPM oder mit unplausiblem Wert (kleiner 100 oder grösser 150). Diese sind Kandidaten für die automatische BPM-Ermittlung.",
+    "de": "Songs ohne gesetzte BPM oder mit unplausiblem Wert (kleiner 100 oder größer 150). Diese sind Kandidaten für die automatische BPM-Ermittlung.",
     "en": "Songs without a BPM value or with an implausible one (below 100 or above 150). These are candidates for automatic BPM detection.",
     "ja": "BPM が未設定、または妥当でない値（100 未満または 150 超）の曲。自動 BPM 検出の候補です。"
   },
@@ -5578,7 +5578,7 @@
     "ja": "BPM 未設定"
   },
   "pot_no_bpm_outofrange": {
-    "de": "BPM {bpm:.0f} ausserhalb 100-150",
+    "de": "BPM {bpm:.0f} außerhalb 100-150",
     "en": "BPM {bpm:.0f} outside 100-150",
     "ja": "BPM {bpm:.0f} は 100〜150 の範囲外"
   },
@@ -5853,7 +5853,7 @@
     "ja": "補完する曲はありません。"
   },
   "pot_sync_skipped_hint": {
-    "de": "{count} Song(s) übersprungen — die Lyrics liessen keine Abschnitte erkennen:",
+    "de": "{count} Song(s) übersprungen — die Lyrics ließen keine Abschnitte erkennen:",
     "en": "{count} song(s) skipped — no sections could be detected in the lyrics:",
     "ja": "{count} 曲をスキップ — Lyrics からセクションを検出できませんでした:"
   },
@@ -6374,12 +6374,12 @@
     "ja": "ウィジェットをメインウィンドウの外へドラッグすると、独立した浮動ウィンドウになります。画面上の好きな場所に配置できます。"
   },
   "tutorial.layout.resize.title": {
-    "de": "Grösse anpassen",
+    "de": "Größe anpassen",
     "en": "Resize",
     "ja": "サイズを調整"
   },
   "tutorial.layout.resize.text": {
-    "de": "Ziehe die Grenzlinien zwischen Widgets, um ihre Grösse anzupassen. Jedes Widget kann breiter oder schmaler gemacht werden.",
+    "de": "Ziehe die Grenzlinien zwischen Widgets, um ihre Größe anzupassen. Jedes Widget kann breiter oder schmaler gemacht werden.",
     "en": "Drag the border lines between widgets to resize them. Each widget can be made wider or narrower.",
     "ja": "ウィジェット間の境界線をドラッグしてサイズを変更します。各ウィジェットを広くも狭くもできます。"
   },
@@ -6509,7 +6509,7 @@
     "ja": "Singing Call のセクション"
   },
   "tutorial.player.sections.text": {
-    "de": "Die 7 Segmente zeigen die Struktur eines Singing Calls: Opener, Figur 1–4, Middle Break und Closer. So weisst du immer, wo du im Song bist.",
+    "de": "Die 7 Segmente zeigen die Struktur eines Singing Calls: Opener, Figur 1–4, Middle Break und Closer. So weißt du immer, wo du im Song bist.",
     "en": "The 7 segments show the structure of a singing call: Opener, Figures 1–4, Middle Break and Closer. Always know where you are in the song.",
     "ja": "7 つのセグメントは Singing Call の構成を示します: Opener、Figure 1〜4、Middle Break、Closer。曲のどこにいるか常に把握できます。"
   },
@@ -6689,7 +6689,7 @@
     "ja": "適用または破棄"
   },
   "tutorial.beat_snap.apply.text": {
-    "de": "Mit Übernehmen speicherst du die neuen Loop-Punkte. Schliessen verwirft die Änderungen.",
+    "de": "Mit Übernehmen speicherst du die neuen Loop-Punkte. Schließen verwirft die Änderungen.",
     "en": "Apply saves the new loop points. Close discards the changes.",
     "ja": "「適用」で新しい Loop 点を保存します。「閉じる」で変更を破棄します。"
   },
@@ -6999,7 +6999,7 @@
     "ja": "検索ウィンドウ"
   },
   "tutorial.loop_finder.window.text": {
-    "de": "Wieviele Beats sollen verglichen werden? Grössere Fenster finden präzisere Loops, kleinere sind flexibler.",
+    "de": "Wieviele Beats sollen verglichen werden? Größere Fenster finden präzisere Loops, kleinere sind flexibler.",
     "en": "How many beats should be compared? Larger windows find more precise loops, smaller ones are more flexible.",
     "ja": "いくつのビートを比較しますか？大きいウィンドウはより正確な Loop を見つけ、小さいものはより柔軟です。"
   },

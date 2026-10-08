@@ -18,7 +18,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 ### Bugfixes
 - **Sonstiges-Songs in der Playlist spielen einmal durch.** Ein von Hand in die Playlist gelegter Song vom Typ „Sonstiges“ wurde wie ein Patter behandelt und mit der Einstellung „Patter-Füllung im Planner“ = „Auf Ziellänge optimieren“ auf Patter-Länge gestreckt. Jetzt läuft er einmal durch, wie ein Singing Call.
 - **Patter-Füllung auch über die Songliste und den Abendplaner.** Mit der Einstellung „Patter-Füllung im Planner“ = „Auf Ziellänge optimieren“ wurden Patter, die über den Songlisten-Button oder „Übernehmen zur Playlist“ im Abendplaner kamen, nicht auf die Ziellänge gebracht. Jetzt gilt die Einstellung für alle Wege in die Playlist.
-- **Echte Umlaute in der deutschen Oberfläche.** Texte wie „Loeschen“, „fuer“ oder „Menue“ heißen jetzt „Löschen“, „für“ und „Menü“.
+- **Echte Umlaute und ß in der deutschen Oberfläche.** Texte wie „Loeschen“, „fuer“ oder „Menue“ heißen jetzt „Löschen“, „für“ und „Menü“, aus „Grösse“ und „Schliessen“ wird „Größe“ und „Schließen“.
 
 ### Bugfixes
 - **Deaktivierte Player-Buttons ganz in den Farben des Skins.** Solange nichts läuft, hatten die Symbole von Pause, Stop und Fade out ein blasses Grau, das zu keiner Farbe des Skins passte; besonders auffällig bei farbiger Button-Schrift. Jetzt haben Symbol und Beschriftung eines deaktivierten Buttons dieselbe Farbe aus dem Skin. Das gilt auch für Play vor dem ersten Laden eines Songs.
