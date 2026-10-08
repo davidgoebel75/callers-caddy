@@ -1830,6 +1830,11 @@
     "en": "Infinite (stop manually)",
     "ja": "無限（手動で停止）"
   },
+  "loop_count_once": {
+    "de": "Einmal durchspielen",
+    "en": "Play through once",
+    "ja": "1回だけ再生"
+  },
   "patter_fill_infinite": {
     "de": "Endlos",
     "en": "Infinite",

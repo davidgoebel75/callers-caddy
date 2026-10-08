@@ -27,6 +27,7 @@ from perf import perf_start, perf_log
 from stats_widget import add_song_rating_actions
 from songdata_widget import SongFilterBar
 import song_types
+from song_types import PlayMode
 from ui_helpers import (
     _make_icon, _reco_score, _style_date_cell, _WrapButtonBar,
     _SVG_AUTOFILL, calc_auto_loop, show_loop_count_dialog,
@@ -128,7 +129,7 @@ def apply_block_move_to(items, from_rows, to_row):
 class PlaylistEntry:
     """Ein Eintrag in der Playlist (nur im Speicher, nicht in DB)."""
     song: Song
-    mode: str       # 'P' = Pattern, 'S' = Singing
+    mode: PlayMode  # Abspielart; 'P'/'S' aus Datei oder Aufrufer wird umgewandelt
     played: bool = False
     loop_count: int = 0   # 0 = Endlos (Standard), N = nach N Loops weiter
     # BL-164: Feinjustierung der Patter-Laenge. Anzahl Beats (ganze Phrasen),
@@ -140,6 +141,9 @@ class PlaylistEntry:
     # der Dialog beim Wiederoeffnen die vorige Wahl zeigt statt der Default-Zeit.
     # 0.0 = noch nie manuell gesetzt → Programm-Default verwenden.
     loop_target_min: float = 0.0
+
+    def __post_init__(self):
+        self.mode = PlayMode(self.mode)
 
 
 class _PoolTable(QTableWidget):
@@ -297,7 +301,7 @@ class PlaylistWidget(QWidget):
         # Playlist Tabelle (mit D&D fuer Reorder)
         self._pl_table = _PlaylistTable()
         self._pl_table.setColumnCount(5)
-        self._pl_table.setHorizontalHeaderLabels(["#", "P/S", _t("header_title"), "Loops", _t("header_duration")])
+        self._pl_table.setHorizontalHeaderLabels(["#", _t("header_type"), _t("header_title"), "Loops", _t("header_duration")])
         self._pl_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self._pl_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self._pl_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
@@ -425,9 +429,10 @@ class PlaylistWidget(QWidget):
             item_num.setTextAlignment(Qt.AlignCenter)
             self._pl_table.setItem(idx, 0, item_num)
 
-            item_mode = QTableWidgetItem(entry.mode)
-            item_mode.setTextAlignment(Qt.AlignCenter)
-            self._pl_table.setItem(idx, 1, item_mode)
+            item_type = QTableWidgetItem(song_types.type_tag(
+                entry.song.is_pattern, entry.song.is_singing))
+            item_type.setTextAlignment(Qt.AlignCenter)
+            self._pl_table.setItem(idx, 1, item_type)
 
             display = entry.song.title or entry.song.filename
             item_title = QTableWidgetItem(display)
@@ -437,7 +442,7 @@ class PlaylistWidget(QWidget):
                 lc_text = str(entry.loop_count)
                 if getattr(entry, 'loop_cut_beats', 0) > 0:
                     lc_text += " ✂"   # BL-164: Feinjustierung (Cut) aktiv
-            elif entry.mode == 'S':
+            elif not entry.mode.loops:
                 lc_text = "1"
             else:
                 lc_text = "∞"
@@ -661,13 +666,6 @@ class PlaylistWidget(QWidget):
         if QApplication.keyboardModifiers() & (Qt.ControlModifier | Qt.ShiftModifier):
             return
         entry = self._playlist[row]
-        # Klick auf P/S-Spalte: Mode umschalten — nur die betroffenen Zellen
-        # aktualisieren, KEIN refresh_display() (das wuerde die Selektion loeschen).
-        if column == 1:
-            entry.mode = 'S' if entry.mode == 'P' else 'P'
-            self._update_mode_cell(row)
-            self._notify_changed()
-            return
         self._current_index = row
         # Nur die Fett-Markierung inkrementell umsetzen — KEIN Tabellen-Neuaufbau,
         # damit die (Mehrfach-)Selektion und der Fokus erhalten bleiben. Ein voller
@@ -676,27 +674,6 @@ class PlaylistWidget(QWidget):
         self._apply_current_highlight()
         if self.on_playlist_song_selected:
             self.on_playlist_song_selected(entry)
-
-    def _update_mode_cell(self, row):
-        """Aktualisiert P/S- und Loops-Zelle EINER Zeile ohne Tabellen-Neuaufbau
-        (die Loops-Anzeige haengt vom Mode ab: 'S' -> '1', 'P' -> Count/'∞')."""
-        if not (0 <= row < len(self._playlist)):
-            return
-        entry = self._playlist[row]
-        it_mode = self._pl_table.item(row, 1)
-        if it_mode is not None:
-            it_mode.setText(entry.mode)
-        it_loops = self._pl_table.item(row, 3)
-        if it_loops is not None:
-            if entry.loop_count > 0:
-                lc = str(entry.loop_count)
-                if getattr(entry, 'loop_cut_beats', 0) > 0:
-                    lc += " ✂"
-            elif entry.mode == 'S':
-                lc = "1"
-            else:
-                lc = "∞"
-            it_loops.setText(lc)
 
     def _on_remove_clicked(self, *_):
         """✕-Button / Entf-Taste: alle markierten Zeilen als Block loeschen."""
@@ -1029,7 +1006,7 @@ class PlaylistManagerWidget(QWidget):
         right.setContentsMargins(0, 0, 0, 0)
         self._pl_table = _PlaylistTable()
         self._pl_table.setColumnCount(5)
-        self._pl_table.setHorizontalHeaderLabels(["#", "P/S", _t("header_title"), "Loops", _t("header_duration")])
+        self._pl_table.setHorizontalHeaderLabels(["#", _t("header_type"), _t("header_title"), "Loops", _t("header_duration")])
         self._pl_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self._pl_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self._pl_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
@@ -1048,7 +1025,6 @@ class PlaylistManagerWidget(QWidget):
         self._pl_table.on_reorder = self._on_dnd_reorder
         self._pl_table.on_col_double_click = self._on_pl_double_click
         self._pl_table.on_delete_pressed = self._on_remove_from_playlist
-        self._pl_table.cellClicked.connect(self._on_pl_cell_click)
         self._pl_table.on_enter_pressed = self._on_pl_enter
         right.addWidget(self._pl_table)
 
@@ -1093,6 +1069,7 @@ class PlaylistManagerWidget(QWidget):
 
     # ---- Callbacks ----
     on_confirm = None  # Callback: Confirm-Button gedrueckt → Dock schliessen
+    on_loop_settings_changed = None  # callback(entry) nach dem Loop-Dialog
 
     def _on_clear_playlist(self):
         """Gesamte Playlist loeschen — mit Rueckfrage."""
@@ -1249,9 +1226,10 @@ class PlaylistManagerWidget(QWidget):
             item_num.setTextAlignment(Qt.AlignCenter)
             self._pl_table.setItem(idx, 0, item_num)
 
-            item_mode = QTableWidgetItem(entry.mode)
-            item_mode.setTextAlignment(Qt.AlignCenter)
-            self._pl_table.setItem(idx, 1, item_mode)
+            item_type = QTableWidgetItem(song_types.type_tag(
+                entry.song.is_pattern, entry.song.is_singing))
+            item_type.setTextAlignment(Qt.AlignCenter)
+            self._pl_table.setItem(idx, 1, item_type)
 
             display = entry.song.title or entry.song.filename
             item_title = QTableWidgetItem(display)
@@ -1261,7 +1239,7 @@ class PlaylistManagerWidget(QWidget):
                 lc_text = str(entry.loop_count)
                 if getattr(entry, 'loop_cut_beats', 0) > 0:
                     lc_text += " ✂"   # BL-164: Feinjustierung (Cut) aktiv
-            elif entry.mode == 'S':
+            elif not entry.mode.loops:
                 lc_text = "1"
             else:
                 lc_text = "∞"
@@ -1270,7 +1248,7 @@ class PlaylistManagerWidget(QWidget):
             self._pl_table.setItem(idx, 3, item_loops)
 
             # Dauer-Spalte: bei Endlos-Loop (loop_count=0) Ziel-Patternlänge des Tanzprogramms nutzen
-            if entry.loop_count <= 0 and entry.mode == 'P':
+            if entry.loop_count <= 0 and entry.mode.loops:
                 dur = self.get_target_duration() * 60.0
             else:
                 dur = self._pw._calc_entry_duration(entry)
@@ -1307,21 +1285,20 @@ class PlaylistManagerWidget(QWidget):
 
     # ---- Mode-Erkennung ----
 
-    def _determine_mode(self, song: Song) -> str:
+    def _determine_mode(self, song: Song) -> PlayMode:
+        """Abspielart fuer einen neu eingefuegten Song: der Typ-Filter
+        entscheidet bei PS-Songs, sonst der Song-Typ (Other spielt einmal)."""
         filter_id = self._filter_bar.type_filter
-        if filter_id == 1:
-            return 'P'
-        elif filter_id == 2:
-            return 'S'
-        if song.is_pattern and not song.is_singing:
-            return 'P'
-        if song.is_singing and not song.is_pattern:
-            return 'S'
-        return 'P'
+        if filter_id == song_types.FILTER_ID[song_types.PATTER]:
+            return PlayMode.LOOP
+        if filter_id == song_types.FILTER_ID[song_types.SINGING]:
+            return PlayMode.ONCE
+        return song_types.play_mode(song.is_pattern, song.is_singing)
 
     def _make_entry(self, song, mode) -> "PlaylistEntry":
-        """Zentrale Fabrik fuer NEU in den Planner kommende Songs (Button,
-        Doppelklick, Drag&Drop, Auto-Fill) — wendet die Patter-Fuellung an.
+        """Zentrale Fabrik fuer NEU in die Playlist kommende Songs (Planner-
+        Button, Doppelklick, Drag&Drop, Auto-Fill, Songlisten-Button,
+        Abendplaner) — wendet die Patter-Fuellung an.
 
         NICHT fuer das Laden gespeicherter Playlists verwenden: dort bleibt die
         gespeicherte Loop-Wahl erhalten.
@@ -1333,9 +1310,9 @@ class PlaylistManagerWidget(QWidget):
     def _apply_patter_fill(self, entry) -> None:
         """BL-132+: Patter-Fill-Type 'target' → Patter auf die Programm-Ziellaenge
         optimieren. Default 'infinite' laesst den Patter endlos (loop_count=0).
-        Singing-Calls (mode 'S') bleiben immer unberuehrt.
+        Eintraege mit Abspielart ONCE bleiben immer unberuehrt.
         """
-        if entry.mode != 'P':
+        if not entry.mode.loops:
             return
         fill_type = "infinite"
         if self._settings is not None:
@@ -1398,21 +1375,6 @@ class PlaylistManagerWidget(QWidget):
             self._pw.add_entry(self._make_entry(song, mode))
             self._refresh_playlist_mirror()
 
-    def _on_pl_cell_click(self, row, column):
-        """Klick auf P/S-Spalte in der Planner-Playlist: Mode umschalten.
-        Ctrl/Shift-Klick baut nur die Auswahl auf (kein Umschalten)."""
-        if QApplication.keyboardModifiers() & (Qt.ControlModifier | Qt.ShiftModifier):
-            return
-        if column != 1:
-            return
-        playlist = self._pw.get_playlist()
-        if row < 0 or row >= len(playlist):
-            return
-        entry = playlist[row]
-        entry.mode = 'S' if entry.mode == 'P' else 'P'
-        self._pw.refresh_display()
-        self._refresh_playlist_mirror()
-
     def _on_pl_double_click(self, row, column):
         if column == 3:
             self._on_loop_count_edit(row)
@@ -1439,11 +1401,15 @@ class PlaylistManagerWidget(QWidget):
             current_count=entry.loop_count,
             current_cut=entry.loop_cut_beats,
             current_target_min=entry.loop_target_min,
+            current_mode=entry.mode,
         )
         if result is not None:
-            entry.loop_count, entry.loop_cut_beats, entry.loop_target_min = result
+            (entry.loop_count, entry.loop_cut_beats, entry.loop_target_min,
+             entry.mode) = result
             self._pw.refresh_display()
             self._refresh_playlist_mirror()
+            if self.on_loop_settings_changed:
+                self.on_loop_settings_changed(entry)
 
     def _remove_pl_song(self, row):
         """Entfernt Song an Position row aus der Playlist."""
@@ -1567,10 +1533,10 @@ class PlaylistManagerWidget(QWidget):
         to_add = []  # Liste von (song, mode)
 
         def add_p(song):
-            to_add.append((song, 'P')); used.add(song.id)
+            to_add.append((song, PlayMode.LOOP)); used.add(song.id)
 
         def add_s(song):
-            to_add.append((song, 'S')); used.add(song.id)
+            to_add.append((song, PlayMode.ONCE)); used.add(song.id)
 
         if strategy == 1:
             for _ in range(n):

@@ -3,7 +3,7 @@
 Blatt-Modul (BL-201, Stufe 2): aus main.py ausgelagerte, wiederverwendbare
 Helfer ohne Rueckgriff auf main — Zeitformatierung, Loop-Rechnung, der
 Loop-Count-Dialog, Transport-/Icon-SVGs samt _make_icon, _make_dock und die
-_PlayBarrier. Abhaengigkeiten nur auf Blatt-/Fremdmodule (perf, i18n, PySide6).
+_PlayBarrier. Abhaengigkeiten nur auf Blatt-/Fremdmodule (perf, i18n, song_types, PySide6).
 """
 
 import math
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from i18n import _t
 from perf import perf_start, perf_split
+from song_types import PlayMode
 
 
 # BL-170: Ersatz-Qualitaet fuer unbewertete Songs beim gewichteten Zufall.
@@ -209,7 +210,7 @@ def calc_auto_loop(loop_in, loop_out, song_duration, bpm, desired_seconds):
 
 def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
                            current_count=None, current_cut=0,
-                           current_target_min=0.0):
+                           current_target_min=0.0, current_mode=PlayMode.LOOP):
     """Zeigt den Loop-Count-Berechnungsdialog.
 
     Args:
@@ -217,9 +218,11 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
             Playlist-Eintrags. Wenn current_target_min>0, startet der Dialog mit
             dieser Wunschzeit und stellt die zuletzt gewaehlte Option wieder her
             (BL-164 — sonst saehe man beim Wiederoeffnen nur die Default-Werte).
+        current_mode: Abspielart des Eintrags; ONCE waehlt "Einmal durchspielen" vor.
 
-    Returns: (loop_count, loop_cut_beats, target_min)-Tupel, oder None bei Abbruch.
-      loop_count=0 → Endlos; loop_cut_beats>0 nur bei der BL-164-Cut-Variante.
+    Returns: (loop_count, loop_cut_beats, target_min, mode)-Tupel, oder None bei
+      Abbruch. loop_count=0 → Endlos; loop_cut_beats>0 nur bei der
+      BL-164-Cut-Variante. mode ist ONCE nur bei "Einmal durchspielen" (intern#179).
     """
     import soundfile as sf
 
@@ -283,14 +286,17 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
     radio_high = QRadioButton()
     radio_cut = QRadioButton()   # BL-164: feinjustierte Variante (64-Beat-Cut)
     radio_infinite = QRadioButton(_t("loop_count_infinite"))
+    radio_once = QRadioButton(_t("loop_count_once"))   # intern#179: Abspielart ONCE
     radio_group.addButton(radio_low, 0)
     radio_group.addButton(radio_high, 1)
     radio_group.addButton(radio_cut, 3)
     radio_group.addButton(radio_infinite, 2)
+    radio_group.addButton(radio_once, 4)
     dlg_layout.addWidget(radio_low)
     dlg_layout.addWidget(radio_high)
     dlg_layout.addWidget(radio_cut)      # unter den ganzzahligen Optionen
     dlg_layout.addWidget(radio_infinite)
+    dlg_layout.addWidget(radio_once)
 
     def _best_cut(desired, options):
         """BL-164: beste Cut-Variante, naeher von 64/32-Beat-Raster.
@@ -316,6 +322,7 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
         return best
 
     def _update_options():
+        keep_once = radio_once.isChecked()   # Wahl "Einmal" ueberlebt Minuten-Aenderung
         desired = spin_minutes.value() * 60.0
         options = calc_loop_count(desired, loop_in, loop_out, song_duration)
         cut = _best_cut(desired, options)
@@ -352,6 +359,8 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
             radio_low.setVisible(False)
             radio_high.setVisible(False)
             result_label.setText(_t("loop_count_error"))
+        if keep_once:
+            radio_once.setChecked(True)
 
     spin_minutes.valueChanged.connect(_update_options)
     _update_options()
@@ -370,6 +379,8 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
                 radio_low.setChecked(True)
             elif len(_opts) >= 2 and current_count == _opts[1][0]:
                 radio_high.setChecked(True)
+    if current_mode is PlayMode.ONCE:
+        radio_once.setChecked(True)
 
     btn_box = QHBoxLayout()
     btn_ok = QPushButton(_t("btn_ok"))
@@ -385,18 +396,20 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
     if dlg.exec() == QDialog.Accepted:
         target_min = spin_minutes.value()
         checked_id = radio_group.checkedId()
+        if checked_id == 4:
+            return (0, 0, target_min, PlayMode.ONCE)
         if checked_id == 2:
-            return (0, 0, target_min)  # Endlos
+            return (0, 0, target_min, PlayMode.LOOP)  # Endlos
         desired = target_min * 60.0
         options = calc_loop_count(desired, loop_in, loop_out, song_duration)
         if checked_id == 3:
             cut = _best_cut(desired, options)
             if cut is not None:
-                return (cut[0], cut[1], target_min)   # (loop_count, cut_abs_beats, min)
+                return (cut[0], cut[1], target_min, PlayMode.LOOP)   # (loop_count, cut_abs_beats, min, mode)
         if checked_id == 0 and len(options) >= 1:
-            return (options[0][0], 0, target_min)
+            return (options[0][0], 0, target_min, PlayMode.LOOP)
         elif checked_id == 1 and len(options) >= 2:
-            return (options[1][0], 0, target_min)
+            return (options[1][0], 0, target_min, PlayMode.LOOP)
     return None
 
 

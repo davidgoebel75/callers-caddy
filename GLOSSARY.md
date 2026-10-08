@@ -63,6 +63,13 @@ Song, der weder Patter noch Singing Call ist, etwa Friendship Ring oder Happy
 Birthday. Wird nicht in Tips eingeplant.
 _Avoid_: Round Dance als eigener Typ, "ohne Typ"
 
+**Abspielart**:
+Wie ein Playlist-Eintrag laeuft: endlos loopen (mit Patter-Fuellung) oder einmal
+durchspielen. Folgt beim Einfuegen dem Song-Typ — Other spielt einmal durch —
+und laesst sich im Loop-Dialog umstellen.
+_EN_: Play Mode
+_Avoid_: Modus, P/S (meint mal den Song-Typ, mal die Abspielart)
+
 **Body**:
 Der gesungene Kern eines Singing Calls: sieben Abschnitte à 64 Beats. Intro und
 Outro liegen davor und danach.
