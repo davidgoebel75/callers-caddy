@@ -129,7 +129,7 @@ def apply_block_move_to(items, from_rows, to_row):
 class PlaylistEntry:
     """Ein Eintrag in der Playlist (nur im Speicher, nicht in DB)."""
     song: Song
-    mode: PlayMode  # Abspielart; 'P'/'S' aus Datei oder Aufrufer wird umgewandelt
+    play_mode: PlayMode  # Abspielart; 'P'/'S' aus Datei oder Aufrufer wird umgewandelt
     played: bool = False
     loop_count: int = 0   # 0 = Endlos (Standard), N = nach N Loops weiter
     # BL-164: Feinjustierung der Patter-Laenge. Anzahl Beats (ganze Phrasen),
@@ -143,7 +143,7 @@ class PlaylistEntry:
     loop_target_min: float = 0.0
 
     def __post_init__(self):
-        self.mode = PlayMode(self.mode)
+        self.play_mode = PlayMode(self.play_mode)
 
 
 class _PoolTable(QTableWidget):
@@ -442,7 +442,7 @@ class PlaylistWidget(QWidget):
                 lc_text = str(entry.loop_count)
                 if getattr(entry, 'loop_cut_beats', 0) > 0:
                     lc_text += " ✂"   # BL-164: Feinjustierung (Cut) aktiv
-            elif not entry.mode.loops:
+            elif not entry.play_mode.loops:
                 lc_text = "1"
             else:
                 lc_text = "∞"
@@ -703,7 +703,7 @@ class PlaylistWidget(QWidget):
             if resp != QMessageBox.Yes:
                 return
             sel_rows = list(range(len(self._playlist)))
-        entries = [(self._playlist[r].song.title, self._playlist[r].mode)
+        entries = [(self._playlist[r].song.title, self._playlist[r].play_mode)
                    for r in sel_rows]
         if self.on_add_entries_to_notes:
             self.on_add_entries_to_notes(entries)
@@ -721,7 +721,7 @@ class PlaylistWidget(QWidget):
         act_remove = menu.addAction(_t("ctx_remove_from_playlist"))
         act_remove.triggered.connect(lambda: self.remove_at(row))
         menu.addSeparator()
-        song_mode = self._playlist[row].mode
+        song_mode = self._playlist[row].play_mode
         act_notes = menu.addAction(_t("ctx_add_to_notes"))
         act_notes.triggered.connect(
             lambda: self.on_add_to_notes(title, song_mode) if self.on_add_to_notes else None)
@@ -778,7 +778,7 @@ class PlaylistWidget(QWidget):
                     # fuer Eintraege ohne Cut unveraendert (Rueckwaertskompatibilitaet)
                     cut = getattr(entry, 'loop_cut_beats', 0)
                     tok = f"{entry.loop_count}:{cut}" if cut > 0 else f"{entry.loop_count}"
-                    f.write(f"{entry.mode} {tok} {entry.song.title}\n")
+                    f.write(f"{entry.play_mode} {tok} {entry.song.title}\n")
             print(f"[Playlist] Gespeichert: {filepath} ({len(self._playlist)} Songs)")
         except Exception as e:
             QMessageBox.warning(self, _t("error"), _t("save_failed", error=e))
@@ -811,9 +811,9 @@ class PlaylistWidget(QWidget):
             parts = line.split(" ", 2)
             if len(parts) < 2:
                 continue
-            mode = parts[0].upper()
-            if mode not in ('P', 'S'):
-                mode = 'P'
+            play_mode = parts[0].upper()
+            if play_mode not in ('P', 'S'):
+                play_mode = 'P'
             # Format: "MODE LOOPCOUNT FILENAME" oder "MODE FILENAME" (alt).
             # LOOPCOUNT ist "N" oder "N:CUT" (BL-164 Feinjustierung).
             loop_count = 0
@@ -831,7 +831,7 @@ class PlaylistWidget(QWidget):
             song = self.db.get_by_title(filename) or self.db.get_by_filename(filename)
             if song:
                 self._playlist.append(PlaylistEntry(
-                    song=song, mode=mode, loop_count=loop_count,
+                    song=song, play_mode=play_mode, loop_count=loop_count,
                     loop_cut_beats=loop_cut))
             else:
                 not_found.append(filename)
@@ -1239,7 +1239,7 @@ class PlaylistManagerWidget(QWidget):
                 lc_text = str(entry.loop_count)
                 if getattr(entry, 'loop_cut_beats', 0) > 0:
                     lc_text += " ✂"   # BL-164: Feinjustierung (Cut) aktiv
-            elif not entry.mode.loops:
+            elif not entry.play_mode.loops:
                 lc_text = "1"
             else:
                 lc_text = "∞"
@@ -1248,7 +1248,7 @@ class PlaylistManagerWidget(QWidget):
             self._pl_table.setItem(idx, 3, item_loops)
 
             # Dauer-Spalte: bei Endlos-Loop (loop_count=0) Ziel-Patternlänge des Tanzprogramms nutzen
-            if entry.loop_count <= 0 and entry.mode.loops:
+            if entry.loop_count <= 0 and entry.play_mode.loops:
                 dur = self.get_target_duration() * 60.0
             else:
                 dur = self._pw._calc_entry_duration(entry)
@@ -1285,7 +1285,7 @@ class PlaylistManagerWidget(QWidget):
 
     # ---- Mode-Erkennung ----
 
-    def _determine_mode(self, song: Song) -> PlayMode:
+    def _determine_play_mode(self, song: Song) -> PlayMode:
         """Abspielart fuer einen neu eingefuegten Song: der Typ-Filter
         entscheidet bei PS-Songs, sonst der Song-Typ (Other spielt einmal)."""
         filter_id = self._filter_bar.type_filter
@@ -1295,7 +1295,7 @@ class PlaylistManagerWidget(QWidget):
             return PlayMode.ONCE
         return song_types.play_mode(song.is_pattern, song.is_singing)
 
-    def _make_entry(self, song, mode) -> "PlaylistEntry":
+    def _make_entry(self, song, play_mode) -> "PlaylistEntry":
         """Zentrale Fabrik fuer NEU in die Playlist kommende Songs (Planner-
         Button, Doppelklick, Drag&Drop, Auto-Fill, Songlisten-Button,
         Abendplaner) — wendet die Patter-Fuellung an.
@@ -1303,7 +1303,7 @@ class PlaylistManagerWidget(QWidget):
         NICHT fuer das Laden gespeicherter Playlists verwenden: dort bleibt die
         gespeicherte Loop-Wahl erhalten.
         """
-        entry = PlaylistEntry(song=song, mode=mode)
+        entry = PlaylistEntry(song=song, play_mode=play_mode)
         self._apply_patter_fill(entry)
         return entry
 
@@ -1312,7 +1312,7 @@ class PlaylistManagerWidget(QWidget):
         optimieren. Default 'infinite' laesst den Patter endlos (loop_count=0).
         Eintraege mit Abspielart ONCE bleiben immer unberuehrt.
         """
-        if not entry.mode.loops:
+        if not entry.play_mode.loops:
             return
         fill_type = "infinite"
         if self._settings is not None:
@@ -1346,8 +1346,8 @@ class PlaylistManagerWidget(QWidget):
         song_id = self._pool_table.item(row, 0).data(Qt.UserRole)
         song = self.db.get_by_id(song_id)
         if song:
-            mode = self._determine_mode(song)
-            self._pw.add_entry(self._make_entry(song, mode))
+            play_mode = self._determine_play_mode(song)
+            self._pw.add_entry(self._make_entry(song, play_mode))
             self._refresh_playlist_mirror()
 
     def _on_remove_from_playlist(self, *_):
@@ -1371,8 +1371,8 @@ class PlaylistManagerWidget(QWidget):
         song_id = item.data(Qt.UserRole)
         song = self.db.get_by_id(song_id)
         if song:
-            mode = self._determine_mode(song)
-            self._pw.add_entry(self._make_entry(song, mode))
+            play_mode = self._determine_play_mode(song)
+            self._pw.add_entry(self._make_entry(song, play_mode))
             self._refresh_playlist_mirror()
 
     def _on_pl_double_click(self, row, column):
@@ -1401,11 +1401,11 @@ class PlaylistManagerWidget(QWidget):
             current_count=entry.loop_count,
             current_cut=entry.loop_cut_beats,
             current_target_min=entry.loop_target_min,
-            current_mode=entry.mode,
+            current_play_mode=entry.play_mode,
         )
         if result is not None:
             (entry.loop_count, entry.loop_cut_beats, entry.loop_target_min,
-             entry.mode) = result
+             entry.play_mode) = result
             self._pw.refresh_display()
             self._refresh_playlist_mirror()
             if self.on_loop_settings_changed:
@@ -1424,8 +1424,8 @@ class PlaylistManagerWidget(QWidget):
         """Song per D&D aus Pool in die Playlist gedroppt."""
         song = self.db.get_by_id(song_id)
         if song:
-            mode = self._determine_mode(song)
-            entry = self._make_entry(song, mode)
+            play_mode = self._determine_play_mode(song)
+            entry = self._make_entry(song, play_mode)
             playlist = self._pw.get_playlist()
             if target_row >= len(playlist):
                 self._pw.add_entry(entry)
@@ -1530,7 +1530,7 @@ class PlaylistManagerWidget(QWidget):
             return None
 
         used = set()
-        to_add = []  # Liste von (song, mode)
+        to_add = []  # Liste von (song, play_mode)
 
         def add_p(song):
             to_add.append((song, PlayMode.LOOP)); used.add(song.id)
@@ -1571,6 +1571,6 @@ class PlaylistManagerWidget(QWidget):
         # AR-002 Fix: Bulk-Add statt N× add_entry() — nur 1× refresh_display +
         # 1× _refresh_playlist_mirror (via _notify_changed im Bulk-Add).
         self._pw.add_entries_bulk(
-            [self._make_entry(song, mode) for song, mode in to_add]
+            [self._make_entry(song, play_mode) for song, play_mode in to_add]
         )
         print(f"[Auto-Fill] Strategie {strategy}, {n} Tipps → {len(to_add)} Songs")

@@ -2861,8 +2861,8 @@ class P29MainWindow(QMainWindow):
         Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
         oder ohne BPM wird 0 gesetzt (identisch zum alten Loop-Verhalten).
         """
-        self.engine.set_loop_active(entry.mode.loops)
-        self.loop_widget.chk_loop.setChecked(entry.mode.loops)
+        self.engine.set_loop_active(entry.play_mode.loops)
+        self.loop_widget.chk_loop.setChecked(entry.play_mode.loops)
         self.engine.set_loop_count(entry.loop_count)
         bpm = entry.song.base_bpm or 0.0
         cut_beats = getattr(entry, 'loop_cut_beats', 0)
@@ -2881,11 +2881,11 @@ class P29MainWindow(QMainWindow):
             current_count=entry.loop_count,
             current_cut=entry.loop_cut_beats,
             current_target_min=entry.loop_target_min,
-            current_mode=entry.mode,
+            current_play_mode=entry.play_mode,
         )
         if result is not None:
             (entry.loop_count, entry.loop_cut_beats, entry.loop_target_min,
-             entry.mode) = result
+             entry.play_mode) = result
             self.playlist_widget.refresh_display()
             self.playlist_manager._refresh_playlist_mirror()
             self._sync_loop_settings_if_loaded(entry)
@@ -3559,23 +3559,23 @@ class P29MainWindow(QMainWindow):
         self._dismiss_body_detect_overlay()
         self.lyrics_widget.apply_detected_body({"ok": False, "reason": msg})
 
-    def _add_song_to_playlist(self, song_id, mode: str = ""):
+    def _add_song_to_playlist(self, song_id, play_mode: str = ""):
         """Song per Songlisten-Button oder Kontextmenü zur Playlist hinzufügen.
-        mode='P'/'S' erzwingt die Abspielart (z.B. Slot-Rolle aus dem Evening
-        Planner); ohne mode wird sie aus dem Song-Typ bestimmt. Laeuft ueber
+        play_mode='P'/'S' erzwingt die Abspielart (z.B. Slot-Rolle aus dem Evening
+        Planner); ohne play_mode wird sie aus dem Song-Typ bestimmt. Laeuft ueber
         _make_entry, damit die Patter-Fuellung greift (intern#179)."""
         song = self.db.get_by_id(song_id)
         if not song:
             return
-        if mode not in ("P", "S"):
-            mode = self.playlist_manager._determine_mode(song)
+        if play_mode not in ("P", "S"):
+            play_mode = self.playlist_manager._determine_play_mode(song)
         self.playlist_widget.add_entry(
-            self.playlist_manager._make_entry(song, mode))
+            self.playlist_manager._make_entry(song, play_mode))
         self.playlist_manager._refresh_playlist_mirror()
 
     def _on_ep_export_to_playlist(self, song_ids: list):
         """Evening Planner → Playlist: bestätigte Songs in Tip-Reihenfolge übernehmen.
-        song_ids: Liste von (song_id, mode) Tupeln ('P'/'S') oder plain int
+        song_ids: Liste von (song_id, play_mode) Tupeln ('P'/'S') oder plain int
         (Rueckwaertskompatibilitaet)."""
         if not song_ids:
             QMessageBox.information(
@@ -3586,8 +3586,8 @@ class P29MainWindow(QMainWindow):
             return
         for item in song_ids:
             if isinstance(item, tuple):
-                song_id, mode = item
-                self._add_song_to_playlist(song_id, mode=mode)
+                song_id, play_mode = item
+                self._add_song_to_playlist(song_id, play_mode=play_mode)
             else:
                 self._add_song_to_playlist(item)
         n = len(song_ids)

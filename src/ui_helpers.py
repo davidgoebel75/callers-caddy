@@ -210,7 +210,7 @@ def calc_auto_loop(loop_in, loop_out, song_duration, bpm, desired_seconds):
 
 def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
                            current_count=None, current_cut=0,
-                           current_target_min=0.0, current_mode=PlayMode.LOOP):
+                           current_target_min=0.0, current_play_mode=PlayMode.LOOP):
     """Zeigt den Loop-Count-Berechnungsdialog.
 
     Args:
@@ -218,11 +218,11 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
             Playlist-Eintrags. Wenn current_target_min>0, startet der Dialog mit
             dieser Wunschzeit und stellt die zuletzt gewaehlte Option wieder her
             (BL-164 — sonst saehe man beim Wiederoeffnen nur die Default-Werte).
-        current_mode: Abspielart des Eintrags; ONCE waehlt "Einmal durchspielen" vor.
+        current_play_mode: Abspielart des Eintrags; ONCE waehlt "Einmal durchspielen" vor.
 
-    Returns: (loop_count, loop_cut_beats, target_min, mode)-Tupel, oder None bei
+    Returns: (loop_count, loop_cut_beats, target_min, play_mode)-Tupel, oder None bei
       Abbruch. loop_count=0 → Endlos; loop_cut_beats>0 nur bei der
-      BL-164-Cut-Variante. mode ist ONCE nur bei "Einmal durchspielen" (intern#179).
+      BL-164-Cut-Variante. play_mode ist ONCE nur bei "Einmal durchspielen" (intern#179).
     """
     import soundfile as sf
 
@@ -379,7 +379,7 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
                 radio_low.setChecked(True)
             elif len(_opts) >= 2 and current_count == _opts[1][0]:
                 radio_high.setChecked(True)
-    if current_mode is PlayMode.ONCE:
+    if current_play_mode is PlayMode.ONCE:
         radio_once.setChecked(True)
 
     btn_box = QHBoxLayout()
@@ -405,7 +405,7 @@ def show_loop_count_dialog(parent, song, paths, default_minutes=7.0,
         if checked_id == 3:
             cut = _best_cut(desired, options)
             if cut is not None:
-                return (cut[0], cut[1], target_min, PlayMode.LOOP)   # (loop_count, cut_abs_beats, min, mode)
+                return (cut[0], cut[1], target_min, PlayMode.LOOP)   # (loop_count, cut_abs_beats, min, play_mode)
         if checked_id == 0 and len(options) >= 1:
             return (options[0][0], 0, target_min, PlayMode.LOOP)
         elif checked_id == 1 and len(options) >= 2:
