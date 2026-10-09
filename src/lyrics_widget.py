@@ -16,6 +16,7 @@ import perf
 import singing_sections
 import reading_band_path
 import heads_sides
+import sync_point_lines
 from i18n import _t
 from path_manager import PathManager
 from skin_manager import SkinManager
@@ -3533,22 +3534,21 @@ class LyricsWidget(QWidget):
                 break
         return d - shift
 
-    def _line_pos_at(self, event) -> int:
-        """Pristine-Zeichenposition des Zeilenanfangs an der Klickposition."""
+    def _line_span_at(self, event) -> tuple:
+        """Pristine-Zeichenpositionen (Anfang, Ende) der TEXTZEILE an der
+        Klickposition. Bewusst nicht die sichtbare Zeile: Die bricht je nach
+        Fensterbreite und Zoom anders um (intern#171)."""
         try:
             pt = event.position().toPoint()
         except AttributeError:
             pt = event.pos()
-        cursor = self._browser.cursorForPosition(pt)
-        cursor.movePosition(QTextCursor.StartOfLine)
-        return self._display_to_pristine(cursor.position())
-
-    def _anchor_indices_for_pos(self, pos: int) -> list:
-        return [i for i, (_sec, p) in enumerate(self._sync_anchors)
-                if int(p) == int(pos)]
+        d = self._browser.cursorForPosition(pt).position()
+        start, end = sync_point_lines.line_span(
+            self._browser.document().toPlainText(), d)
+        return self._display_to_pristine(start), self._display_to_pristine(end)
 
     def _handle_sync_click(self, event):
-        pos = self._line_pos_at(event)
+        pos, line_end = self._line_span_at(event)
         btn = event.button()
 
         # Verschiebe-Modus aktiv: naechster Linksklick setzt neue Textzeile
@@ -3563,7 +3563,9 @@ class LyricsWidget(QWidget):
 
         if btn == Qt.RightButton:
             # Menue immer zeigen — auch auf leerer Stelle (fuer "Alle loeschen")
-            self._sync_context_menu(event, self._anchor_indices_for_pos(pos))
+            # Alle Punkte der Textzeile, auch verrutschte mitten in der Zeile
+            self._sync_context_menu(event, sync_point_lines.indices_in_span(
+                self._sync_anchors, pos, line_end))
             return
 
         if btn == Qt.LeftButton:
