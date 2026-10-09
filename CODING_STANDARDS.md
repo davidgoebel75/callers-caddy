@@ -67,6 +67,7 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 ## Uebersetzungen (i18n)
 
 - Texte laufen ueber `_t("key")` aus `src/translations.json`, jeder Key mit `de`, `en` und `ja`. `_t()` faellt still auf Deutsch zurueck — eine fehlende Sprache faellt also erst dem englischen oder japanischen Nutzer auf.
+- Deutsche Texte, die der Nutzer sieht (`de` in `translations.json`, `CHANGELOG.md`), mit echten Umlauten und `ß` schreiben: „Größe“, „schließen“, nicht „Groesse“, „Grösse“ oder „schliessen“. Code, Kommentare und Commit-Messages bleiben ASCII.
 - **Neuer INI-Schluessel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` uebersetzen (Muster `lyrics/dynamic_mode`). Test `tests/settings/test_settings_i18n.py` prueft das.
 
 ## Tests

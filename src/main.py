@@ -2894,10 +2894,19 @@ class P29MainWindow(QMainWindow):
         """BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
         die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
         beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
-        Gilt fuer den Loop-Dialog aus Playlist und Planner."""
-        cur = getattr(self, '_current_song', None)
-        if cur is not None and cur.id == entry.song.id:
+        Gilt fuer den Loop-Dialog aus Playlist und Planner.
+        intern#184: Vergleich ueber den Eintrag, nicht die Song-ID — steht
+        derselbe Song zweimal in der Playlist, bleibt der laufende unberuehrt."""
+        if entry is self._loaded_playlist_entry():
             self._apply_loop_settings_to_engine(entry)
+
+    def _loaded_playlist_entry(self):
+        """Der Playlist-Eintrag, dessen Song gerade geladen ist, sonst None."""
+        cur = self._current_song
+        pl_entry = self.playlist_widget.get_current_entry()
+        if cur is not None and pl_entry is not None and pl_entry.song.id == cur.id:
+            return pl_entry
+        return None
 
     def _on_playlist_song_selected(self, entry: PlaylistEntry):
         """Wird aufgerufen wenn ein Song in der Playlist angeklickt wird -> vorladen."""
@@ -3319,8 +3328,8 @@ class P29MainWindow(QMainWindow):
             self.loop_widget.chk_loop.setChecked(False)
 
         # Loop-Count aus Playlist-Entry uebernehmen (falls vorhanden)
-        pl_entry = self.playlist_widget.get_current_entry()
-        if pl_entry and pl_entry.song.id == song.id:
+        pl_entry = self._loaded_playlist_entry()
+        if pl_entry is not None:
             self._apply_loop_settings_to_engine(pl_entry)
         else:
             self.engine.set_loop_count(0)  # Endlos (Standard)
