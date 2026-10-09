@@ -1303,9 +1303,12 @@ class PlaylistManagerWidget(QWidget):
         NICHT fuer das Laden gespeicherter Playlists verwenden: dort bleibt die
         gespeicherte Loop-Wahl erhalten.
         """
-        if not song_types.has_loop_points(song.loop_in, song.loop_out,
-                                          self._pw._get_song_duration(song)):
-            play_mode = PlayMode.ONCE   # intern#183: nichts zu loopen
+        # intern#183: ohne Loop-Punkte nichts zu loopen. Ein reiner Patter
+        # loopt trotzdem: Die Engine wiederholt ihn dann als ganzen Song.
+        pure_patter = song.is_pattern and not song.is_singing
+        if not pure_patter and not song_types.has_loop_points(
+                song.loop_in, song.loop_out, self._pw._get_song_duration(song)):
+            play_mode = PlayMode.ONCE
         entry = PlaylistEntry(song=song, play_mode=play_mode)
         self._apply_patter_fill(entry)
         return entry

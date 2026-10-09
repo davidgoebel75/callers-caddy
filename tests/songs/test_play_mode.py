@@ -103,6 +103,21 @@ def test_song_ohne_loop_punkte_spielt_einmal(vorgegeben, loop_out):
     assert entry.loop_count == 0
 
 
+@pytest.mark.parametrize("loop_out", [0.0, 180.0])
+def test_reiner_patter_ohne_loop_punkte_loopt(loop_out):
+    # Die Engine wiederholt ihn als ganzen Song; einmal durch hiesse Stille mitten im Tip
+    song = Song(filename="x.mp3", is_pattern=1, is_singing=0, loop_out=loop_out)
+    entry = PlaylistManagerWidget._make_entry(_manager(), song, PlayMode.LOOP)
+    assert entry.play_mode is PlayMode.LOOP
+
+
+@pytest.mark.parametrize("flags", [(1, 1), (0, 1), (0, 0)])
+def test_kein_reiner_patter_ohne_loop_punkte_spielt_einmal(flags):
+    song = Song(filename="x.mp3", is_pattern=flags[0], is_singing=flags[1])
+    entry = PlaylistManagerWidget._make_entry(_manager(), song, PlayMode.LOOP)
+    assert entry.play_mode is PlayMode.ONCE
+
+
 def test_song_mit_loop_punkten_behaelt_vorgegebene_abspielart():
     entry = PlaylistManagerWidget._make_entry(_manager(), _song(True, True), PlayMode.LOOP)
     assert entry.play_mode is PlayMode.LOOP

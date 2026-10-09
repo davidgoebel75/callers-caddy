@@ -4037,9 +4037,7 @@ class P29MainWindow(QMainWindow):
         loop_set = False
         if song and hasattr(song, 'loop_in') and hasattr(song, 'loop_out'):
             orig_dur = self.engine.get_original_duration() if self.engine.is_loaded() else 0
-            loop_set = (song.loop_in > 0.1 or
-                        (song.loop_out > 0 and orig_dur > 0 and
-                         abs(song.loop_out - orig_dur) > 0.5))
+            loop_set = song_types.has_loop_points(song.loop_in, song.loop_out, orig_dur)
         bpm_set = bool(song and getattr(song, 'base_bpm', 0) > 0)
         # BL-205: Gesamtlaenge des geladenen Songs in Sekunden (0 = nichts geladen)
         song_length = self.engine.get_original_duration() if self.engine.is_loaded() else 0
