@@ -917,6 +917,7 @@ class P29MainWindow(QMainWindow):
             self.db, self.playlist_widget, skin_mgr=self.skin_mgr, settings=self._settings)
         self.playlist_manager.get_target_duration = self._get_current_target_duration
         self.playlist_manager.on_confirm = self._on_manager_confirm
+        self.playlist_manager.on_loop_settings_changed = self._sync_loop_settings_if_loaded
         self.dock_manager = _make_dock(
             self, _t("dock_planner"), self.playlist_manager, Qt.LeftDockWidgetArea
         )
@@ -2893,12 +2894,17 @@ class P29MainWindow(QMainWindow):
     # ---- Playlist / Auto-Advance ----
 
     def _apply_loop_settings_to_engine(self, entry):
-        """BL-164: Reicht loop_count + Cut eines Playlist-Eintrags an die Engine.
+        """BL-164: Reicht Abspielart, loop_count + Cut eines Playlist-Eintrags
+        an die Engine.
 
         Zentral, damit Song-Laden UND nachtraegliche Dialog-Aenderung denselben
-        Pfad nutzen. Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
+        Pfad nutzen. Loop an/aus folgt der Abspielart des Eintrags, nicht dem
+        Song-Typ: ein PS-Song auf dem Singing-Platz spielt einmal (intern#179).
+        Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
         oder ohne BPM wird 0 gesetzt (identisch zum alten Loop-Verhalten).
         """
+        self.engine.set_loop_active(entry.play_mode.loops)
+        self.loop_widget.chk_loop.setChecked(entry.play_mode.loops)
         self.engine.set_loop_count(entry.loop_count)
         bpm = entry.song.base_bpm or 0.0
         cut_beats = getattr(entry, 'loop_cut_beats', 0)
@@ -2917,17 +2923,32 @@ class P29MainWindow(QMainWindow):
             current_count=entry.loop_count,
             current_cut=entry.loop_cut_beats,
             current_target_min=entry.loop_target_min,
+            current_play_mode=entry.play_mode,
         )
         if result is not None:
-            entry.loop_count, entry.loop_cut_beats, entry.loop_target_min = result
+            (entry.loop_count, entry.loop_cut_beats, entry.loop_target_min,
+             entry.play_mode) = result
             self.playlist_widget.refresh_display()
             self.playlist_manager._refresh_playlist_mirror()
-            # BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
-            # die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
-            # beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
-            cur = getattr(self, '_current_song', None)
-            if cur is not None and cur.id == entry.song.id:
-                self._apply_loop_settings_to_engine(entry)
+            self._sync_loop_settings_if_loaded(entry)
+
+    def _sync_loop_settings_if_loaded(self, entry):
+        """BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
+        die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
+        beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
+        Gilt fuer den Loop-Dialog aus Playlist und Planner.
+        intern#184: Vergleich ueber den Eintrag, nicht die Song-ID — steht
+        derselbe Song zweimal in der Playlist, bleibt der laufende unberuehrt."""
+        if entry is self._loaded_playlist_entry():
+            self._apply_loop_settings_to_engine(entry)
+
+    def _loaded_playlist_entry(self):
+        """Der Playlist-Eintrag, dessen Song gerade geladen ist, sonst None."""
+        cur = self._current_song
+        pl_entry = self.playlist_widget.get_current_entry()
+        if cur is not None and pl_entry is not None and pl_entry.song.id == cur.id:
+            return pl_entry
+        return None
 
     def _on_playlist_song_selected(self, entry: PlaylistEntry):
         """Wird aufgerufen wenn ein Song in der Playlist angeklickt wird -> vorladen."""
@@ -3339,7 +3360,8 @@ class P29MainWindow(QMainWindow):
             self.lyrics_widget.load_song(song)
         self._push_lyrics_sync_identity(offer_copy=True)
 
-        # Pattern-Songs: Loop standardmaessig aktivieren
+        # Pattern-Songs: Loop standardmaessig aktivieren (Playlist-Eintrag
+        # ueberschreibt das unten mit seiner Abspielart)
         if song.is_pattern:
             self.engine.set_loop_active(True)
             self.loop_widget.chk_loop.setChecked(True)
@@ -3348,8 +3370,8 @@ class P29MainWindow(QMainWindow):
             self.loop_widget.chk_loop.setChecked(False)
 
         # Loop-Count aus Playlist-Entry uebernehmen (falls vorhanden)
-        pl_entry = self.playlist_widget.get_current_entry()
-        if pl_entry and pl_entry.song.id == song.id:
+        pl_entry = self._loaded_playlist_entry()
+        if pl_entry is not None:
             self._apply_loop_settings_to_engine(pl_entry)
         else:
             self.engine.set_loop_count(0)  # Endlos (Standard)
@@ -3592,21 +3614,23 @@ class P29MainWindow(QMainWindow):
         self._dismiss_body_detect_overlay()
         self.lyrics_widget.apply_detected_body({"ok": False, "reason": msg})
 
-    def _add_song_to_playlist(self, song_id, mode: str = ""):
+    def _add_song_to_playlist(self, song_id, play_mode: str = ""):
         """Song per Songlisten-Button oder Kontextmenü zur Playlist hinzufügen.
-        mode='P'/'S' erzwingt den Typ (z.B. Slot-Rolle aus dem Evening Planner);
-        ohne mode wird er aus den Song-Tags bestimmt."""
+        play_mode='P'/'S' erzwingt die Abspielart (z.B. Slot-Rolle aus dem Evening
+        Planner); ohne play_mode wird sie aus dem Song-Typ bestimmt. Laeuft ueber
+        _make_entry, damit die Patter-Fuellung greift (intern#179)."""
         song = self.db.get_by_id(song_id)
         if not song:
             return
-        if mode not in ("P", "S"):
-            mode = self.playlist_manager._determine_mode(song)
-        self.playlist_widget.add_entry(PlaylistEntry(song=song, mode=mode))
+        if play_mode not in ("P", "S"):
+            play_mode = self.playlist_manager._determine_play_mode(song)
+        self.playlist_widget.add_entry(
+            self.playlist_manager._make_entry(song, play_mode))
         self.playlist_manager._refresh_playlist_mirror()
 
     def _on_ep_export_to_playlist(self, song_ids: list):
         """Evening Planner → Playlist: bestätigte Songs in Tip-Reihenfolge übernehmen.
-        song_ids: Liste von (song_id, mode) Tupeln ('P'/'S') oder plain int
+        song_ids: Liste von (song_id, play_mode) Tupeln ('P'/'S') oder plain int
         (Rueckwaertskompatibilitaet)."""
         if not song_ids:
             QMessageBox.information(
@@ -3617,8 +3641,8 @@ class P29MainWindow(QMainWindow):
             return
         for item in song_ids:
             if isinstance(item, tuple):
-                song_id, mode = item
-                self._add_song_to_playlist(song_id, mode=mode)
+                song_id, play_mode = item
+                self._add_song_to_playlist(song_id, play_mode=play_mode)
             else:
                 self._add_song_to_playlist(item)
         n = len(song_ids)
@@ -4059,9 +4083,7 @@ class P29MainWindow(QMainWindow):
         loop_set = False
         if song and hasattr(song, 'loop_in') and hasattr(song, 'loop_out'):
             orig_dur = self.engine.get_original_duration() if self.engine.is_loaded() else 0
-            loop_set = (song.loop_in > 0.1 or
-                        (song.loop_out > 0 and orig_dur > 0 and
-                         abs(song.loop_out - orig_dur) > 0.5))
+            loop_set = song_types.has_loop_points(song.loop_in, song.loop_out, orig_dur)
         bpm_set = bool(song and getattr(song, 'base_bpm', 0) > 0)
         # BL-205: Gesamtlaenge des geladenen Songs in Sekunden (0 = nichts geladen)
         song_length = self.engine.get_original_duration() if self.engine.is_loaded() else 0

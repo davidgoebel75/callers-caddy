@@ -1203,6 +1203,7 @@ class PlayerWidget(QWidget):
         btn_hov   = sm.color("button_hover",  "#7a78a5")
         btn_pre   = sm.color("button_pressed","#4e4c73")
         btn_txt   = sm.color("button_text",   "#ffffff")
+        muted_txt = sm.color("muted_text",    "#999999")
 
         # Theme-Schriftgroesse als Zahl (z.B. "13px" → 13)
         try:
@@ -1293,11 +1294,12 @@ class PlayerWidget(QWidget):
             QPushButton:disabled {{ background-color: {muted_bg}; color: {text_dim}; }}
         """)
 
-        # SVG-Icons mit button_text-Farbe
-        self.btn_play.setIcon(_make_icon(_SVG_PLAY,  btn_txt))
-        self.btn_pause.setIcon(_make_icon(_SVG_PAUSE, btn_txt))
-        self.btn_stop.setIcon(_make_icon(_SVG_STOP,  btn_txt))
-        self.btn_fade.setIcon(_make_icon(_SVG_FADE,  btn_txt))
+        # SVG-Icons mit button_text-Farbe; deaktiviert in derselben Farbe wie
+        # der Text (Play: eigenes Stylesheet oben, Rest: skin.qss)
+        self.btn_play.setIcon(_make_icon(_SVG_PLAY,  btn_txt, text_dim))
+        self.btn_pause.setIcon(_make_icon(_SVG_PAUSE, btn_txt, muted_txt))
+        self.btn_stop.setIcon(_make_icon(_SVG_STOP,  btn_txt, muted_txt))
+        self.btn_fade.setIcon(_make_icon(_SVG_FADE,  btn_txt, muted_txt))
 
         # Sektionsleiste + Timer-Style
         self.section_bar.update_colors()

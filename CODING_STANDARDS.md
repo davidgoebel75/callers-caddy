@@ -18,7 +18,7 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 
 **Regel fuer Neuentwicklung:** Neue Widgets, Dialoge, Worker oder groessere Hilfslogik NICHT in `main.py` schreiben, sondern gleich in ein passendes bestehendes Modul oder ein neues `*_widget.py` / `dialogs_*.py`. Faustregeln:
 - Module bleiben **zirkelfrei**: kein `import main` zur Ladezeit. Braucht ein Modul etwas aus `main` (z. B. `__version__`), per Lazy-Import in der Funktion holen (Muster `_app_version()` in `potential_widget.py`).
-- Von mehreren Modulen genutzte Helfer/Konstanten/SVGs → nach `ui_helpers.py` (Blatt-Modul, haengt nur an perf/i18n/PySide6).
+- Von mehreren Modulen genutzte Helfer/Konstanten/SVGs → nach `ui_helpers.py` (Blatt-Modul, haengt nur an perf/i18n/song_types/PySide6).
 - DB-Methoden: `SongDatabase` in `song_db.py` erbt Themenbloecke aus Mixin-Modulen `song_db_*.py` (z. B. `song_db_potential.py`, intern#165). Neue Methoden in den passenden Block; Aufrufer nutzen immer nur `db.methode()`. Mixins haben kein eigenes `__init__`: Zustand, den sie brauchen (`self._conn`, `schema_problems`, Band-Cache), legt `SongDatabase.__init__` an. Mixins duerfen Methoden von `SongDatabase` aufrufen (z. B. `SchemaMixin` → `_insert_default_dance_programs()`). Konstanten aus `song_db` per Lazy-Import in der Methode holen.
 - `main.py` importiert das Widget zurueck und verdrahtet es im Hauptfenster — wie die bestehenden `from *_widget import ...`-Zeilen.
 - Beim Verschieben von Code **Decorator-Zeilen mitnehmen** (`@dataclass` etc.) — der AST-Startpunkt zeigt sonst auf `class`/`def`, nicht auf `@decorator`.
@@ -67,6 +67,7 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 ## Uebersetzungen (i18n)
 
 - Texte laufen ueber `_t("key")` aus `src/translations.json`, jeder Key mit `de`, `en` und `ja`. `_t()` faellt still auf Deutsch zurueck — eine fehlende Sprache faellt also erst dem englischen oder japanischen Nutzer auf.
+- Deutsche Texte, die der Nutzer sieht (`de` in `translations.json`, `CHANGELOG.md`), mit echten Umlauten und `ß` schreiben: „Größe“, „schließen“, nicht „Groesse“, „Grösse“ oder „schliessen“. Code, Kommentare und Commit-Messages bleiben ASCII.
 - **Neuer INI-Schluessel → erscheint automatisch im Einstellungsdialog → `setting_label_<sektion>_<key>` + `setting_tip_<sektion>_<key>` in de/en/ja pflegen.** Combobox-Auswahltexte in `SETTINGS_META` in `_build_widget` per `_t()` uebersetzen (Muster `lyrics/dynamic_mode`). Test `tests/settings/test_settings_i18n.py` prueft das.
 
 ## Tests
