@@ -4687,7 +4687,9 @@ class P29MainWindow(QMainWindow):
         "Recommendation" liefert deterministisch immer den besten Song; die
         Zufalls-Sortierungen ziehen bei jedem Aufruf neu und liefern daher
         wechselnde Songs. Der gewaehlte Song wird ueber den normalen
-        Songlisten-Pfad geladen (kein Autoplay) und in der Liste selektiert.
+        Songlisten-Pfad geladen (kein Autoplay) und in der Liste selektiert,
+        falls er dort sichtbar ist. Die Filter der Songliste bleiben, wie der
+        Caller sie gesetzt hat (intern#169).
         """
         if not hasattr(self, 'song_list'):
             return
@@ -4708,7 +4710,6 @@ class P29MainWindow(QMainWindow):
             song_types.SINGING if want_type.startswith("sing")
             else song_types.OTHER if want_type.startswith("oth")
             else song_types.PATTER)
-        filter_id = song_types.FILTER_ID[type_key]
         songs = [s for s in songs
                  if song_types.matches(s.is_pattern, s.is_singing, type_key)]
         if not songs:
@@ -4745,18 +4746,6 @@ class P29MainWindow(QMainWindow):
             chosen = max(songs, key=lambda s: (_added_ord(s), random.random()))
         else:  # Alphabetical
             chosen = min(songs, key=lambda s: (s.title or s.filename).lower())
-
-        # Songlisten-Typ-Filter an den gewaehlten Typ angleichen, damit der
-        # geladene Song in der Liste sichtbar ist und selektiert werden kann.
-        # Ohne das blendet ein abweichender Filter (z. B. Liste auf "Singing",
-        # Action liefert "Patter") den Song aus — er wird zwar korrekt in den
-        # Player geladen, aber die Selektion in der Liste greift ins Leere.
-        try:
-            fb = getattr(self.song_list, "_filter_bar", None)
-            if fb is not None:
-                fb.set_type_filter(filter_id)
-        except Exception:
-            pass
 
         # Song laden (cue, kein Autoplay) ueber den normalen Songlisten-Pfad.
         # offer_copy=False: keine interaktiven Sync-Copy-Dialoge bei Singing —
