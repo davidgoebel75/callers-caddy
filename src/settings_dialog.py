@@ -166,7 +166,6 @@ SETTINGS_META: dict[str, dict] = {
     "audio/wasapi_exclusive": {
         "label": "WASAPI Exclusive Mode",
         "widget": "checkbox",
-        "default": False,
         "requires_restart": True,
         "tooltip": "Exklusiver Gerätezugriff — weniger Latenz, aber andere Apps verlieren Audio.",
     },
@@ -261,7 +260,6 @@ SETTINGS_META: dict[str, dict] = {
     "feedback/enabled": {
         "label": "Feedback-Dialog nach Songende",
         "widget": "checkbox",
-        "default": False,
         "tooltip": "Nach jedem Songende einen kurzen Bewertungs-Dialog anzeigen.",
     },
     # --- sequences ---
@@ -445,7 +443,6 @@ SETTINGS_META: dict[str, dict] = {
     "debug/performance_logging": {
         "label": "Performance-Logging",
         "widget": "checkbox",
-        "default": False,
         "requires_restart": True,
         "tooltip": "Schreibt Main-Thread-Timings in perf_log.txt. Nur zur Fehlersuche.",
     },

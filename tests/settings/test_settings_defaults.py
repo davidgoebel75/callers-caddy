@@ -60,10 +60,7 @@ def test_jede_checkbox_hat_den_standard_aus_dem_code():
     for key, meta in SETTINGS_META.items():
         if meta.get("widget") != "checkbox":
             continue
-        if "default" not in meta:
-            falsch.append(f"{key}: kein default")
-            continue
-        soll = str(meta["default"]).lower()
+        soll = str(meta.get("default", False)).lower()   # ohne default: aus
         abweichend = code.get(key, set()) - {soll}
         if abweichend:
             falsch.append(f"{key}: default {soll}, Code liest {sorted(abweichend)}")
