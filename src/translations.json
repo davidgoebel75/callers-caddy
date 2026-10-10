@@ -10292,5 +10292,140 @@
     "de": "Call-Mapping für diesen Call ändern",
     "en": "Change the Call Mapping for this call",
     "ja": "この Call の Call マッピングを変更"
+  },
+  "lyrics_conflict_title": {
+    "de": "Lyrics-Datei weicht ab",
+    "en": "Lyrics file differs",
+    "ja": "Lyrics ファイルが異なります"
+  },
+  "lyrics_conflict_text": {
+    "de": "Im Lyrics-Ordner liegt bereits eine Datei „{name}“ mit anderem Inhalt.",
+    "en": "The lyrics folder already contains a file “{name}” with different content.",
+    "ja": "Lyrics フォルダーには、内容の異なるファイル「{name}」がすでにあります。"
+  },
+  "lyrics_conflict_existing": {
+    "de": "Vorhanden: {stamp}",
+    "en": "Existing: {stamp}",
+    "ja": "既存: {stamp}"
+  },
+  "lyrics_conflict_new": {
+    "de": "Neu: {stamp}",
+    "en": "New: {stamp}",
+    "ja": "新規: {stamp}"
+  },
+  "lyrics_conflict_guess_newer": {
+    "de": "Die neue Datei ist jünger. Vermutlich ist sie eine überarbeitete Fassung.",
+    "en": "The new file is more recent. It is probably a revised version.",
+    "ja": "新しいファイルのほうが更新日時が新しいです。おそらく修正版です。"
+  },
+  "lyrics_conflict_guess_older": {
+    "de": "Die neue Datei ist älter als die vorhandene. Vermutlich ist sie eine frühere Fassung.",
+    "en": "The new file is older than the existing one. It is probably an earlier version.",
+    "ja": "新しいファイルは既存のファイルより古いです。おそらく以前の版です。"
+  },
+  "lyrics_conflict_guess_unclear": {
+    "de": "Beide Dateien haben dasselbe Änderungsdatum, aber unterschiedlichen Inhalt.",
+    "en": "Both files have the same modification date but different content.",
+    "ja": "両方のファイルは更新日時が同じですが、内容が異なります。"
+  },
+  "lyrics_conflict_guess_short_newer": {
+    "de": "Neue Datei ist jünger",
+    "en": "New file is more recent",
+    "ja": "新規のほうが新しい"
+  },
+  "lyrics_conflict_guess_short_older": {
+    "de": "Neue Datei ist älter",
+    "en": "New file is older",
+    "ja": "新規のほうが古い"
+  },
+  "lyrics_conflict_guess_short_unclear": {
+    "de": "Gleiches Datum",
+    "en": "Same date",
+    "ja": "同じ日時"
+  },
+  "lyrics_conflict_bak_hint": {
+    "de": "Beim Ersetzen bleibt die bisherige Fassung als „{name}.bak“ im Lyrics-Ordner erhalten.",
+    "en": "When replacing, the previous version is kept as “{name}.bak” in the lyrics folder.",
+    "ja": "置き換える場合、以前の版は「{name}.bak」として Lyrics フォルダーに残ります。"
+  },
+  "lyrics_conflict_sync_hint": {
+    "de": "Hat der Song SyncPoints, bitte nach dem Ersetzen prüfen: Sie bleiben an ihrer bisherigen Stelle und können im geänderten Text verrutscht sein.",
+    "en": "If the song has SyncPoints, please check them after replacing: they stay at their previous position and may be misplaced in the changed text.",
+    "ja": "この曲に SyncPoint がある場合は、置き換え後に確認してください。SyncPoint は元の位置のままなので、変更後のテキストではずれている可能性があります。"
+  },
+  "lyrics_conflict_btn_replace": {
+    "de": "Ersetzen",
+    "en": "Replace",
+    "ja": "置き換える"
+  },
+  "lyrics_conflict_btn_keep_both": {
+    "de": "Beide behalten",
+    "en": "Keep both",
+    "ja": "両方を残す"
+  },
+  "lyrics_conflict_btn_use_existing": {
+    "de": "Vorhandene verwenden",
+    "en": "Use existing",
+    "ja": "既存を使う"
+  },
+  "lyrics_conflict_list_intro": {
+    "de": "Zu den importierten Songs wurden Lyrics-Dateien gefunden, die im Lyrics-Ordner schon mit anderem Inhalt liegen. Verknüpft sind bisher die vorhandenen Dateien. Bitte je Datei entscheiden.",
+    "en": "Lyrics files were found for the imported songs that already exist in the lyrics folder with different content. So far the existing files are linked. Please decide for each file.",
+    "ja": "インポートした曲の Lyrics ファイルのうち、内容の異なる同名ファイルが Lyrics フォルダーにすでにあるものが見つかりました。現在は既存のファイルがリンクされています。ファイルごとに選択してください。"
+  },
+  "lyrics_conflict_list_bak_hint": {
+    "de": "Beim Ersetzen bleibt die bisherige Fassung als .bak-Datei im Lyrics-Ordner erhalten. „Beide behalten“ legt die neue Datei mit einer Nummer am Namen daneben.",
+    "en": "When replacing, the previous version is kept as a .bak file in the lyrics folder. “Keep both” stores the new file next to it with a number added to its name.",
+    "ja": "置き換える場合、以前の版は .bak ファイルとして Lyrics フォルダーに残ります。「両方を残す」を選ぶと、新しいファイルは名前に番号を付けて保存されます。"
+  },
+  "lyrics_conflict_replace_locked_tip": {
+    "de": "Eine Zeile weiter oben betrifft dieselbe Datei im Lyrics-Ordner. Nur eine neue Datei kann sie ersetzen, deshalb steht „Ersetzen“ hier nicht zur Wahl.",
+    "en": "A row further up refers to the same file in the lyrics folder. Only one new file can replace it, so “Replace” is not available here.",
+    "ja": "上の行が Lyrics フォルダー内の同じファイルを対象にしています。置き換えられるのは新しいファイル 1 つだけのため、ここでは「置き換える」を選べません。"
+  },
+  "lyrics_conflict_failed": {
+    "de": "Diese Lyrics-Dateien konnten nicht übernommen werden. Die vorhandenen Dateien bleiben verknüpft.\n\n{files}",
+    "en": "These lyrics files could not be taken over. The existing files remain linked.\n\n{files}",
+    "ja": "次の Lyrics ファイルを取り込めませんでした。既存のファイルがリンクされたままです。\n\n{files}"
+  },
+  "lyrics_conflict_col_file": {
+    "de": "Datei",
+    "en": "File",
+    "ja": "ファイル"
+  },
+  "lyrics_conflict_col_existing": {
+    "de": "Vorhanden",
+    "en": "Existing",
+    "ja": "既存"
+  },
+  "lyrics_conflict_col_new": {
+    "de": "Neu",
+    "en": "New",
+    "ja": "新規"
+  },
+  "lyrics_conflict_col_guess": {
+    "de": "Vermutung",
+    "en": "Assumption",
+    "ja": "推定"
+  },
+  "lyrics_conflict_col_action": {
+    "de": "Aktion",
+    "en": "Action",
+    "ja": "操作"
+  },
+  "lyrics_conflict_for_all": {
+    "de": "Für alle:",
+    "en": "For all:",
+    "ja": "すべてに適用:"
+  },
+  "lyrics_conflict_for_all_choose": {
+    "de": "Auswählen …",
+    "en": "Choose …",
+    "ja": "選択 …"
+  },
+  "lyrics_copy_failed": {
+    "de": "Die Lyrics-Datei konnte nicht in den Lyrics-Ordner kopiert werden: {error}",
+    "en": "The lyrics file could not be copied to the lyrics folder: {error}",
+    "ja": "Lyrics ファイルを Lyrics フォルダーにコピーできませんでした: {error}"
   }
 }

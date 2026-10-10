@@ -26,6 +26,8 @@ import song_types
 from path_manager import PathManager
 from i18n import _t
 import song_data_io
+import lyrics_files
+from dialogs_lyrics_conflict import ask_lyrics_conflict
 from perf import perf_start, perf_split, perf_log
 from stats_widget import add_song_rating_actions
 from ui_helpers import (
@@ -1612,11 +1614,35 @@ class SongDataWidget(QWidget):
             _t("filter_lyrics_files")
         )
         if filepath:
-            # Nur den relativen Pfad zum Lyrics-Ordner speichern (BL-147, kanonisch '/')
-            rel = self.paths.to_relative_lyric_filename(filepath) \
-                if self.paths else os.path.basename(filepath)
+            rel = self._lyrics_name_for(filepath)
+            if rel is None:
+                return
             self.edit_lyrics.setText(rel)
             self._auto_save()
+
+    def _lyrics_name_for(self, filepath: str):
+        """Name, unter dem die gewaehlte Datei beim Song gespeichert wird:
+        relativ zum Lyrics-Ordner (BL-147, kanonisch '/'). Eine Datei von
+        ausserhalb wird in den Lyrics-Ordner kopiert; liegt dort schon eine
+        gleichnamige mit anderem Inhalt, entscheidet der Caller (intern#167).
+        None = Caller hat abgebrochen oder das Kopieren ist fehlgeschlagen."""
+        if not self.paths:
+            return os.path.basename(filepath)
+        lyrics_dir = self.paths.lyrics_dir
+        if lyrics_files.is_inside(filepath, lyrics_dir):
+            return self.paths.to_relative_lyric_filename(filepath)
+        try:
+            conflict = lyrics_files.find_conflict(filepath, lyrics_dir)
+            if conflict is None:
+                return lyrics_files.adopt(filepath, lyrics_dir)
+            decision = ask_lyrics_conflict(self, conflict)
+            if decision is None:
+                return None
+            return lyrics_files.resolve(conflict, decision)
+        except OSError as e:
+            QMessageBox.warning(self, _t("lyrics_conflict_title"),
+                                _t("lyrics_copy_failed", error=str(e)))
+            return None
 
     def _on_auto_bpm(self):
         """Startet BPM-Erkennung im Hintergrund-Thread."""

@@ -888,6 +888,13 @@ class LyricsWidget(QWidget):
         self._current_path = full_path
         self._load_file(full_path, song.lyrics_file)
 
+    def is_showing(self, path: str) -> bool:
+        """True, wenn gerade die Lyrics-Datei unter diesem Pfad geladen ist."""
+        if not self._current_path:
+            return False
+        return (os.path.normcase(os.path.abspath(self._current_path))
+                == os.path.normcase(os.path.abspath(path)))
+
     def load_by_filename(self, filename: str):
         """Laedt eine Lyrics-Datei direkt anhand des Dateinamens (fuer Varianten)."""
         if self._edit_mode and not self._confirm_discard():
