@@ -38,7 +38,8 @@ QT_FREE_MODULES = {
     "shortcode_parser", "singing_body_detect", "singing_sections",
     "skin_manager", "song_catalog", "song_db", "song_types", "song_db_potential",
     "song_db_schema", "song_db_sequences", "song_match",
-    "subfolder_duplicate_repair", "time_stretcher", "zip_import",
+    "subfolder_duplicate_repair", "sync_point_lines", "time_stretcher",
+    "zip_import",
 }
 
 # ._conn-Zugriffe ausserhalb von song_db.py, vorgefunden. Abbau: intern#138.
