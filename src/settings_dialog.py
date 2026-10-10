@@ -109,10 +109,12 @@ SETTINGS_META: dict[str, dict] = {
     "display/statusbar_player": {
         "label": "Statusleisten-Player anzeigen",
         "widget": "checkbox",
+        "default": True,
     },
     "display/countdown_enabled": {
         "label": "Start-Countdown anzeigen",
         "widget": "checkbox",
+        "default": True,
         "tooltip": "Zählt vor dem Liedstart auf dem Beat herunter (benötigt BPM und gespeicherte Startzeit).",
     },
     # --- paths ---
@@ -157,6 +159,7 @@ SETTINGS_META: dict[str, dict] = {
     "audio/mmcss_priority": {
         "label": "MMCSS-Priorität (Audio-Thread)",
         "widget": "checkbox",
+        "default": True,
         "requires_restart": True,
         "tooltip": "Windows Multimedia Class Scheduler für Audio-Thread aktivieren. Bei Aussetzern deaktivieren.",
     },
@@ -169,6 +172,7 @@ SETTINGS_META: dict[str, dict] = {
     "audio/log_underflows": {
         "label": "Audio-Underflows protokollieren",
         "widget": "checkbox",
+        "default": True,
         "requires_restart": True,
     },
     # BL-137: Timer-Überzug-Sound — Datei wird in den laufenden Stream eingemischt
@@ -249,6 +253,7 @@ SETTINGS_META: dict[str, dict] = {
     "sort/random_tiebreaker": {
         "label": "Gleichstand zufällig sortieren",
         "widget": "checkbox",
+        "default": True,
         "tooltip": "Gleichstand-Gruppen zufällig sortieren (nur bei Qualität / Empfehlung). Gilt für Songliste, Planner und Evening Planner.",
     },
     # --- feedback ---
@@ -317,6 +322,7 @@ SETTINGS_META: dict[str, dict] = {
     "lyrics/auto_size": {
         "label": "Automatische Schriftgrösse",
         "widget": "checkbox",
+        "default": True,
     },
     "lyrics/auto_width": {
         "label": "Automatische Breite",
@@ -562,7 +568,6 @@ class _SettingRow:
         self.section = section
         self.key = key
         self.full_key = f"{section}/{key}"
-        self.original = raw_value
 
         meta = SETTINGS_META.get(self.full_key, {})
         widget_type = meta.get("widget") or _detect_widget_type(key, raw_value)
@@ -593,6 +598,10 @@ class _SettingRow:
 
         # Widget
         self.widget = self._build_widget(widget_type, raw_value, meta, skin_mgr)
+        # intern#189: Ausgangswert ist, was das Widget zeigt, nicht der rohe
+        # INI-Wert. Sonst gilt eine Zeile ohne INI-Wert ("" gegen "false")
+        # als geaendert und wird beim Speichern ungefragt geschrieben.
+        self.original = self.get_value()
         if tooltip and self.widget:
             self.widget.setToolTip(tooltip)
 
