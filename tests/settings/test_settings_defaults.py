@@ -79,16 +79,19 @@ def test_jedes_feld_hat_den_standard_aus_dem_code():
     annimmt - sonst zeigt er z.B. Zoom 50 %, obwohl 100 % gilt (intern#195)."""
     code = _code_defaults()
     seeded = _seeded_keys()
-    falsch = []
+    wrong = []
     for key, meta in SETTINGS_META.items():
+        # ponytail: sieht nur literale Defaults (settings.value("k", 100)); Lesestellen
+        # mit Konstante, Keyword oder Helfer fallen durch. Erst mit einer Quelle fuer
+        # Standardwerte (intern#146) laesst sich das vollstaendig pruefen.
         if key in seeded or key not in code:
             continue
         # Checkbox ohne default: aus. Sonst ohne default: leer.
-        soll = meta.get("default", False if meta.get("widget") == "checkbox" else "")
-        abweichend = {_norm(c) for c in code[key]} - {_norm(soll)}
-        if abweichend:
-            falsch.append(f"{key}: default {soll!r}, Code liest {sorted(abweichend)}")
-    assert not falsch, "\n".join(falsch)
+        expected = meta.get("default", False if meta.get("widget") == "checkbox" else "")
+        diff = {_norm(c) for c in code[key]} - {_norm(expected)}
+        if diff:
+            wrong.append(f"{key}: default {expected!r}, Code liest {sorted(diff)}")
+    assert not wrong, "\n".join(wrong)
 
 
 def test_statusleisten_player_schaltet_sofort_um(qapp, tmp_path):
