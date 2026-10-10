@@ -52,19 +52,46 @@ def _code_defaults() -> dict:
     return found
 
 
-def test_jede_checkbox_hat_den_standard_aus_dem_code():
-    """Der Dialog muss ohne INI-Wert denselben Haken zeigen, den der Code
-    annimmt - sonst zeigt er "aus", obwohl die Funktion an ist."""
+def _seeded_keys() -> set:
+    """Keys, die immer in der INI stehen: _write_ini_defaults() oder die
+    mitgelieferte INI. Ihr default im Dialog wird nie angezeigt."""
+    tree = ast.parse((_SRC / "main.py").read_text(encoding="utf-8"))
+    func = next(n for n in ast.walk(tree)
+                if isinstance(n, ast.FunctionDef) and n.name == "_write_ini_defaults")
+    keys = {k.value for n in ast.walk(func) if isinstance(n, ast.Dict)
+            for k in n.keys if isinstance(k, ast.Constant)}
+    ini = QSettings(str(_SRC.parent / "installer" / "callers_caddy_default.ini"),
+                    QSettings.IniFormat)
+    return keys | set(ini.allKeys())
+
+
+def _norm(v) -> str:
+    """100 == "100", 4.0 == "4" - Zahlen als Zahl vergleichen."""
+    s = str(v).lower()
+    try:
+        return repr(float(s))
+    except ValueError:
+        return s
+
+
+def test_jedes_feld_hat_den_standard_aus_dem_code():
+    """Der Dialog muss ohne INI-Wert denselben Wert zeigen, den der Code
+    annimmt - sonst zeigt er z.B. Zoom 50 %, obwohl 100 % gilt (intern#195)."""
     code = _code_defaults()
-    falsch = []
+    seeded = _seeded_keys()
+    wrong = []
     for key, meta in SETTINGS_META.items():
-        if meta.get("widget") != "checkbox":
+        # ponytail: sieht nur literale Defaults (settings.value("k", 100)); Lesestellen
+        # mit Konstante, Keyword oder Helfer fallen durch. Erst mit einer Quelle fuer
+        # Standardwerte (intern#146) laesst sich das vollstaendig pruefen.
+        if key in seeded or key not in code:
             continue
-        soll = str(meta.get("default", False)).lower()   # ohne default: aus
-        abweichend = code.get(key, set()) - {soll}
-        if abweichend:
-            falsch.append(f"{key}: default {soll}, Code liest {sorted(abweichend)}")
-    assert not falsch, "\n".join(falsch)
+        # Checkbox ohne default: aus. Sonst ohne default: leer.
+        expected = meta.get("default", False if meta.get("widget") == "checkbox" else "")
+        diff = {_norm(c) for c in code[key]} - {_norm(expected)}
+        if diff:
+            wrong.append(f"{key}: default {expected!r}, Code liest {sorted(diff)}")
+    assert not wrong, "\n".join(wrong)
 
 
 def test_statusleisten_player_schaltet_sofort_um(qapp, tmp_path):

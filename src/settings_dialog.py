@@ -275,6 +275,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Zoom",
         "widget": "spinbox",
         "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "default": 100,
     },
     "sequences/only_program_default": {
         "label": "\"Nur\"-Filter beim Start aktiv",
@@ -299,11 +300,13 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Zoom",
         "widget": "spinbox",
         "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "default": 100,
     },
     "notes/first_note_factor": {
         "label": "Erste-Notiz-Faktor",
         "widget": "doublespinbox",
         "min": 1.0, "max": 10.0, "step": 0.5,
+        "default": 4.0,
         "tooltip": "Schriftgrössen-Faktor für die erste (oberste) offene Notiz.",
     },
     "notes/insert_position": {
@@ -318,6 +321,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Zoom",
         "widget": "spinbox",
         "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "default": 100,
     },
     "lyrics/auto_size": {
         "label": "Automatische Schriftgrösse",
