@@ -5240,11 +5240,10 @@ class P29MainWindow(QMainWindow):
         self._sb_player_bar = _StatusBarPlayerBar(skin_mgr=self.skin_mgr, parent=self)
         enabled_str = self._settings.value("display/statusbar_player", "true")
         enabled = str(enabled_str).lower() not in ("false", "0", "no")
-        if enabled:
-            # stretch=1: Leiste bekommt so viel Platz wie moeglich (links vom Audio-Device-Combo)
-            self.statusBar().addPermanentWidget(self._sb_player_bar, 1)
-        else:
-            self._sb_player_bar.hide()
+        # stretch=1: Leiste bekommt so viel Platz wie moeglich (links vom Audio-Device-Combo).
+        # Immer einhaengen, damit der Einstellungsdialog sie live ein- und ausblenden kann.
+        self.statusBar().addPermanentWidget(self._sb_player_bar, 1)
+        self._sb_player_bar.setVisible(enabled)
         # Start-Countdown-Overlay
         self._countdown_overlay = _CountdownOverlay(self)
         _cd_str = self._settings.value("display/countdown_enabled", "true")
@@ -6968,9 +6967,7 @@ class P29MainWindow(QMainWindow):
                     pass
 
             elif key == "display/statusbar_player":
-                enabled = val.lower() == "true"
-                if hasattr(self, "_statusbar_player"):
-                    self._statusbar_player.setVisible(enabled)
+                self._sb_player_bar.setVisible(val.lower() == "true")
 
             elif key == "display/countdown_enabled":
                 self._countdown_enabled = val.lower() not in ("false", "0", "no")
