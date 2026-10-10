@@ -232,6 +232,8 @@ from dialogs_location_program import (
 # --- Call-Map Export/Import mit Konfliktklaerung (intern#79)
 import mapping_io
 from dialogs_mapping_conflict import run_mapping_import
+from dialogs_lyrics_conflict import resolve_with_dialog
+import lyrics_files
 
 
 # ===========================================================================
@@ -916,6 +918,7 @@ class P29MainWindow(QMainWindow):
             self.db, self.playlist_widget, skin_mgr=self.skin_mgr, settings=self._settings)
         self.playlist_manager.get_target_duration = self._get_current_target_duration
         self.playlist_manager.on_confirm = self._on_manager_confirm
+        self.playlist_manager.on_loop_settings_changed = self._sync_loop_settings_if_loaded
         self.dock_manager = _make_dock(
             self, _t("dock_planner"), self.playlist_manager, Qt.LeftDockWidgetArea
         )
@@ -1545,7 +1548,8 @@ class P29MainWindow(QMainWindow):
             result.setdefault(dkey, fname)
         return result
 
-    def _find_and_import_lyrics(self, stem: str, source_dir: str) -> str:
+    def _find_and_import_lyrics(self, stem: str, source_dir: str,
+                                conflicts: list = None) -> str:
         """Sucht eine passende Lyrics-Datei und kopiert sie ggf. in den Lyrics-Ordner.
 
         Das Matching ist tolerant (4-stufig, wie in der SqView-Migration): exakt,
@@ -1560,6 +1564,9 @@ class P29MainWindow(QMainWindow):
         Args:
             stem:       Dateiname ohne Extension (z.B. 'Ring Of Fire-RYL818')
             source_dir: Ordner der importierten MP3
+            conflicts:  Liste, an die ein LyricsConflict gehaengt wird, wenn
+                        im Lyrics-Ordner schon eine gleichnamige Datei mit
+                        anderem Inhalt liegt (intern#167)
 
         Returns:
             Dateiname der Lyrics-Datei (nur Name, kein Pfad) oder ''
@@ -1589,13 +1596,17 @@ class P29MainWindow(QMainWindow):
             match = _match(source_dir)
             if match:
                 src = os.path.join(source_dir, match)
-                dest = os.path.join(lyrics_dir, match)
-                if not os.path.exists(dest):
-                    try:
-                        shutil.copy2(src, dest)
-                    except Exception as e:
-                        print(f"[Import] Lyrics kopieren fehlgeschlagen: {e}")
-                        match = ''
+                try:
+                    # intern#167: Eine abweichende gleichnamige Datei bleibt
+                    # vorerst verknuepft und wird gemerkt; der Caller
+                    # entscheidet nach dem Import.
+                    conflict = lyrics_files.find_conflict(src, lyrics_dir)
+                    if conflict is not None and conflicts is not None:
+                        conflicts.append(conflict)
+                    match = lyrics_files.adopt(src, lyrics_dir)
+                except Exception as e:
+                    print(f"[Import] Lyrics kopieren fehlgeschlagen: {e}")
+                    match = ''
                 if match:
                     return match
 
@@ -1606,6 +1617,27 @@ class P29MainWindow(QMainWindow):
                 return match
 
         return ''
+
+    def _resolve_import_lyrics_conflicts(self, found: list):
+        """intern#167: found = [(song_id, LyricsConflict)] aus einem Import.
+        Fragt einmal fuer alle abweichenden Lyrics-Dateien; bei "beide
+        behalten" wechseln die betroffenen Songs auf die neue Datei."""
+        songs_by_file = {}      # (src, dest) -> (LyricsConflict, [song_id])
+        for song_id, conflict in found:
+            songs_by_file.setdefault(
+                (conflict.src, conflict.dest), (conflict, []))[1].append(song_id)
+        if not songs_by_file:
+            return
+        entries = list(songs_by_file.values())
+        names = resolve_with_dialog(self, [c for c, _ids in entries])
+        for (conflict, song_ids), name in zip(entries, names):
+            if name != conflict.name:
+                for song_id in song_ids:
+                    self.db.update_lyrics_file(song_id, name)
+        # Wurde die gerade angezeigte Datei ersetzt, den neuen Text zeigen.
+        if self._current_song and any(
+                self.lyrics_widget.is_showing(c.dest) for c, _ids in entries):
+            self._reload_current_lyrics()
 
     def _on_find_loop(self):
         """Find-Loop-Button: Zeigt das Loop-Finder-Dock an."""
@@ -1883,7 +1915,8 @@ class P29MainWindow(QMainWindow):
     def _import_single_audio(self, filepath: str, copy_mode: bool,
                              is_pattern: int, is_singing: int,
                              auto_lyrics: bool = True,
-                             genre_ids: list = None) -> dict:
+                             genre_ids: list = None,
+                             lyrics_conflicts: list = None) -> dict:
         """Importiert EINE Audiodatei in die Bibliothek (gekapselter Kern).
 
         Wird vom normalen Import (_import_files) und vom ZIP-Import genutzt.
@@ -1956,14 +1989,18 @@ class P29MainWindow(QMainWindow):
 
         # 3b) Lyrics-Co-Import (gleichnamig, tolerant) — beim ZIP abgeschaltet
         if auto_lyrics:
+            found = []
             lyrics_file = self._find_and_import_lyrics(
                 stem=os.path.splitext(basename)[0],
                 source_dir=os.path.dirname(filepath),
+                conflicts=found,
             )
             if lyrics_file:
                 song.lyrics_file = lyrics_file
                 self.db.update(song)
                 print(f"[Import] Lyrics verknuepft: {lyrics_file}")
+                if lyrics_conflicts is not None:
+                    lyrics_conflicts.extend((song.id, c) for c in found)
 
         # 3c) Genre-Vorschlaege aus Dateiname (Keyword-Matching)
         name_lower = os.path.splitext(basename)[0].lower()
@@ -2057,6 +2094,7 @@ class P29MainWindow(QMainWindow):
         imported = []
         skipped = []
         errors = []
+        lyrics_conflicts = []    # [(song_id, LyricsConflict)], intern#167
         last_imported_path = None
 
         # BL-147: Bei "am Ort belassen" die Wurzel VOR dem Loop als Musik-Slot
@@ -2094,6 +2132,7 @@ class P29MainWindow(QMainWindow):
                     getattr(self, '_import_is_singing', 1),
                     auto_lyrics=True,
                     genre_ids=genre_ids,
+                    lyrics_conflicts=lyrics_conflicts,
                 )
                 if r["status"] == "dup":
                     skipped.append(r["store_name"])
@@ -2104,6 +2143,10 @@ class P29MainWindow(QMainWindow):
                 errors.append(f"{basename}: {e}")
                 print(f"[Import] Fehler: {basename} — {e}")
                 continue
+
+        # 4b) intern#167: abweichende Lyrics-Dateien — der Caller entscheidet.
+        # Vor dem Laden des letzten Songs, damit der schon den Endstand zeigt.
+        self._resolve_import_lyrics_conflicts(lyrics_conflicts)
 
         # 5) Letztes Import-Verzeichnis merken
         if filepaths:
@@ -2852,12 +2895,17 @@ class P29MainWindow(QMainWindow):
     # ---- Playlist / Auto-Advance ----
 
     def _apply_loop_settings_to_engine(self, entry):
-        """BL-164: Reicht loop_count + Cut eines Playlist-Eintrags an die Engine.
+        """BL-164: Reicht Abspielart, loop_count + Cut eines Playlist-Eintrags
+        an die Engine.
 
         Zentral, damit Song-Laden UND nachtraegliche Dialog-Aenderung denselben
-        Pfad nutzen. Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
+        Pfad nutzen. Loop an/aus folgt der Abspielart des Eintrags, nicht dem
+        Song-Typ: ein PS-Song auf dem Singing-Platz spielt einmal (intern#179).
+        Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
         oder ohne BPM wird 0 gesetzt (identisch zum alten Loop-Verhalten).
         """
+        self.engine.set_loop_active(entry.play_mode.loops)
+        self.loop_widget.chk_loop.setChecked(entry.play_mode.loops)
         self.engine.set_loop_count(entry.loop_count)
         bpm = entry.song.base_bpm or 0.0
         cut_beats = getattr(entry, 'loop_cut_beats', 0)
@@ -2876,17 +2924,32 @@ class P29MainWindow(QMainWindow):
             current_count=entry.loop_count,
             current_cut=entry.loop_cut_beats,
             current_target_min=entry.loop_target_min,
+            current_play_mode=entry.play_mode,
         )
         if result is not None:
-            entry.loop_count, entry.loop_cut_beats, entry.loop_target_min = result
+            (entry.loop_count, entry.loop_cut_beats, entry.loop_target_min,
+             entry.play_mode) = result
             self.playlist_widget.refresh_display()
             self.playlist_manager._refresh_playlist_mirror()
-            # BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
-            # die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
-            # beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
-            cur = getattr(self, '_current_song', None)
-            if cur is not None and cur.id == entry.song.id:
-                self._apply_loop_settings_to_engine(entry)
+            self._sync_loop_settings_if_loaded(entry)
+
+    def _sync_loop_settings_if_loaded(self, entry):
+        """BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
+        die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
+        beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
+        Gilt fuer den Loop-Dialog aus Playlist und Planner.
+        intern#184: Vergleich ueber den Eintrag, nicht die Song-ID — steht
+        derselbe Song zweimal in der Playlist, bleibt der laufende unberuehrt."""
+        if entry is self._loaded_playlist_entry():
+            self._apply_loop_settings_to_engine(entry)
+
+    def _loaded_playlist_entry(self):
+        """Der Playlist-Eintrag, dessen Song gerade geladen ist, sonst None."""
+        cur = self._current_song
+        pl_entry = self.playlist_widget.get_current_entry()
+        if cur is not None and pl_entry is not None and pl_entry.song.id == cur.id:
+            return pl_entry
+        return None
 
     def _on_playlist_song_selected(self, entry: PlaylistEntry):
         """Wird aufgerufen wenn ein Song in der Playlist angeklickt wird -> vorladen."""
@@ -3298,7 +3361,8 @@ class P29MainWindow(QMainWindow):
             self.lyrics_widget.load_song(song)
         self._push_lyrics_sync_identity(offer_copy=True)
 
-        # Pattern-Songs: Loop standardmaessig aktivieren
+        # Pattern-Songs: Loop standardmaessig aktivieren (Playlist-Eintrag
+        # ueberschreibt das unten mit seiner Abspielart)
         if song.is_pattern:
             self.engine.set_loop_active(True)
             self.loop_widget.chk_loop.setChecked(True)
@@ -3307,8 +3371,8 @@ class P29MainWindow(QMainWindow):
             self.loop_widget.chk_loop.setChecked(False)
 
         # Loop-Count aus Playlist-Entry uebernehmen (falls vorhanden)
-        pl_entry = self.playlist_widget.get_current_entry()
-        if pl_entry and pl_entry.song.id == song.id:
+        pl_entry = self._loaded_playlist_entry()
+        if pl_entry is not None:
             self._apply_loop_settings_to_engine(pl_entry)
         else:
             self.engine.set_loop_count(0)  # Endlos (Standard)
@@ -3396,17 +3460,21 @@ class P29MainWindow(QMainWindow):
     def _on_player_pitch_changed(self, pitch_semitones):
         self.song_data.update_pitch(pitch_semitones)
 
+    def _reload_current_lyrics(self):
+        """Lyrics des geladenen Songs neu von der Platte lesen."""
+        # Lyric-Variante beibehalten falls aktiv, sonst Standard laden
+        if self._lyric_variant_filename:
+            self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
+        else:
+            self.lyrics_widget.load_song(self._current_song)
+        self._push_lyrics_sync_identity(offer_copy=False)
+
     def _on_song_saved(self):
         self.song_list.refresh()
         self.playlist_manager.refresh()
         if self._current_song:
             self._current_song = self.db.get_by_id(self._current_song.id)
-            # Lyric-Variante beibehalten falls aktiv, sonst Standard laden
-            if self._lyric_variant_filename:
-                self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
-            else:
-                self.lyrics_widget.load_song(self._current_song)
-            self._push_lyrics_sync_identity(offer_copy=False)
+            self._reload_current_lyrics()
             # BPM-Anzeige im Player aktualisieren (z.B. nach Auto-BPM)
             self.player.apply_song_settings(self._current_song)
 
@@ -3547,21 +3615,23 @@ class P29MainWindow(QMainWindow):
         self._dismiss_body_detect_overlay()
         self.lyrics_widget.apply_detected_body({"ok": False, "reason": msg})
 
-    def _add_song_to_playlist(self, song_id, mode: str = ""):
+    def _add_song_to_playlist(self, song_id, play_mode: str = ""):
         """Song per Songlisten-Button oder Kontextmenü zur Playlist hinzufügen.
-        mode='P'/'S' erzwingt den Typ (z.B. Slot-Rolle aus dem Evening Planner);
-        ohne mode wird er aus den Song-Tags bestimmt."""
+        play_mode='P'/'S' erzwingt die Abspielart (z.B. Slot-Rolle aus dem Evening
+        Planner); ohne play_mode wird sie aus dem Song-Typ bestimmt. Laeuft ueber
+        _make_entry, damit die Patter-Fuellung greift (intern#179)."""
         song = self.db.get_by_id(song_id)
         if not song:
             return
-        if mode not in ("P", "S"):
-            mode = self.playlist_manager._determine_mode(song)
-        self.playlist_widget.add_entry(PlaylistEntry(song=song, mode=mode))
+        if play_mode not in ("P", "S"):
+            play_mode = self.playlist_manager._determine_play_mode(song)
+        self.playlist_widget.add_entry(
+            self.playlist_manager._make_entry(song, play_mode))
         self.playlist_manager._refresh_playlist_mirror()
 
     def _on_ep_export_to_playlist(self, song_ids: list):
         """Evening Planner → Playlist: bestätigte Songs in Tip-Reihenfolge übernehmen.
-        song_ids: Liste von (song_id, mode) Tupeln ('P'/'S') oder plain int
+        song_ids: Liste von (song_id, play_mode) Tupeln ('P'/'S') oder plain int
         (Rueckwaertskompatibilitaet)."""
         if not song_ids:
             QMessageBox.information(
@@ -3572,8 +3642,8 @@ class P29MainWindow(QMainWindow):
             return
         for item in song_ids:
             if isinstance(item, tuple):
-                song_id, mode = item
-                self._add_song_to_playlist(song_id, mode=mode)
+                song_id, play_mode = item
+                self._add_song_to_playlist(song_id, play_mode=play_mode)
             else:
                 self._add_song_to_playlist(item)
         n = len(song_ids)
@@ -4014,9 +4084,7 @@ class P29MainWindow(QMainWindow):
         loop_set = False
         if song and hasattr(song, 'loop_in') and hasattr(song, 'loop_out'):
             orig_dur = self.engine.get_original_duration() if self.engine.is_loaded() else 0
-            loop_set = (song.loop_in > 0.1 or
-                        (song.loop_out > 0 and orig_dur > 0 and
-                         abs(song.loop_out - orig_dur) > 0.5))
+            loop_set = song_types.has_loop_points(song.loop_in, song.loop_out, orig_dur)
         bpm_set = bool(song and getattr(song, 'base_bpm', 0) > 0)
         # BL-205: Gesamtlaenge des geladenen Songs in Sekunden (0 = nichts geladen)
         song_length = self.engine.get_original_duration() if self.engine.is_loaded() else 0
@@ -4666,7 +4734,9 @@ class P29MainWindow(QMainWindow):
         "Recommendation" liefert deterministisch immer den besten Song; die
         Zufalls-Sortierungen ziehen bei jedem Aufruf neu und liefern daher
         wechselnde Songs. Der gewaehlte Song wird ueber den normalen
-        Songlisten-Pfad geladen (kein Autoplay) und in der Liste selektiert.
+        Songlisten-Pfad geladen (kein Autoplay) und in der Liste selektiert,
+        falls er dort sichtbar ist. Die Filter der Songliste bleiben, wie der
+        Caller sie gesetzt hat (intern#169).
         """
         if not hasattr(self, 'song_list'):
             return
@@ -4687,7 +4757,6 @@ class P29MainWindow(QMainWindow):
             song_types.SINGING if want_type.startswith("sing")
             else song_types.OTHER if want_type.startswith("oth")
             else song_types.PATTER)
-        filter_id = song_types.FILTER_ID[type_key]
         songs = [s for s in songs
                  if song_types.matches(s.is_pattern, s.is_singing, type_key)]
         if not songs:
@@ -4724,18 +4793,6 @@ class P29MainWindow(QMainWindow):
             chosen = max(songs, key=lambda s: (_added_ord(s), random.random()))
         else:  # Alphabetical
             chosen = min(songs, key=lambda s: (s.title or s.filename).lower())
-
-        # Songlisten-Typ-Filter an den gewaehlten Typ angleichen, damit der
-        # geladene Song in der Liste sichtbar ist und selektiert werden kann.
-        # Ohne das blendet ein abweichender Filter (z. B. Liste auf "Singing",
-        # Action liefert "Patter") den Song aus — er wird zwar korrekt in den
-        # Player geladen, aber die Selektion in der Liste greift ins Leere.
-        try:
-            fb = getattr(self.song_list, "_filter_bar", None)
-            if fb is not None:
-                fb.set_type_filter(filter_id)
-        except Exception:
-            pass
 
         # Song laden (cue, kein Autoplay) ueber den normalen Songlisten-Pfad.
         # offer_copy=False: keine interaktiven Sync-Copy-Dialoge bei Singing —

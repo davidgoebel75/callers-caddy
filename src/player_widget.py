@@ -1203,6 +1203,7 @@ class PlayerWidget(QWidget):
         btn_hov   = sm.color("button_hover",  "#7a78a5")
         btn_pre   = sm.color("button_pressed","#4e4c73")
         btn_txt   = sm.color("button_text",   "#ffffff")
+        muted_txt = sm.color("muted_text",    "#999999")
 
         # Theme-Schriftgroesse als Zahl (z.B. "13px" → 13)
         try:
@@ -1293,11 +1294,12 @@ class PlayerWidget(QWidget):
             QPushButton:disabled {{ background-color: {muted_bg}; color: {text_dim}; }}
         """)
 
-        # SVG-Icons mit button_text-Farbe
-        self.btn_play.setIcon(_make_icon(_SVG_PLAY,  btn_txt))
-        self.btn_pause.setIcon(_make_icon(_SVG_PAUSE, btn_txt))
-        self.btn_stop.setIcon(_make_icon(_SVG_STOP,  btn_txt))
-        self.btn_fade.setIcon(_make_icon(_SVG_FADE,  btn_txt))
+        # SVG-Icons mit button_text-Farbe; deaktiviert in derselben Farbe wie
+        # der Text (Play: eigenes Stylesheet oben, Rest: skin.qss)
+        self.btn_play.setIcon(_make_icon(_SVG_PLAY,  btn_txt, text_dim))
+        self.btn_pause.setIcon(_make_icon(_SVG_PAUSE, btn_txt, muted_txt))
+        self.btn_stop.setIcon(_make_icon(_SVG_STOP,  btn_txt, muted_txt))
+        self.btn_fade.setIcon(_make_icon(_SVG_FADE,  btn_txt, muted_txt))
 
         # Sektionsleiste + Timer-Style
         self.section_bar.update_colors()
@@ -1484,11 +1486,17 @@ class LoopWidget(QWidget):
         time_row.addWidget(self.label_loop_out)
         layout.addLayout(time_row)
 
-        # 4 Buttons gleichmaessig in einer Zeile (Textumbruch bei Platzmangel)
-        btn_marker_row = QHBoxLayout()
-        btn_marker_row.setSpacing(4)
-        _shrink = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        _shrink.setHorizontalStretch(1)
+        # Beide Button-Reihen in EINEM Raster aus vier gleich breiten Spalten,
+        # damit die Kanten fluchten (intern#158). Zwei getrennte Zeilen-Layouts
+        # verteilen den Platz je fuer sich: drei Abstaende oben, zwei unten.
+        # Ignored: die Textbreite zaehlt nicht, sonst waeren die Spalten bei
+        # langen Texten (de/en/ja) ungleich breit. Textumbruch bei Platzmangel.
+        btn_grid = QGridLayout()
+        btn_grid.setHorizontalSpacing(4)
+        btn_grid.setVerticalSpacing(layout.spacing())
+        for _col in range(4):
+            btn_grid.setColumnStretch(_col, 1)
+        _shrink = QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
 
         self.btn_set_in = QPushButton(_t("btn_set_loop_in").replace(" ", "\n"))
         self.btn_set_in.clicked.connect(self._on_set_in)
@@ -1496,7 +1504,7 @@ class LoopWidget(QWidget):
         self.btn_set_in.setSizePolicy(_shrink)
         self.btn_set_in.setMinimumWidth(10)
         self.btn_set_in.setMinimumHeight(38)
-        btn_marker_row.addWidget(self.btn_set_in)
+        btn_grid.addWidget(self.btn_set_in, 0, 0)
 
         self.btn_clear_loop = QPushButton(_t("btn_clear_loop").replace(" ", "\n"))
         self.btn_clear_loop.clicked.connect(self._on_clear_loop)
@@ -1504,7 +1512,7 @@ class LoopWidget(QWidget):
         self.btn_clear_loop.setSizePolicy(_shrink)
         self.btn_clear_loop.setMinimumWidth(10)
         self.btn_clear_loop.setMinimumHeight(38)
-        btn_marker_row.addWidget(self.btn_clear_loop)
+        btn_grid.addWidget(self.btn_clear_loop, 0, 1)
 
         self.btn_set_out = QPushButton(_t("btn_set_loop_out").replace(" ", "\n"))
         self.btn_set_out.clicked.connect(self._on_set_out)
@@ -1512,7 +1520,7 @@ class LoopWidget(QWidget):
         self.btn_set_out.setSizePolicy(_shrink)
         self.btn_set_out.setMinimumWidth(10)
         self.btn_set_out.setMinimumHeight(38)
-        btn_marker_row.addWidget(self.btn_set_out)
+        btn_grid.addWidget(self.btn_set_out, 0, 2)
 
         _test_txt = _t("btn_loop_test")
         # Nur nach erstem Wort umbrechen: "Loop testen\n(5s)"
@@ -1523,20 +1531,16 @@ class LoopWidget(QWidget):
         self.btn_test.setSizePolicy(_shrink)
         self.btn_test.setMinimumWidth(10)
         self.btn_test.setMinimumHeight(38)
-        btn_marker_row.addWidget(self.btn_test)
+        btn_grid.addWidget(self.btn_test, 0, 3)
 
-        layout.addLayout(btn_marker_row)
-
-        # Find Loop (2 Spalten) + Beat Snap (1) + Set Marker (1) — 4-Spalten-Raster
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(4)
+        # Zweite Reihe: Find Loop ueber zwei Spalten, Beat Snap, Set Marker
         self.btn_find_loop = QPushButton(_t("btn_find_loop").replace(" ", "\n"))
         self.btn_find_loop.setToolTip(_t("tooltip_find_loop"))
         self.btn_find_loop.setEnabled(False)
         self.btn_find_loop.setSizePolicy(_shrink)
         self.btn_find_loop.setMinimumWidth(10)
         self.btn_find_loop.setMinimumHeight(38)
-        btn_row.addWidget(self.btn_find_loop, 2)
+        btn_grid.addWidget(self.btn_find_loop, 1, 0, 1, 2)
 
         self.btn_snap = QPushButton(_t("btn_snap").replace(" ", "\n"))
         self.btn_snap.setToolTip(_t("tooltip_snap"))
@@ -1545,7 +1549,7 @@ class LoopWidget(QWidget):
         self.btn_snap.setSizePolicy(_shrink)
         self.btn_snap.setMinimumWidth(10)
         self.btn_snap.setMinimumHeight(38)
-        btn_row.addWidget(self.btn_snap, 1)
+        btn_grid.addWidget(self.btn_snap, 1, 2)
 
         # BL-185: Custom-Jump-Marker an der aktuellen Abspielposition setzen
         self.btn_set_marker = QPushButton(_t("btn_set_marker").replace(" ", "\n"))
@@ -1555,8 +1559,8 @@ class LoopWidget(QWidget):
         self.btn_set_marker.setSizePolicy(_shrink)
         self.btn_set_marker.setMinimumWidth(10)
         self.btn_set_marker.setMinimumHeight(38)
-        btn_row.addWidget(self.btn_set_marker, 1)
-        layout.addLayout(btn_row)
+        btn_grid.addWidget(self.btn_set_marker, 1, 3)
+        layout.addLayout(btn_grid)
 
         self.label_length = QLabel(_t("label_loop_length_default"))
         self.label_length.setAlignment(Qt.AlignCenter)

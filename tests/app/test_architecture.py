@@ -31,14 +31,16 @@ _SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
 QT_FREE_MODULES = {
     "audio_favorites",
     "audio_engine", "bpm_detector", "button_grid", "call_selection",
-    "ceder_lookup", "heads_sides", "i18n", "loop_finder", "mapping_io",
+    "ceder_lookup", "heads_sides", "i18n", "loop_finder", "lyrics_files",
+    "mapping_io",
     "pitch_shifter", "program_selection", "rule_definitions", "rule_engine",
     "sequence_filter", "sequence_import", "sequence_mapper",
     "reading_band_path",
     "shortcode_parser", "singing_body_detect", "singing_sections",
     "skin_manager", "song_catalog", "song_db", "song_types", "song_db_potential",
     "song_db_schema", "song_db_sequences", "song_match",
-    "subfolder_duplicate_repair", "time_stretcher", "zip_import",
+    "subfolder_duplicate_repair", "sync_point_lines", "time_stretcher",
+    "zip_import",
 }
 
 # ._conn-Zugriffe ausserhalb von song_db.py, vorgefunden. Abbau: intern#138.
