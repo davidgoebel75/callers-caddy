@@ -47,7 +47,7 @@ from PySide6.QtWidgets import (
     QProgressDialog,
 )
 from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject, QRect
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QCursor
+from PySide6.QtGui import QColor, QIcon, QKeySequence, QShortcut, QCursor
 
 # --- Frühest möglicher Crash-Handler -----------------------------------------
 # MUSS vor den lokalen Imports stehen (audio_engine/bpm_detector/loop_finder
@@ -158,6 +158,7 @@ from evening_planner_widget import EveningPlannerWidget
 import zip_import
 import song_catalog
 import song_match
+import audio_favorites
 import song_types
 import program_selection
 from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
@@ -5210,6 +5211,17 @@ class P29MainWindow(QMainWindow):
 
         self._audio_device_combo.currentIndexChanged.connect(
             self._on_audio_device_changed)
+
+        # intern#173: Toggle-Knopf 1/2 links neben der Geraete-Auswahl. Schaltet
+        # die Hauptausgabe zwischen Favorit 1 (audio/primary_device) und
+        # Favorit 2 (audio/secondary_device) um. Beim Start gilt immer 1.
+        self._audio_favorite = 1
+        self._btn_audio_favorite = QPushButton("1")
+        self._btn_audio_favorite.setFixedWidth(30)
+        self._btn_audio_favorite.clicked.connect(self._on_audio_favorite_toggle)
+        self.statusBar().addPermanentWidget(self._btn_audio_favorite)
+        self._refresh_audio_favorite_ui()
+
         self.statusBar().addPermanentWidget(self._audio_device_combo)
 
         # AR-008: Checkbox fuer WASAPI Exclusive Mode (umgeht Shared-Glitch)
@@ -5301,6 +5313,87 @@ class P29MainWindow(QMainWindow):
         else:
             self._settings.setValue("audio/primary_device", str(device_index))
         self._settings.sync()
+        # intern#173: Die Liste setzt Favorit 1 -> der Knopf steht wieder auf 1.
+        self._audio_favorite = 1
+        self._refresh_audio_favorite_ui()
+
+    # ---- Audio-Favoriten 1/2 (intern#173) ----
+
+    _ROLE_AUDIO_BASE_LABEL = Qt.UserRole + 1
+
+    def _audio_favorite_devices(self) -> dict:
+        return audio_favorites.favorite_devices(
+            self._settings.value(audio_favorites.PRIMARY_KEY, ""),
+            self._settings.value(audio_favorites.SECONDARY_KEY, ""))
+
+    def _audio_device_label(self, device) -> str:
+        """Name des Geraets wie in der Liste, ohne Favoriten-Ziffer; "" wenn
+        es nicht in der Liste steht."""
+        combo = self._audio_device_combo
+        idx = -1 if device is audio_favorites.UNREADABLE else combo.findData(device)
+        if idx < 0:
+            return ""
+        return combo.itemData(idx, self._ROLE_AUDIO_BASE_LABEL) or combo.itemText(idx)
+
+    def _refresh_audio_favorite_ui(self):
+        """Knopf (Ziffer, Zustand, Tooltip) und Kennzeichnung der beiden
+        Favoriten in der Geraeteliste auf den aktuellen Stand bringen."""
+        combo = self._audio_device_combo
+        devices = self._audio_favorite_devices()
+        marks = audio_favorites.marks(devices)
+        color = QColor(self.skin_mgr.color("focus_border", "#8f8cc9")
+                       if self.skin_mgr else "#8f8cc9")
+        for i in range(combo.count()):
+            base = combo.itemData(i, self._ROLE_AUDIO_BASE_LABEL)
+            if base is None:
+                base = combo.itemText(i)
+                combo.setItemData(i, base, self._ROLE_AUDIO_BASE_LABEL)
+            mark = marks.get(combo.itemData(i))
+            combo.setItemText(i, f"{mark} · {base}" if mark else base)
+            combo.setItemData(i, color if mark else None, Qt.ForegroundRole)
+        active = self._audio_favorite
+        target = audio_favorites.other(active)
+        missing = _t("audio_favorite_device_missing")
+        btn = self._btn_audio_favorite
+        btn.setText(str(active))
+        # 1 = normaler Knopf. 2 faellt auf (Skin-Farbe timer_warn1): Die Musik
+        # laeuft dann nicht ueber den Hauptausgang. Bewusst kein Toggle-Stil
+        # des Themes, der wuerde die 1 ausgegraut zeigen.
+        style = "font-weight: bold; padding: 0px;"
+        if active == 2:
+            warn = (self.skin_mgr.color("timer_warn1", "#f59e0b")
+                    if self.skin_mgr else "#f59e0b")
+            style += f" background-color: {warn}; color: #1a1a1a;"
+        btn.setStyleSheet(f"QPushButton {{ {style} }}")
+        btn.setToolTip(_t(
+            "audio_favorite_tooltip", active=active, target=target,
+            device=self._audio_device_label(devices[active]) or missing,
+            target_device=self._audio_device_label(devices[target]) or missing))
+
+    def _on_audio_favorite_toggle(self):
+        """Hauptausgabe auf den anderen Favoriten schalten. Die Favoriten
+        selbst bleiben unveraendert (audio/primary_device wird nicht
+        ueberschrieben)."""
+        target = audio_favorites.other(self._audio_favorite)
+        device = self._audio_favorite_devices()[target]
+        combo = self._audio_device_combo
+        idx = -1 if device is audio_favorites.UNREADABLE else combo.findData(device)
+        if self.player._audition_active:
+            # Das Vorhoeren stellt danach das gemerkte Geraet wieder her.
+            self.statusBar().showMessage(_t("audio_favorite_blocked_audition"), 6000)
+        elif idx < 0:
+            self.statusBar().showMessage(
+                _t("audio_favorite_missing", favorite=target), 8000)
+        else:
+            perf.perf_write(
+                f"[Diag] Audio-Favorit {target} angefordert: idx={device}, "
+                f"label='{self._audio_device_label(device)}'")
+            self.engine.set_output_device(device)
+            combo.blockSignals(True)
+            combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
+            self._audio_favorite = target
+        self._refresh_audio_favorite_ui()
 
     def _on_wasapi_exclusive_toggled(self, checked: bool):
         """AR-008: WASAPI Exclusive Mode an/aus."""
@@ -6946,12 +7039,39 @@ class P29MainWindow(QMainWindow):
             elif key == "audio/primary_device":
                 try:
                     dev = int(val) if val else None
-                    self.engine.set_output_device(dev)
+                    if self.player._audition_active:
+                        # intern#180: Das Vorhoeren bleibt auf dem Vorhoer-
+                        # Kanal; sein Ende schaltet auf das neue Geraet.
+                        self._pre_audition_device = dev
+                    else:
+                        self.engine.set_output_device(dev)
                     combo_idx = self._audio_device_combo.findData(dev)
                     if combo_idx >= 0:
                         self._audio_device_combo.blockSignals(True)
                         self._audio_device_combo.setCurrentIndex(combo_idx)
                         self._audio_device_combo.blockSignals(False)
+                    # intern#173: neuer Hauptausgang gewaehlt -> Knopf auf 1
+                    self._audio_favorite = 1
+                    self._refresh_audio_favorite_ui()
+                except Exception:
+                    pass
+
+            elif key == "audio/secondary_device":
+                # intern#173: Laeuft die Hauptausgabe gerade ueber Favorit 2,
+                # zieht sie auf das neu gewaehlte Geraet um.
+                try:
+                    dev = int(val) if val else None
+                    combo_idx = self._audio_device_combo.findData(dev)
+                    if self._audio_favorite == 2 and combo_idx >= 0:
+                        self.engine.set_output_device(dev)
+                        if self.player._audition_active:
+                            # intern#180: sonst stellt das Ende des Vorhoerens
+                            # das alte Geraet wieder her.
+                            self._pre_audition_device = dev
+                        self._audio_device_combo.blockSignals(True)
+                        self._audio_device_combo.setCurrentIndex(combo_idx)
+                        self._audio_device_combo.blockSignals(False)
+                    self._refresh_audio_favorite_ui()
                 except Exception:
                     pass
 
@@ -7545,6 +7665,8 @@ class P29MainWindow(QMainWindow):
             self.tutorial_engine.refresh_overlay()
             # BL-204: Magnet-Icons im Ansicht-Menue neu einfaerben (Snap-Zustand)
             self._refresh_all_view_magnets()
+            # Favoriten-Knopf und Geraeteliste nutzen Skin-Farben
+            self._refresh_audio_favorite_ui()
             print(f"[Skin] Gewechselt auf '{skin_name}'")
             return True
         return False
