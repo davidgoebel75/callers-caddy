@@ -6,7 +6,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
-## (Unreleased — seit 0.160)
+## 0.161 — Audio-Ausgang per Klick umschalten, Song-Typ „Sonstiges“ & In-Lesebalken Countdown (2026-10-10)
 
 ### Verbesserungen
 - **Audio-Ausgang mit einem Klick umschalten.** Unten rechts in der Statusleiste, links neben der Geräte-Auswahl, sitzt ein neuer Knopf mit der Ziffer 1 oder 2. Er schaltet die Musik zwischen den beiden Geräten um, die unter Einstellungen → Audio schon gewählt sind: 1 ist der Hauptausgang, 2 der Vorhör-Kanal. Das geht auch bei laufender Musik. In der Geräte-Auswahl tragen die beiden Favoriten die Ziffer vor dem Namen und sind farbig hervorgehoben, damit man sie in der langen Liste sofort findet. Wer in der Liste ein anderes Gerät wählt, macht es wie bisher zum Hauptausgang und damit zum neuen Favoriten 1. Beim Programmstart gilt immer Favorit 1.
