@@ -2,6 +2,7 @@
 # Pre-Commit-Hook (intern#128): Einstellungs-Tests vor jedem Commit, der
 # src/*.py oder src/*.json anfasst. Faengt fehlende Uebersetzungen und
 # fehlende SETTINGS_META-Eintraege schon beim Commit ab, nicht erst in der CI.
+# Dazu der Update-Weg der DB von allen bekannten Altstaenden (intern#145).
 # Aktivieren (einmal pro Klon): git config core.hooksPath .githooks
 # Notfall: git commit --no-verify
 
@@ -13,12 +14,24 @@ elif [ -x .venv/bin/python ]; then PY=.venv/bin/python
 else PY=python
 fi
 
+# pyflakes: undefinierte Namen nach dem Verschieben von Code, unbenutzte Imports.
+# Fehlt pyflakes in der venv, faengt es die CI.
+if "$PY" -m pyflakes --version >/dev/null 2>&1; then
+    "$PY" -m pyflakes src tests tools installer || {
+        echo
+        echo "pre-commit: pyflakes-Befunde, Commit abgebrochen."
+        echo "Im Notfall: git commit --no-verify"
+        exit 1
+    }
+fi
+
 # ponytail: prueft den Arbeitsstand, nicht nur den gestagten Inhalt.
 # Teil-Staging (git add -p) kann so durchrutschen; die CI faengt es dann.
 QT_QPA_PLATFORM=offscreen "$PY" -m pytest -q --no-header -p no:cacheprovider \
-    tests/test_settings_i18n.py tests/test_settings_reachable.py || {
+    tests/settings/test_settings_i18n.py tests/settings/test_settings_reachable.py \
+    tests/db/test_schema.py || {
     echo
-    echo "pre-commit: Einstellungs-Tests fehlgeschlagen, Commit abgebrochen."
+    echo "pre-commit: Einstellungs- oder Schema-Tests fehlgeschlagen, Commit abgebrochen."
     echo "Im Notfall: git commit --no-verify"
     exit 1
 }

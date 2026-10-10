@@ -19,16 +19,19 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
-    QFont, QFontMetrics, QKeySequence, QShortcut,
+    QAction, QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
-from song_db import SongDatabase, calls_to_json
+from song_db import SongDatabase
+from song_db_sequences import calls_to_json
 import sequence_import as seq_import
 from i18n import _t
+import program_selection
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
 from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
+                             fuzzy_suggest_cache, optimize_groups, suggestion_differs,
                              suggest_figure_set)
 from sequence_filter import filter_query_args
 
@@ -79,6 +82,9 @@ class SequenceViewWidget(QWidget):
         self._seq_ids = []
         self._current_idx = 0
         self._calls = []
+        # intern#176: Baender der Tanzprogramm-Wahl fuer das Programm-Etikett
+        # hinter jedem Call (None = keine Wahl, z. B. im Beispiel-Betrachter).
+        self._program_bands = None
         # BL-182: Zufalls-Modus (Würfel). Wenn aktiv, springt „Weiter" (Button,
         # Pfeiltaste, Dynamic-Lyrics-advance) zu einer zufälligen anderen Sequenz
         # aus der aktuell gefilterten Liste — Ziehen ohne Zurücklegen. Das
@@ -89,6 +95,9 @@ class SequenceViewWidget(QWidget):
         self.on_add_to_notes = None   # callback(seq_id)
         self.on_edit_sequence = None  # callback(seq_id) → Editor oeffnen
         self.on_delete_sequence = None  # callback(seq_id) → Sequenz loeschen
+        # intern#177: callback(call_texts) → Call-Mapping mit Fokus. Nur im Dock
+        # gesetzt; der Beispiel-Betrachter des Call-Mappings bleibt ohne Eintrag.
+        self.on_open_call_mapping = None
         # BL-173: Callback, wenn sich die Sequenzliste aendert (fuer das Gating
         # des Dynamic-Lyrics-Buttons im Lyrics-Widget).
         self.on_sequences_changed = None
@@ -127,6 +136,9 @@ class SequenceViewWidget(QWidget):
         self._text_edit.setFrameShape(QFrame.NoFrame)
         self._text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # intern#177: Rechtsklick auf einen Call-Text -> Call-Mapping
+        self._text_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._text_edit.customContextMenuRequested.connect(self._on_text_context_menu)
         layout.addWidget(self._text_edit, 1)
 
         nav_layout = QHBoxLayout()
@@ -199,7 +211,7 @@ class SequenceViewWidget(QWidget):
             self._btn_edit.setEnabled(True)
             self._btn_to_notes.setEnabled(True)
         self._update_content()
-        _pt = perf_split(f"SeqView.set_sequence: update_content (list={len(seq_ids)})", _t0)
+        perf_split(f"SeqView.set_sequence: update_content (list={len(seq_ids)})", _t0)
         self._notify_sequences_changed()
         self._notify_current_sequence_changed()
         perf_log("SeqView.set_sequence: TOTAL", _t0)
@@ -255,11 +267,11 @@ class SequenceViewWidget(QWidget):
         # Der normale Dock setzt das Attribut nie -> keine Verhaltensaenderung.
         hl = getattr(self, "_highlight_text", None)
         parts = []
-        for i, (_pos, call_text, entity_id, _to, _canonical, program) in enumerate(self._calls):
-            if entity_id and program:
+        for i, (_pos, call_text, entity_id, _to, _canonical, program_label) in enumerate(self._calls):
+            if entity_id and program_label:
                 badge = (f'&nbsp;<span style="font-size:{badge_size}px;color:#aaa;'
                          f'border:1px solid #666;padding:1px 3px;'
-                         f'border-radius:2px;">{program}</span>')
+                         f'border-radius:2px;">{program_label}</span>')
             elif entity_id is None:
                 badge = '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
             else:
@@ -377,11 +389,89 @@ class SequenceViewWidget(QWidget):
             self._btn_next.setEnabled(len(self._seq_ids) > 1)
         else:
             self._btn_next.setEnabled(self._current_idx < len(self._seq_ids) - 1)
-        self._calls = self._db.get_sequence_calls(seq_id)
+        # intern#176: 6. Spalte (Teaching-Orders je Figur) wird hier durch das
+        # fertige Programm-Etikett (Text) ersetzt; _make_html liest nur dieses.
+        labels = program_selection.label_by_band(self._db.get_all_dance_programs())
+        self._calls = [
+            c[:5] + (program_selection.call_program_label(
+                c[5] or [], self._program_bands, labels),)
+            for c in self._db.get_sequence_calls(seq_id)]
         self._recalc_font_size()
         # Nochmal nach erstem Layout-Pass, damit height()/width() korrekt ist
         QTimer.singleShot(0, self._recalc_font_size)
         QTimer.singleShot(0, self._recalc_header_font)
+
+    def shown_state(self):
+        """Merker fuer restore_shown: (Sequenzliste, Index) der gezeigten
+        Sequenz, None ohne Sequenz."""
+        if not self._seq_ids or self._current_idx >= len(self._seq_ids):
+            return None
+        return list(self._seq_ids), self._current_idx
+
+    def restore_shown(self, state):
+        """intern#177: Nach einer Aenderung am Call-Mapping wieder dieselbe
+        Sequenz zeigen und neu aus der DB lesen. Das Neuladen der Sequenzliste
+        kann das Detail inzwischen auf eine andere Sequenz gestellt haben; ist
+        die gemerkte Sequenz nicht mehr in der Liste (etwa jetzt ausgeblendet),
+        gilt die gemerkte Liste weiter."""
+        if state is None:
+            return
+        ids, idx = state
+        seq_id = ids[idx]
+        if seq_id in self._seq_ids:
+            self._current_idx = self._seq_ids.index(seq_id)
+        else:
+            self._seq_ids, self._current_idx = ids, idx
+        self._update_content()
+        self._notify_current_sequence_changed()
+
+    # ---- Rechtsklick: Call-Mapping fuer einen Call-Text (intern#177) ----
+
+    def _call_text_at(self, pos):
+        """Call-Text der Zeile unter pos (Viewport-Koordinaten des Textfelds)
+        oder None. _make_html trennt die Calls mit <br>: die Zahl der
+        Zeilenumbrueche vor der Cursor-Position ist der Index in _calls."""
+        if not self._calls:
+            return None
+        cursor = self._text_edit.cursorForPosition(pos)
+        rect = self._text_edit.cursorRect(cursor)
+        if not rect.top() <= pos.y() <= rect.bottom():
+            return None     # unterhalb der letzten Zeile
+        idx = self._text_edit.toPlainText()[:cursor.position()].count("\n")
+        return self._calls[idx][1] if idx < len(self._calls) else None
+
+    def _build_text_menu(self, pos):
+        """Kontextmenue des Textfelds: der Eintrag zum Call-Mapping, darunter
+        die Standard-Eintraege (Kopieren, Alles auswaehlen)."""
+        menu = self._text_edit.createStandardContextMenu()
+        call_text = self._call_text_at(pos) if self.on_open_call_mapping else None
+        if call_text:
+            first = menu.actions()[0] if menu.actions() else None
+            act = QAction(_t("ctx_open_call_mapping_for_call_text"), menu)
+            act.triggered.connect(
+                lambda: self._open_call_mapping_for_call_text(call_text))
+            menu.insertAction(first, act)
+            menu.insertSeparator(first)
+        return menu
+
+    def _on_text_context_menu(self, pos):
+        menu = self._build_text_menu(pos)
+        menu.exec(self._text_edit.viewport().mapToGlobal(pos))
+        menu.deleteLater()
+
+    def _open_call_mapping_for_call_text(self, call_text):
+        """Call-Mapping oeffnen, gefiltert auf diesen Call-Text. Das Neuladen
+        danach macht der Aufgerufene (P29MainWindow._open_call_mapping)."""
+        self.on_open_call_mapping([call_text])
+
+    def set_program_bands(self, bands):
+        """intern#176: Tanzprogramm-Wahl uebernehmen und das Programm-Etikett
+        der gezeigten Sequenz neu rechnen."""
+        if bands == self._program_bands:
+            return
+        self._program_bands = bands
+        if self._seq_ids:
+            self._update_content()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1438,23 +1528,11 @@ class SequencesWidget(QWidget):
 
     def _calls_for_current_bands(self, include_separators: bool):
         """MS50: Figuren-Liste passend zu den aktuell gewaehlten Programm-Baendern
-        (_program_bands). Nur Zeilen, deren Band gewaehlt ist; eine Figur erscheint
-        genau EINMAL, im NIEDRIGSTEN gewaehlten Band. Ohne Programmwahl -> alle
-        Figuren (bisheriges Verhalten). Rueckgabe [(name, entity_id, to), ...] nach
-        Teaching-Order sortiert."""
+        (_program_bands), Regel in program_selection.calls_in_bands.
+        Rueckgabe [(name, entity_id, to), ...] nach Teaching-Order sortiert."""
         from sequence_mapper import get_all_calls_sorted
-        all_calls = get_all_calls_sorted(self.db)
-        bands = self._program_bands
-        if not bands:
-            rows = list(all_calls)
-        else:
-            best = {}   # entity_id -> (name, eid, to) im niedrigsten gewaehlten Band
-            for name, eid, to in all_calls:
-                if to is None or int(to) not in bands:
-                    continue
-                if eid not in best or to < best[eid][2]:
-                    best[eid] = (name, eid, to)
-            rows = sorted(best.values(), key=lambda r: r[2])
+        rows = program_selection.calls_in_bands(get_all_calls_sorted(self.db),
+                                                self._program_bands)
         if not include_separators:
             rows = [r for r in rows if not r[0].startswith("--")]
         return rows
@@ -2347,10 +2425,7 @@ class SequenceImportDialog(QDialog):
         Ueber die volle Callliste (calls_json) statt der 15 Mirror-Felder, damit
         >15-Call-Sequenzen nicht faelschlich als Dublette gelten (BL calls_json)."""
         try:
-            rows = self.db._conn.execute(
-                "SELECT calls_json FROM sequences"
-            ).fetchall()
-            return set(r[0] for r in rows if r[0])
+            return self.db.get_all_calls_json()
         except Exception as e:
             print(f"[SeqImport] Dubletten-Cache fehlgeschlagen: {e}")
             return set()
@@ -3022,21 +3097,9 @@ class CallMappingDialog(QDialog):
 
         # CallMatcher: Drei-Stufen-Matching (exakt → Token-Overlap → SequenceMatcher)
         self._matcher = _CallMatcher(to_calls)
-        # Suggest-Cache: der Fuzzy-Vorschlag je Call-Text ist teuer (~2 s ueber
-        # alle ~10k ungemappten). Der Cache wird AM HAUPTFENSTER gehalten, damit
-        # ein erneutes Oeffnen des Dialogs in derselben Sitzung instant ist. Er
-        # wird verworfen, wenn sich die Kanonisch-Call-Liste aendert (Signatur).
+        # Fuzzy-Vorschlag je Call-Text, sitzungsweit gecacht.
         # Key = call_text -> (score, entity_id).
-        sig = hash(tuple((c[0], c[1]) for c in to_calls))
-        parent = self.parent()
-        cache = getattr(parent, "_call_suggest_cache", None) if parent else None
-        if (cache is None
-                or getattr(parent, "_call_suggest_sig", None) != sig):
-            cache = {}
-            if parent is not None:
-                parent._call_suggest_cache = cache
-                parent._call_suggest_sig = sig
-        self._suggest_cache = cache
+        self._suggest_cache = fuzzy_suggest_cache(to_calls)
 
     def _load_table(self):
         """Befuellt die Tabelle gemaess aktivem Filter — alle Zeilen auf einmal."""
@@ -3486,32 +3549,9 @@ class CallMappingDialog(QDialog):
             )
 
     def _suggestion_differs(self, call_text) -> bool:
-        """Filter "Vorschlag weicht ab": es gibt einen Mengen-Vorschlag, und er
-        weicht als MENGE von der Zuordnung ab (Reihenfolge egal)."""
-        sug = self._set_cache.get(call_text)
-        return bool(sug) and set(self._figure_sets.get(call_text) or ()) != set(sug)
-
-    def _optimize_groups(self) -> dict:
-        """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
-        Filters "Vorschlag weicht ab") in drei Gruppen:
-        new    -> bisher ohne Zuordnung
-        extend -> Vorschlag ist echte Obermenge der Zuordnung (fehlende Figuren)
-        change -> Vorschlag weicht anders ab
-        Werte: {call_text: Vorschlag}."""
-        groups = {"new": {}, "extend": {}, "change": {}}
-        for call_text in dict.fromkeys(r[0] for r in self._all_data):
-            if not self._suggestion_differs(call_text):
-                continue
-            sug = self._set_cache[call_text]
-            current = set(self._figure_sets.get(call_text) or ())
-            if not current:
-                key = "new"
-            elif current < set(sug):
-                key = "extend"
-            else:
-                key = "change"
-            groups[key][call_text] = sug
-        return groups
+        """Vorschlag weicht von der Menge ab, siehe sequence_mapper.suggestion_differs."""
+        return suggestion_differs(self._set_cache.get(call_text),
+                                  self._figure_sets.get(call_text))
 
     def _is_changed(self, item2) -> bool:
         """Ungespeicherte Figuren-Wahl in dieser Figur-Zelle: aktuelle Menge
@@ -3538,7 +3578,8 @@ class CallMappingDialog(QDialog):
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No) != QMessageBox.Yes:
             return
-        groups = self._optimize_groups()
+        groups = optimize_groups((r[0] for r in self._all_data),
+                                 self._set_cache, self._figure_sets)
         if not any(groups.values()):
             QMessageBox.information(self, _t("call_mapping_title"),
                                     _t("call_mapping_optimize_nothing"))
@@ -3602,18 +3643,8 @@ class CallMappingDialog(QDialog):
                 self.db.delete_call_text_mapping(raw_text)
                 deleted += 1
 
+        # intern#177: keine Bestaetigungsmeldung mehr (ein Klick weniger); das
+        # Ergebnis ist in Sequenzliste und Sequenz-Detail sofort sichtbar.
         print(f"[Call-Mapping] {saved} gespeichert, {deleted} entfernt, "
               f"{split_occ} Splits in {split_seqs} Sequenzen")
-
-        parts = []
-        if saved:
-            parts.append(_t("call_mapping_saved_n", count=saved))
-        if deleted:
-            parts.append(_t("call_mapping_deleted", count=deleted))
-        if split_seqs:
-            parts.append(_t("call_mapping_split_done", seqs=split_seqs, occ=split_occ))
-        QMessageBox.information(
-            self, _t("call_mapping_title"),
-            "\n".join(parts) if parts else _t("call_mapping_nothing")
-        )
         self.accept()

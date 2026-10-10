@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.160"
+__version__ = "0.161"
 
 import sys
 import os
@@ -38,21 +38,16 @@ from PySide6.QtWidgets import (
     QLabel,
     QFileDialog,
     QDockWidget,
-    QCheckBox,
-    QListWidget,
-    QTableWidget,
     QComboBox,
     QMessageBox,
     QDialog,
-    QDialogButtonBox,
     QInputDialog,
     QAbstractItemView,
-    QTextBrowser,
     QSizePolicy,
     QProgressDialog,
 )
 from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QEvent, QObject, QRect
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QCursor
+from PySide6.QtGui import QColor, QIcon, QKeySequence, QShortcut, QCursor
 
 # --- Frühest möglicher Crash-Handler -----------------------------------------
 # MUSS vor den lokalen Imports stehen (audio_engine/bpm_detector/loop_finder
@@ -163,6 +158,9 @@ from evening_planner_widget import EveningPlannerWidget
 import zip_import
 import song_catalog
 import song_match
+import audio_favorites
+import song_types
+import program_selection
 from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
 
@@ -214,11 +212,8 @@ from ui_helpers import (
     _SVG_MAGNET,
     _make_dock,
     _PlayBarrier,
-    _WrapButtonBar,
-    SectionBarWidget,
     _reco_days_since,
     _weighted_random_order,
-    _style_date_cell,
     _UNRATED_QUALITY,
     opens_combo_popup,
     widen_combo_popup,
@@ -237,6 +232,8 @@ from dialogs_location_program import (
 # --- Call-Map Export/Import mit Konfliktklaerung (intern#79)
 import mapping_io
 from dialogs_mapping_conflict import run_mapping_import
+from dialogs_lyrics_conflict import resolve_with_dialog
+import lyrics_files
 
 
 # ===========================================================================
@@ -921,6 +918,7 @@ class P29MainWindow(QMainWindow):
             self.db, self.playlist_widget, skin_mgr=self.skin_mgr, settings=self._settings)
         self.playlist_manager.get_target_duration = self._get_current_target_duration
         self.playlist_manager.on_confirm = self._on_manager_confirm
+        self.playlist_manager.on_loop_settings_changed = self._sync_loop_settings_if_loaded
         self.dock_manager = _make_dock(
             self, _t("dock_planner"), self.playlist_manager, Qt.LeftDockWidgetArea
         )
@@ -937,10 +935,6 @@ class P29MainWindow(QMainWindow):
         _seq_zoom = int(self._settings.value("sequences/zoom_pct", 100))
         if _seq_zoom != 100:
             self.sequences_widget.set_zoom(_seq_zoom)
-        # MS50: session-globale Tanzprogramm-Wahl auf Filter + Player-Button anwenden.
-        # defer_seq_load: nur Baender setzen; das (kalt teure) Sequenzen-Laden macht
-        # _init_sequences() erst nach window.show() -> nicht auf dem kritischen Pfad.
-        self._apply_program_setting(defer_seq_load=True)
         self.dock_sequences = _make_dock(
             self, _t("dock_sequences"), self.sequences_widget, Qt.RightDockWidgetArea
         )
@@ -952,6 +946,11 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr)
+        # MS50: session-globale Tanzprogramm-Wahl auf Filter, Sequenz-Detail
+        # (intern#176) + Player-Button anwenden. Erst hier, damit beide Widgets
+        # existieren. defer_seq_load: nur Baender setzen; das (kalt teure)
+        # Sequenzen-Laden macht _init_sequences() erst nach window.show().
+        self._apply_program_setting(defer_seq_load=True)
         self.dock_sequence_view = _make_dock(
             self, _t("dock_sequence_view"), self.sequence_view_widget, Qt.RightDockWidgetArea
         )
@@ -976,6 +975,7 @@ class P29MainWindow(QMainWindow):
         self.sequences_widget.on_add_filter_to_notes = self._notes_add_seq_with_filters
         self.sequences_widget.on_sequences_deleted = self._on_sequences_deleted
         self.sequences_widget.on_open_call_mapping = self._open_call_mapping
+        self.sequence_view_widget.on_open_call_mapping = self._open_call_mapping
         self.sequence_view_widget.on_add_to_notes = self._notes_insert_sequence_shortcode
         self.sequence_view_widget.on_edit_sequence = self._on_sequence_editor
         self.sequence_view_widget.on_delete_sequence = self._on_sequence_view_delete
@@ -1112,7 +1112,7 @@ class P29MainWindow(QMainWindow):
         self.dock_evening_planner.visibilityChanged.connect(
             self._on_evening_planner_visibility)
 
-        _td13 = perf_split("    EveningPlanner", _td12)
+        perf_split("    EveningPlanner", _td12)
         # --- Tutorial-Engine ---
         self.tutorial_engine = TutorialEngine(self, self._settings, self.skin_mgr)
         self.tutorial_engine.set_tutorials(TUTORIALS)
@@ -1234,7 +1234,7 @@ class P29MainWindow(QMainWindow):
         # Deck, der Break-Dock UND der Rules-Dock haengen an der Engine, deshalb
         # wird sie hier — noch vor dem Layout-Restore — initialisiert.
         from rule_engine import RuleEngine
-        from rule_definitions import register_v1_definitions, SYSTEM_RULES_DEFAULT
+        from rule_definitions import register_v1_definitions
         self.rule_engine = RuleEngine(self._app_dir, settings=self._settings)
         register_v1_definitions(self.rule_engine)
         self.rule_engine.set_context_provider(self._get_rule_context)
@@ -1412,7 +1412,7 @@ class P29MainWindow(QMainWindow):
         # Abgleich NACH dem ebenfalls deferrten setFloating() der Tool-Docks
         # laeuft.
         QTimer.singleShot(0, self._sync_dock_view_actions)
-        _t5 = perf_split("  Layout restore", _t4)
+        perf_split("  Layout restore", _t4)
 
         # Auto-Save Layout alle 60 Sekunden (Safety-Net bei unerwartetem Beenden)
         self._layout_save_timer = QTimer()
@@ -1427,7 +1427,7 @@ class P29MainWindow(QMainWindow):
 
         # Pfade-Info beim Start
         info = self.paths.get_info()
-        print(f"[P28] Pfade-Info:")
+        print("[P28] Pfade-Info:")
         for k, v in info.items():
             print(f"  {k}: {v}")
 
@@ -1548,7 +1548,8 @@ class P29MainWindow(QMainWindow):
             result.setdefault(dkey, fname)
         return result
 
-    def _find_and_import_lyrics(self, stem: str, source_dir: str) -> str:
+    def _find_and_import_lyrics(self, stem: str, source_dir: str,
+                                conflicts: list = None) -> str:
         """Sucht eine passende Lyrics-Datei und kopiert sie ggf. in den Lyrics-Ordner.
 
         Das Matching ist tolerant (4-stufig, wie in der SqView-Migration): exakt,
@@ -1563,6 +1564,9 @@ class P29MainWindow(QMainWindow):
         Args:
             stem:       Dateiname ohne Extension (z.B. 'Ring Of Fire-RYL818')
             source_dir: Ordner der importierten MP3
+            conflicts:  Liste, an die ein LyricsConflict gehaengt wird, wenn
+                        im Lyrics-Ordner schon eine gleichnamige Datei mit
+                        anderem Inhalt liegt (intern#167)
 
         Returns:
             Dateiname der Lyrics-Datei (nur Name, kein Pfad) oder ''
@@ -1592,13 +1596,17 @@ class P29MainWindow(QMainWindow):
             match = _match(source_dir)
             if match:
                 src = os.path.join(source_dir, match)
-                dest = os.path.join(lyrics_dir, match)
-                if not os.path.exists(dest):
-                    try:
-                        shutil.copy2(src, dest)
-                    except Exception as e:
-                        print(f"[Import] Lyrics kopieren fehlgeschlagen: {e}")
-                        match = ''
+                try:
+                    # intern#167: Eine abweichende gleichnamige Datei bleibt
+                    # vorerst verknuepft und wird gemerkt; der Caller
+                    # entscheidet nach dem Import.
+                    conflict = lyrics_files.find_conflict(src, lyrics_dir)
+                    if conflict is not None and conflicts is not None:
+                        conflicts.append(conflict)
+                    match = lyrics_files.adopt(src, lyrics_dir)
+                except Exception as e:
+                    print(f"[Import] Lyrics kopieren fehlgeschlagen: {e}")
+                    match = ''
                 if match:
                     return match
 
@@ -1609,6 +1617,27 @@ class P29MainWindow(QMainWindow):
                 return match
 
         return ''
+
+    def _resolve_import_lyrics_conflicts(self, found: list):
+        """intern#167: found = [(song_id, LyricsConflict)] aus einem Import.
+        Fragt einmal fuer alle abweichenden Lyrics-Dateien; bei "beide
+        behalten" wechseln die betroffenen Songs auf die neue Datei."""
+        songs_by_file = {}      # (src, dest) -> (LyricsConflict, [song_id])
+        for song_id, conflict in found:
+            songs_by_file.setdefault(
+                (conflict.src, conflict.dest), (conflict, []))[1].append(song_id)
+        if not songs_by_file:
+            return
+        entries = list(songs_by_file.values())
+        names = resolve_with_dialog(self, [c for c, _ids in entries])
+        for (conflict, song_ids), name in zip(entries, names):
+            if name != conflict.name:
+                for song_id in song_ids:
+                    self.db.update_lyrics_file(song_id, name)
+        # Wurde die gerade angezeigte Datei ersetzt, den neuen Text zeigen.
+        if self._current_song and any(
+                self.lyrics_widget.is_showing(c.dest) for c, _ids in entries):
+            self._reload_current_lyrics()
 
     def _on_find_loop(self):
         """Find-Loop-Button: Zeigt das Loop-Finder-Dock an."""
@@ -1843,7 +1872,7 @@ class P29MainWindow(QMainWindow):
         else:
             return  # Abbruch
 
-        # 2) Songtyp ganz am Ende (Pattern / Singing / Both)
+        # 2) Songtyp ganz am Ende (Pattern / Singing / Both / Other)
         type_dlg = QMessageBox(self)
         type_dlg.setWindowTitle(_t("import_type_title"))
         type_dlg.setText(_t("import_type_text"))
@@ -1851,6 +1880,7 @@ class P29MainWindow(QMainWindow):
         btn_pattern = type_dlg.addButton(_t("import_type_pattern"), QMessageBox.ActionRole)
         btn_singing = type_dlg.addButton(_t("import_type_singing"), QMessageBox.ActionRole)
         btn_both = type_dlg.addButton(_t("import_type_both"), QMessageBox.ActionRole)
+        btn_other = type_dlg.addButton(_t("import_type_other"), QMessageBox.ActionRole)
         type_dlg.addButton(QMessageBox.Cancel)
         type_dlg.setDefaultButton(btn_both)
         type_dlg.exec()
@@ -1861,6 +1891,8 @@ class P29MainWindow(QMainWindow):
             self._import_is_pattern, self._import_is_singing = 0, 1
         elif type_clicked == btn_both:
             self._import_is_pattern, self._import_is_singing = 1, 1
+        elif type_clicked == btn_other:
+            self._import_is_pattern, self._import_is_singing = 0, 0
         else:
             return  # Abbruch
 
@@ -1883,7 +1915,8 @@ class P29MainWindow(QMainWindow):
     def _import_single_audio(self, filepath: str, copy_mode: bool,
                              is_pattern: int, is_singing: int,
                              auto_lyrics: bool = True,
-                             genre_ids: list = None) -> dict:
+                             genre_ids: list = None,
+                             lyrics_conflicts: list = None) -> dict:
         """Importiert EINE Audiodatei in die Bibliothek (gekapselter Kern).
 
         Wird vom normalen Import (_import_files) und vom ZIP-Import genutzt.
@@ -1956,14 +1989,18 @@ class P29MainWindow(QMainWindow):
 
         # 3b) Lyrics-Co-Import (gleichnamig, tolerant) — beim ZIP abgeschaltet
         if auto_lyrics:
+            found = []
             lyrics_file = self._find_and_import_lyrics(
                 stem=os.path.splitext(basename)[0],
                 source_dir=os.path.dirname(filepath),
+                conflicts=found,
             )
             if lyrics_file:
                 song.lyrics_file = lyrics_file
                 self.db.update(song)
                 print(f"[Import] Lyrics verknuepft: {lyrics_file}")
+                if lyrics_conflicts is not None:
+                    lyrics_conflicts.extend((song.id, c) for c in found)
 
         # 3c) Genre-Vorschlaege aus Dateiname (Keyword-Matching)
         name_lower = os.path.splitext(basename)[0].lower()
@@ -2057,7 +2094,7 @@ class P29MainWindow(QMainWindow):
         imported = []
         skipped = []
         errors = []
-        music_dir = self.paths.music_dir
+        lyrics_conflicts = []    # [(song_id, LyricsConflict)], intern#167
         last_imported_path = None
 
         # BL-147: Bei "am Ort belassen" die Wurzel VOR dem Loop als Musik-Slot
@@ -2095,6 +2132,7 @@ class P29MainWindow(QMainWindow):
                     getattr(self, '_import_is_singing', 1),
                     auto_lyrics=True,
                     genre_ids=genre_ids,
+                    lyrics_conflicts=lyrics_conflicts,
                 )
                 if r["status"] == "dup":
                     skipped.append(r["store_name"])
@@ -2105,6 +2143,10 @@ class P29MainWindow(QMainWindow):
                 errors.append(f"{basename}: {e}")
                 print(f"[Import] Fehler: {basename} — {e}")
                 continue
+
+        # 4b) intern#167: abweichende Lyrics-Dateien — der Caller entscheidet.
+        # Vor dem Laden des letzten Songs, damit der schon den Endstand zeigt.
+        self._resolve_import_lyrics_conflicts(lyrics_conflicts)
 
         # 5) Letztes Import-Verzeichnis merken
         if filepaths:
@@ -2526,16 +2568,6 @@ class P29MainWindow(QMainWindow):
                     pass
         return out
 
-    def _bands_for_program_ids(self, pids):
-        """MS50: Programm-IDs -> Menge der Programm-Baender (Ganzzahl aus
-        dance_programs.sequence_limit_to, z.B. 30.999999 -> 30). Leer/None -> None
-        (= kein Programm-Filter, alle Sequenzen)."""
-        if not pids:
-            return None
-        limits = {r[0]: r[5] for r in self.db.get_all_dance_programs()}
-        bands = {int(limits[p]) for p in pids if limits.get(p) is not None}
-        return bands or None
-
     def _location_program_ids(self, location):
         """Programm-IDs einer Lokation inkl. Legacy-Fallback auf dance_program_id."""
         if not location or getattr(location, "id", None) is None:
@@ -2544,24 +2576,6 @@ class P29MainWindow(QMainWindow):
         if not ids and getattr(location, "dance_program_id", None) is not None:
             ids = [location.dance_program_id]
         return ids
-
-    def _top_program(self, pids):
-        """Oberstes (hoechstes Band) der gewaehlten Programme -> (program_id, code).
-        Liefert die Basis fuer die Ziel-Tanzdauer. Leer -> (None, '')."""
-        if not pids:
-            return None, ""
-        rows = {r[0]: r for r in self.db.get_all_dance_programs()}
-        best = None  # (band, id, code)
-        for p in pids:
-            r = rows.get(p)
-            if r is None:
-                continue
-            band = r[5] if len(r) > 5 and r[5] is not None else -1
-            if best is None or band > best[0]:
-                best = (band, p, r[1])
-        if best is None:
-            return None, ""
-        return best[1], best[2]
 
     def _apply_program_setting(self, defer_seq_load=False):
         """MS50: session-globale Tanzprogramm-Wahl anwenden — Sequenz-Filter (Band-Menge)
@@ -2572,10 +2586,13 @@ class P29MainWindow(QMainWindow):
         nach window.show() (haelt den Cover-Compute vom kritischen Startpfad fern).
         """
         ids = self._session_program_ids
+        programs = self.db.get_all_dance_programs()
+        bands = program_selection.bands_for(programs, ids)
         if getattr(self, "sequences_widget", None) is not None:
-            self.sequences_widget.set_program_bands(
-                self._bands_for_program_ids(ids), defer_load=defer_seq_load)
-        top_id, top_code = self._top_program(ids)
+            self.sequences_widget.set_program_bands(bands, defer_load=defer_seq_load)
+        if getattr(self, "sequence_view_widget", None) is not None:
+            self.sequence_view_widget.set_program_bands(bands)
+        top_id, top_code = program_selection.top_program(programs, ids)
         self.player.set_dance_program(top_id, top_code)
 
     def _set_session_program_ids(self, ids, persist: bool = True):
@@ -2660,7 +2677,7 @@ class P29MainWindow(QMainWindow):
             print(f"[P21] Lokation gewaehlt: #{location.id} '{location.name}'")
         else:
             self.player.set_planner_warning(False)
-            print(f"[P21] Keine Lokation gewaehlt")
+            print("[P21] Keine Lokation gewaehlt")
 
     def _auto_detect_location_on_startup(self):
         """BL-178: Schlaegt beim Start anhand Wochentag/Uhrzeit eine passende
@@ -2837,25 +2854,17 @@ class P29MainWindow(QMainWindow):
         self._suppress_play_log = False
 
     def _on_dance_program_changed(self, code: str):
-        """BL-132: Sequenz-Filter auf aktuelles Tanzprogramm setzen (opt-out via INI).
-
-        Liest sequence_limit_to aus dance_programs und setzt den Combo-Filter
-        per Teaching-Order-Wert (UserRole) — kein Textmatch noetig.
-        """
+        """BL-190: Contains-Vorschlaege nach dem Limit (sequence_limit_to) des
+        aktuellen Tanzprogramms ordnen. Den Limit-Filter setzt die Methode seit
+        MS50 nicht mehr (siehe unten)."""
         if not hasattr(self, "sequences_widget"):
             return
-        for row in self.db.get_all_dance_programs():
-            if row[1] == code:
-                seq_limit_to = row[5] if len(row) > 5 else None
-                # BL-190: Contains-Vorschlaege nach dem gewaehlten Programm ordnen
-                # (unabhaengig vom Auto-Sync des Limit-Filters).
-                self.sequences_widget.set_program_sort_to(seq_limit_to)
-                # MS50: Programm-Filter laeuft jetzt ueber die Band-Menge der Lokation
-                # (set_program_bands in _set_current_location). Das alte Schwellwert-
-                # Auto-Sync entfaellt, sonst wuerde doppelt (und mit veraltetem
-                # max_teaching_order) gefiltert. Der Limit-Combo bleibt als manueller
-                # Zusatzfilter erhalten.
-                break
+        # MS50: Der Programm-Filter laeuft ueber die Band-Menge der Lokation
+        # (set_program_bands in _set_current_location); das alte Schwellwert-
+        # Auto-Sync entfaellt, der Limit-Combo bleibt manueller Zusatzfilter.
+        row = program_selection.program_by_code(self.db.get_all_dance_programs(), code)
+        if row is not None:
+            self.sequences_widget.set_program_sort_to(row[5])
 
     def _ensure_primary_channel(self):
         """Primaerkanal sicherstellen bevor irgendwo engine.play() direkt aufgerufen wird.
@@ -2886,12 +2895,17 @@ class P29MainWindow(QMainWindow):
     # ---- Playlist / Auto-Advance ----
 
     def _apply_loop_settings_to_engine(self, entry):
-        """BL-164: Reicht loop_count + Cut eines Playlist-Eintrags an die Engine.
+        """BL-164: Reicht Abspielart, loop_count + Cut eines Playlist-Eintrags
+        an die Engine.
 
         Zentral, damit Song-Laden UND nachtraegliche Dialog-Aenderung denselben
-        Pfad nutzen. Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
+        Pfad nutzen. Loop an/aus folgt der Abspielart des Eintrags, nicht dem
+        Song-Typ: ein PS-Song auf dem Singing-Platz spielt einmal (intern#179).
+        Der Cut greift in der Engine nur bei loop_count>=2; ohne Cut
         oder ohne BPM wird 0 gesetzt (identisch zum alten Loop-Verhalten).
         """
+        self.engine.set_loop_active(entry.play_mode.loops)
+        self.loop_widget.chk_loop.setChecked(entry.play_mode.loops)
         self.engine.set_loop_count(entry.loop_count)
         bpm = entry.song.base_bpm or 0.0
         cut_beats = getattr(entry, 'loop_cut_beats', 0)
@@ -2910,17 +2924,32 @@ class P29MainWindow(QMainWindow):
             current_count=entry.loop_count,
             current_cut=entry.loop_cut_beats,
             current_target_min=entry.loop_target_min,
+            current_play_mode=entry.play_mode,
         )
         if result is not None:
-            entry.loop_count, entry.loop_cut_beats, entry.loop_target_min = result
+            (entry.loop_count, entry.loop_cut_beats, entry.loop_target_min,
+             entry.play_mode) = result
             self.playlist_widget.refresh_display()
             self.playlist_manager._refresh_playlist_mirror()
-            # BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
-            # die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
-            # beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
-            cur = getattr(self, '_current_song', None)
-            if cur is not None and cur.id == entry.song.id:
-                self._apply_loop_settings_to_engine(entry)
+            self._sync_loop_settings_if_loaded(entry)
+
+    def _sync_loop_settings_if_loaded(self, entry):
+        """BL-164-Fix: Ist der bearbeitete Eintrag der aktuell geladene Song,
+        die Engine SOFORT synchronisieren — sonst greift die Aenderung erst
+        beim naechsten Laden und der Song spielt mit alter Einstellung weiter.
+        Gilt fuer den Loop-Dialog aus Playlist und Planner.
+        intern#184: Vergleich ueber den Eintrag, nicht die Song-ID — steht
+        derselbe Song zweimal in der Playlist, bleibt der laufende unberuehrt."""
+        if entry is self._loaded_playlist_entry():
+            self._apply_loop_settings_to_engine(entry)
+
+    def _loaded_playlist_entry(self):
+        """Der Playlist-Eintrag, dessen Song gerade geladen ist, sonst None."""
+        cur = self._current_song
+        pl_entry = self.playlist_widget.get_current_entry()
+        if cur is not None and pl_entry is not None and pl_entry.song.id == cur.id:
+            return pl_entry
+        return None
 
     def _on_playlist_song_selected(self, entry: PlaylistEntry):
         """Wird aufgerufen wenn ein Song in der Playlist angeklickt wird -> vorladen."""
@@ -3122,11 +3151,8 @@ class P29MainWindow(QMainWindow):
         """Speichert eine Feedback-Notiz ans Ende der Notizliste der Lokation."""
         if not text or loc_id is None:
             return
-        row = self.db._conn.execute(
-            "SELECT MAX(sort_order) FROM notes WHERE location_id = ? AND status != 'deleted'",
-            (loc_id,)).fetchone()
-        bottom_order = (row[0] or 0) + 1
-        self.db.add_note(text, loc_id, note_type="normal", sort_order=bottom_order)
+        self.db.add_note(text, loc_id, note_type="normal",
+                         sort_order=self.db.next_note_order(loc_id))
         if self.notes_widget:
             self.notes_widget.refresh()
 
@@ -3335,7 +3361,8 @@ class P29MainWindow(QMainWindow):
             self.lyrics_widget.load_song(song)
         self._push_lyrics_sync_identity(offer_copy=True)
 
-        # Pattern-Songs: Loop standardmaessig aktivieren
+        # Pattern-Songs: Loop standardmaessig aktivieren (Playlist-Eintrag
+        # ueberschreibt das unten mit seiner Abspielart)
         if song.is_pattern:
             self.engine.set_loop_active(True)
             self.loop_widget.chk_loop.setChecked(True)
@@ -3344,8 +3371,8 @@ class P29MainWindow(QMainWindow):
             self.loop_widget.chk_loop.setChecked(False)
 
         # Loop-Count aus Playlist-Entry uebernehmen (falls vorhanden)
-        pl_entry = self.playlist_widget.get_current_entry()
-        if pl_entry and pl_entry.song.id == song.id:
+        pl_entry = self._loaded_playlist_entry()
+        if pl_entry is not None:
             self._apply_loop_settings_to_engine(pl_entry)
         else:
             self.engine.set_loop_count(0)  # Endlos (Standard)
@@ -3433,17 +3460,21 @@ class P29MainWindow(QMainWindow):
     def _on_player_pitch_changed(self, pitch_semitones):
         self.song_data.update_pitch(pitch_semitones)
 
+    def _reload_current_lyrics(self):
+        """Lyrics des geladenen Songs neu von der Platte lesen."""
+        # Lyric-Variante beibehalten falls aktiv, sonst Standard laden
+        if self._lyric_variant_filename:
+            self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
+        else:
+            self.lyrics_widget.load_song(self._current_song)
+        self._push_lyrics_sync_identity(offer_copy=False)
+
     def _on_song_saved(self):
         self.song_list.refresh()
         self.playlist_manager.refresh()
         if self._current_song:
             self._current_song = self.db.get_by_id(self._current_song.id)
-            # Lyric-Variante beibehalten falls aktiv, sonst Standard laden
-            if self._lyric_variant_filename:
-                self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
-            else:
-                self.lyrics_widget.load_song(self._current_song)
-            self._push_lyrics_sync_identity(offer_copy=False)
+            self._reload_current_lyrics()
             # BPM-Anzeige im Player aktualisieren (z.B. nach Auto-BPM)
             self.player.apply_song_settings(self._current_song)
 
@@ -3584,21 +3615,23 @@ class P29MainWindow(QMainWindow):
         self._dismiss_body_detect_overlay()
         self.lyrics_widget.apply_detected_body({"ok": False, "reason": msg})
 
-    def _add_song_to_playlist(self, song_id, mode: str = ""):
+    def _add_song_to_playlist(self, song_id, play_mode: str = ""):
         """Song per Songlisten-Button oder Kontextmenü zur Playlist hinzufügen.
-        mode='P'/'S' erzwingt den Typ (z.B. Slot-Rolle aus dem Evening Planner);
-        ohne mode wird er aus den Song-Tags bestimmt."""
+        play_mode='P'/'S' erzwingt die Abspielart (z.B. Slot-Rolle aus dem Evening
+        Planner); ohne play_mode wird sie aus dem Song-Typ bestimmt. Laeuft ueber
+        _make_entry, damit die Patter-Fuellung greift (intern#179)."""
         song = self.db.get_by_id(song_id)
         if not song:
             return
-        if mode not in ("P", "S"):
-            mode = self.playlist_manager._determine_mode(song)
-        self.playlist_widget.add_entry(PlaylistEntry(song=song, mode=mode))
+        if play_mode not in ("P", "S"):
+            play_mode = self.playlist_manager._determine_play_mode(song)
+        self.playlist_widget.add_entry(
+            self.playlist_manager._make_entry(song, play_mode))
         self.playlist_manager._refresh_playlist_mirror()
 
     def _on_ep_export_to_playlist(self, song_ids: list):
         """Evening Planner → Playlist: bestätigte Songs in Tip-Reihenfolge übernehmen.
-        song_ids: Liste von (song_id, mode) Tupeln ('P'/'S') oder plain int
+        song_ids: Liste von (song_id, play_mode) Tupeln ('P'/'S') oder plain int
         (Rueckwaertskompatibilitaet)."""
         if not song_ids:
             QMessageBox.information(
@@ -3609,8 +3642,8 @@ class P29MainWindow(QMainWindow):
             return
         for item in song_ids:
             if isinstance(item, tuple):
-                song_id, mode = item
-                self._add_song_to_playlist(song_id, mode=mode)
+                song_id, play_mode = item
+                self._add_song_to_playlist(song_id, play_mode=play_mode)
             else:
                 self._add_song_to_playlist(item)
         n = len(song_ids)
@@ -4051,9 +4084,7 @@ class P29MainWindow(QMainWindow):
         loop_set = False
         if song and hasattr(song, 'loop_in') and hasattr(song, 'loop_out'):
             orig_dur = self.engine.get_original_duration() if self.engine.is_loaded() else 0
-            loop_set = (song.loop_in > 0.1 or
-                        (song.loop_out > 0 and orig_dur > 0 and
-                         abs(song.loop_out - orig_dur) > 0.5))
+            loop_set = song_types.has_loop_points(song.loop_in, song.loop_out, orig_dur)
         bpm_set = bool(song and getattr(song, 'base_bpm', 0) > 0)
         # BL-205: Gesamtlaenge des geladenen Songs in Sekunden (0 = nichts geladen)
         song_length = self.engine.get_original_duration() if self.engine.is_loaded() else 0
@@ -4066,6 +4097,9 @@ class P29MainWindow(QMainWindow):
         return {
             "song_type_is_singing": bool(song and getattr(song, 'is_singing', False)),
             "song_type_is_patter": bool(song and getattr(song, 'is_pattern', False)),
+            "song_type_is_other": bool(song and song_types.is_other(
+                getattr(song, 'is_pattern', False),
+                getattr(song, 'is_singing', False))),
             "lyrics_available": has_lyrics,
             "lyrics_not_available": not has_lyrics,
             "loop_set": loop_set,
@@ -4088,6 +4122,8 @@ class P29MainWindow(QMainWindow):
                               lambda ctx, p: ctx.get("song_type_is_singing", False))
         re.register_condition("song_type_is_patter",
                               lambda ctx, p: ctx.get("song_type_is_patter", False))
+        re.register_condition("song_type_is_other",
+                              lambda ctx, p: ctx.get("song_type_is_other", False))
         re.register_condition("lyrics_available",
                               lambda ctx, p: ctx.get("lyrics_available", False))
         re.register_condition("lyrics_not_available",
@@ -4698,7 +4734,9 @@ class P29MainWindow(QMainWindow):
         "Recommendation" liefert deterministisch immer den besten Song; die
         Zufalls-Sortierungen ziehen bei jedem Aufruf neu und liefern daher
         wechselnde Songs. Der gewaehlte Song wird ueber den normalen
-        Songlisten-Pfad geladen (kein Autoplay) und in der Liste selektiert.
+        Songlisten-Pfad geladen (kein Autoplay) und in der Liste selektiert,
+        falls er dort sichtbar ist. Die Filter der Songliste bleiben, wie der
+        Caller sie gesetzt hat (intern#169).
         """
         if not hasattr(self, 'song_list'):
             return
@@ -4714,11 +4752,13 @@ class P29MainWindow(QMainWindow):
         lpm = getattr(self.song_list, "_last_played_map", {}) or {}
         start_date = getattr(self.song_list, "_start_date", date.today())
 
-        # Typ-Filter (Singing/Patter)
-        if want_type.startswith("sing"):
-            songs = [s for s in songs if s.is_singing]
-        else:
-            songs = [s for s in songs if s.is_pattern]
+        # Typ-Filter (Singing/Patter/Other)
+        type_key = (
+            song_types.SINGING if want_type.startswith("sing")
+            else song_types.OTHER if want_type.startswith("oth")
+            else song_types.PATTER)
+        songs = [s for s in songs
+                 if song_types.matches(s.is_pattern, s.is_singing, type_key)]
         if not songs:
             self.statusBar().showMessage(
                 _t("rule_load_song_none", type=params.get("type", "")), 4000)
@@ -4753,18 +4793,6 @@ class P29MainWindow(QMainWindow):
             chosen = max(songs, key=lambda s: (_added_ord(s), random.random()))
         else:  # Alphabetical
             chosen = min(songs, key=lambda s: (s.title or s.filename).lower())
-
-        # Songlisten-Typ-Filter an den gewaehlten Typ angleichen, damit der
-        # geladene Song in der Liste sichtbar ist und selektiert werden kann.
-        # Ohne das blendet ein abweichender Filter (z. B. Liste auf "Singing",
-        # Action liefert "Patter") den Song aus — er wird zwar korrekt in den
-        # Player geladen, aber die Selektion in der Liste greift ins Leere.
-        try:
-            fb = getattr(self.song_list, "_filter_bar", None)
-            if fb is not None:
-                fb.set_type_filter(2 if want_type.startswith("sing") else 1)
-        except Exception:
-            pass
 
         # Song laden (cue, kein Autoplay) ueber den normalen Songlisten-Pfad.
         # offer_copy=False: keine interaktiven Sync-Copy-Dialoge bei Singing —
@@ -4955,8 +4983,8 @@ class P29MainWindow(QMainWindow):
         # Vorauswahl: hoechstes der gewaehlten Tanzprogramme (dieselbe Regel wie
         # der Programm-Button im Player) -- trifft den Normalfall am Clubabend.
         label_by_id = {r[0]: (r[2] or r[1]) for r in progs}
-        top_id, _code = self._top_program(
-            getattr(self, '_session_program_ids', []) or [])
+        top_id, _code = program_selection.top_program(
+            progs, getattr(self, '_session_program_ids', []) or [])
         active_label = label_by_id.get(top_id, "")
         if not active_label and progs:
             active_label = progs[0][2] or progs[0][1]
@@ -5183,6 +5211,17 @@ class P29MainWindow(QMainWindow):
 
         self._audio_device_combo.currentIndexChanged.connect(
             self._on_audio_device_changed)
+
+        # intern#173: Toggle-Knopf 1/2 links neben der Geraete-Auswahl. Schaltet
+        # die Hauptausgabe zwischen Favorit 1 (audio/primary_device) und
+        # Favorit 2 (audio/secondary_device) um. Beim Start gilt immer 1.
+        self._audio_favorite = 1
+        self._btn_audio_favorite = QPushButton("1")
+        self._btn_audio_favorite.setFixedWidth(30)
+        self._btn_audio_favorite.clicked.connect(self._on_audio_favorite_toggle)
+        self.statusBar().addPermanentWidget(self._btn_audio_favorite)
+        self._refresh_audio_favorite_ui()
+
         self.statusBar().addPermanentWidget(self._audio_device_combo)
 
         # AR-008: Checkbox fuer WASAPI Exclusive Mode (umgeht Shared-Glitch)
@@ -5213,11 +5252,10 @@ class P29MainWindow(QMainWindow):
         self._sb_player_bar = _StatusBarPlayerBar(skin_mgr=self.skin_mgr, parent=self)
         enabled_str = self._settings.value("display/statusbar_player", "true")
         enabled = str(enabled_str).lower() not in ("false", "0", "no")
-        if enabled:
-            # stretch=1: Leiste bekommt so viel Platz wie moeglich (links vom Audio-Device-Combo)
-            self.statusBar().addPermanentWidget(self._sb_player_bar, 1)
-        else:
-            self._sb_player_bar.hide()
+        # stretch=1: Leiste bekommt so viel Platz wie moeglich (links vom Audio-Device-Combo).
+        # Immer einhaengen, damit der Einstellungsdialog sie live ein- und ausblenden kann.
+        self.statusBar().addPermanentWidget(self._sb_player_bar, 1)
+        self._sb_player_bar.setVisible(enabled)
         # Start-Countdown-Overlay
         self._countdown_overlay = _CountdownOverlay(self)
         _cd_str = self._settings.value("display/countdown_enabled", "true")
@@ -5274,6 +5312,87 @@ class P29MainWindow(QMainWindow):
         else:
             self._settings.setValue("audio/primary_device", str(device_index))
         self._settings.sync()
+        # intern#173: Die Liste setzt Favorit 1 -> der Knopf steht wieder auf 1.
+        self._audio_favorite = 1
+        self._refresh_audio_favorite_ui()
+
+    # ---- Audio-Favoriten 1/2 (intern#173) ----
+
+    _ROLE_AUDIO_BASE_LABEL = Qt.UserRole + 1
+
+    def _audio_favorite_devices(self) -> dict:
+        return audio_favorites.favorite_devices(
+            self._settings.value(audio_favorites.PRIMARY_KEY, ""),
+            self._settings.value(audio_favorites.SECONDARY_KEY, ""))
+
+    def _audio_device_label(self, device) -> str:
+        """Name des Geraets wie in der Liste, ohne Favoriten-Ziffer; "" wenn
+        es nicht in der Liste steht."""
+        combo = self._audio_device_combo
+        idx = -1 if device is audio_favorites.UNREADABLE else combo.findData(device)
+        if idx < 0:
+            return ""
+        return combo.itemData(idx, self._ROLE_AUDIO_BASE_LABEL) or combo.itemText(idx)
+
+    def _refresh_audio_favorite_ui(self):
+        """Knopf (Ziffer, Zustand, Tooltip) und Kennzeichnung der beiden
+        Favoriten in der Geraeteliste auf den aktuellen Stand bringen."""
+        combo = self._audio_device_combo
+        devices = self._audio_favorite_devices()
+        marks = audio_favorites.marks(devices)
+        color = QColor(self.skin_mgr.color("focus_border", "#8f8cc9")
+                       if self.skin_mgr else "#8f8cc9")
+        for i in range(combo.count()):
+            base = combo.itemData(i, self._ROLE_AUDIO_BASE_LABEL)
+            if base is None:
+                base = combo.itemText(i)
+                combo.setItemData(i, base, self._ROLE_AUDIO_BASE_LABEL)
+            mark = marks.get(combo.itemData(i))
+            combo.setItemText(i, f"{mark} · {base}" if mark else base)
+            combo.setItemData(i, color if mark else None, Qt.ForegroundRole)
+        active = self._audio_favorite
+        target = audio_favorites.other(active)
+        missing = _t("audio_favorite_device_missing")
+        btn = self._btn_audio_favorite
+        btn.setText(str(active))
+        # 1 = normaler Knopf. 2 faellt auf (Skin-Farbe timer_warn1): Die Musik
+        # laeuft dann nicht ueber den Hauptausgang. Bewusst kein Toggle-Stil
+        # des Themes, der wuerde die 1 ausgegraut zeigen.
+        style = "font-weight: bold; padding: 0px;"
+        if active == 2:
+            warn = (self.skin_mgr.color("timer_warn1", "#f59e0b")
+                    if self.skin_mgr else "#f59e0b")
+            style += f" background-color: {warn}; color: #1a1a1a;"
+        btn.setStyleSheet(f"QPushButton {{ {style} }}")
+        btn.setToolTip(_t(
+            "audio_favorite_tooltip", active=active, target=target,
+            device=self._audio_device_label(devices[active]) or missing,
+            target_device=self._audio_device_label(devices[target]) or missing))
+
+    def _on_audio_favorite_toggle(self):
+        """Hauptausgabe auf den anderen Favoriten schalten. Die Favoriten
+        selbst bleiben unveraendert (audio/primary_device wird nicht
+        ueberschrieben)."""
+        target = audio_favorites.other(self._audio_favorite)
+        device = self._audio_favorite_devices()[target]
+        combo = self._audio_device_combo
+        idx = -1 if device is audio_favorites.UNREADABLE else combo.findData(device)
+        if self.player._audition_active:
+            # Das Vorhoeren stellt danach das gemerkte Geraet wieder her.
+            self.statusBar().showMessage(_t("audio_favorite_blocked_audition"), 6000)
+        elif idx < 0:
+            self.statusBar().showMessage(
+                _t("audio_favorite_missing", favorite=target), 8000)
+        else:
+            perf.perf_write(
+                f"[Diag] Audio-Favorit {target} angefordert: idx={device}, "
+                f"label='{self._audio_device_label(device)}'")
+            self.engine.set_output_device(device)
+            combo.blockSignals(True)
+            combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
+            self._audio_favorite = target
+        self._refresh_audio_favorite_ui()
 
     def _on_wasapi_exclusive_toggled(self, checked: bool):
         """AR-008: WASAPI Exclusive Mode an/aus."""
@@ -6251,15 +6370,20 @@ class P29MainWindow(QMainWindow):
             return
         # Kein "alles gemappt"-Abbruch mehr: auch dann gibt es Vorschlaege zum
         # Ergaenzen/Aendern ("Optimieren", intern#97).
+        # intern#177: Das Sequenz-Detail soll danach dieselbe Sequenz mit der
+        # neuen Zuordnung zeigen (das Neuladen der Liste stellt es sonst um).
+        shown = self.sequence_view_widget.shown_state()
         dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
             # Remapping anstossen damit max_teaching_order aktualisiert wird
             self.sequences_widget._do_remapping()
+            self.sequence_view_widget.restore_shown(shown)
         elif dlg.wrote_assignments:
             # "Optimieren" (intern#97) hat schon geschrieben und die Baender
             # nachgerechnet -> bei Abbrechen nur die Sequenzansicht neu laden,
             # nicht noch einmal rechnen (~120 ms auf dem Main-Thread).
             self.sequences_widget.load_sequences()
+            self.sequence_view_widget.restore_shown(shown)
 
     def _on_mapping_export(self):
         """Menue: Call-Maps als JSON exportieren (v2 mit Header, intern#79)."""
@@ -6880,6 +7004,9 @@ class P29MainWindow(QMainWindow):
             "lyrics/reading_band_enabled": "true",
             "lyrics/reading_band_height": "20",
             "lyrics/reading_band_opacity": "30",
+            # intern#148: In-Lesebalken Countdown (Beats bis zum Abschnittswechsel)
+            "lyrics/reading_band_countdown": "true",
+            "lyrics/reading_band_countdown_beats": "8",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -6911,12 +7038,39 @@ class P29MainWindow(QMainWindow):
             elif key == "audio/primary_device":
                 try:
                     dev = int(val) if val else None
-                    self.engine.set_output_device(dev)
+                    if self.player._audition_active:
+                        # intern#180: Das Vorhoeren bleibt auf dem Vorhoer-
+                        # Kanal; sein Ende schaltet auf das neue Geraet.
+                        self._pre_audition_device = dev
+                    else:
+                        self.engine.set_output_device(dev)
                     combo_idx = self._audio_device_combo.findData(dev)
                     if combo_idx >= 0:
                         self._audio_device_combo.blockSignals(True)
                         self._audio_device_combo.setCurrentIndex(combo_idx)
                         self._audio_device_combo.blockSignals(False)
+                    # intern#173: neuer Hauptausgang gewaehlt -> Knopf auf 1
+                    self._audio_favorite = 1
+                    self._refresh_audio_favorite_ui()
+                except Exception:
+                    pass
+
+            elif key == "audio/secondary_device":
+                # intern#173: Laeuft die Hauptausgabe gerade ueber Favorit 2,
+                # zieht sie auf das neu gewaehlte Geraet um.
+                try:
+                    dev = int(val) if val else None
+                    combo_idx = self._audio_device_combo.findData(dev)
+                    if self._audio_favorite == 2 and combo_idx >= 0:
+                        self.engine.set_output_device(dev)
+                        if self.player._audition_active:
+                            # intern#180: sonst stellt das Ende des Vorhoerens
+                            # das alte Geraet wieder her.
+                            self._pre_audition_device = dev
+                        self._audio_device_combo.blockSignals(True)
+                        self._audio_device_combo.setCurrentIndex(combo_idx)
+                        self._audio_device_combo.blockSignals(False)
+                    self._refresh_audio_favorite_ui()
                 except Exception:
                     pass
 
@@ -6933,9 +7087,7 @@ class P29MainWindow(QMainWindow):
                     pass
 
             elif key == "display/statusbar_player":
-                enabled = val.lower() == "true"
-                if hasattr(self, "_statusbar_player"):
-                    self._statusbar_player.setVisible(enabled)
+                self._sb_player_bar.setVisible(val.lower() == "true")
 
             elif key == "display/countdown_enabled":
                 self._countdown_enabled = val.lower() not in ("false", "0", "no")
@@ -6986,7 +7138,9 @@ class P29MainWindow(QMainWindow):
             elif key in ("lyrics/reading_position_pct",
                          "lyrics/reading_band_enabled",
                          "lyrics/reading_band_height",
-                         "lyrics/reading_band_opacity"):
+                         "lyrics/reading_band_opacity",
+                         "lyrics/reading_band_countdown",
+                         "lyrics/reading_band_countdown_beats"):
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.reload_reading_settings()
 
@@ -7508,6 +7662,8 @@ class P29MainWindow(QMainWindow):
             self.tutorial_engine.refresh_overlay()
             # BL-204: Magnet-Icons im Ansicht-Menue neu einfaerben (Snap-Zustand)
             self._refresh_all_view_magnets()
+            # Favoriten-Knopf und Geraeteliste nutzen Skin-Farben
+            self._refresh_audio_favorite_ui()
             print(f"[Skin] Gewechselt auf '{skin_name}'")
             return True
         return False
@@ -7668,7 +7824,7 @@ class P29MainWindow(QMainWindow):
             pos = self.engine.get_position_seconds()
             dur = self.engine.get_original_duration()
             if dur > 0:
-                self.lyrics_widget.update_scroll(pos, dur)
+                self.lyrics_widget.update_scroll(pos, dur, self.player._base_bpm)
 
             # Play Timer fuer Rules (alle 10 Sekunden)
             import time as _t2
@@ -7747,6 +7903,22 @@ def _show_language_dialog() -> str:
     return chosen[0]
 
 
+def _report_db_update_problems(parent, problems: list, settings):
+    """intern#145: Das DB-Update hat nicht alles geschafft. Die App laeuft
+    weiter, aber der Caller soll es sofort merken, nicht erst am Tanzabend:
+    Crash-Report fuer die Details, dazu ein unuebersehbarer Dialog.
+    intern#166: Den Report gibt es nur bei geaenderter Problemliste, den
+    Dialog bei jedem Start."""
+    _crash_handler.report_once(
+        settings, "Datenbank-Update unvollstaendig (intern#145)", problems)
+    msg = QMessageBox(parent)
+    msg.setWindowTitle(_t("db_update_problem_title"))
+    msg.setIcon(QMessageBox.Warning)
+    msg.setText(_t("db_update_problem_text"))
+    msg.setDetailedText("\n".join(problems))
+    msg.exec()
+
+
 def _show_crash_log_notice(parent, crash_logs: list, settings):
     """Zeigt einen Hinweis-Dialog wenn neue Crash-Logs vorhanden sind.
 
@@ -7754,8 +7926,7 @@ def _show_crash_log_notice(parent, crash_logs: list, settings):
     damit beim naechsten Start nur neu hinzugekommene Logs gemeldet werden."""
     count = len(crash_logs)
     newest = crash_logs[0]
-    settings.setValue(_crash_handler.LAST_NOTIFIED_KEY, os.path.basename(newest))
-    settings.sync()
+    _crash_handler.mark_notified(settings, newest)
     msg = QMessageBox(parent)
     msg.setWindowTitle(_t("crash_notice_title"))
     msg.setIcon(QMessageBox.Information)
@@ -7949,12 +8120,18 @@ def main():
         _visible_total_ms = (_startup_time.time() - _T_PROCESS_CREATE_EPOCH) * 1000.0
         perf.perf_write(f"[Perf] === GESAMT ab Prozessstart bis SICHTBAR: {_visible_total_ms:.0f}ms ===")
 
-    # Neue Crash-Logs seit dem letzten Hinweis pruefen und Hinweis anzeigen
-    crash_logs = _crash_handler.CrashLogger.find_crash_logs(
-        app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
-    if crash_logs:
-        QTimer.singleShot(
-            800, lambda: _show_crash_log_notice(window, crash_logs, settings))
+    # intern#166: Erst der Dialog zum DB-Update, danach (falls noetig) der
+    # Hinweis auf neue Fehlerprotokolle, nie beide uebereinander.
+    def _startup_notices():
+        # Suche direkt vor dem DB-Report: dessen Protokoll gehoert nicht in den
+        # Hinweis, ein bis hierher entstandenes anderes Protokoll aber schon.
+        crash_logs = _crash_handler.CrashLogger.find_crash_logs(
+            app_dir, newer_than=str(settings.value(_crash_handler.LAST_NOTIFIED_KEY, "") or ""))
+        if window.db.schema_problems:
+            _report_db_update_problems(window, window.db.schema_problems, settings)
+        if crash_logs:
+            _show_crash_log_notice(window, crash_logs, settings)
+    QTimer.singleShot(500, _startup_notices)
 
     # Song-Katalog vorladen (~90 ms, auf dem i5 mehr): der erste Import soll
     # nicht auf dem Main-Thread parsen (intern#126).

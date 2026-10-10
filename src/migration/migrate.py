@@ -1049,7 +1049,6 @@ class SqViewWorker(_LoggingWorker):
                           or mp3_index.get(clean_fname.lower()) or [])
             src_mp3 = self._best_match(candidates, raw.get('fullpath', '')) \
                 if candidates else ""
-            has_mp3 = False
             store_fname = fname            # Default: roher DB-Name (Blind-Eintrag)
             if src_mp3:
                 store_fname = _rel_to_first_root(src_mp3, [self.music_root])
@@ -1068,7 +1067,6 @@ class SqViewWorker(_LoggingWorker):
                         self._step(MigrationLogger.ERROR, "mp3_copy_failed",
                                    song_label, detail=f"{store_fname}: {e}")
                 if ok:
-                    has_mp3 = True
                     songs_with_mp3 += 1
                     self._file_step(MigrationLogger.DONE, "mp3_linked",
                                     song_label, detail=store_fname)

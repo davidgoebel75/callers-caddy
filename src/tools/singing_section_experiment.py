@@ -67,7 +67,7 @@ TEST_DIR = REPO_ROOT / "2_Test"
 sys.path.insert(0, str(SRC_DIR))    # loop_finder, bpm_detector importierbar machen
 
 from loop_finder import (            # noqa: E402
-    _load_audio, _compute_chroma_per_beat, _cosine_similarity,
+    _load_audio, _compute_chroma_per_beat,
     _estimate_downbeat,
 )
 from bpm_detector import detect_beat_grid  # noqa: E402

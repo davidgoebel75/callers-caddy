@@ -15,6 +15,7 @@ from PySide6.QtCore import Qt, QTime
 
 from song_db import SongDatabase, Location
 from i18n import _t
+import program_selection
 from ui_helpers import _make_icon, _SVG_REMOVE_X
 
 
@@ -838,7 +839,7 @@ class _LocationSettingsDialog(QDialog):
             if r != QMessageBox.Yes:
                 return
         self.db.set_shared_history(self._location.id, target_id, migrate=True)
-        eff = self.db._effective_history_id(self._location.id)
+        eff, _group = self.db.get_history_group(self._location.id)
         self._shared_with_id = eff if eff != self._location.id else None
         self._refresh_share_ui()
 
@@ -990,8 +991,6 @@ class _MultiProgramPickerDialog(QDialog):
         sel = set(selected_ids or [])
         self._checks = []             # [(pid, QCheckBox)]
         self._cb_by_pid = {}          # pid -> QCheckBox
-        self._band_by_pid = {}        # pid -> Band (int) oder None
-        self._primary_pid_by_band = {}  # Band -> (pid, sort_order) des non-Class-Programms
         self._suppress_cascade = False  # Reentranz-Schutz beim Auto-Anhaken
 
         layout = QVBoxLayout(self)
@@ -1001,18 +1000,10 @@ class _MultiProgramPickerDialog(QDialog):
         layout.addWidget(hint)
 
         programs = db.get_all_dance_programs()
-        # Band je Programm ableiten: sequence_limit_to = Band + 0.999999, also
-        # ergibt int() das Band. Pro Band merken wir das regulaere Programm
-        # (kleinster sort_order) — dorthin kaskadieren wir die tieferen Baender,
-        # damit nicht versehentlich eine Class-Variante angehakt wird.
-        for row in programs:
-            pid, sort_order, slt = row[0], row[3], row[5]
-            band = int(slt) if slt is not None else None
-            self._band_by_pid[pid] = band
-            if band is not None:
-                cur = self._primary_pid_by_band.get(band)
-                if cur is None or sort_order < cur[1]:
-                    self._primary_pid_by_band[band] = (pid, sort_order)
+        # Pro Band das regulaere Programm — dorthin kaskadieren die tieferen
+        # Baender (program_selection.primary_program_by_band).
+        self._band_by_pid = {r[0]: program_selection.band_of(r[5]) for r in programs}
+        self._primary_pid_by_band = program_selection.primary_program_by_band(programs)
         self._all_bands = sorted({b for b in self._band_by_pid.values()
                                   if b is not None})
 
@@ -1032,21 +1023,6 @@ class _MultiProgramPickerDialog(QDialog):
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
 
-    def _predecessor_bands(self, band):
-        """Baender unterhalb von `band`, die mit-aktiviert werden (Issue #64).
-
-        Alte Kette (Basics 10/20 + krumme Baender 29/39/49) und 2026er/obere
-        Kette (runde Baender ab 30) sind getrennt. Die 2026er-Kette zieht KEINE
-        Basics und kein altes MS/PL/A1 mit — Mainstream 2026 (Band 30) hat die
-        uebrig gebliebenen Basic-Calls bereits absorbiert.
-        """
-        if band is None:
-            return []
-        old_chain = [b for b in self._all_bands if b < 30 or b % 10 != 0]
-        new_chain = [b for b in self._all_bands if b >= 30 and b % 10 == 0]
-        chain = old_chain if (band < 30 or band % 10 != 0) else new_chain
-        return [b for b in chain if b < band]
-
     def _on_toggle(self, pid, checked):
         """Komfort-Kaskade: Aktivieren hakt die tieferen Programme mit an.
 
@@ -1059,11 +1035,11 @@ class _MultiProgramPickerDialog(QDialog):
         band = self._band_by_pid.get(pid)
         self._suppress_cascade = True
         try:
-            for b in self._predecessor_bands(band):
-                entry = self._primary_pid_by_band.get(b)
-                if not entry:
+            for b in program_selection.predecessor_bands(self._all_bands, band):
+                pid_below = self._primary_pid_by_band.get(b)
+                if pid_below is None:
                     continue
-                cb = self._cb_by_pid.get(entry[0])
+                cb = self._cb_by_pid.get(pid_below)
                 if cb is not None and not cb.isChecked():
                     cb.setChecked(True)
         finally:

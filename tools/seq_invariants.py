@@ -56,7 +56,7 @@ def band_set_for(band: int) -> list:
 
     Menge = alle Baender der Linie des Programms bis zum eigenen Band
     (einschliesslich), so wie ein Caller dieses Programms die tieferen Programme
-    mitnutzen darf (vgl. ``main.py::_bands_for_program_ids``, das die Baender der
+    mitnutzen darf (vgl. ``program_selection.bands_for``, das die Baender der
     tatsaechlich gewaehlten Programme einsammelt).
 
     Steht das Band in BEIDEN Linien (10, 20 und alles ab 60), ist die Menge die

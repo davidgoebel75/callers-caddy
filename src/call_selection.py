@@ -25,11 +25,7 @@ def _split_names(raw) -> list:
 
 def _all_calls_by_name(db) -> dict:
     """{lower(name): (entity_id, canonical_name)} ueber alle echten Calls."""
-    cur = db._conn.execute(
-        "SELECT entity_id, canonical_name FROM calls "
-        "WHERE canonical_name NOT LIKE '--%'"
-    )
-    return {name.strip().lower(): (eid, name) for eid, name in cur.fetchall()}
+    return {name.strip().lower(): (eid, name) for eid, name in db.get_real_calls()}
 
 
 def resolve_calls(db, program: str = "", calls=None, except_names=None) -> list:

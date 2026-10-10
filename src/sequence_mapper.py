@@ -654,3 +654,48 @@ def get_all_calls_sorted(db) -> list[tuple]:
     return [(name, eid, to) for eid, name, to, _prog in rows]
 
 
+# ---- Zuordnungs-Logik des Call-Mapping-Dialogs (intern#143) ----
+
+def suggestion_differs(suggestion, current) -> bool:
+    """Filter "Vorschlag weicht ab": es gibt einen Mengen-Vorschlag, und er
+    weicht als MENGE von der Zuordnung ab (Reihenfolge egal)."""
+    return bool(suggestion) and set(current or ()) != set(suggestion)
+
+
+def optimize_groups(call_texts, suggestions: dict, figure_sets: dict) -> dict:
+    """Teilt die abweichenden Mengen-Vorschlaege (genau die Zeilen des
+    Filters "Vorschlag weicht ab") in drei Gruppen:
+    new    -> bisher ohne Zuordnung
+    extend -> Vorschlag ist echte Obermenge der Zuordnung (fehlende Figuren)
+    change -> Vorschlag weicht anders ab
+    suggestions = {call_text: Vorschlag}, figure_sets = {call_text: Zuordnung}.
+    Werte: {call_text: Vorschlag}."""
+    groups = {"new": {}, "extend": {}, "change": {}}
+    for call_text in dict.fromkeys(call_texts):
+        sug = suggestions.get(call_text)
+        current = figure_sets.get(call_text)
+        if not suggestion_differs(sug, current):
+            continue
+        if not current:
+            key = "new"
+        elif set(current) < set(sug):
+            key = "extend"
+        else:
+            key = "change"
+        groups[key][call_text] = sug
+    return groups
+
+
+_fuzzy_cache = (None, {})
+
+
+def fuzzy_suggest_cache(to_calls) -> dict:
+    """Zwischenspeicher fuer CallMatcher.suggest je Call-Text: call_text ->
+    (score, entity_id). Der Fuzzy-Vorschlag ist teuer (~2 s ueber alle ~10k
+    ungemappten); haelt er die Sitzung ueber, oeffnet der Dialog beim zweiten
+    Mal sofort. Aendert sich die Kanonisch-Call-Liste, beginnt er leer."""
+    global _fuzzy_cache
+    sig = hash(tuple((c[0], c[1]) for c in to_calls))
+    if _fuzzy_cache[0] != sig:
+        _fuzzy_cache = (sig, {})
+    return _fuzzy_cache[1]
