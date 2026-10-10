@@ -45,6 +45,7 @@ def _code_defaults() -> dict:
                     and isinstance(node.func, ast.Attribute)
                     and node.func.attr == "value" and len(node.args) >= 2
                     and isinstance(node.args[0], ast.Constant)
+                    and "/" in str(node.args[0].value)   # nur QSettings-Keys
                     and isinstance(node.args[1], ast.Constant)):
                 found.setdefault(node.args[0].value, set()).add(
                     str(node.args[1].value).lower())
