@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QMainWindow
 
 import main
 from notes_widget import NotesWidget
+from settings_dialog import SettingsDialog
 
 
 class _FakeDB:
@@ -27,8 +28,12 @@ def _window(tmp_path):
 
 def test_neuer_faktor_wirkt_sofort(qapp, tmp_path):
     win = _window(tmp_path)
-    win._settings.setValue("notes/first_note_factor", "2.5")
-    main.P29MainWindow._on_settings_applied(win, ["notes/first_note_factor"])
+    dlg = SettingsDialog(None, win._settings, on_apply=lambda keys:
+                         main.P29MainWindow._on_settings_applied(win, keys))
+    dlg._populate_groups_deferred()   # sonst erst per QTimer im Event-Loop
+    row = next(r for r in dlg._rows if r.full_key == "notes/first_note_factor")
+    row.widget.setValue(2.5)
+    dlg._on_apply_btn()
     assert win.notes_widget._first_note_factor == 2.5
 
 
