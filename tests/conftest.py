@@ -5,7 +5,6 @@ umlenken und die QApplication bereitstellen, die Qt-Widgets zum Leben brauchen.
 """
 import atexit
 import contextlib
-import glob
 import os
 import tempfile
 
@@ -31,7 +30,7 @@ def _remove_empty_crash_dir():
 
 
 def _crash_logs():
-    return set(glob.glob(os.path.join(_crash_dir, "logs", "crashes", "*.log")))
+    return set(crash_handler.CrashLogger.find_crash_logs(_crash_dir))
 
 
 @pytest.fixture(autouse=True)
@@ -58,7 +57,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 @pytest.fixture(scope="session")
 def qapp():
-    """Eine QApplication fuer die ganze Sitzung — Qt vertraegt nur eine."""
+    """Eine QApplication fuer die ganze Sitzung - Qt vertraegt nur eine."""
     from PySide6.QtWidgets import QApplication
     return QApplication.instance() or QApplication([])
 
@@ -67,7 +66,8 @@ def qapp():
 def keep(qapp):
     """Raeumt Widgets und Test-DBs am Testende ab: `w = keep(PlayerWidget(...))`.
     Bleiben sie liegen, sammelt ein spaeterer gc.collect() sie an zufaelliger
-    Stelle ein — bei David brach so die volle Suite mit 0xc0000374 ab (PR #119)."""
+    Stelle ein - bei David brach so die volle Suite mit 0xc0000374 ab (PR #119).
+    Abgeraeumt wird in umgekehrter Reihenfolge, die DB also zuerst uebergeben."""
     import shiboken6
     from PySide6.QtCore import QObject
     objs = []
@@ -79,7 +79,7 @@ def keep(qapp):
     # Aufgeschobene Aufrufe (QTimer.singleShot) noch zu Lebzeiten abarbeiten,
     # sonst laufen sie spaeter gegen geloeschte Objekte
     qapp.processEvents()
-    for obj in reversed(objs):   # erst die Widgets, dann die DB, an der sie haengen
+    for obj in reversed(objs):
         if isinstance(obj, QObject):
             shiboken6.delete(obj)
         else:
