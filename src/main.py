@@ -2840,7 +2840,7 @@ class P29MainWindow(QMainWindow):
         if not hasattr(self, "sequences_widget"):
             return
         # MS50: Der Programm-Filter laeuft ueber die Band-Menge der Lokation
-        # (set_program_bands in _set_current_location); das alte Schwellwert-
+        # (set_program_bands in _apply_program_setting); das alte Schwellwert-
         # Auto-Sync entfaellt, der Limit-Combo bleibt manueller Zusatzfilter.
         row = program_selection.program_by_code(self.db.get_all_dance_programs(), code)
         if row is not None:
