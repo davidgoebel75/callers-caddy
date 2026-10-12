@@ -6883,8 +6883,7 @@ class P29MainWindow(QMainWindow):
         if self.notes_widget:
             self._settings.setValue("notes/zoom_pct",
                                     self.notes_widget._zoom_pct)
-            self._settings.setValue("notes/first_note_factor",
-                                    self.notes_widget._first_note_factor)
+            # notes/first_note_factor schreibt nur der Einstellungsdialog (intern#198)
         self._save_float_geoms(self._settings)
         self._settings.sync()
         status = self._settings.status()
@@ -6992,6 +6991,8 @@ class P29MainWindow(QMainWindow):
             "feedback/enabled": "false",
             # intern#96: Einfuegeposition neuer Notizen (top/bottom)
             "notes/insert_position": "top",
+            # intern#198: schreibt sonst nur der Einstellungsdialog
+            "notes/first_note_factor": "4.0",
             # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
             # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
             "lyrics/dynamic_invert_enabled": "false",
@@ -7151,6 +7152,11 @@ class P29MainWindow(QMainWindow):
                         self.notes_widget.set_zoom(zoom)
                 except Exception:
                     pass
+
+            elif key == "notes/first_note_factor":
+                # intern#198: set_first_note_factor() faengt ungueltige Werte selbst ab
+                if self.notes_widget is not None:
+                    self.notes_widget.set_first_note_factor(val)
 
             elif key == "feedback/enabled":
                 pass  # wird beim naechsten Songende frisch aus INI gelesen
