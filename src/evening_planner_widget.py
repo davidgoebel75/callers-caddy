@@ -1024,12 +1024,13 @@ class EveningPlannerWidget(QWidget):
     sig_export_to_playlist = Signal(list)  # list of (song_id, mode) tuples, mode='P'/'S' (confirmed, in tip-order)
     sig_export_to_notes    = Signal(list)  # list of song-titles (Strings)
 
-    def __init__(self, db, settings=None, parent=None):
+    def __init__(self, db, settings=None, parent=None, session=None,
+                 start_date: Optional[date] = None):
         super().__init__(parent)
         self._db          = db
         self._settings    = settings
         self._location_id: Optional[int] = None
-        self._start_date:  Optional[date] = None
+        self._start_date:  Optional[date] = start_date
         self._tips:  list  = []
         self._pauses: list = []
         self._overrides: dict = {}
@@ -1062,6 +1063,18 @@ class EveningPlannerWidget(QWidget):
         self._genres_available: list      = []           # Alle bekannten Genres
         self._build_ui()
         self._rebuild_plan()
+        # intern#142: Tips-Zahl aus der aktuellen Sitzung. Die Lokation selbst
+        # reicht main per set_location bei jedem Zuletzt-gespielt-Refresh
+        # weiter; beim spaeten Erzeugen holt sich das Dock den aktuellen Stand.
+        if session is not None:
+            session.location_changed.connect(self._on_location_changed)
+            loc = session.location
+            if loc is not None:
+                self._on_location_changed(loc)
+                self.set_location(loc.id)
+
+    def _on_location_changed(self, location):
+        self.set_planned_tips(location.planned_tips if location else 0)
 
     # ── UI-Aufbau ──────────────────────────────────────────────────────────────
 

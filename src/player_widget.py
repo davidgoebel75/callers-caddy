@@ -349,7 +349,8 @@ class BeatSnapWorker(QThread):
 class PlayerWidget(QWidget):
     """Player-Modul: Transport, Heutiges Tempo, Song-Tempo, Pitch, Position-Slider, Lokation-Button."""
 
-    def __init__(self, engine, paths: PathManager, skin_mgr: SkinManager = None, parent=None):
+    def __init__(self, engine, paths: PathManager, skin_mgr: SkinManager = None, parent=None,
+                 session=None):
         super().__init__(parent)
         self.engine = engine
         self.paths = paths
@@ -393,6 +394,9 @@ class PlayerWidget(QWidget):
         self._theme_font_px  = 13  # aus skin.json font_size, Standard 13
         # NEU-Button ist jetzt im Loop-Widget, aber _load_file bleibt hier
         self._build_ui()
+        # intern#142: Lokationswechsel kommt aus der aktuellen Sitzung
+        if session is not None:
+            session.location_changed.connect(self.set_location)
 
     def _build_ui(self):
         _pb0 = perf_start()
@@ -808,6 +812,15 @@ class PlayerWidget(QWidget):
         self._target_bpm = (float(location.target_bpm)
                             if location is not None and location.has_target_bpm
                             else 0.0)
+        # BL-144: Ziel-BPM hat Vorrang — fuer den bereits geladenen Song sofort
+        # nachziehen. Sonst BL-086: temporaeres Tempo der Lokation uebernehmen.
+        if self._target_bpm > 0:
+            self._apply_target_bpm()
+            self._update_bpm_display()
+        elif location is not None and location.temp_tempo is not None:
+            self.spin_today_tempo.setValue(int(location.temp_tempo))
+        # Caller-Workflow: mit Lokation ist der Planner der naechste Schritt
+        self.set_planner_warning(location is not None)
 
     # BL-083 ----------------------------------------------------------------
     def set_dance_program(self, program_id, code: str):

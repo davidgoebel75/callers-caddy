@@ -888,7 +888,7 @@ class PlaylistManagerWidget(QWidget):
     """
 
     def __init__(self, db: SongDatabase, playlist_widget: PlaylistWidget, skin_mgr=None,
-                 settings=None, parent=None):
+                 settings=None, parent=None, session=None):
         super().__init__(parent)
         self.db = db
         self._pw = playlist_widget  # Referenz auf das PlaylistWidget (besitzt die Daten)
@@ -905,6 +905,9 @@ class PlaylistManagerWidget(QWidget):
         self.get_target_duration: callable = lambda: 7.0
 
         self._build_ui()
+        # intern#142: Tips-Vorgabe aus der Lokation der aktuellen Sitzung
+        if session is not None:
+            session.location_changed.connect(self._on_location_changed)
         self.update_skin()
 
     def update_skin(self, skin_mgr=None):
@@ -1135,6 +1138,9 @@ class PlaylistManagerWidget(QWidget):
     def set_planned_tips(self, n: int):
         """Setzt die Tips-Voreinstellung aus der Lokation (0 = keine Vorgabe)."""
         self._planned_tips = n or 0
+
+    def _on_location_changed(self, location):
+        self.set_planned_tips(location.planned_tips if location else 0)
 
     def load_permanent_filters(self):
         """Weiterleitung an die FilterBar (BL-097: Permanente Custom-Filter laden)."""
