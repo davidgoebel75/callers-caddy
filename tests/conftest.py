@@ -63,6 +63,29 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
+@pytest.fixture
+def keep(qapp):
+    """Raeumt Widgets und Test-DBs am Testende ab: `w = keep(PlayerWidget(...))`.
+    Bleiben sie liegen, sammelt ein spaeterer gc.collect() sie an zufaelliger
+    Stelle ein — bei David brach so die volle Suite mit 0xc0000374 ab (PR #119)."""
+    import shiboken6
+    from PySide6.QtCore import QObject
+    objs = []
+
+    def _keep(obj):
+        objs.append(obj)
+        return obj
+    yield _keep
+    # Aufgeschobene Aufrufe (QTimer.singleShot) noch zu Lebzeiten abarbeiten,
+    # sonst laufen sie spaeter gegen geloeschte Objekte
+    qapp.processEvents()
+    for obj in reversed(objs):   # erst die Widgets, dann die DB, an der sie haengen
+        if isinstance(obj, QObject):
+            shiboken6.delete(obj)
+        else:
+            obj.close()
+
+
 @pytest.fixture(autouse=True)
 def _fresh_fuzzy_cache(monkeypatch):
     """Der Fuzzy-Cache des Call-Mapping-Dialogs haelt die ganze Sitzung
