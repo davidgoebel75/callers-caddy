@@ -27,6 +27,12 @@ Oberbegriff — eine Veranstaltung ist nicht zwingend abends.
 _EN_: Dance-Event
 _Avoid_: Tanzabend, Clubabend, Session, Gig
 
+**Aktuelle Sitzung**:
+Was gerade im Programm gilt, vom Start bis zum Beenden: aktueller Song,
+aktuelle Lokation und Tanzprogramm-Wahl. Nicht die Tanzveranstaltung selbst.
+_EN_: Current Session
+_Avoid_: Zustand, State, Kontext
+
 **Tip**:
 Tanzeinheit aus einem Patter und einem Singing Call, typisch rund 15 Minuten.
 _Avoid_: Runde, Tanzblock
