@@ -91,7 +91,17 @@ _RESTART_KEYS = {
 #       "step":         Schrittweite
 #       "suffix":       Einheit-String fuer SpinBox (z.B. " ms")
 #       "requires_restart": bool
+#       "default":      Anzeigewert, solange der Key nicht in der INI steht
 #   }
+#
+# Der Standardwert einer Einstellung steht an bis zu vier Stellen, die
+# zusammenpassen muessen (Fehlerkette intern#189, #195, #198):
+#   1. die Lesestelle im Code: settings.value("sektion/key", <Standard>)
+#   2. P29MainWindow._write_ini_defaults() in main.py (schreibt beim Start)
+#   3. installer/callers_caddy_default.ini (mitgelieferte INI)
+#   4. "default" hier in SETTINGS_META (nur die Anzeige im Dialog)
+# Abgleich: tests/settings/test_settings_defaults.py (1 gegen 4) und
+# tests/settings/test_settings_reachable.py (jeder Key braucht 2 oder 3).
 SETTINGS_META: dict[str, dict] = {
     # --- display ---
     "display/skin": {
