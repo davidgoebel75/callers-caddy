@@ -93,3 +93,21 @@ def _fresh_fuzzy_cache(monkeypatch):
     haengt das Verhalten des Dialogs von der Testreihenfolge ab."""
     import sequence_mapper
     monkeypatch.setattr(sequence_mapper, "_fuzzy_cache", (None, {}))
+
+
+@pytest.fixture(autouse=True)
+def _no_modal_dialog(monkeypatch):
+    """Ein modales Fenster wartet offscreen ewig auf einen Klick, und die Suite
+    haengt ohne Meldung (so beim Neustart-Hinweis des Einstellungsdialogs).
+    Deshalb scheitert der Test sofort. Wer das Fenster bewusst ausloest,
+    ersetzt es im Test selbst per monkeypatch."""
+    from PySide6.QtWidgets import QDialog, QMessageBox
+
+    def _blocked(name):
+        def _fail(*args, **kwargs):
+            pytest.fail(f"Modales Fenster im Test: {name}() - im Test per "
+                        f"monkeypatch ersetzen", pytrace=False)
+        return _fail
+    for name in ("exec", "information", "warning", "question", "critical"):
+        monkeypatch.setattr(QMessageBox, name, _blocked(f"QMessageBox.{name}"))
+    monkeypatch.setattr(QDialog, "exec", _blocked("QDialog.exec"))
