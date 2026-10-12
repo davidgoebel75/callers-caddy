@@ -8,30 +8,8 @@ das, was der Caller sieht (Notizliste, Tips-Zahl, heutiges Tempo).
 from types import SimpleNamespace
 
 import pytest
-import shiboken6
 
 from current_session import CurrentSession
-
-
-@pytest.fixture
-def keep(qapp):
-    """Raeumt Widgets, Sitzung und Test-DB am Testende gezielt ab. Bleiben sie
-    liegen, sammelt ein spaeterer gc.collect() sie an zufaelliger Stelle ein —
-    bei David brach so die volle Suite mit 0xc0000374 ab (PR #119)."""
-    objs = []
-
-    def _keep(obj):
-        objs.append(obj)
-        return obj
-    yield _keep
-    # Aufgeschobene Aufrufe der Widgets (QTimer.singleShot) noch zu Lebzeiten
-    # abarbeiten, sonst laufen sie spaeter gegen geloeschte Objekte
-    qapp.processEvents()
-    for obj in reversed(objs):   # erst die Widgets, dann Sitzung bzw. DB
-        if hasattr(obj, "_conn"):
-            obj.close()
-        else:
-            shiboken6.delete(obj)
 
 
 @pytest.fixture
