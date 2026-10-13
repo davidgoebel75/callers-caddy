@@ -115,3 +115,15 @@ def test_statusleisten_player_schaltet_sofort_um(qapp, tmp_path):
     win._settings.setValue("display/statusbar_player", "false")
     main.P29MainWindow._on_settings_applied(win, ["display/statusbar_player"])
     assert not bar.isVisibleTo(win)
+
+
+def test_zoom_grenzen_im_dialog_wie_im_widget():
+    """Dialog erlaubte 300 %, die Widgets nehmen hoechstens 200 % an: 250
+    gespeichert, 200 angezeigt (intern#201)."""
+    from notes_widget import NotesWidget
+    from sequences_widget import SequencesWidget
+
+    for key, widget in (("sequences/zoom_pct", SequencesWidget),
+                        ("notes/zoom_pct", NotesWidget)):
+        meta = SETTINGS_META[key]
+        assert (meta["min"], meta["max"]) == (widget._ZOOM_MIN, widget._ZOOM_MAX), key
