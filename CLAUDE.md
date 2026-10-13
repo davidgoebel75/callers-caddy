@@ -16,6 +16,8 @@
 - Versionsnummer: `0.XX` (XX = Prototyp-Nummer, zweistellig). Ab offiziellem Launch: `2.0+` (1.x war die alte Version).
 - Siehe „Versions-Bump — PFLICHT-DOPPELPACK" und „Branches und Release".
 
+**Zehnerbloecke:** `CHANGELOG.md` enthaelt nur `(Unreleased)` und den laufenden Zehnerblock (z. B. 0.160 bis 0.169). Aeltere Versionen liegen je Block in `docs/changelog/0.150-0.159.md` usw.; das Verzeichnis steht am Ende von `CHANGELOG.md`. `tools/bump_version.py` lagert den vollen Block beim Bump auf 0.170 selbst aus — nie von Hand verschieben. Neue Eintraege kommen immer in `CHANGELOG.md`; wer eine alte Version sucht, liest gezielt die eine Archivdatei.
+
 ## Branches und Release
 
 `develop` ist Default-Branch und Sammelstelle fuer alles Fertige. `main` enthaelt nur veroeffentlichte Staende.

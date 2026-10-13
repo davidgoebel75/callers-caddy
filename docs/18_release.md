@@ -4,7 +4,7 @@ Die harten Regeln (Versions-Bump-Doppelpack, Merge-Commit, Build nur nach Rueckf
 
 ## Reihenfolge IMMER
 
-1. Auf `develop`: Versions-Bump + Changelog (siehe PFLICHT-DOPPELPACK in `CLAUDE.md`), committen, pushen.
+1. Auf `develop`: Versions-Bump + Changelog (siehe PFLICHT-DOPPELPACK in `CLAUDE.md`), committen, pushen. Beginnt die neue Version einen Zehnerblock (0.170), legt `tools/bump_version.py` dabei `docs/changelog/0.160-0.169.md` an — die neue Datei mit committen (`git add CHANGELOG.md docs/changelog src/main.py`).
 2. Pull Request `develop` → `main` anlegen: `gh pr create --base main --head develop --title "Release 0.XX"`. Tests abwarten.
 3. Mergen mit **„Create a merge commit"** — NIE „Squash and merge", NIE „Rebase and merge". Sonst verliert Git die Verbindung zwischen `develop` und `main`, und der naechste Release-PR bringt alte Commits doppelt plus Konflikte.
 4. `main` holen (`git switch main && git pull`), bauen (siehe Build-Regel in `CLAUDE.md`).
