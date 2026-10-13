@@ -213,11 +213,11 @@ Beat Snap Audition und Layout-Robustheit.
 
 ### P32 Umfang
 Keyboard, Datei-Auswahl, Loop-Verbesserungen.
-- Siehe Changelog 0.32
+- Siehe Changelog 0.32 (`docs/changelog/0.30-0.39.md`)
 
 ### P33 Umfang
 Potential-Widget (Datenqualitaet), Lokation loeschen, Menu-Umbau, 3-Spalten-Default-Layout.
-- Siehe Changelog 0.33
+- Siehe Changelog 0.33 (`docs/changelog/0.30-0.39.md`)
 
 ### P34 Umfang
 Keyboard-Shortcuts und Elegant Gold Theme.
