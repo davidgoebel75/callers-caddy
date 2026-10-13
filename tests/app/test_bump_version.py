@@ -48,7 +48,7 @@ def test_erzwungene_version_gewinnt(tmp_path):
 
 
 def test_unbekanntes_nummernformat_bricht_ab(tmp_path):
-    # Wie die Bloecke ab 2.0 heissen, ist offen (intern#203) — bis dahin kein stilles Raten.
+    # Wie die Bloecke ab 2.0 heissen, ist offen (intern#203), bis dahin kein stilles Raten.
     root = _repo(tmp_path)
     before = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     with pytest.raises(SystemExit, match="Nummernformat"):
@@ -125,3 +125,85 @@ def test_check_schreibt_nichts(tmp_path):
     vorher = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert bump_version.bump(title="Probe", write=False, root=root) == "0.160"
     assert (root / "CHANGELOG.md").read_text(encoding="utf-8") == vorher
+
+
+@pytest.mark.parametrize("version", ["0.16", "0.5", "0.155", "0.161"])
+def test_erzwungene_version_muss_steigen(tmp_path, version):
+    # Tippfehler bei --version: ohne die Pruefung wuerde der laufende Block ausgelagert.
+    root = _repo(tmp_path, unreleased="## (Unreleased — seit 0.161)\n\n- **Etwas.**\n", released=(
+        "## 0.161 — Eins (2026-09-15)\n\n- **Eins.**\n\n---\n\n"
+        "## 0.160 — Null (2026-09-01)\n\n- **Null.**\n"
+    ))
+    before = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    with pytest.raises(SystemExit, match="liegt nicht ueber"):
+        bump_version.bump(version=version, root=root)
+    assert (root / "CHANGELOG.md").read_text(encoding="utf-8") == before
+    assert not (root / "docs" / "changelog").exists()
+
+
+def test_abbruch_nach_dem_auslagern_schreibt_kein_archiv(tmp_path):
+    # Ohne __version__ in main.py bricht der Bump ab; ein schon geschriebenes Archiv
+    # stuende beim zweiten Lauf doppelt da.
+    root = _repo(tmp_path, released="## 0.169 — Neun (2026-09-15)\n\n- **Neun.**\n")
+    (root / "src" / "main.py").write_text("import sys\n", encoding="utf-8")
+    before = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    with pytest.raises(SystemExit, match="__version__"):
+        bump_version.bump(root=root)
+    assert (root / "CHANGELOG.md").read_text(encoding="utf-8") == before
+    assert not (root / "docs" / "changelog").exists()
+
+
+def test_archive_full_blocks_schreibt_nicht(tmp_path):
+    changelog = (
+        "# Changelog\n\n## 0.170 — Neu (2026-09-22)\n\n- **Neu.**\n\n"
+        "## 0.169 — Neun (2026-09-15)\n\n- **Neun.**\n"
+    )
+    shortened, files = bump_version.archive_full_blocks(changelog, "0.170", tmp_path)
+    assert "## 0.169" not in shortened
+    assert list(files) == ["docs/changelog/0.160-0.169.md"]
+    assert not (tmp_path / "docs").exists()
+
+
+def test_neue_abschnitte_stehen_vor_den_archivierten(tmp_path):
+    root = _repo(tmp_path, released="## 0.169 — Neun (2026-09-15)\n\n- **Neun.**\n\n---\n")
+    archive = root / "docs" / "changelog" / "0.160-0.169.md"
+    archive.parent.mkdir(parents=True)
+    archive.write_text(
+        "# Callers Caddy — Changelog 0.160–0.169\n\n## 0.165 — Fuenf (2026-09-10)\n\n- **Fuenf.**\n",
+        encoding="utf-8",
+    )
+    bump_version.bump(root=root)
+    # Trenner zwischen den Abschnitten bleibt, hinter dem letzten steht keiner
+    assert archive.read_text(encoding="utf-8") == (
+        "# Callers Caddy — Changelog 0.160–0.169\n\n"
+        "## 0.169 — Neun (2026-09-15)\n\n- **Neun.**\n\n---\n\n"
+        "## 0.165 — Fuenf (2026-09-10)\n\n- **Fuenf.**\n"
+    )
+
+
+def test_archivdatei_endet_ohne_trenner(tmp_path):
+    root = _repo(tmp_path, released="## 0.169 — Neun (2026-09-15)\n\n- **Neun.**\n\n---\n")
+    bump_version.bump(root=root)
+    archive = (root / "docs" / "changelog" / "0.160-0.169.md").read_text(encoding="utf-8")
+    assert archive.endswith("- **Neun.**\n")
+
+
+def test_archivdatei_mit_fremdem_kopf_bricht_ab(tmp_path):
+    root = _repo(tmp_path, released="## 0.169 — Neun (2026-09-15)\n\n- **Neun.**\n")
+    archive = root / "docs" / "changelog" / "0.160-0.169.md"
+    archive.parent.mkdir(parents=True)
+    archive.write_text("# Anderer Kopf\n\n## 0.165 — Fuenf (2026-09-10)\n", encoding="utf-8")
+    before = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    with pytest.raises(SystemExit, match="Kopf"):
+        bump_version.bump(root=root)
+    assert (root / "CHANGELOG.md").read_text(encoding="utf-8") == before
+    assert archive.read_text(encoding="utf-8").startswith("# Anderer Kopf")
+
+
+def test_verzeichnis_ueberschrift_nur_als_ganze_zeile(tmp_path):
+    # Steht der Text mitten in einem Eintrag, ist das kein Verzeichnis und bleibt stehen.
+    root = _repo(tmp_path, released=(
+        "## 0.160 — Null (2026-09-01)\n\n- **Null.** Siehe ## Ältere Versionen weiter unten.\n"
+    ))
+    bump_version.bump(root=root)
+    assert "weiter unten." in (root / "CHANGELOG.md").read_text(encoding="utf-8")
