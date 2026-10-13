@@ -95,7 +95,7 @@ _RESTART_KEYS = {
 #   }
 #
 # Der Standardwert einer Einstellung steht an bis zu vier Stellen, die
-# zusammenpassen muessen (Fehlerkette intern#189, #195, #198):
+# zusammenpassen muessen (Fehlerkette intern#189, #195, #198, #199):
 #   1. die Lesestelle im Code: settings.value("sektion/key", <Standard>)
 #   2. P29MainWindow._write_ini_defaults() in main.py (schreibt beim Start)
 #   3. installer/callers_caddy_default.ini (mitgelieferte INI)
@@ -108,6 +108,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Skin / Theme",
         "widget": "combobox",
         "choices": [],          # wird zur Laufzeit befuellt
+        "default": "default",
         "requires_restart": True,
     },
     "display/language": {
@@ -230,6 +231,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Fade-Out-Dauer",
         "widget": "spinbox",
         "min": 0, "max": 30, "step": 1, "suffix": " s",
+        "default": 3,
     },
     "playlist/patter_fill_type": {
         "label": "Patter-Füllung im Planner",

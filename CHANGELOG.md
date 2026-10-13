@@ -10,6 +10,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Ein geänderter Erste-Notiz-Faktor wirkt jetzt.** Wer in den Einstellungen unter Notizen den „Erste-Notiz-Faktor“ änderte, sah bisher keine Wirkung, und nach dem nächsten Start stand wieder der alte Wert da. Jetzt wird die oberste offene Notiz sofort in der neuen Größe angezeigt, und der Wert bleibt erhalten.
+- **Einstellungen zeigen bei fehlender Einstellungsdatei die richtige Fade-Out-Dauer und den richtigen Skin.** Fehlte die mitgelieferte Einstellungsdatei, etwa nach dem Löschen, zeigte der Einstellungsdialog als Fade-Out-Dauer 0 s und den ersten Skin der Liste. Das Programm verwendete aber 3 s und den Skin „default“. Jetzt zeigt der Dialog die Werte, die tatsächlich gelten.
 
 ---
 
