@@ -1972,24 +1972,44 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             # BL-210: nach Merges und neuen Teaching-Orders die hoechste Figur je
             # Menge neu bestimmen, Dubletten Haupt/Zusatz aufloesen
             self._normalize_call_text_figures()
-            # 5) Builtin-dance_programs ersetzen (origin='user' bleibt erhalten)
-            self._conn.execute(
-                "DELETE FROM dance_programs WHERE origin IS NULL OR origin='builtin';")
+            # 5) Builtin-dance_programs abgleichen (origin='user' bleibt erhalten).
+            #    intern#206: per code aktualisieren statt loeschen + neu anlegen. Die
+            #    id bleibt so stabil - location_programs, locations.dance_program_id
+            #    und die INI (sequences/dance_programs) speichern ids, ein Neuanlegen
+            #    liess sie ins Leere zeigen. target_duration_min bleibt, wie der
+            #    Nutzer es eingestellt hat.
+            ref_codes = [dp["code"] for dp in ref["dance_programs"]]
+            gone = [pid for (pid,) in self._conn.execute(
+                "SELECT id FROM dance_programs WHERE (origin IS NULL OR origin='builtin') "
+                f"AND code NOT IN ({','.join('?' * len(ref_codes))})", ref_codes)]
+            for pid in gone:
+                self._conn.execute(
+                    "DELETE FROM location_programs WHERE dance_program_id=?", (pid,))
+                self._conn.execute(
+                    "UPDATE locations SET dance_program_id=NULL WHERE dance_program_id=?",
+                    (pid,))
+                self._conn.execute("DELETE FROM dance_programs WHERE id=?", (pid,))
             band_to_pid = {}
             for dp in ref["dance_programs"]:
                 band = int(dp["band"])
-                cur = self._conn.execute(
+                self._conn.execute(
                     "INSERT INTO dance_programs "
                     "(code, label, sort_order, target_duration_min, sequence_limit_to, origin) "
-                    "VALUES (?, ?, ?, ?, ?, 'builtin');",
+                    "VALUES (?, ?, ?, 7.0, ?, 'builtin') "
+                    "ON CONFLICT(code) DO UPDATE SET label=excluded.label, "
+                    "sort_order=excluded.sort_order, "
+                    "sequence_limit_to=excluded.sequence_limit_to, origin='builtin' "
+                    "WHERE origin IS NULL OR origin='builtin';",
                     (dp["code"], dp["label"], dp.get("sort_order", band),
-                     7.0, band + 0.999999))
+                     band + 0.999999))
                 # Class-Varianten teilen sich das Band ihres 2026-/Basis-Programms
                 # (= gleiche Calls). Fuer die Band->Programm-Zuordnung der Lokations-
                 # Migration zaehlt nur das Primaer-Programm, sonst zeigte eine Lokation
                 # auf die Class-Variante statt aufs regulaere Programm.
                 if not dp.get("is_class"):
-                    band_to_pid[band] = cur.lastrowid
+                    band_to_pid[band] = self._conn.execute(
+                        "SELECT id FROM dance_programs WHERE code=?",
+                        (dp["code"],)).fetchone()[0]
             # 6) Lokationen EINMALIG auf das 2026-Set migrieren (Default NEU). Basic 10/20
             #    sind in MS50 (Band 30) absorbiert -> 2026-Baender = 30..100. Nur beim
             #    allerersten Reseed (Flag in app_meta), damit spaetere Referenz-Bumps die
