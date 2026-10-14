@@ -9,6 +9,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 ## (Unreleased — seit 0.161)
 
 ### Bugfixes
+- **Sequenzen mit Füllwörtern erscheinen wieder bei gewähltem Tanzprogramm.** Enthielt eine Sequenz einen Call-Text, der den „Filler Words“ zugeordnet ist (z. B. „Heads Back Away“ oder „Face Left“), fehlte sie bei jeder Tanzprogramm-Wahl, auch wenn alle ihre Figuren ins Programm passten. In einer großen Sammlung betraf das fast 2.000 Sequenzen. Jetzt zählen Füllwörter nicht mehr gegen das Programm. Neu ist außerdem die Figur „Face (In/Out/Left/Right/Partner/Corner)“, die ebenso vor allen Programmen steht. Beides kommt mit dem Update von selbst, ein Import ist nicht nötig.
 - **Zoom für Sequenzen und Notizen geht in den Einstellungen nur noch bis 200 %.** Der Einstellungsdialog erlaubte bis zu 300 %, die Fenster selbst zeigen aber höchstens 200 %. Wer zum Beispiel 250 % eintrug, sah trotzdem 200 %. Jetzt endet die Auswahl dort, wo auch die Zoom-Knöpfe im Fenster enden.
 - **Ein geänderter Erste-Notiz-Faktor wirkt jetzt.** Wer in den Einstellungen unter Notizen den „Erste-Notiz-Faktor“ änderte, sah bisher keine Wirkung, und nach dem nächsten Start stand wieder der alte Wert da. Jetzt wird die oberste offene Notiz sofort in der neuen Größe angezeigt, und der Wert bleibt erhalten.
 

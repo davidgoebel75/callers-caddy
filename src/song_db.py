@@ -323,7 +323,7 @@ LEFT JOIN song_location_stats sls
 
 # Version der gebuendelten Referenzdaten (reference_calls.json). Hochzaehlen, wenn
 # eine neue Referenz an Bestandsnutzer verteilt werden soll -> Reseed laeuft erneut.
-REFERENCE_DATA_VERSION = 3
+REFERENCE_DATA_VERSION = 4
 
 # Default-Programme inkl. Figuren-Limit (sequence_limit_to, BL-132). Das Limit
 # ist die Programm-Obergrenze aus sequence_mapper._PROGRAMS als ".999999", damit

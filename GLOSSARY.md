@@ -184,6 +184,13 @@ Eintrag des Katalogs, der eine andere Figur abwandelt statt selbst getanzt zu we
 z. B. "All 8 Concept" in "All 8 Right & Left Thru". Zaehlt beim Limit wie eine Figur.
 _EN_: Concept
 
+**Fuellwoerter**:
+Zuordnungsziel fuer Call-Texte, die keine Figur sind, z. B. "Back Away", "Join Hands",
+"Boys go Right". Steht vor allen Programmen und schliesst keine Sequenz aus der
+Tanzprogramm-Wahl aus.
+_EN_: Filler Words
+_Avoid_: Noise, Stoppwort
+
 **Teaching-Order**:
 Offizielle Reihenfolge, in der die Figuren eines Programms beigebracht werden.
 _EN_: Teaching Order
