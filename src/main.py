@@ -2711,9 +2711,11 @@ class P29MainWindow(QMainWindow):
         intern#205: Die Bestaetigung gehoert noch zum Start. Bringt die Lokation
         eine andere Tanzprogramm-Wahl mit, beendet set_program_bands() das
         Einblenden wie jeder Programmwechsel - der Startwert gilt dann erneut.
+        Nur wenn es wirklich beendet wurde: Sonst laedt die ganze Liste ein
+        zweites Mal, und zu diesem Zeitpunkt kann schon Audio laufen.
         """
         self._set_current_location(loc)
-        if self._show_hidden_on_start():
+        if self._show_hidden_on_start() and not self.sequences_widget.showing_hidden:
             self.sequences_widget.show_hidden_sequences()
 
     def _show_hidden_on_start(self) -> bool:

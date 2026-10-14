@@ -301,11 +301,12 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Ausgeblendete Sequenzen beim Start anzeigen",
         "widget": "checkbox",
         "default": False,
-        "tooltip": ("Startet das Sequenzen-Fenster wie \"Auch ausgeblendete Sequenzen anzeigen\": "
-                    "auch Sequenzen mit nicht zugeordneten Call-Texten (rot) erscheinen, die "
+        "tooltip": ("Startet das Sequenzen-Fenster wie „Auch ausgeblendete Sequenzen anzeigen“: "
+                    "Auch Sequenzen mit nicht zugeordneten Call-Texten (rot) erscheinen, die "
                     "Tanzprogramm-Wahl ist für die Liste ausgesetzt. Achtung: Darunter können Calls "
                     "aus anderen Programmen sein, und bei einer Programm-Änderung werden diese "
-                    "Sequenzen nicht automatisch neu eingestuft."),
+                    "Sequenzen nicht automatisch neu eingestuft. Ein Umschalten per Rechtsklick "
+                    "gilt nur bis zum nächsten Start."),
         "requires_restart": True,
     },
     "sequences/auto_sync_program": {

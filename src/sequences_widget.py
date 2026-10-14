@@ -1089,6 +1089,11 @@ class SequencesWidget(QWidget):
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
 
+    @property
+    def showing_hidden(self) -> bool:
+        """intern#205: Ist "Auch ausgeblendete Sequenzen anzeigen" gerade aktiv?"""
+        return self._show_hidden
+
     def show_hidden_sequences(self):
         """intern#119: Frisch importierte Sequenzen finden.
 

@@ -97,3 +97,28 @@ def test_bestaetigte_lokation_beim_start_behaelt_den_startwert(
 
     assert (db.ids["rot"] in _ids(w)) is sichtbar
     assert db.ids["ok"] in _ids(w)
+
+
+def test_gleiche_programmwahl_laedt_nicht_ein_zweites_mal(db, keep, tmp_path, monkeypatch):
+    """Review Thomas zu #129: Bringt die bestaetigte Lokation dieselbe
+    Programmwahl mit, endet das Einblenden nicht - dann kein zweites
+    Komplett-Laden (2,5 s nach dem Start kann schon Audio laufen)."""
+    import main
+    from PySide6.QtWidgets import QMessageBox
+
+    w, _, win = _start(db, keep, tmp_path, value=True)
+    calls = []
+    real = w.show_hidden_sequences
+    monkeypatch.setattr(w, "show_hidden_sequences", lambda: (calls.append(1), real()))
+    loc = types.SimpleNamespace(name="Club", schedule_list=[])
+    win.session = types.SimpleNamespace(location=None)
+    win.db = types.SimpleNamespace(find_locations_for_datetime=lambda _dt: [(loc, 1.0)])
+    win._set_current_location = lambda _loc: w.set_program_bands({20})   # wie beim Start
+    win._confirm_startup_location = (
+        lambda l: main.P29MainWindow._confirm_startup_location(win, l))
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+
+    main.P29MainWindow._auto_detect_location_on_startup(win)
+
+    assert calls == []
+    assert w.showing_hidden and db.ids["rot"] in _ids(w)
