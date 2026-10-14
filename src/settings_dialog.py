@@ -73,6 +73,7 @@ _RESTART_KEYS = {
     # Beide werden nur beim Aufbau des jeweiligen Widgets gelesen:
     "sort/default_mode",
     "sequences/only_program_default",
+    "sequences/show_hidden_on_start",
 }
 
 # ---------------------------------------------------------------------------
@@ -95,7 +96,7 @@ _RESTART_KEYS = {
 #   }
 #
 # Der Standardwert einer Einstellung steht an bis zu vier Stellen, die
-# zusammenpassen muessen (Fehlerkette intern#189, #195, #198):
+# zusammenpassen muessen (Fehlerkette intern#189, #195, #198, #199):
 #   1. die Lesestelle im Code: settings.value("sektion/key", <Standard>)
 #   2. P29MainWindow._write_ini_defaults() in main.py (schreibt beim Start)
 #   3. installer/callers_caddy_default.ini (mitgelieferte INI)
@@ -108,6 +109,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Skin / Theme",
         "widget": "combobox",
         "choices": [],          # wird zur Laufzeit befuellt
+        "default": "default",
         "requires_restart": True,
     },
     "display/language": {
@@ -230,6 +232,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Fade-Out-Dauer",
         "widget": "spinbox",
         "min": 0, "max": 30, "step": 1, "suffix": " s",
+        "default": 3,
     },
     "playlist/patter_fill_type": {
         "label": "Patter-Füllung im Planner",
@@ -292,6 +295,18 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "checkbox",
         "default": False,
         "tooltip": "Voreinstellung der \"Nur\"-Checkbox im Sequenzen-Fenster: nur Sequenzen, deren höchster Call im gewählten Programm liegt.",
+        "requires_restart": True,
+    },
+    "sequences/show_hidden_on_start": {
+        "label": "Ausgeblendete Sequenzen beim Start anzeigen",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": ("Startet das Sequenzen-Fenster wie „Auch ausgeblendete Sequenzen anzeigen“: "
+                    "Auch Sequenzen mit nicht zugeordneten Call-Texten (rot) erscheinen, die "
+                    "Tanzprogramm-Wahl ist für die Liste ausgesetzt. Achtung: Darunter können Calls "
+                    "aus anderen Programmen sein, und bei einer Programm-Änderung werden diese "
+                    "Sequenzen nicht automatisch neu eingestuft. Ein Umschalten per Rechtsklick "
+                    "gilt nur bis zum nächsten Start."),
         "requires_restart": True,
     },
     "sequences/auto_sync_program": {

@@ -863,12 +863,9 @@ class P29MainWindow(QMainWindow):
         if _lyrics_auto_width:
             _lyrics_auto_size = False
         if _lyrics_zoom_pct != 100 or not _lyrics_auto_size or _lyrics_auto_width:
-            self.lyrics_widget._btn_auto_size.setChecked(_lyrics_auto_size)
-            self.lyrics_widget._btn_auto_width.setChecked(_lyrics_auto_width)
-            _lz_size = self.lyrics_widget._base_font_size * _lyrics_zoom_pct / 100
-            self.lyrics_widget._set_font_size(_lz_size)
-            self.lyrics_widget._current_font_size = _lz_size
-            self.lyrics_widget._update_zoom_label()
+            self.lyrics_widget.set_auto_size(_lyrics_auto_size)
+            self.lyrics_widget.set_auto_width(_lyrics_auto_width)
+            self.lyrics_widget.apply_zoom_pct(_lyrics_zoom_pct)
         self.dock_lyrics = _make_dock(
             self, _t("dock_lyrics"), self.lyrics_widget, Qt.RightDockWidgetArea
         )
@@ -2692,7 +2689,7 @@ class P29MainWindow(QMainWindow):
                    time=_today_start(loc)),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
             if reply == QMessageBox.Yes:
-                self._set_current_location(loc)
+                self._confirm_startup_location(loc)
             return
         # Mehrere Treffer: Auswahl anbieten (bester zuerst vorausgewaehlt)
         names = [m[0].name for m in matches]
@@ -2702,8 +2699,26 @@ class P29MainWindow(QMainWindow):
         if ok and choice:
             for loc, _score in matches:
                 if loc.name == choice:
-                    self._set_current_location(loc)
+                    self._confirm_startup_location(loc)
                     break
+
+    def _confirm_startup_location(self, loc):
+        """Setzt die beim Start bestaetigte Lokation (BL-178).
+
+        intern#205: Die Bestaetigung gehoert noch zum Start. Bringt die Lokation
+        eine andere Tanzprogramm-Wahl mit, beendet set_program_bands() das
+        Einblenden wie jeder Programmwechsel - der Startwert gilt dann erneut.
+        Nur wenn es wirklich beendet wurde: Sonst laedt die ganze Liste ein
+        zweites Mal, und zu diesem Zeitpunkt kann schon Audio laufen.
+        """
+        self._set_current_location(loc)
+        if self._show_hidden_on_start() and not self.sequences_widget.showing_hidden:
+            self.sequences_widget.show_hidden_sequences()
+
+    def _show_hidden_on_start(self) -> bool:
+        """intern#205: Startwert fuer "Auch ausgeblendete Sequenzen anzeigen".
+        Umschalten in der Sitzung aendert ihn nicht."""
+        return self._settings.value("sequences/show_hidden_on_start", False, type=bool)
 
     def _update_title(self):
         """Aktualisiert die Titelzeile mit Lokation-Info."""
@@ -6234,7 +6249,10 @@ class P29MainWindow(QMainWindow):
         _ts0 = perf_start()
         count = self.db.get_sequence_count()
         if count > 0:
-            self.sequences_widget.load_sequences()
+            if self._show_hidden_on_start():   # intern#205
+                self.sequences_widget.show_hidden_sequences()
+            else:
+                self.sequences_widget.load_sequences()
             _ts1 = perf_split(f"    _init_sequences.load_sequences ({count})", _ts0)
             print(f"[P28] {count} Sequenzen geladen")
             # SequenceView mit erster Sequenz vorbefuellen (Dock ist noch versteckt)
@@ -6978,6 +6996,8 @@ class P29MainWindow(QMainWindow):
             # intern#148: In-Lesebalken Countdown (Beats bis zum Abschnittswechsel)
             "lyrics/reading_band_countdown": "true",
             "lyrics/reading_band_countdown_beats": "8",
+            # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
+            "sequences/show_hidden_on_start": "false",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -7079,14 +7099,6 @@ class P29MainWindow(QMainWindow):
                 self._session_program_ids = self._parse_program_ids(val)
                 self._apply_program_setting()
 
-            elif key == "lyrics/zoom_pct":
-                try:
-                    zoom = int(val)
-                    if hasattr(self, "lyrics_widget"):
-                        self.lyrics_widget.set_zoom(zoom)
-                except Exception:
-                    pass
-
             elif key == "lyrics/dynamic_enabled":
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.set_dynamic_wanted(
@@ -7140,6 +7152,10 @@ class P29MainWindow(QMainWindow):
                     self.song_list.refresh()
                 except Exception:
                     pass
+
+        # intern#204: Zoom, Auto-Size und Auto-Breite in fester Reihenfolge
+        if hasattr(self, "lyrics_widget"):
+            self.lyrics_widget.apply_size_settings(self._settings, changed_keys)
 
     # ---- Shortcuts ----
 
