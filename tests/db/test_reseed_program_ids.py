@@ -40,17 +40,34 @@ def test_reseed_behaelt_eingestellte_ziel_dauer(db):
     ).fetchone()[0] == 9.5
 
 
-def test_reseed_entfernt_weggefallenes_programm_samt_zuordnung(db):
-    cur = db._conn.execute(
-        "INSERT INTO dance_programs (code, label, origin) VALUES ('ALT', 'Alt', 'builtin')")
-    old = cur.lastrowid
+def test_aus_der_referenz_gefallenes_programm_bleibt_als_eigenes(db, monkeypatch):
+    """Ein mitgeliefertes Programm, das die Referenz nicht mehr fuehrt (hier:
+    C3B aus der Referenz genommen), bleibt als eigenes stehen, samt Zuordnung -
+    geloescht wird beim Reseed nichts."""
+    import json
+
+    import song_db
+
+    gone = _ids(db)["C3B"]
     loc = db.insert_location("Club")
-    db.set_location_program_ids(loc.id, [old, _ids(db)["MS2026"]])
+    db.set_location_program_ids(loc.id, [gone, _ids(db)["MS2026"]])
+    real_load = json.load
+
+    def without_c3b(fh, *a, **k):
+        data = real_load(fh, *a, **k)
+        if isinstance(data, dict) and "dance_programs" in data:
+            data["dance_programs"] = [p for p in data["dance_programs"]
+                                      if p["code"] != "C3B"]
+        return data
+    monkeypatch.setattr(json, "load", without_c3b)
+    assert "C3B" not in [c for c, *_ in song_db._DEFAULT_DANCE_PROGRAMS]
 
     db.reseed_reference_data(force=True)
 
-    assert "ALT" not in _ids(db)
-    assert db.get_location_program_ids(loc.id) == [_ids(db)["MS2026"]]
+    assert _ids(db)["C3B"] == gone
+    assert db._conn.execute(
+        "SELECT origin FROM dance_programs WHERE id=?", (gone,)).fetchone()[0] == "user"
+    assert sorted(db.get_location_program_ids(loc.id)) == sorted([gone, _ids(db)["MS2026"]])
 
 
 def test_reseed_laesst_eigenes_programm_stehen(db):
@@ -59,3 +76,42 @@ def test_reseed_laesst_eigenes_programm_stehen(db):
     pid = _ids(db)["MEIN"]
     db.reseed_reference_data(force=True)
     assert _ids(db)["MEIN"] == pid
+
+
+def test_im_manager_angelegtes_programm_ueberlebt_den_reseed(db):
+    """Review Thomas zu #128: insert_dance_program() schrieb kein origin, der
+    DEFAULT 'builtin' liess den Reseed das Programm samt Zuordnung loeschen."""
+    pid = db.insert_dance_program("MEIN", "Mein Programm", 99, 8.0, 30.999999)
+    loc = db.insert_location("Club")
+    db.set_location_program_ids(loc.id, [pid])
+
+    db.reseed_reference_data(force=True)
+
+    assert _ids(db)["MEIN"] == pid
+    assert db.get_location_program_ids(loc.id) == [pid]
+
+
+def test_bestandsprogramm_mit_builtin_wird_geheilt_statt_geloescht(db):
+    """Altbestand: vor dem Fix angelegt, steht als 'builtin' in der DB."""
+    pid = db._conn.execute(
+        "INSERT INTO dance_programs (code, label) VALUES ('ALTEIGEN', 'Alt eigen')"
+    ).lastrowid
+    loc = db.insert_location("Club")
+    db.set_location_program_ids(loc.id, [pid])
+
+    db.reseed_reference_data(force=True)
+
+    assert _ids(db)["ALTEIGEN"] == pid
+    assert db._conn.execute(
+        "SELECT origin FROM dance_programs WHERE id=?", (pid,)).fetchone()[0] == "user"
+    assert db.get_location_program_ids(loc.id) == [pid]
+
+
+def test_im_manager_umbenanntes_mitgeliefertes_programm_bleibt(db):
+    pid = _ids(db)["MS2026"]
+    db.update_dance_program(pid, "MS2026-Club", "Mein MS", 40, 7.0, 30.999999)
+
+    db.reseed_reference_data(force=True)
+
+    assert _ids(db)["MS2026-Club"] == pid
+    assert "MS2026" in _ids(db)     # das mitgelieferte kommt neu dazu
