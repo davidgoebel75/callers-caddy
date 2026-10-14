@@ -8,6 +8,9 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ## (Unreleased — seit 0.161)
 
+### Verbesserungen
+- **Ausgeblendete Sequenzen auf Wunsch schon beim Start anzeigen.** Neu in den Einstellungen unter Sequenzen: „Ausgeblendete Sequenzen beim Start anzeigen“. Ist der Haken gesetzt, startet die Sequenzliste so, als hätte man per Rechtsklick „Auch ausgeblendete Sequenzen anzeigen“ gewählt. Das ist für alle gedacht, die eigene Sequenzen bewusst ohne Call-Mapping pflegen. Standard ist aus. Das gilt auch, wenn man beim Start die vorgeschlagene Lokation bestätigt und diese ein anderes Tanzprogramm mitbringt. Ein Umschalten per Rechtsklick gilt wie bisher nur bis zum nächsten Start. **Hinweis:** Sequenzen ohne Zuordnung sind nicht eingestuft. Es können also Calls aus anderen Programmen dabei sein, und bei einer späteren Änderung der Tanzprogramme werden sie nicht automatisch neu eingeordnet. Mit vollständigem Call-Mapping passiert das von selbst.
+
 ### Bugfixes
 - **Zoom, automatische Schriftgröße und automatische Breite der Lyrics wirken jetzt aus den Einstellungen.** Bisher wurden die drei Werte unter Lyrics zwar gespeichert, das Lyrics-Fenster blieb aber unverändert, und beim Beenden stand wieder der alte Zustand in den Einstellungen. Jetzt wirkt ein neuer Zoom sofort und schaltet die automatische Schriftgröße und Breite ab, genau wie die Zoom-Knöpfe im Fenster. Wer im selben Schritt einen Auto-Haken setzt, behält die Automatik. Sind beide Auto-Haken gesetzt, gilt wie beim Start die automatische Breite.
 - **Zoom für Sequenzen und Notizen geht in den Einstellungen nur noch bis 200 %.** Der Einstellungsdialog erlaubte bis zu 300 %, die Fenster selbst zeigen aber höchstens 200 %. Wer zum Beispiel 250 % eintrug, sah trotzdem 200 %. Jetzt endet die Auswahl dort, wo auch die Zoom-Knöpfe im Fenster enden.
