@@ -9528,6 +9528,16 @@
     "en": "Default state of the \"Only\" checkbox in the sequences window: only sequences whose highest call is within the selected program.",
     "ja": "シーケンス画面の「限定」チェックボックスの初期状態：最上位コールが選択プログラム内にあるシーケンスのみ。"
   },
+  "setting_label_sequences_show_hidden_on_start": {
+    "de": "Ausgeblendete Sequenzen beim Start anzeigen",
+    "en": "Show hidden sequences at startup",
+    "ja": "起動時に非表示のシーケンスも表示"
+  },
+  "setting_tip_sequences_show_hidden_on_start": {
+    "de": "Startet das Sequenzen-Fenster wie „Auch ausgeblendete Sequenzen anzeigen“: Auch Sequenzen mit nicht zugeordneten Call-Texten (rot) erscheinen, die Tanzprogramm-Wahl ist für die Liste ausgesetzt. Achtung: Darunter können Calls aus anderen Programmen sein, und bei einer Programm-Änderung werden diese Sequenzen nicht automatisch neu eingestuft. Ein Umschalten per Rechtsklick gilt nur bis zum nächsten Start.",
+    "en": "Starts the sequences window as with “Also show hidden sequences”: sequences with unassigned call texts (red) appear too, and the dance program selection is suspended for the list. Note: they may contain calls from other programs, and they are not reclassified automatically when a program changes. Switching via right-click only lasts until the next start.",
+    "ja": "シーケンス画面を「非表示のシーケンスも表示」の状態で起動します。割り当てのないコールテキストを含むシーケンス（赤）も表示され、リストではダンスプログラムの選択が一時停止されます。注意：他のプログラムのコールが含まれる場合があり、プログラムが変更されても自動的に再分類されません。右クリックでの切り替えは次回起動までのみ有効です。"
+  },
   "setting_tip_sequences_universal_import_dir": {
     "de": "Wird beim Sequenz-Import als Startordner verwendet.",
     "en": "Used as the starting folder when importing sequences.",
