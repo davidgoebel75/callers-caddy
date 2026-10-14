@@ -402,15 +402,24 @@ class SequencesMixin:
             self._seq_figures = None
             self._band_cache_ver_seen = ver
 
+    # Stand der Cover-Regel im Schluessel des persistenten _band_cover-Caches:
+    # aendert sich die Regel, passen alte Eintraege nicht mehr (intern#206).
+    _COVER_RULE = 2
+
     def _sequence_figures(self) -> dict:
         """intern#111: Figuren-Menge je Sequenz, nur Figuren mit call_programs-
-        Zeile (bandlose/ungemappte Calls schliessen nicht aus). Einmal je
-        Daten-Version aufbauen (~100 ms bei 106k sequence_calls); danach kostet
-        jede Band-/Limit-/"Nur"-Kombination nur einen Mengenvergleich (~2 ms)
-        statt des vollen Joins (~145 ms)."""
+        Zeile in einem echten Band (bandlose/ungemappte Calls schliessen nicht
+        aus). Einmal je Daten-Version aufbauen (~100 ms bei 106k sequence_calls);
+        danach kostet jede Band-/Limit-/"Nur"-Kombination nur einen Mengenvergleich
+        (~2 ms) statt des vollen Joins (~145 ms).
+
+        intern#206: Teaching-Order < 1 (Band 0: Filler Words, Face) liegt vor allen
+        Programmen und gehoert zu keinem. Solche Figuren zaehlen nicht als gebandet,
+        sonst schloesse jeder Filler-Text die Sequenz aus jeder Programmwahl aus."""
         if self._seq_figures is None:
             banded = {e for (e,) in self._conn.execute(
-                "SELECT DISTINCT entity_id FROM call_programs")}
+                "SELECT DISTINCT entity_id FROM call_programs "
+                "WHERE teaching_order >= 1")}
             text_figs = {}
             for ct, eid in self._conn.execute(
                     "SELECT call_text, entity_id FROM call_text_figures"):
@@ -442,7 +451,7 @@ class SequencesMixin:
         # Eintrag ist mit dem `v` gestempelt, bei dem er galt; passt es zum
         # aktuellen `v`, sparen wir den Aufbau von _sequence_figures (~100 ms) —
         # auch ueber Neustarts hinweg. cache_key ist stabil aus Band-Menge + Limit.
-        ck = f"{bands}|{max_to}"
+        ck = f"r{self._COVER_RULE}|{bands}|{max_to}"
         ver = self._band_data_version()
         try:
             prow = self._conn.execute(
@@ -1423,7 +1432,9 @@ class SequencesMixin:
         """Stellt sicher dass der 'Filler Words'-Eintrag in teaching_order_calls existiert.
 
         teaching_order=0.001 → erscheint ganz oben in der sortierten Liste,
-        beeinflusst max_teaching_order einer Sequenz nicht nennenswert.
+        beeinflusst max_teaching_order einer Sequenz nicht nennenswert. Seit
+        intern#206 steht der Eintrag auch in reference_calls.json (der Reseed
+        loescht sonst alle call_programs); hier bleibt nur die Absicherung.
         """
         self._conn.execute(
             "INSERT OR IGNORE INTO calls (entity_id, canonical_name) "
