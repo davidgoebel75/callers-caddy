@@ -863,12 +863,9 @@ class P29MainWindow(QMainWindow):
         if _lyrics_auto_width:
             _lyrics_auto_size = False
         if _lyrics_zoom_pct != 100 or not _lyrics_auto_size or _lyrics_auto_width:
-            self.lyrics_widget._btn_auto_size.setChecked(_lyrics_auto_size)
-            self.lyrics_widget._btn_auto_width.setChecked(_lyrics_auto_width)
-            _lz_size = self.lyrics_widget._base_font_size * _lyrics_zoom_pct / 100
-            self.lyrics_widget._set_font_size(_lz_size)
-            self.lyrics_widget._current_font_size = _lz_size
-            self.lyrics_widget._update_zoom_label()
+            self.lyrics_widget.set_auto_size(_lyrics_auto_size)
+            self.lyrics_widget.set_auto_width(_lyrics_auto_width)
+            self.lyrics_widget.apply_zoom_pct(_lyrics_zoom_pct)
         self.dock_lyrics = _make_dock(
             self, _t("dock_lyrics"), self.lyrics_widget, Qt.RightDockWidgetArea
         )
@@ -7079,14 +7076,6 @@ class P29MainWindow(QMainWindow):
                 self._session_program_ids = self._parse_program_ids(val)
                 self._apply_program_setting()
 
-            elif key == "lyrics/zoom_pct":
-                try:
-                    zoom = int(val)
-                    if hasattr(self, "lyrics_widget"):
-                        self.lyrics_widget.set_zoom(zoom)
-                except Exception:
-                    pass
-
             elif key == "lyrics/dynamic_enabled":
                 if hasattr(self, "lyrics_widget"):
                     self.lyrics_widget.set_dynamic_wanted(
@@ -7140,6 +7129,10 @@ class P29MainWindow(QMainWindow):
                     self.song_list.refresh()
                 except Exception:
                     pass
+
+        # intern#204: Zoom, Auto-Size und Auto-Breite in fester Reihenfolge
+        if hasattr(self, "lyrics_widget"):
+            self.lyrics_widget.apply_size_settings(self._settings, changed_keys)
 
     # ---- Shortcuts ----
 
