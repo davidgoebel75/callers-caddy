@@ -34,7 +34,6 @@ _UNGESAET_BEKANNT = {
     "display/statusbar_player",
     "network/ceder_lookup_enabled",
     "playlist/patter_fill_type",
-    "sequences/auto_sync_program",
     "sequences/only_program_default",
     "sort/default_mode",
 }
@@ -151,3 +150,17 @@ def test_jeder_sichtbare_ini_key_hat_eine_beschriftung(gesaet):
     assert not behoben, (
         "Behoben, aber noch in der Baseline - bitte aus _OHNE_META_BEKANNT "
         "streichen: " + ", ".join(sorted(behoben)))
+
+
+def test_tote_einstellung_auto_sync_program_verschwindet_aus_der_ini(tmp_path):
+    """Las kein Code, stand aber in Bestands-INIs und damit im Dialog."""
+    import types
+
+    import main
+    from PySide6.QtCore import QSettings
+
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    ini.setValue("sequences/auto_sync_program", "false")
+    main.P29MainWindow._write_ini_defaults(types.SimpleNamespace(_settings=ini))
+    assert ini.value("sequences/auto_sync_program") is None
+    assert "sequences/auto_sync_program" not in SETTINGS_META

@@ -6942,6 +6942,10 @@ class P29MainWindow(QMainWindow):
         if old_dev is not None:
             self._settings.remove("audio/output_device")
 
+        # Tote Einstellung ohne Wirkung (las kein Code): aus Bestands-INIs
+        # entfernen, sonst zeigt der Dialog sie als rohes Textfeld.
+        self._settings.remove("sequences/auto_sync_program")
+
         defaults = {
             "player/timer_warn1": "240",
             "player/timer_warn2": "300",
