@@ -8,6 +8,9 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ## (Unreleased — seit 0.161)
 
+### Verbesserungen
+- **Ausgeblendete Sequenzen auf Wunsch schon beim Start anzeigen.** Neu in den Einstellungen unter Sequenzen: „Ausgeblendete Sequenzen beim Start anzeigen“. Ist der Haken gesetzt, startet die Sequenzliste so, als hätte man per Rechtsklick „Auch ausgeblendete Sequenzen anzeigen“ gewählt. Das ist für alle gedacht, die eigene Sequenzen bewusst ohne Call-Mapping pflegen. Standard ist aus. Ein Umschalten per Rechtsklick gilt wie bisher nur bis zum nächsten Start. **Hinweis:** Sequenzen ohne Zuordnung sind nicht eingestuft. Es können also Calls aus anderen Programmen dabei sein, und bei einer späteren Änderung der Tanzprogramme werden sie nicht automatisch neu eingeordnet. Mit vollständigem Call-Mapping passiert das von selbst.
+
 ### Bugfixes
 - **Zoom für Sequenzen und Notizen geht in den Einstellungen nur noch bis 200 %.** Der Einstellungsdialog erlaubte bis zu 300 %, die Fenster selbst zeigen aber höchstens 200 %. Wer zum Beispiel 250 % eintrug, sah trotzdem 200 %. Jetzt endet die Auswahl dort, wo auch die Zoom-Knöpfe im Fenster enden.
 - **Ein geänderter Erste-Notiz-Faktor wirkt jetzt.** Wer in den Einstellungen unter Notizen den „Erste-Notiz-Faktor“ änderte, sah bisher keine Wirkung, und nach dem nächsten Start stand wieder der alte Wert da. Jetzt wird die oberste offene Notiz sofort in der neuen Größe angezeigt, und der Wert bleibt erhalten.

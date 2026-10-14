@@ -73,6 +73,7 @@ _RESTART_KEYS = {
     # Beide werden nur beim Aufbau des jeweiligen Widgets gelesen:
     "sort/default_mode",
     "sequences/only_program_default",
+    "sequences/show_hidden_on_start",
 }
 
 # ---------------------------------------------------------------------------
@@ -294,6 +295,17 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "checkbox",
         "default": False,
         "tooltip": "Voreinstellung der \"Nur\"-Checkbox im Sequenzen-Fenster: nur Sequenzen, deren höchster Call im gewählten Programm liegt.",
+        "requires_restart": True,
+    },
+    "sequences/show_hidden_on_start": {
+        "label": "Ausgeblendete Sequenzen beim Start anzeigen",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": ("Startet das Sequenzen-Fenster wie \"Auch ausgeblendete Sequenzen anzeigen\": "
+                    "auch Sequenzen mit nicht zugeordneten Call-Texten (rot) erscheinen, die "
+                    "Tanzprogramm-Wahl ist für die Liste ausgesetzt. Achtung: Darunter können Calls "
+                    "aus anderen Programmen sein, und bei einer Programm-Änderung werden diese "
+                    "Sequenzen nicht automatisch neu eingestuft."),
         "requires_restart": True,
     },
     "sequences/auto_sync_program": {

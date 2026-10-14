@@ -6234,7 +6234,12 @@ class P29MainWindow(QMainWindow):
         _ts0 = perf_start()
         count = self.db.get_sequence_count()
         if count > 0:
-            self.sequences_widget.load_sequences()
+            # intern#205: Startwert fuer "Auch ausgeblendete Sequenzen anzeigen".
+            # Umschalten in der Sitzung aendert ihn nicht.
+            if self._settings.value("sequences/show_hidden_on_start", False, type=bool):
+                self.sequences_widget.show_hidden_sequences()
+            else:
+                self.sequences_widget.load_sequences()
             _ts1 = perf_split(f"    _init_sequences.load_sequences ({count})", _ts0)
             print(f"[P28] {count} Sequenzen geladen")
             # SequenceView mit erster Sequenz vorbefuellen (Dock ist noch versteckt)
@@ -6978,6 +6983,8 @@ class P29MainWindow(QMainWindow):
             # intern#148: In-Lesebalken Countdown (Beats bis zum Abschnittswechsel)
             "lyrics/reading_band_countdown": "true",
             "lyrics/reading_band_countdown_beats": "8",
+            # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
+            "sequences/show_hidden_on_start": "false",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
