@@ -118,8 +118,9 @@ def test_beide_behalten_beginnt_bei_nummer_1(conflict):
 
 def test_beide_behalten_vergleicht_den_inhalt_nicht_nur_groesse_und_datum(conflict):
     c, lyrics = conflict
-    st = os.stat(c.src)
-    _write(lyrics / "Song_1.html", "xyz", mtime=st.st_mtime)   # gleich gross und alt
+    ns = os.stat(c.src).st_mtime_ns
+    _write(lyrics / "Song_1.html", "xyz")                       # gleich gross ...
+    os.utime(lyrics / "Song_1.html", ns=(ns, ns))               # ... und gleich alt
     assert lyrics_files.resolve(c, KEEP_BOTH) == "Song_2.html"
 
 
@@ -146,6 +147,18 @@ def test_vorhandene_weiterverwenden_aendert_nichts(conflict):
     assert lyrics_files.resolve(c, USE_EXISTING) == "Song.html"
     assert sorted(p.name for p in lyrics.iterdir()) == ["Song.html"]
     assert (lyrics / "Song.html").read_text(encoding="utf-8") == "alt"
+
+
+def test_entscheidungen_sind_verschieden_und_nie_none():
+    # None heisst im Dialog "Abbrechen"
+    assert len({REPLACE, KEEP_BOTH, USE_EXISTING} - {None}) == 3
+
+
+def test_fehlende_quelldatei_meldet_fehler_statt_vorhandene_zu_verknuepfen(dirs):
+    outside, lyrics = dirs
+    _write(lyrics / "Song.html", "alt")
+    with pytest.raises(OSError):
+        lyrics_files.find_conflict(str(outside / "Song.html"), str(lyrics))
 
 
 def test_is_inside_erkennt_ordner_und_unterordner(dirs):

@@ -78,8 +78,9 @@ def test_mehrfach_figuren_round_trip(tmp_path, db):
 def test_unbekanntes_format_wirft():
     with pytest.raises(ValueError):
         mio.parse_import({"foo": 1})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as exc:
         mio.parse_import({"format": mio.FORMAT_NAME, "version": 99, "mappings": []})
+    assert exc.value.params == {"version": 99, "supported": mio.FORMAT_VERSION}
 
 
 def test_formatname_bleibt_fest():
@@ -101,12 +102,6 @@ def test_export_quelle_und_fehlende_angaben():
     assert by_ct["X"]["figures"] == [{"entity_id": "e1", "canonical_name": ""}]
 
 
-def test_zu_neue_version_nennt_die_version():
-    with pytest.raises(mio.CallMapFormatError) as exc:
-        mio.parse_import({"format": mio.FORMAT_NAME, "version": 99, "mappings": []})
-    assert exc.value.params == {"version": 99, "supported": mio.FORMAT_VERSION}
-
-
 def test_v1_ueberspringt_kaputte_zeilen_und_liest_die_quelle():
     out = mio.parse_import([
         "kaputt", {"call_text": ""},
@@ -125,6 +120,9 @@ def test_v2_ueberspringt_kaputte_eintraege_und_liest_die_quelle():
         {"call_text": "B"}]})
     assert out["A"].figures == ["e1"] and out["A"].mapped_by == "manual"
     assert out["B"].figures == [] and out["B"].mapped_by == "auto"
+
+
+def test_importierte_zuordnung_ohne_quelle_ist_auto():
     assert mio.ImportedMapping().mapped_by == "auto"
 
 
@@ -186,7 +184,7 @@ def test_closer_to_bewertet_ueberschuss_und_leere_seite():
     assert mio.closer_to([SWING], [], [SWING]) == "B"
 
 
-def test_muster_vorschlag(db):
+def test_mengen_vorschlag(db):
     suggest = mio.make_pattern_suggester(
         db.get_teaching_order_calls(), db.get_all_call_text_figures())
     assert suggest("Swing Thru, Pass The Ocean") == [SWING, OCEAN]   # Mengen-Vorschlag
