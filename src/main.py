@@ -2692,7 +2692,7 @@ class P29MainWindow(QMainWindow):
                    time=_today_start(loc)),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
             if reply == QMessageBox.Yes:
-                self._set_current_location(loc)
+                self._confirm_startup_location(loc)
             return
         # Mehrere Treffer: Auswahl anbieten (bester zuerst vorausgewaehlt)
         names = [m[0].name for m in matches]
@@ -2702,8 +2702,24 @@ class P29MainWindow(QMainWindow):
         if ok and choice:
             for loc, _score in matches:
                 if loc.name == choice:
-                    self._set_current_location(loc)
+                    self._confirm_startup_location(loc)
                     break
+
+    def _confirm_startup_location(self, loc):
+        """Setzt die beim Start bestaetigte Lokation (BL-178).
+
+        intern#205: Die Bestaetigung gehoert noch zum Start. Bringt die Lokation
+        eine andere Tanzprogramm-Wahl mit, beendet set_program_bands() das
+        Einblenden wie jeder Programmwechsel - der Startwert gilt dann erneut.
+        """
+        self._set_current_location(loc)
+        if self._show_hidden_on_start():
+            self.sequences_widget.show_hidden_sequences()
+
+    def _show_hidden_on_start(self) -> bool:
+        """intern#205: Startwert fuer "Auch ausgeblendete Sequenzen anzeigen".
+        Umschalten in der Sitzung aendert ihn nicht."""
+        return self._settings.value("sequences/show_hidden_on_start", False, type=bool)
 
     def _update_title(self):
         """Aktualisiert die Titelzeile mit Lokation-Info."""
@@ -6234,9 +6250,7 @@ class P29MainWindow(QMainWindow):
         _ts0 = perf_start()
         count = self.db.get_sequence_count()
         if count > 0:
-            # intern#205: Startwert fuer "Auch ausgeblendete Sequenzen anzeigen".
-            # Umschalten in der Sitzung aendert ihn nicht.
-            if self._settings.value("sequences/show_hidden_on_start", False, type=bool):
+            if self._show_hidden_on_start():   # intern#205
                 self.sequences_widget.show_hidden_sequences()
             else:
                 self.sequences_widget.load_sequences()
