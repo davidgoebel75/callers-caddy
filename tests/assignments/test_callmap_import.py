@@ -6,6 +6,7 @@ geaenderter Menge (A/B/C je einmal), v1-Altdatei, unbekannte entity_id
 Detailliertheit, dann Quelle; Massen-Buttons; "keine Figur" als eigene Menge.
 """
 import json
+from types import SimpleNamespace
 
 import pytest
 from PySide6.QtWidgets import QDialog
@@ -81,6 +82,52 @@ def test_unbekanntes_format_wirft():
         mio.parse_import({"format": mio.FORMAT_NAME, "version": 99, "mappings": []})
 
 
+def test_formatname_bleibt_fest():
+    # Steht in allen exportierten Dateien; eine Aenderung macht sie unlesbar.
+    assert mio.FORMAT_NAME == "callers-caddy-callmap"
+
+
+def test_export_quelle_und_fehlende_angaben():
+    db = SimpleNamespace(
+        get_teaching_order_calls=lambda: [],
+        get_all_call_text_mappings=lambda: [
+            {"call_text": "X", "entity_id": "e1", "mapped_by": None},
+            {"call_text": "Y", "entity_id": "e2", "mapped_by": "manual"}])
+    data = mio.build_export(db)
+    assert "exported_at" in data
+    by_ct = {m["call_text"]: m for m in data["mappings"]}
+    assert by_ct["X"]["mapped_by"] == "auto"           # ohne Quelle: auto
+    assert by_ct["Y"]["mapped_by"] == "manual"
+    assert by_ct["X"]["figures"] == [{"entity_id": "e1", "canonical_name": ""}]
+
+
+def test_zu_neue_version_nennt_die_version():
+    with pytest.raises(mio.CallMapFormatError) as exc:
+        mio.parse_import({"format": mio.FORMAT_NAME, "version": 99, "mappings": []})
+    assert exc.value.params == {"version": 99, "supported": mio.FORMAT_VERSION}
+
+
+def test_v1_ueberspringt_kaputte_zeilen_und_liest_die_quelle():
+    out = mio.parse_import([
+        "kaputt", {"call_text": ""},
+        {"call_text": "A", "entity_id": "e1", "mapped_by": "manual"},
+        {"call_text": "A", "entity_id": "e1"},          # doppelt
+        {"call_text": "B", "entity_id": None}])
+    assert out["A"].figures == ["e1"] and out["A"].mapped_by == "manual"
+    assert out["B"].figures == [] and out["B"].mapped_by == "auto"
+
+
+def test_v2_ueberspringt_kaputte_eintraege_und_liest_die_quelle():
+    out = mio.parse_import({"format": mio.FORMAT_NAME, "version": 2, "mappings": [
+        "kaputt", {"call_text": ""},
+        {"call_text": "A", "mapped_by": "manual",
+         "figures": [{"entity_id": None}, "e1", {"entity_id": "e1"}]},
+        {"call_text": "B"}]})
+    assert out["A"].figures == ["e1"] and out["A"].mapped_by == "manual"
+    assert out["B"].figures == [] and out["B"].mapped_by == "auto"
+    assert mio.ImportedMapping().mapped_by == "auto"
+
+
 # ---------------------------------------------------------------------------
 # Vergleich
 # ---------------------------------------------------------------------------
@@ -123,6 +170,28 @@ def test_closer_to_und_manual_side():
     assert mio.manual_side("manual", "auto") == "A"
     assert mio.manual_side("inferred", "manual") == "B"
     assert mio.manual_side("manual", "manual") is None
+
+
+def test_quellen_rangfolge():
+    rank = mio.source_rank
+    assert rank("auto") < rank("inferred") < rank("manual")
+    assert rank(None) == rank("import") == rank("auto")   # unbekannt zaehlt wie auto
+    assert rank("MANUAL") == rank("manual")
+
+
+def test_closer_to_bewertet_ueberschuss_und_leere_seite():
+    # Lokal exakt, Import mit einer Figur zu viel -> lokal naeher
+    assert mio.closer_to([SWING], [SWING], [SWING, OCEAN]) == "A"
+    # Leere Seite ist weiter weg als ein Treffer
+    assert mio.closer_to([SWING], [], [SWING]) == "B"
+
+
+def test_muster_vorschlag(db):
+    suggest = mio.make_pattern_suggester(
+        db.get_teaching_order_calls(), db.get_all_call_text_figures())
+    assert suggest("Swing Thru, Pass The Ocean") == [SWING, OCEAN]   # Mengen-Vorschlag
+    assert suggest(T_SWING) == [SWING]                                # Volltreffer
+    assert suggest(T_NONE) == []
 
 
 # ---------------------------------------------------------------------------
