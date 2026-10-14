@@ -24,6 +24,19 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 - Beim Verschieben von Code **Decorator-Zeilen mitnehmen** (`@dataclass` etc.) — der AST-Startpunkt zeigt sonst auf `class`/`def`, nicht auf `@decorator`.
 - Nach dem Aufteilen: `py_compile` + `pyflakes` (undefined = Fehler, unused imports trimmen), dann realer Import-Test.
 
+## Auslieferung an Bestandsinstallationen
+
+**Eine Aenderung an Daten oder Referenzen muss beim Update von selbst wirken.** Bestandskunden lesen keine Changelogs und klicken keinen Import an. Beim MS50-Umbau mussten Referenzdaten nachtraeglich von Hand importiert werden. Die meisten haben das nicht mitbekommen, es gab vermehrt Supportanfragen. Darum schon bei der Konzeption festlegen, wie die Loesung zu bestehenden DBs und INIs kommt, und eine Loesung bevorzugen, die im Code steckt:
+
+- **Regel im Code** (z. B. Filterlogik) vor geaenderten Daten: wirkt ab der ersten Ausfuehrung, ohne Migration.
+- **Neue Spalte:** nur ins `_CREATE_*`, `_add_missing_columns()` ergaenzt sie beim Start (`docs/12_erfahrungen.md`).
+- **Daten-Korrektur:** idempotentes SQL in `_DATA_FIXES` (`song_db_schema.py`), laeuft bei jedem Start.
+- **Referenzdaten (Calls, Programme, Teaching Order):** in `src/reference_calls.json` aendern und `REFERENCE_DATA_VERSION` erhoehen, `reseed_reference_data()` spielt sie beim naechsten Start ein. Eintraege, die nur im Code angelegt werden, loescht der Reseed.
+- **Einmalige Heilung, die rechnen muss:** Start-Methode mit Flag in `app_meta` (Muster `_backfill_auto_mappings_once()`).
+- **Neuer INI-Schluessel:** Standardwert im Code (`settings.value(key, default)`), kein Pflicht-Eintrag in der INI.
+
+Braucht eine Loesung trotzdem einen Schritt des Anwenders (Import, Knopf), steht im Issue warum, und die App weist beim Start darauf hin. Ein Hinweis im Changelog allein reicht nicht. Tests fuer den Update-Weg von Altstaenden liegen in `tests/db/`.
+
 ## Audio-Prioritaet (TIC-0025, v0.80)
 
 Die Eiserne Regel steht in `CLAUDE.md`, Herleitung und Diagnose in `docs/19_audio_prioritaet.md`.
