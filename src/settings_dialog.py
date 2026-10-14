@@ -284,7 +284,7 @@ SETTINGS_META: dict[str, dict] = {
     "sequences/zoom_pct": {
         "label": "Zoom",
         "widget": "spinbox",
-        "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "min": 50, "max": 200, "step": 10, "suffix": " %",
         "default": 100,
     },
     "sequences/only_program_default": {
@@ -309,7 +309,7 @@ SETTINGS_META: dict[str, dict] = {
     "notes/zoom_pct": {
         "label": "Zoom",
         "widget": "spinbox",
-        "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "min": 50, "max": 200, "step": 10, "suffix": " %",
         "default": 100,
     },
     "notes/first_note_factor": {

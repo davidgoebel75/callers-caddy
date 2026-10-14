@@ -654,6 +654,9 @@ class SequencesWidget(QWidget):
     _PAGE_SIZE = 50   # Lazy Loading: Bloecke a 50 Zeilen
     _ALL_ROWS = float("inf")   # _load_sequences(until=...): alle Zeilen
     _ROLE_UNMAPPED = Qt.UserRole + 1   # Spalte 0: Sequenz hat Call-Texte ohne Zuordnung
+    _ZOOM_MIN = 50    # Prozent; SETTINGS_META["sequences/zoom_pct"] muss passen
+    _ZOOM_MAX = 200
+    _ZOOM_STEP = 10
 
     def __init__(self, db, skin_mgr=None, settings=None):
         super().__init__()
@@ -868,15 +871,15 @@ class SequencesWidget(QWidget):
 
     def set_zoom(self, pct: int):
         """Setzt Zoom-Level ohne Schreiben in INI (fuer Restore beim Start)."""
-        self._zoom_pct = max(50, min(200, pct))
+        self._zoom_pct = max(self._ZOOM_MIN, min(self._ZOOM_MAX, pct))
         self._apply_zoom()
 
     def _on_zoom_out(self):
-        self._zoom_pct = max(50, self._zoom_pct - 10)
+        self._zoom_pct = max(self._ZOOM_MIN, self._zoom_pct - self._ZOOM_STEP)
         self._apply_zoom()
 
     def _on_zoom_in(self):
-        self._zoom_pct = min(200, self._zoom_pct + 10)
+        self._zoom_pct = min(self._ZOOM_MAX, self._zoom_pct + self._ZOOM_STEP)
         self._apply_zoom()
 
     def _apply_zoom(self):
