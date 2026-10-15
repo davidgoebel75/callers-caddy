@@ -209,6 +209,15 @@ SETTINGS_META: dict[str, dict] = {
         "min": 0, "max": 500, "step": 1, "suffix": " ms",
         "tooltip": "Überblendzeit beim Loop-Übergang in Millisekunden.",
     },
+    "loop/finder_window_mode": {
+        "label": "Loop Finder: Suchfenster als",
+        "widget": "combobox",
+        "choices": [],          # zur Laufzeit (i18n) befuellt
+        "default": "pct",
+        "tooltip": ("Ob der Loop Finder die Suchfenster in Prozent der Songdauer "
+                    "oder als Zeit angibt (Loop-In ab Songbeginn, Loop-Out vor "
+                    "Songende). Umschalten im Loop Finder ändert diesen Wert mit."),
+    },
     # --- player ---
     "player/timer_warn1": {
         "label": "Timer-Warnung 1",
@@ -738,6 +747,11 @@ class _SettingRow:
                     ("sort_random",          5),
                     ("sort_weighted_random", 6),
                 )]
+            elif self.full_key == "loop/finder_window_mode":
+                choices = [
+                    ("pct",  _t("lf_mode_pct_long")),
+                    ("time", _t("lf_mode_time_long")),
+                ]
             elif self.full_key == "playlist/patter_fill_type":
                 choices = [
                     ("infinite", _t("patter_fill_infinite")),

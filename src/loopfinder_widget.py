@@ -6,15 +6,78 @@ Hintergrund-Worker. Zirkelfrei: keine Rueckbezuege auf main.py.
 
 import os
 
+import re
+
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QSpinBox,
     QComboBox, QTableWidget, QTableWidgetItem, QHeaderView,
 )
 from PySide6.QtCore import Qt, QTimer, QThread, Signal, QPoint
-from PySide6.QtGui import QPainter, QColor, QPen, QCursor
+from PySide6.QtGui import QPainter, QColor, QPen, QCursor, QValidator
 
+import loop_windows as lw
 from i18n import _t
 from ui_helpers import fmt_time, SectionBarWidget
+
+
+class _WindowSpinBox(QSpinBox):
+    """Spinbox fuer eine Suchfenster-Grenze: Prozent oder Zeit (intern#207).
+
+    Im Zeitmodus ist der Wert in ganzen Sekunden und wird als ``+m:ss``
+    (Loop-In, ab Songbeginn) bzw. ``-m:ss`` (Loop-Out, vor Songende) gezeigt.
+    Eingabe als ``m:ss`` oder als Sekunden, das Vorzeichen ist optional.
+    """
+
+    _TIME_MAX = 3600
+    _SIGNS = "+-\u2212"
+    _TIME_RE = re.compile(r"^\s*[+\-\u2212]?\s*\d{0,4}(:\d{0,2})?\s*$")
+
+    def __init__(self, sign: str, parent=None):
+        super().__init__(parent)
+        self._sign = sign
+        self._time_mode = False
+        self.set_time_mode(False)
+
+    def set_time_mode(self, on: bool):
+        self._time_mode = bool(on)
+        if self._time_mode:
+            self.setRange(0, self._TIME_MAX)
+            self.setSuffix("")
+        else:
+            self.setRange(0, 100)
+            self.setSuffix(" %")
+        self.lineEdit().setText(self.textFromValue(self.value()) + self.suffix())
+
+    def textFromValue(self, value):
+        if not self._time_mode:
+            return super().textFromValue(value)
+        return f"{self._sign}{value // 60}:{value % 60:02d}"
+
+    def valueFromText(self, text):
+        if not self._time_mode:
+            return super().valueFromText(text)
+        t = text.strip().lstrip(self._SIGNS).strip()
+        try:
+            if ":" in t:
+                m, sec = t.split(":", 1)
+                return int(m or 0) * 60 + int(sec or 0)
+            return int(t or 0)
+        except ValueError:
+            return self.value()
+
+    def validate(self, text, pos):
+        if not self._time_mode:
+            return super().validate(text, pos)
+        if not self._TIME_RE.match(text):
+            return QValidator.Invalid, text, pos
+        t = text.strip().lstrip(self._SIGNS).strip()
+        if not t or t.endswith(":"):
+            return QValidator.Intermediate, text, pos
+        if ":" in t and len(t.split(":", 1)[1]) != 2:
+            return QValidator.Intermediate, text, pos
+        if self.valueFromText(text) > self.maximum():
+            return QValidator.Invalid, text, pos
+        return QValidator.Acceptable, text, pos
 
 
 class LoopFinderWaveform(QWidget):
@@ -338,9 +401,10 @@ class LoopFinderWidget(QWidget):
     on_apply = None          # fn(loop_in, loop_out) — Loop uebernehmen
     on_audition = None       # fn(loop_in, loop_out) — Loop vorhoeren
     on_stop = None           # fn() — Wiedergabe stoppen
+    on_window_mode_changed = None  # fn(mode) — Prozent/Zeit gewechselt (merken)
 
     # Namen der unveraenderbaren Built-in-Presets
-    SINGING_PRESET_NAME = "Singing"     # feste Prozentwerte (frueher "Standard")
+    SINGING_PRESET_NAME = lw.SINGING_PRESET_NAME  # feste Prozentwerte (frueher "Standard")
     # Optimize-Stufen: Anzeigename -> +-Abstand in Prozent der Songdauer.
     # Dynamisch: Fenster = vorhandene Marken +-Abstand. >5% lohnt nicht
     # (dann lieber Singing nutzen), darum nur diese zwei Stufen.
@@ -348,7 +412,7 @@ class LoopFinderWidget(QWidget):
 
     # Abwaertskompatibilitaet: alte Preset-Namen -> aktueller Name.
     # Rules, die noch auf "Standard" verweisen, laufen damit weiter.
-    PRESET_ALIASES = {"Standard": SINGING_PRESET_NAME}
+    PRESET_ALIASES = lw.PRESET_ALIASES
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -362,6 +426,7 @@ class LoopFinderWidget(QWidget):
         self._presets_dir = None      # wird von MainWindow gesetzt
         self._existing_loop_in = 0.0   # vorhandene Marken des aktuellen Songs (Sek.)
         self._existing_loop_out = 0.0
+        self._window_mode = lw.MODE_PCT
         self._build_ui()
 
     def set_presets_dir(self, path: str):
@@ -373,14 +438,7 @@ class LoopFinderWidget(QWidget):
 
     def _singing_preset(self) -> dict:
         """Gibt das unveraenderbare Singing-Preset (feste Prozentwerte) zurueck."""
-        return {
-            "in_start": self._DEFAULT_IN_START,
-            "in_end": self._DEFAULT_IN_END,
-            "out_start": self._DEFAULT_OUT_START,
-            "out_end": self._DEFAULT_OUT_END,
-            "compare_beats": 16,
-            "selection_strategy": "best_64",
-        }
+        return lw.singing_preset()
 
     def _is_builtin_preset(self, name: str) -> bool:
         """True fuer geschuetzte Namen: Singing, Optimize-Stufen und alte Aliase.
@@ -448,17 +506,7 @@ class LoopFinderWidget(QWidget):
         name = self.PRESET_ALIASES.get(name, name)
         if name in self.OPTIMIZE_PRESETS:
             return self._optimize_preset(self.OPTIMIZE_PRESETS[name])
-        if name == self.SINGING_PRESET_NAME or not self._presets_dir:
-            return self._singing_preset()
-        path = os.path.join(self._presets_dir, f"{name}.json")
-        if os.path.isfile(path):
-            try:
-                import json as _json
-                with open(path, "r", encoding="utf-8") as fh:
-                    return _json.load(fh)
-            except Exception:
-                pass
-        return self._singing_preset()
+        return lw.load_preset_file(name, self._presets_dir)
 
     def _save_preset(self, name: str, data: dict):
         """Speichert ein Preset als JSON-Datei. Built-in-Presets sind geschuetzt."""
@@ -509,11 +557,20 @@ class LoopFinderWidget(QWidget):
                 self._combo_preset.findText(self.SINGING_PRESET_NAME))
 
     def _apply_preset_to_ui(self, data: dict):
-        """Wendet Preset-Daten auf die Spinboxes, Compare-ComboBox und Strategie an."""
-        self._spin_in_start.setValue(int(data.get("in_start", self._DEFAULT_IN_START)))
-        self._spin_in_end.setValue(int(data.get("in_end", self._DEFAULT_IN_END)))
-        self._spin_out_start.setValue(int(data.get("out_start", self._DEFAULT_OUT_START)))
-        self._spin_out_end.setValue(int(data.get("out_end", self._DEFAULT_OUT_END)))
+        """Wendet Preset-Daten auf die Spinboxes, Compare-ComboBox und Strategie an.
+
+        Der Modus des Presets (Prozent/Zeit) wird zuerst gesetzt, ohne
+        Umrechnung, weil die Werte des Presets schon in diesem Modus sind.
+        """
+        self.set_window_mode(lw.preset_mode(data), convert=False)
+        defaults = (self._DEFAULT_IN_START, self._DEFAULT_IN_END,
+                    self._DEFAULT_OUT_START, self._DEFAULT_OUT_END)
+        keys = ("in_start", "in_end", "out_start", "out_end")
+        for spin, key, default in zip(self._window_spins(), keys, defaults):
+            spin.blockSignals(True)
+            spin.setValue(int(data.get(key, default)))
+            spin.blockSignals(False)
+        self._on_pct_changed()
         cb = int(data.get("compare_beats", 16))
         idx = self._combo_window.findData(cb)
         if idx >= 0:
@@ -526,6 +583,7 @@ class LoopFinderWidget(QWidget):
     def _current_settings_as_preset(self) -> dict:
         """Liest aktuelle UI-Einstellungen als Preset-Dict."""
         return {
+            "mode": self._window_mode,
             "in_start": self._spin_in_start.value(),
             "in_end": self._spin_in_end.value(),
             "out_start": self._spin_out_start.value(),
@@ -577,10 +635,71 @@ class LoopFinderWidget(QWidget):
             self._combo_preset.setCurrentText(new_name)
 
     # Default-Bereiche fuer Singing Calls (Prozent)
-    _DEFAULT_IN_START = 7
-    _DEFAULT_IN_END = 21
-    _DEFAULT_OUT_START = 64
-    _DEFAULT_OUT_END = 79
+    _DEFAULT_IN_START = lw.DEFAULT_IN_START
+    _DEFAULT_IN_END = lw.DEFAULT_IN_END
+    _DEFAULT_OUT_START = lw.DEFAULT_OUT_START
+    _DEFAULT_OUT_END = lw.DEFAULT_OUT_END
+
+    # ---- Prozent/Zeit (intern#207) ----
+
+    def _window_spins(self):
+        return (self._spin_in_start, self._spin_in_end,
+                self._spin_out_start, self._spin_out_end)
+
+    def window_mode(self) -> str:
+        return self._window_mode
+
+    def set_window_mode(self, mode: str, convert: bool = True):
+        """Schaltet zwischen Prozent und Zeit um.
+
+        convert=True rechnet die aktuellen Werte anhand der Dauer des
+        geladenen Songs in den neuen Modus um (ohne Song bleiben die Zahlen).
+        """
+        mode = mode if mode in lw.MODES else lw.MODE_PCT
+        if mode == self._window_mode:
+            return
+        values = tuple(s.value() for s in self._window_spins())
+        if convert:
+            self._ensure_waveform()
+            dur = self._song_duration
+            if dur > 0:
+                if mode == lw.MODE_TIME:
+                    values = lw.pct_to_time(values, dur)
+                else:
+                    values = lw.time_to_pct(values, dur)
+        self._window_mode = mode
+        time_mode = mode == lw.MODE_TIME
+        for spin, val in zip(self._window_spins(), values):
+            spin.blockSignals(True)
+            spin.set_time_mode(time_mode)
+            spin.setValue(int(val))
+            spin.blockSignals(False)
+        self._update_window_tooltips()
+        idx = self._combo_mode.findData(mode)
+        if idx >= 0 and idx != self._combo_mode.currentIndex():
+            self._combo_mode.blockSignals(True)
+            self._combo_mode.setCurrentIndex(idx)
+            self._combo_mode.blockSignals(False)
+        self._on_pct_changed()
+        if self.on_window_mode_changed:
+            self.on_window_mode_changed(mode)
+
+    def _on_mode_combo_changed(self, _idx):
+        self.set_window_mode(self._combo_mode.currentData(), convert=True)
+
+    def _update_window_tooltips(self):
+        if self._window_mode == lw.MODE_TIME:
+            tips = (_t("lf_tip_in_time"),) * 2 + (_t("lf_tip_out_time"),) * 2
+        else:
+            tips = ("Loop-In Start %", "Loop-In Ende %",
+                    "Loop-Out Start %", "Loop-Out Ende %")
+        for spin, tip in zip(self._window_spins(), tips):
+            spin.setToolTip(tip)
+
+    def _current_windows(self):
+        """Absolute Suchfenster (Sekunden) aus den Feldern oder None."""
+        return lw.resolve_windows(self._current_settings_as_preset(),
+                                  self._song_duration)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -602,10 +721,10 @@ class LoopFinderWidget(QWidget):
         pct_layout.setSpacing(4)
         pct_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._spin_in_start = QSpinBox()
-        self._spin_in_end = QSpinBox()
-        self._spin_out_start = QSpinBox()
-        self._spin_out_end = QSpinBox()
+        self._spin_in_start = _WindowSpinBox("+")
+        self._spin_in_end = _WindowSpinBox("+")
+        self._spin_out_start = _WindowSpinBox("\u2212")
+        self._spin_out_end = _WindowSpinBox("\u2212")
         # Zeit-Labels (informatorisch, zeigen Spielzeiten fuer die 4 Prozentwerte)
         self._lbl_t_in_start = QLabel("–")
         self._lbl_t_in_end   = QLabel("–")
@@ -617,8 +736,6 @@ class LoopFinderWidget(QWidget):
             (self._spin_out_start, self._DEFAULT_OUT_START, "Loop-Out Start %"),
             (self._spin_out_end, self._DEFAULT_OUT_END, "Loop-Out Ende %"),
         ]:
-            spin.setRange(0, 100)
-            spin.setSuffix(" %")
             spin.setValue(default)
             spin.setFixedWidth(90)
             spin.setToolTip(tooltip)
@@ -646,6 +763,14 @@ class LoopFinderWidget(QWidget):
         pct_layout.addLayout(_make_pct_col(self._spin_in_start, self._lbl_t_in_start))
         pct_layout.addLayout(_make_pct_col(self._spin_in_end, self._lbl_t_in_end))
         pct_layout.addStretch()
+        # intern#207: Suchfenster in Prozent oder Zeit (+ab Beginn / -vor Ende)
+        self._combo_mode = QComboBox()
+        self._combo_mode.addItem("%", lw.MODE_PCT)
+        self._combo_mode.addItem(_t("lf_mode_time"), lw.MODE_TIME)
+        self._combo_mode.setToolTip(_t("lf_mode_tooltip"))
+        self._combo_mode.setFixedHeight(_row_h)
+        self._combo_mode.currentIndexChanged.connect(self._on_mode_combo_changed)
+        pct_layout.addWidget(self._combo_mode, 0, Qt.AlignTop)
         self._combo_preset = QComboBox()
         self._combo_preset.setToolTip(_t("lf_preset_combo_tooltip"))
         self._combo_preset.setMinimumWidth(90)
@@ -814,6 +939,10 @@ class LoopFinderWidget(QWidget):
         if not self._filepath:
             return
         self._ensure_waveform()
+        if self._current_windows() is None:
+            # intern#207: Fenster passen nicht zur Songlaenge -> keine Analyse
+            self._lbl_status.setText(_t("lf_status_windows_mismatch"))
+            return
 
         self._btn_analyze.setEnabled(False)
         self._lbl_status.setText(_t("lf_status_analyzing"))
@@ -959,6 +1088,20 @@ class LoopFinderWidget(QWidget):
         s_ie = self._spin_in_end
         s_os = self._spin_out_start
         s_oe = self._spin_out_end
+        if self._window_mode == lw.MODE_TIME:
+            # Zeitmodus: Reihenfolge nur innerhalb eines Fensters (Loop-Out
+            # zaehlt vor Ende, Start liegt also weiter davor). Ob die Fenster
+            # zur Songlaenge passen, prueft _apply_pct_to_waveform.
+            if s_ie.value() <= s_is.value():
+                s_ie.blockSignals(True)
+                s_ie.setValue(s_is.value() + 1)
+                s_ie.blockSignals(False)
+            if s_os.value() <= s_oe.value():
+                s_os.blockSignals(True)
+                s_os.setValue(s_oe.value() + 1)
+                s_os.blockSignals(False)
+            self._apply_pct_to_waveform()
+            return
         # Mindestabstand 1%
         if s_ie.value() <= s_is.value():
             s_ie.blockSignals(True)
@@ -979,26 +1122,31 @@ class LoopFinderWidget(QWidget):
         dur = self._song_duration
         if dur <= 0:
             return
-        for spin, val in [(self._spin_in_start, in_start),
-                          (self._spin_in_end, in_end),
-                          (self._spin_out_start, out_start),
-                          (self._spin_out_end, out_end)]:
-            pct = int(round(val / dur * 100))
+        if self._window_mode == lw.MODE_TIME:
+            values = (in_start, in_end, dur - out_start, dur - out_end)
+        else:
+            values = tuple(v / dur * 100 for v in (in_start, in_end, out_start, out_end))
+        for spin, val in zip(self._window_spins(), values):
             spin.blockSignals(True)
-            spin.setValue(pct)
+            spin.setValue(int(round(val)))
             spin.blockSignals(False)
         self._update_time_labels()
 
     def _apply_pct_to_waveform(self):
-        """Uebertraegt die SpinBox-Prozentwerte auf die Waveform-Regionen."""
+        """Uebertraegt die SpinBox-Werte (Prozent oder Zeit) auf die Waveform-Regionen."""
         dur = self._song_duration
         if dur <= 0:
             self._update_time_labels()
             return
-        in_start = dur * self._spin_in_start.value() / 100.0
-        in_end = dur * self._spin_in_end.value() / 100.0
-        out_start = dur * self._spin_out_start.value() / 100.0
-        out_end = dur * self._spin_out_end.value() / 100.0
+        windows = self._current_windows()
+        if windows is None:
+            # Passt nicht zur Songlaenge: Waveform bleibt, Hinweis statt Analyse
+            self._lbl_status.setText(_t("lf_status_windows_mismatch"))
+            self._update_time_labels()
+            return
+        if self._lbl_status.text() == _t("lf_status_windows_mismatch"):
+            self._lbl_status.setText(_t("lf_status_ready"))
+        in_start, in_end, out_start, out_end = windows
         self._waveform._in_start = in_start
         self._waveform._in_end = in_end
         self._waveform._out_start = out_start
@@ -1009,15 +1157,19 @@ class LoopFinderWidget(QWidget):
     def _update_time_labels(self):
         """Aktualisiert die Zeit-Labels unter den Prozent-Feldern."""
         dur = self._song_duration
-        pairs = [
-            (self._lbl_t_in_start,  self._spin_in_start.value()),
-            (self._lbl_t_in_end,    self._spin_in_end.value()),
-            (self._lbl_t_out_start, self._spin_out_start.value()),
-            (self._lbl_t_out_end,   self._spin_out_end.value()),
-        ]
-        for lbl, pct in pairs:
-            if dur and dur > 0:
-                lbl.setText(fmt_time(dur * pct / 100.0))
+        labels = (self._lbl_t_in_start, self._lbl_t_in_end,
+                  self._lbl_t_out_start, self._lbl_t_out_end)
+        values = [s.value() for s in self._window_spins()]
+        # Beide Modi zeigen die absolute Songposition
+        if not dur or dur <= 0:
+            secs = [None] * 4
+        elif self._window_mode == lw.MODE_TIME:
+            secs = [values[0], values[1], dur - values[2], dur - values[3]]
+        else:
+            secs = [dur * v / 100.0 for v in values]
+        for lbl, sec in zip(labels, secs):
+            if sec is not None and 0 <= sec <= dur:
+                lbl.setText(fmt_time(sec))
             else:
                 lbl.setText("–")
 
