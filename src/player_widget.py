@@ -1182,6 +1182,21 @@ class PlayerWidget(QWidget):
         if self.on_manual_stop:
             self.on_manual_stop()
 
+    def clear_loaded_song(self):
+        """Zeigt wieder "keine Datei geladen" (intern#212, Song geloescht).
+
+        Nur die Oberflaeche: Die Audiodaten bleiben in der Engine, bis der
+        naechste Song geladen wird. Ohne Play-Knopf startet sie auch keine
+        Rule (die klickt btn_play).
+        """
+        self._current_filename = None
+        self.label_file.setText(_t("no_file_loaded"))
+        self.label_status.setText(_t("status_ready"))
+        for btn in (self.btn_play, self.btn_audition, self.btn_pause,
+                    self.btn_stop, self.btn_fade):
+            btn.setEnabled(False)
+        self.slider_position.setEnabled(False)
+
     def _reset_play_timer(self):
         """Timer zuruecksetzen (Stop, Song-Ende, Fade-Ende)."""
         self._play_start_time = None

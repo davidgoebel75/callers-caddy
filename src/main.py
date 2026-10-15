@@ -3705,6 +3705,12 @@ class P29MainWindow(QMainWindow):
             finally:
                 self._stop_silently = False
             self._current_song = None
+            self.player.clear_loaded_song()
+            if hasattr(self, "lyrics_widget"):
+                self.lyrics_widget.clear()
+        # Kein Rest des Songs mehr sichtbar oder per Doppelklick startbar
+        self.song_data.clear_song()
+        self.playlist_widget.remove_song(song_id)
         self.song_list.refresh()
         self.playlist_manager.refresh()
         if hasattr(self, 'potential_widget') and self.potential_widget:
