@@ -5288,7 +5288,12 @@ class P29MainWindow(QMainWindow):
             f"[Diag] Audio-Device Wechsel angefordert: idx={device_index}, "
             f"combo_label='{self._audio_device_combo.currentText()}'"
         )
-        self.engine.set_output_device(device_index)
+        if self.player._audition_active:
+            # intern#182 (wie #180): Das Vorhoeren bleibt auf dem Vorhoer-
+            # Kanal; sein Ende schaltet auf das neue Geraet.
+            self._pre_audition_device = device_index
+        else:
+            self.engine.set_output_device(device_index)
         if device_index is None:
             self._settings.setValue("audio/primary_device", "")
         else:
