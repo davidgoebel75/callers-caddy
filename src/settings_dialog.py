@@ -214,13 +214,13 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Timer-Warnung 1",
         "widget": "spinbox",
         "min": 0, "max": 3600, "step": 10, "suffix": " s",
-        "tooltip": "Erste Warnung X Sekunden vor Songabspielzeit.",
+        "tooltip": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 1.",
     },
     "player/timer_warn2": {
         "label": "Timer-Warnung 2",
         "widget": "spinbox",
         "min": 0, "max": 3600, "step": 10, "suffix": " s",
-        "tooltip": "Zweite Warnung X Sekunden vor Songabspielzeit.",
+        "tooltip": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 2.",
     },
     # --- playlist ---
     "playlist/start_date": {

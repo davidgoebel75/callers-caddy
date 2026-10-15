@@ -2846,14 +2846,14 @@
     "ja": "ループの切り替え時のクロスフェード時間（ミリ秒）。"
   },
   "setting_tip_player_timer_warn1": {
-    "de": "Erste Warnung X Sekunden vor Ablauf der Songzeit.",
-    "en": "First warning X seconds before song time runs out.",
-    "ja": "曲の残り時間がX秒になったときの最初の警告。"
+    "de": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 1.",
+    "en": "After X seconds of playing time the playing time display changes to warning color 1.",
+    "ja": "再生開始からX秒で再生時間表示が警告色1に変わります。"
   },
   "setting_tip_player_timer_warn2": {
-    "de": "Zweite Warnung X Sekunden vor Ablauf der Songzeit.",
-    "en": "Second warning X seconds before song time runs out.",
-    "ja": "曲の残り時間がX秒になったときの2回目の警告。"
+    "de": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 2.",
+    "en": "After X seconds of playing time the playing time display changes to warning color 2.",
+    "ja": "再生開始からX秒で再生時間表示が警告色2に変わります。"
   },
   "setting_tip_playlist_start_date": {
     "de": "Startdatum der aktuellen Saison für Statistiken.",
