@@ -2296,7 +2296,8 @@ class P29MainWindow(QMainWindow):
             dlg = ZipImportPreviewDialog(
                 result, lists, self._zip_lists_path(), self,
                 audition_cb=self._audition_zip_play,
-                dup_lookup=self._zip_dup_title)
+                dup_lookup=self._zip_dup_title,
+                linked_lookup=self._zip_linked_title)
             accepted = dlg.exec() == QDialog.Accepted
             self._stop_zip_audition()  # vor Commit/Cleanup Probehören stoppen
             if accepted:
@@ -2333,6 +2334,7 @@ class P29MainWindow(QMainWindow):
         skipped = []    # Dateinamen, die schon existierten (intern#125)
         not_attached = []   # Dateien eines Duplikats, die nicht angehaengt wurden
         attached = 0    # neue Spuren an vorhandene Songs gehaengt
+        linked = []     # (Datei, Titel): schon bei einem anderen Song (intern#132)
         errors = []
         last_dest = None
 
@@ -2342,6 +2344,16 @@ class P29MainWindow(QMainWindow):
                 continue
             try:
                 primary = audio[0]
+                owner = self._zip_variant_owner(primary["path"])
+                if owner is not None:
+                    # Hauptspur ist schon Variante eines anderen Songs: nicht
+                    # als zweiten Song auf dieselbe Datei anlegen (intern#132)
+                    linked.append((os.path.basename(primary["path"]),
+                                   owner.title or owner.filename))
+                    not_attached.extend(os.path.basename(a["path"]) for a in audio[1:])
+                    not_attached.extend(os.path.basename(l["path"])
+                                        for l in d.get("lyrics", []) if l["selected"])
+                    continue
                 r = self._import_single_audio(
                     primary["path"], copy_mode=True,
                     is_pattern=d["is_pattern"], is_singing=d["is_singing"],
@@ -2368,6 +2380,10 @@ class P29MainWindow(QMainWindow):
                         if name.lower() in known or self.db.get_by_filename(name):
                             skipped.append(name)
                             continue
+                        other = self._zip_linked_owner(a["path"], song.id)
+                        if other is not None:
+                            linked.append((name, other.title or other.filename))
+                            continue
                         fn = _copy_into(a["path"], music_dir)
                         self.db.add_variant(song.id, "music", a["label_text"], fn)
                         attached += 1
@@ -2379,6 +2395,11 @@ class P29MainWindow(QMainWindow):
 
                 # Varianten-MP3s (ab Position 2)
                 for a in audio[1:]:
+                    other = self._zip_linked_owner(a["path"], song.id)
+                    if other is not None:
+                        linked.append((os.path.basename(a["path"]),
+                                       other.title or other.filename))
+                        continue
                     fn = _copy_into(a["path"], music_dir)
                     self.db.add_variant(song.id, "music", a["label_text"], fn)
 
@@ -2430,6 +2451,10 @@ class P29MainWindow(QMainWindow):
         if skipped:
             lines.append(_t("import_songs_skipped", count=len(skipped)))
             lines.extend(_t("import_skipped_file", name=n) for n in skipped)
+        if linked:
+            lines.append(_t("zip_skipped_linked", count=len(linked)))
+            lines.extend(_t("zip_skipped_linked_file", name=n, title=t)
+                         for n, t in linked)
         if not_attached:
             lines.append(_t("zip_not_attached", count=len(not_attached)))
             lines.extend(f"  • {n}" for n in not_attached)
@@ -2449,6 +2474,37 @@ class P29MainWindow(QMainWindow):
         if song and os.path.exists(os.path.join(self.paths.music_dir, filename)):
             return song.title or filename
         return None
+
+    def _zip_same_file_in_library(self, path: str) -> bool:
+        """True, wenn der Musikordner schon dieselbe Datei hat (gleicher Name,
+        gleiche Groesse) - dann wuerde _copy_into auf sie verlinken."""
+        dest = os.path.join(self.paths.music_dir, os.path.basename(path))
+        try:
+            return os.path.exists(dest) and os.path.getsize(dest) == os.path.getsize(path)
+        except OSError:
+            return False
+
+    def _zip_variant_owner(self, path: str):
+        """Song, bei dem die Datei schon als Variante verknuepft ist (intern#132)."""
+        if not self._zip_same_file_in_library(path):
+            return None
+        return self.db.get_variant_owner(os.path.basename(path))
+
+    def _zip_linked_owner(self, path: str, own_song_id: int):
+        """Anderer Song, der die Datei schon als Hauptdatei oder Variante hat."""
+        if not self._zip_same_file_in_library(path):
+            return None
+        name = os.path.basename(path)
+        for other in (self.db.get_by_filename(name), self.db.get_variant_owner(name)):
+            if other is not None and other.id != own_song_id:
+                return other
+        return None
+
+    def _zip_linked_title(self, path: str):
+        """ZIP-Preview (intern#132): Titel des Songs, bei dem die Hauptspur
+        schon als Variante verknuepft ist, sonst None."""
+        owner = self._zip_variant_owner(path) if path else None
+        return (owner.title or owner.filename) if owner else None
 
     # ---- Lokation-Auswahl ----
 
