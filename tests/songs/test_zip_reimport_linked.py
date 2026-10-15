@@ -62,6 +62,7 @@ class _Fenster:
         self.paths = SimpleNamespace(music_dir=str(music_dir),
                                      lyrics_dir=str(lyrics_dir))
         self.imported = []
+        self.dup_of = {}        # Dateiname -> vorhandener Song ("dup")
         self.player = SimpleNamespace(_load_file=lambda _p: None)
         self.song_list = SimpleNamespace(refresh=lambda: None)
         self.dock_list = SimpleNamespace(show=lambda: None, raise_=lambda: None)
@@ -69,6 +70,8 @@ class _Fenster:
     def _import_single_audio(self, path, **_kw):
         import os
         name = os.path.basename(path)
+        if name in self.dup_of:
+            return {"song": self.dup_of[name], "status": "dup", "dest": path}
         self.imported.append(name)
         song = self.db.insert(Song(filename=name, title=name))
         return {"song": song, "status": "new", "dest": path}
@@ -191,3 +194,29 @@ def test_vorschau_zeigt_hinweis_ohne_anhaengen(qapp, keep, tmp_path):
         assert by_title["Red Feather"]["attach_new"] is False
     finally:
         zip_import.cleanup(r)
+
+
+# ---- Duplikat mit "Neue Spuren anhaengen" (Review PR #135) ----
+
+def test_anhaengen_ordnet_schon_verknuepfte_spuren_mit_titel_ein(fenster, lets_dance, db):
+    """Hauptspur ist Duplikat von „Pecos“, attach_new ist an. Die Hauptdatei
+    und die Variante von „Let's Dance“ stehen beide mit Titel unter „schon
+    verknuepft“, nur neu.mp3 wird an „Pecos“ gehaengt."""
+    import os
+    music_dir = fenster.paths.music_dir
+    for name in ("pecos.mp3", "let's dance.mp3"):
+        with open(os.path.join(music_dir, name), "wb") as fh:
+            fh.write(b"x")
+        (fenster.src / name).write_bytes(b"x")
+    pecos = db.insert(Song(filename="pecos.mp3", title="Pecos"))
+    fenster.dup_of["pecos.mp3"] = pecos
+    bundle = _bundle(fenster, "pecos.mp3", "let's dance.mp3", "red feather.mp3", "neu.mp3")
+    bundle["attach_new"] = True
+    fenster._import_zip_bundles(None, [bundle])
+
+    assert fenster.imported == []
+    assert [f for _i, _n, f in db.get_variants(pecos.id, "music")] == ["neu.mp3"]
+    text = fenster.messages[0]
+    for name in ("let's dance.mp3", "red feather.mp3"):
+        assert _t("zip_skipped_linked_file", name=name, title="Let's Dance") in text
+    assert _t("zip_skipped_linked", count=2) in text

@@ -2385,9 +2385,11 @@ class P29MainWindow(QMainWindow):
                         for _i, _n, f in self.db.get_variants(song.id, "music")}
                     for a in audio[1:]:
                         name = os.path.basename(a["path"])
-                        if name.lower() in known or self.db.get_by_filename(name):
+                        if name.lower() in known:
                             skipped.append(name)
                             continue
+                        # Schon Hauptdatei oder Variante eines anderen Songs:
+                        # mit Titel unter "schon verknuepft" (Review PR #135)
                         other = self._zip_linked_owner(a["path"], song.id)
                         if other is not None:
                             linked.append((name, other.title or other.filename))
