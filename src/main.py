@@ -209,6 +209,7 @@ from ui_helpers import (
     fmt_precise,
     parse_time_offset,
     show_loop_count_dialog,
+    show_center_overlay,
     _make_icon,
     _SVG_MAGNET,
     _make_dock,
@@ -568,6 +569,7 @@ _VERSION = __version__
 
 # --- Loop-Finder-UI -> loopfinder_widget.py (BL-201, Stufe 9) --------------
 from loopfinder_widget import LoopFinderWidget, LoopFinderWorker
+from loop_windows import resolve_windows as resolve_loop_windows
 
 
 
@@ -3563,17 +3565,7 @@ class P29MainWindow(QMainWindow):
             return
         # "Bitte warten"-Overlay wie beim Loop-Finder: signalisiert, dass die
         # Analyse laeuft, damit der Nutzer nicht weiterklickt.
-        self._body_detect_overlay = QLabel(_t("lyric_sync_detecting"), self)
-        self._body_detect_overlay.setAlignment(Qt.AlignCenter)
-        self._body_detect_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._body_detect_overlay.adjustSize()
-        cx = (self.width() - self._body_detect_overlay.width()) // 2
-        cy = (self.height() - self._body_detect_overlay.height()) // 2
-        self._body_detect_overlay.move(cx, cy)
-        self._body_detect_overlay.show()
-        self._body_detect_overlay.raise_()
+        self._body_detect_overlay = show_center_overlay(self, _t("lyric_sync_detecting"))
 
         bpm_hint = getattr(song, "base_bpm", None)
         self._body_worker = SingingBodyWorker(filepath, bpm_hint=bpm_hint)
@@ -3987,6 +3979,11 @@ class P29MainWindow(QMainWindow):
         self.loop_finder.on_audition = self._on_loop_finder_audition
         self.loop_finder.on_stop = self._on_loop_finder_stop
         self.loop_finder.set_presets_dir(self.paths.loop_presets_dir)
+        # intern#207: zuletzt gewaehlter Modus Prozent/Zeit
+        self.loop_finder.set_window_mode(
+            str(self._settings.value("loop/finder_window_mode", "pct")), convert=False)
+        self.loop_finder.on_window_mode_changed = (
+            lambda mode: self._settings.setValue("loop/finder_window_mode", mode))
         self.dock_loop_finder.setWidget(self.loop_finder)
         # Song-Info nachreichen falls bereits ein Song geladen ist
         filepath = getattr(self.loop_widget, '_current_filepath', None)
@@ -5294,7 +5291,12 @@ class P29MainWindow(QMainWindow):
             f"[Diag] Audio-Device Wechsel angefordert: idx={device_index}, "
             f"combo_label='{self._audio_device_combo.currentText()}'"
         )
-        self.engine.set_output_device(device_index)
+        if self.player._audition_active:
+            # intern#182 (wie #180): Das Vorhoeren bleibt auf dem Vorhoer-
+            # Kanal; sein Ende schaltet auf das neue Geraet.
+            self._pre_audition_device = device_index
+        else:
+            self.engine.set_output_device(device_index)
         if device_index is None:
             self._settings.setValue("audio/primary_device", "")
         else:
@@ -5765,26 +5767,24 @@ class P29MainWindow(QMainWindow):
         # Preset-Parameter laden
         preset_name = params.get("preset", self.loop_finder.SINGING_PRESET_NAME)
         preset_data = self.loop_finder._load_preset(str(preset_name))
-        in_start_pct = int(preset_data.get("in_start", self.loop_finder._DEFAULT_IN_START))
-        in_end_pct = int(preset_data.get("in_end", self.loop_finder._DEFAULT_IN_END))
-        out_start_pct = int(preset_data.get("out_start", self.loop_finder._DEFAULT_OUT_START))
-        out_end_pct = int(preset_data.get("out_end", self.loop_finder._DEFAULT_OUT_END))
         compare_beats = int(preset_data.get("compare_beats", 16))
         self._auto_loop_strategy = str(preset_data.get("selection_strategy", "best_64"))
+        # intern#207: Prozent- und Zeit-Presets ueber dieselbe Umrechnung
+        windows = resolve_loop_windows(preset_data, dur)
+        if windows is None:
+            # Fenster passen nicht zur Songlaenge: keine Analyse, kein Loop
+            self._dismiss_auto_loop_overlay()
+            hint = self._auto_loop_overlay = show_center_overlay(
+                self, _t("auto_loop_windows_mismatch"))
+            QTimer.singleShot(3000, lambda: (
+                self._dismiss_auto_loop_overlay()
+                if self._auto_loop_overlay is hint else None))
+            return
+        in_start, in_end, out_start, out_end = windows
 
         # "Bitte warten"-Hinweis anzeigen (verschwindet automatisch)
-        self._auto_loop_overlay = QLabel(_t("auto_loop_wait"), self)
-        self._auto_loop_overlay.setAlignment(Qt.AlignCenter)
-        self._auto_loop_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._auto_loop_overlay.adjustSize()
-        # Zentriert im Hauptfenster positionieren
-        cx = (self.width() - self._auto_loop_overlay.width()) // 2
-        cy = (self.height() - self._auto_loop_overlay.height()) // 2
-        self._auto_loop_overlay.move(cx, cy)
-        self._auto_loop_overlay.show()
-        self._auto_loop_overlay.raise_()
+        self._dismiss_auto_loop_overlay()
+        self._auto_loop_overlay = show_center_overlay(self, _t("auto_loop_wait"))
 
         # Play-Gate: Token holen — startet gleichzeitig ein Song, wartet der
         # hoerbare Audio-Start, bis der Loop-Finder fertig ist (Loop ist dann
@@ -5793,10 +5793,8 @@ class P29MainWindow(QMainWindow):
         gate_token = self._play_barrier.add_token_if_collecting()
         worker = LoopFinderWorker(
             filepath, bpm=bpm, compare_beats=compare_beats,
-            in_start=dur * in_start_pct / 100,
-            in_end=dur * in_end_pct / 100,
-            out_start=dur * out_start_pct / 100,
-            out_end=dur * out_end_pct / 100)
+            in_start=in_start, in_end=in_end,
+            out_start=out_start, out_end=out_end)
         worker.done.connect(self._on_auto_loop_done)
         worker.error.connect(self._on_auto_loop_error)
         # TIC-0029: Referenz erst beim ECHTEN Thread-Ende freigeben (nicht im
@@ -5839,17 +5837,7 @@ class P29MainWindow(QMainWindow):
             return
         if getattr(self, '_rule_bpm_worker', None) is not None:
             return  # Erkennung laeuft bereits
-        self._rule_bpm_overlay = QLabel(_t("auto_bpm_wait"), self)
-        self._rule_bpm_overlay.setAlignment(Qt.AlignCenter)
-        self._rule_bpm_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._rule_bpm_overlay.adjustSize()
-        cx = (self.width()  - self._rule_bpm_overlay.width())  // 2
-        cy = (self.height() - self._rule_bpm_overlay.height()) // 2
-        self._rule_bpm_overlay.move(cx, cy)
-        self._rule_bpm_overlay.show()
-        self._rule_bpm_overlay.raise_()
+        self._rule_bpm_overlay = show_center_overlay(self, _t("auto_bpm_wait"))
         worker = BpmWorker(filepath)
         worker.done.connect(self._on_rule_bpm_result)
         worker.error.connect(self._on_rule_bpm_error)
@@ -6967,6 +6955,8 @@ class P29MainWindow(QMainWindow):
             "player/timer_warn1": "240",
             "player/timer_warn2": "300",
             "loop/crossfade_ms": "46",
+            # intern#207: Suchfenster des Loop Finders in Prozent oder Zeit
+            "loop/finder_window_mode": "pct",
             "debug/performance_logging": "false",
             "audio/min_volume": "0.0",
             # Anti-Ruckler-Schalter (siehe docs/anti_ruckler_backlog.md, AR-009/010).
@@ -7079,6 +7069,10 @@ class P29MainWindow(QMainWindow):
                     self.engine.set_loop_crossfade_ms(int(val))
                 except Exception:
                     pass
+
+            elif key == "loop/finder_window_mode":
+                if self.loop_finder is not None:
+                    self.loop_finder.set_window_mode(str(val), convert=True)
 
             elif key == "display/statusbar_player":
                 self._sb_player_bar.setVisible(val.lower() == "true")
