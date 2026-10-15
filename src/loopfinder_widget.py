@@ -563,8 +563,7 @@ class LoopFinderWidget(QWidget):
         Umrechnung, weil die Werte des Presets schon in diesem Modus sind.
         """
         self.set_window_mode(lw.preset_mode(data), convert=False)
-        defaults = (self._DEFAULT_IN_START, self._DEFAULT_IN_END,
-                    self._DEFAULT_OUT_START, self._DEFAULT_OUT_END)
+        defaults = lw.default_values(self._window_mode)
         keys = ("in_start", "in_end", "out_start", "out_end")
         for spin, key, default in zip(self._window_spins(), keys, defaults):
             spin.blockSignals(True)
@@ -653,20 +652,23 @@ class LoopFinderWidget(QWidget):
         """Schaltet zwischen Prozent und Zeit um.
 
         convert=True rechnet die aktuellen Werte anhand der Dauer des
-        geladenen Songs in den neuen Modus um (ohne Song bleiben die Zahlen).
+        geladenen Songs in den neuen Modus um. Ohne Umrechnung (oder ohne
+        Song) gelten die Standardfenster des neuen Modus - Prozentwerte als
+        Sekunden zu lesen ergaebe unsinnige Fenster (Review PR #132).
         """
         mode = mode if mode in lw.MODES else lw.MODE_PCT
         if mode == self._window_mode:
             return
-        values = tuple(s.value() for s in self._window_spins())
+        values = lw.default_values(mode)
         if convert:
             self._ensure_waveform()
             dur = self._song_duration
             if dur > 0:
+                current = tuple(s.value() for s in self._window_spins())
                 if mode == lw.MODE_TIME:
-                    values = lw.pct_to_time(values, dur)
+                    values = lw.pct_to_time(current, dur)
                 else:
-                    values = lw.time_to_pct(values, dur)
+                    values = lw.time_to_pct(current, dur)
         self._window_mode = mode
         time_mode = mode == lw.MODE_TIME
         for spin, val in zip(self._window_spins(), values):

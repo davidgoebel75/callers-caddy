@@ -29,7 +29,23 @@ DEFAULT_IN_END = 21
 DEFAULT_OUT_START = 64
 DEFAULT_OUT_END = 79
 
+# Standardfenster im Zeitmodus (Sekunden ab Beginn / vor Ende). Gelten, wenn
+# ohne bekannte Songdauer in den Zeitmodus gewechselt wird - Prozentwerte
+# lassen sich dann nicht umrechnen (Review PR #132).
+DEFAULT_TIME_IN_START = 20
+DEFAULT_TIME_IN_END = 59
+DEFAULT_TIME_OUT_START = 50
+DEFAULT_TIME_OUT_END = 20
+
 _KEYS = ("in_start", "in_end", "out_start", "out_end")
+
+
+def default_values(mode: str) -> tuple:
+    """Standardfenster (in_start, in_end, out_start, out_end) fuer einen Modus."""
+    if mode == MODE_TIME:
+        return (DEFAULT_TIME_IN_START, DEFAULT_TIME_IN_END,
+                DEFAULT_TIME_OUT_START, DEFAULT_TIME_OUT_END)
+    return (DEFAULT_IN_START, DEFAULT_IN_END, DEFAULT_OUT_START, DEFAULT_OUT_END)
 
 
 def singing_preset() -> dict:

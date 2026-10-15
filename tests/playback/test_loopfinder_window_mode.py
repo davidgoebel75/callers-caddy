@@ -94,3 +94,29 @@ def test_unpassende_fenster_starten_keine_analyse(finder):
     finder._on_analyze()
     assert finder._worker is None
     assert finder._lbl_status.text() == _t("lf_status_windows_mismatch")
+
+
+# ---- Ohne Songdauer: Standardfenster des Modus (Review PR #132) ---------------
+
+def test_start_im_zeitmodus_ohne_song(keep, tmp_path):
+    """Wie beim App-Start mit loop/finder_window_mode=time: noch kein Song."""
+    w = keep(LoopFinderWidget())
+    w.set_presets_dir(str(tmp_path))
+    w.set_window_mode(lw.MODE_TIME, convert=False)
+    assert w.window_mode() == lw.MODE_TIME
+    assert _values(w) == lw.default_values(lw.MODE_TIME) == (20, 59, 50, 20)
+    assert w._spin_in_start.text() == "+0:20"
+    assert w._spin_out_start.text() == "−0:50"
+    # Mit Song passen die Fenster: 20-59 s / 150-180 s bei 200 s
+    assert lw.resolve_windows(w._current_settings_as_preset(), 200.0) == (
+        20.0, 59.0, 150.0, 180.0)
+
+
+def test_umschalten_ohne_song_nimmt_standardwerte(keep, tmp_path):
+    w = keep(LoopFinderWidget())
+    w.set_presets_dir(str(tmp_path))
+    w._waveform_loaded = True                     # kein Lazy-Load, Dauer 0
+    w.set_window_mode(lw.MODE_TIME)
+    assert _values(w) == lw.default_values(lw.MODE_TIME)
+    w.set_window_mode(lw.MODE_PCT)
+    assert _values(w) == (7, 21, 64, 79)
