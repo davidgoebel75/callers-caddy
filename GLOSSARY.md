@@ -138,6 +138,12 @@ _EN_: In-band countdown
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
 
+**Suchfenster**:
+Die beiden Bereiche, in denen der Loop Finder nach Loop-In und Loop-Out sucht.
+Angabe in Prozent der Songdauer oder als Zeit: Loop-In ab Songbeginn, Loop-Out
+vor Songende. Passen die Fenster nicht zur Songlaenge, wird nicht gesucht.
+_EN_: Search Window
+
 **Pausen-Uhr**:
 Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
