@@ -3040,6 +3040,9 @@ class P29MainWindow(QMainWindow):
         er durch frueheres Oeffnen bereits existiert."""
         if self.evening_planner is not None:
             return
+        if not self.db.is_open():
+            # intern#211: App wurde vor Ablauf des Timers geschlossen
+            return
         # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
         # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
         # ausloest.
