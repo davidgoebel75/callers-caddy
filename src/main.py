@@ -3130,7 +3130,8 @@ class P29MainWindow(QMainWindow):
         """User hat manuell Stop gedrueckt — Trigger feuern.
         Auto-Advance wird jetzt ueber die Rule 'sys_stop_auto_advance' gesteuert."""
         self._was_playing = False
-        self._trigger_song_stopped()
+        # intern#212: Stopp beim Loeschen des Songs -> kein Feedback, keine Rules
+        self._trigger_song_stopped(silent=getattr(self, "_stop_silently", False))
 
     def _save_feedback_note(self, text: str, loc_id):
         """Speichert eine Feedback-Notiz ans Ende der Notizliste der Lokation."""
@@ -3160,11 +3161,14 @@ class P29MainWindow(QMainWindow):
             self.song_data.combo_err.setCurrentIndex(idx)
         self.song_data.combo_err.blockSignals(False)
 
-    def _trigger_song_stopped(self):
+    def _trigger_song_stopped(self, silent: bool = False):
         """Song-Ende verarbeiten: optional Feedback-Dialog zeigen, dann song_stopped feuern.
 
         Zentraler Abfangpunkt fuer beide Stopp-Pfade (natuerliches Ende + manueller Stop).
         Der modale Dialog blockiert den Main-Thread, sodass Auto-Advance erst danach laeuft.
+
+        silent=True (intern#212, Song wurde geloescht): nur aufraeumen, kein
+        Feedback-Dialog und kein song_stopped.
         """
         # Start-Countdown bei Liedstop sofort wegnehmen. Das Overlay ist ein
         # StaysOnTop-Fenster; wuerde es passiv erst im 50ms-Tick verschwinden,
@@ -3187,6 +3191,9 @@ class P29MainWindow(QMainWindow):
         # soll der Trigger suspended bleiben.
         if in_audition and self.rule_engine.is_suspended:
             self.rule_engine.resume("loop_finder_audition")
+        if silent:
+            print("[Rules] song_stopped uebersprungen (Song geloescht)")
+            return
         if (feedback_on and not in_audition and not suppress_break_feedback
                 and getattr(self, '_current_song', None)):
             loc_id = self.session.location_id
@@ -3690,7 +3697,13 @@ class P29MainWindow(QMainWindow):
         """Callback nachdem ein Song geloescht wurde."""
         # Falls der geloeschte Song gerade geladen ist: Player stoppen
         if self._current_song and self._current_song.id == song_id:
-            self.player._on_stop()
+            # intern#212: still stoppen - kein Feedback, keine Rules fuer
+            # einen Song, den es gleich nicht mehr gibt
+            self._stop_silently = True
+            try:
+                self.player._on_stop()
+            finally:
+                self._stop_silently = False
             self._current_song = None
         self.song_list.refresh()
         self.playlist_manager.refresh()
