@@ -448,7 +448,7 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
         self._normalize_call_text_figures()
         self._conn.commit()
         self._backfill_auto_mappings_once()  # heilt ungemappte Massenimporte (einmalig)
-        self._remap_role_prefix_once()  # intern#89: Rolle vorn im Call-Text (einmalig)
+        self._remap_group_prefix_once()  # intern#89: Gruppe vorn im Call-Text (einmalig)
         self._recompute_max_to_once()  # intern#95: Band-Regel geaendert (einmalig)
         print(f"[SongDB] Datenbank geoeffnet: {db_path}")
 

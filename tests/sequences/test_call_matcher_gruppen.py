@@ -1,4 +1,4 @@
-"""Volltreffer im CallMatcher: Rollen vorn im Call-Text (intern#89).
+"""Volltreffer im CallMatcher: Gruppe vorn im Call-Text (intern#89).
 
 Eine Figur, die eine Gruppe fest im Namen traegt ("All Eight Circulate",
 "Centers In"), darf nicht den Schluessel des blanken Calls belegen. Die
@@ -28,6 +28,7 @@ FIGUREN = [
     ("call_track_2", "Track 2", 30.003, "Plus"),
     ("call_track", "Track", 40.001, "A2"),
     ("call_swing_a2", "Swing", 40.002, "A2"),
+    ("call_ladies_in_men_sashay", "Ladies In Men Sashay", 30.004, "Plus"),
 ]
 
 
@@ -48,6 +49,9 @@ def matcher():
     ("All 8 Recycle (odd)", "call_all_8_recycle"),
     ("Recycle", "call_recycle"),
     ("Centers In", "call_centers_in"),
+    ("Heads Centers In", "call_centers_in"),
+    ("Ladies In Men Sashay", "call_ladies_in_men_sashay"),
+    ("Heads Ladies In Men Sashay", "call_ladies_in_men_sashay"),
     ("Ends Bend", "call_ends_bend"),
     ("Right & Left Thru", "call_right_and_left_thru"),
     ("Heads Right and Left Thru", "call_right_and_left_thru"),

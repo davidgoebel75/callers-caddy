@@ -28,6 +28,12 @@ _ROLE_PREFIX_RE = re.compile(
 # Platzhalter der (Named Dancers)-Figuren: steht fuer eine beliebige Gruppe
 # (intern#89), z. B. "(Named Dancers) Circulate" fuer "Heads Circulate".
 _NAMED_DANCERS_RE = re.compile(r'^\(named dancers\)\s+', re.IGNORECASE)
+
+
+def _group_key(text: str) -> str:
+    """Schluessel fuer Figuren mit Gruppe im Namen (intern#89): canon_key
+    nach Abschneiden der Endung ("(again)", "1/2"), Gruppe bleibt stehen."""
+    return canon_key(_SUFFIX_RE.sub('', text.strip()))
 _SUFFIX_RE = re.compile(
     r'(\s*\([^)]*\)|\s+\d+/\d+|\s+\d+|\s+again)\s*$',
     re.IGNORECASE
@@ -117,14 +123,14 @@ class CallMatcher:
         # Volltreffer-Stufe VOR self._exact: ein Call-Text, der eine solche
         # Figur woertlich nennt ("All 8 Spin The Top", "Centers In"), trifft
         # genau diese Figur (intern#89).
-        self._literal: dict[str, str] = {}
+        self._exact_with_group: dict[str, str] = {}
 
         for eid, cname, *rest in canonicals:
             teaching_order = rest[0] if rest else None
             key = canon_key(cname)
             if key:
                 if _ROLE_PREFIX_RE.match(cname):
-                    self._literal.setdefault(key, eid)
+                    self._exact_with_group.setdefault(_group_key(cname), eid)
                 prev = self._by_canonical.get(key)
                 if prev is None or (
                         teaching_order is not None and
@@ -147,8 +153,9 @@ class CallMatcher:
                 # Schluessel also nie treffen -- er dient nur der Suche.
                 norm = _SUFFIX_RE.sub('', cname).strip().lower()
             # canon_key: '&' == 'and', 'Eight' == '8' ("Right & Left Thru")
-            if canon_key(norm) not in self._exact:
-                self._exact[canon_key(norm)] = eid
+            key = canon_key(norm)
+            if key not in self._exact:
+                self._exact[key] = eid
                 idx = len(self._data)
                 toks = frozenset(norm.split())
                 self._data.append((eid, norm, toks))
@@ -223,9 +230,16 @@ class CallMatcher:
         "1/2" ab) einer Figur mit Gruppe im Namen, dann der Text ohne Gruppe
         vorn (intern#89).
         """
-        literal = self._literal.get(canon_key(_SUFFIX_RE.sub('', raw_text.strip())))
-        if literal is not None:
-            return literal
+        # Gruppen vorn einzeln abschneiden: "Heads Centers In" -> "Centers In"
+        t = raw_text.strip()
+        for _ in range(4):
+            eid = self._exact_with_group.get(_group_key(t))
+            if eid is not None:
+                return eid
+            new = _ROLE_PREFIX_RE.sub('', t, count=1)
+            if new == t:
+                break
+            t = new
         norm = normalize_call_text(raw_text)
         if not norm:
             return None

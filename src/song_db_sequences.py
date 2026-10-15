@@ -1594,7 +1594,7 @@ class SequencesMixin:
             "VALUES ('auto_mappings_backfilled', '1')")
         self._conn.commit()
 
-    def _remap_role_prefix_once(self):
+    def _remap_group_prefix_once(self):
         """Startup-Heilung (einmalig, per Flag in app_meta) fuer intern#89.
 
         Bis dahin belegte eine Figur mit Gruppe im Namen den Schluessel des
@@ -1606,14 +1606,16 @@ class SequencesMixin:
         jetzt ein Volltreffer sind, und die Einstufung wird neu gerechnet.
         """
         if self._conn.execute(
-                "SELECT 1 FROM app_meta WHERE key='role_prefix_remapped'").fetchone():
+                "SELECT 1 FROM app_meta WHERE key='group_prefix_remapped'").fetchone():
             return
         try:
             toc = self.get_teaching_order_calls()
             if toc:
                 from sequence_mapper import CallMatcher, normalize_call_text
                 matcher = CallMatcher(toc)
-                old = {}   # Volltreffer bis intern#89: normalisiert, erster gewinnt
+                # Spiegelt CallMatcher._exact vor intern#89: normalisiert
+                # (Gruppe vorn ab, kein canon_key), erster in Teaching-Order gewinnt
+                old = {}
                 for eid, name, *_ in toc:
                     old.setdefault(normalize_call_text(name), eid)
                 rows = []
@@ -1627,19 +1629,21 @@ class SequencesMixin:
                 self._conn.executemany(
                     "UPDATE call_text_mappings SET entity_id = ?, mapped_by = 'auto' "
                     "WHERE call_text = ?", rows)
-                if self.backfill_auto_mappings() or rows:
-                    self.recompute_sequence_max_to()
+                self.backfill_auto_mappings()   # committet, das UPDATE mit
+                # Immer neu rechnen: scheitert es nach dem Commit, holt der
+                # naechste Start es nach (dann ohne umzuhaengende Zeilen)
+                self.recompute_sequence_max_to()
                 if rows:
                     print(f"[SongDB] intern#89: {len(rows)} Zuordnungen umgehaengt")
         except Exception as e:
             # Darf den Start nie verhindern — Flag NICHT setzen, damit es beim
             # naechsten Start erneut versucht wird.
-            print(f"[SongDB] Rollen-Heilung (intern#89) uebersprungen: {e}")
+            print(f"[SongDB] Gruppen-Heilung (intern#89) uebersprungen: {e}")
             self._conn.rollback()
             return
         self._conn.execute(
             "INSERT OR REPLACE INTO app_meta (key, value) "
-            "VALUES ('role_prefix_remapped', '1')")
+            "VALUES ('group_prefix_remapped', '1')")
         self._conn.commit()
 
     def _recompute_max_to_once(self):

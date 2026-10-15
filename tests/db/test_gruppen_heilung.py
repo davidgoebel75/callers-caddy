@@ -22,7 +22,7 @@ ALL8_SPIN = "call_all_8_spin_the_top"
 CENTERS_IN = "call_centers_in"
 STEP_FLIP = "call_step_and_flip"
 
-FLAG = "role_prefix_remapped"
+FLAG = "group_prefix_remapped"
 
 
 def _zuordnung(db, text):
@@ -37,7 +37,7 @@ def bestand(tmp_path, keep):
     from song_db import SongDatabase
 
     path = str(tmp_path / "t.db")
-    d = SongDatabase(path)
+    d = keep(SongDatabase(path))
     for text, figs, by in [
         ("Circulate", [ALL_EIGHT], "auto"),
         ("Ends Circulate", [ALL_EIGHT], "manual"),
@@ -88,3 +88,18 @@ def test_heilung_laeuft_nur_einmal(bestand):
     db.close()
     db = bestand.open()
     assert _zuordnung(db, "Circulate") == ([ALL_EIGHT], "auto")
+
+
+def test_fehlschlag_wird_beim_naechsten_start_nachgeholt(bestand, monkeypatch):
+    from song_db import SongDatabase
+
+    def _kaputt(self):
+        raise RuntimeError("Platte voll")
+    with monkeypatch.context() as m:
+        m.setattr(SongDatabase, "recompute_sequence_max_to", _kaputt)
+        bestand.open().close()
+    db = bestand.open()
+    max_to = db._conn.execute(
+        "SELECT max_teaching_order FROM sequences WHERE id = ?",
+        (bestand.seq,)).fetchone()[0]
+    assert max_to >= 30
