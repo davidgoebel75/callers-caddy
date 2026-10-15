@@ -14,6 +14,7 @@ import pytest
 
 import main
 import zip_import
+from i18n import _t
 from song_db import Song, SongDatabase
 
 W = main.P29MainWindow
@@ -105,6 +106,28 @@ def test_hauptspur_als_variante_wird_uebersprungen(fenster, lets_dance):
     assert fenster.imported == []                   # kein zweiter Song
     assert "red feather.mp3" in fenster.messages[0]
     assert "Let's Dance" in fenster.messages[0]
+
+
+def test_zusatzspuren_eines_uebersprungenen_buendels(fenster, lets_dance, db):
+    # Die Extended-Spur ist ebenfalls schon Variante, neu.mp3 ist wirklich neu
+    import os
+    music_dir = fenster.paths.music_dir
+    with open(os.path.join(music_dir, "red feather-extended.mp3"), "wb") as fh:
+        fh.write(b"x")
+    (fenster.src / "red feather-extended.mp3").write_bytes(b"x")
+    db.add_variant(lets_dance.id, "music", "Extended", "red feather-extended.mp3")
+    fenster._import_zip_bundles(None, [_bundle(
+        fenster, "red feather.mp3", "red feather-extended.mp3", "neu.mp3")])
+    lines = fenster.messages[0].split("\n")
+    assert lines == [
+        _t("zip_skipped_linked", count=2),
+        _t("zip_skipped_linked_file", name="red feather.mp3", title="Let's Dance"),
+        _t("zip_skipped_linked_file", name="red feather-extended.mp3",
+           title="Let's Dance"),
+        _t("zip_not_attached", count=1),
+        "  • neu.mp3",
+    ]
+    assert fenster.imported == []
 
 
 def test_zusatzspur_als_variante_wird_nicht_angehaengt(fenster, lets_dance, db):

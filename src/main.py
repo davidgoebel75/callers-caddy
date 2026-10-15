@@ -2350,7 +2350,15 @@ class P29MainWindow(QMainWindow):
                     # als zweiten Song auf dieselbe Datei anlegen (intern#132)
                     linked.append((os.path.basename(primary["path"]),
                                    owner.title or owner.filename))
-                    not_attached.extend(os.path.basename(a["path"]) for a in audio[1:])
+                    # Weitere Spuren: schon verknuepfte mit Song nennen, nur
+                    # wirklich neue unter "nicht angehaengt"
+                    for a in audio[1:]:
+                        name = os.path.basename(a["path"])
+                        other = self._zip_linked_owner(a["path"], None)
+                        if other is not None:
+                            linked.append((name, other.title or other.filename))
+                        else:
+                            not_attached.append(name)
                     not_attached.extend(os.path.basename(l["path"])
                                         for l in d.get("lyrics", []) if l["selected"])
                     continue
