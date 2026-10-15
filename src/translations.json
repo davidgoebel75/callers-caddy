@@ -6047,6 +6047,11 @@
     "en": "Really delete {n} songs from the database? This cannot be undone. (The music files are kept.)",
     "ja": "{n} 曲を本当にデータベースから削除しますか？元に戻せません。（音楽ファイルは残ります。）"
   },
+  "pot_bulk_confirm_running": {
+    "de": "Darunter ist der gerade laufende Song „{title}“, er wird gestoppt.",
+    "en": "This includes the song currently playing, \"{title}\". It will be stopped.",
+    "ja": "現在再生中の曲「{title}」も含まれています。再生は停止されます。"
+  },
   "pot_bulk_hist_title": {
     "de": "Historiendaten gefunden",
     "en": "History data found",

@@ -6,6 +6,13 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.162)
+
+### Bugfixes
+- **Massen-Löschen im Potential räumt jetzt auf wie das Einzel-Löschen.** Gelöschte Songs verschwinden aus der Playlist und lassen sich dort nicht mehr per Doppelklick starten. Ist ein gelöschter Song gerade geladen, stoppt der Player still, ohne Feedback-Fenster und ohne Regeln für „Song gestoppt“. Player, Song-Daten und Lyrics werden dann geleert. Läuft einer der ausgewählten Songs gerade oder ist er pausiert, sagt die Sicherheits-Nachfrage das vorher dazu. Songliste, Planner und Potential werden danach je einmal aufgefrischt.
+
+---
+
 ## 0.162 — Loop Finder mit Zeitfenstern, Doppelklick in der Playlist & ausgeblendete Sequenzen beim Start (2026-10-15)
 
 ### Verbesserungen
