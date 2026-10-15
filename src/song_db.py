@@ -608,6 +608,19 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             idx += 1
         return variants
 
+    def get_variant_owner(self, filename: str, kind: str = "music") -> Optional[Song]:
+        """Song, bei dem filename als Variante (Index 2+) eingetragen ist, sonst None.
+
+        Vergleich ohne Gross-/Kleinschreibung wie die Varianten-Pruefung des
+        ZIP-Imports (intern#132).
+        """
+        row = self._conn.execute(
+            "SELECT song_id FROM song_properties "
+            "WHERE key LIKE ? ESCAPE '\\' AND lower(value) = lower(?) "
+            "ORDER BY song_id LIMIT 1",
+            (f"{kind}\\_%\\_file", filename)).fetchone()
+        return self.get_by_id(row[0]) if row else None
+
     def add_variant(self, song_id: int, kind: str, name: str, filename: str):
         """Neue Variante anlegen (naechster freier Index ab 2).
 

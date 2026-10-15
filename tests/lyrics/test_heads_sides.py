@@ -20,17 +20,27 @@ import heads_sides as hs
     ("Heads/Sides Pass Thru", "Sides/Heads Pass Thru"),
     ("(original heads)", "(original sides)"),
     ("HEADS", "SIDES"),
+    ("SDS Lead Right", "HDS Lead Right"),
+    ("HD Lead Right", "SD Lead Right"),
+    ("SD Pass Thru", "HD Pass Thru"),
     # Regel 2: nie tauschen
     ("Each Side Face Your Partner", "Each Side Face Your Partner"),
     ("(each side)", "(each side)"),
+    # Ausnahme gilt nur fuer das eine Wort, der Rest der Zeile tauscht weiter
+    ("Each Sides Face, Heads Pass Thru", "Each Sides Face, Sides Pass Thru"),
+    ("Cross Head Tie, Heads Pass Thru", "Cross Head Tie, Sides Pass Thru"),
+    ("HD 2 Heads Lead Right", "HD 2 Sides Lead Right"),
     ("Cross Head Tie", "Cross Head Tie"),
     ("left-side", "left-side"),
     ("It's a side's thing", "It's a side's thing"),
     ("R-H Star", "R-H Star"),
     ("SD-205", "SD-205"),
     ("HD 2", "HD 2"),
+    ("SD 205", "SD 205"),
     # Regel 4: Einzelbuchstaben nur in Klammern
     ("(H) SqTh4", "(S) SqTh4"),
+    ("(S) SqTh4", "(H) SqTh4"),
+    ("(h) and (s)", "(s) and (h)"),
     ("H Star", "H Star"),
     # Regel 3: Couple-Nummern 1->2->3->4->1
     ("Couple #1 Face Right", "Couple #2 Face Right"),

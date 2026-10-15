@@ -2846,14 +2846,14 @@
     "ja": "ループの切り替え時のクロスフェード時間（ミリ秒）。"
   },
   "setting_tip_player_timer_warn1": {
-    "de": "Erste Warnung X Sekunden vor Ablauf der Songzeit.",
-    "en": "First warning X seconds before song time runs out.",
-    "ja": "曲の残り時間がX秒になったときの最初の警告。"
+    "de": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 1.",
+    "en": "After X seconds of playing time the playing time display changes to warning color 1.",
+    "ja": "再生開始からX秒で再生時間表示が警告色1に変わります。"
   },
   "setting_tip_player_timer_warn2": {
-    "de": "Zweite Warnung X Sekunden vor Ablauf der Songzeit.",
-    "en": "Second warning X seconds before song time runs out.",
-    "ja": "曲の残り時間がX秒になったときの2回目の警告。"
+    "de": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 2.",
+    "en": "After X seconds of playing time the playing time display changes to warning color 2.",
+    "ja": "再生開始からX秒で再生時間表示が警告色2に変わります。"
   },
   "setting_tip_playlist_start_date": {
     "de": "Startdatum der aktuellen Saison für Statistiken.",
@@ -10457,5 +10457,85 @@
     "de": "Die Lyrics-Datei konnte nicht in den Lyrics-Ordner kopiert werden: {error}",
     "en": "The lyrics file could not be copied to the lyrics folder: {error}",
     "ja": "Lyrics ファイルを Lyrics フォルダーにコピーできませんでした: {error}"
+  },
+  "zip_preview_linked": {
+    "de": "Ist schon als Variante bei „{title}“ verknüpft und wird übersprungen.",
+    "en": "Already linked as a variant of “{title}” and will be skipped.",
+    "ja": "「{title}」のバリエーションとして既にリンクされているため、スキップされます。"
+  },
+  "zip_skipped_linked": {
+    "de": "{count} Datei(en) übersprungen, weil sie schon bei einem anderen Song verknüpft sind:",
+    "en": "{count} file(s) skipped because they are already linked to another song:",
+    "ja": "{count} 件のファイルは既に別の曲にリンクされているため、スキップされました:"
+  },
+  "zip_skipped_linked_file": {
+    "de": "  • {name} (bei „{title}“)",
+    "en": "  • {name} (in “{title}”)",
+    "ja": "  • {name}（「{title}」）"
+  },
+  "lf_mode_time": {
+    "de": "Zeit",
+    "en": "Time",
+    "ja": "時間"
+  },
+  "lf_mode_tooltip": {
+    "de": "Suchfenster in Prozent der Songdauer oder als Zeit (Loop-In ab Songbeginn, Loop-Out vor Songende)",
+    "en": "Search windows as a percentage of the song length or as times (Loop-In from the song start, Loop-Out before the song end)",
+    "ja": "検索範囲を曲の長さに対する % または時間で指定（Loop-In は曲の開始から、Loop-Out は曲の終わりの前から）"
+  },
+  "lf_tip_in_time": {
+    "de": "Loop-In: Zeit ab Songbeginn (m:ss)",
+    "en": "Loop-In: time from the song start (m:ss)",
+    "ja": "Loop-In：曲の開始からの時間（m:ss）"
+  },
+  "lf_tip_out_time": {
+    "de": "Loop-Out: Zeit vor Songende (m:ss)",
+    "en": "Loop-Out: time before the song end (m:ss)",
+    "ja": "Loop-Out：曲の終わりまでの時間（m:ss）"
+  },
+  "lf_status_windows_mismatch": {
+    "de": "Suchfenster passen nicht zur Songlänge – keine Analyse",
+    "en": "Search windows do not fit the song length – no analysis",
+    "ja": "検索範囲が曲の長さに合いません – 解析しません"
+  },
+  "auto_loop_windows_mismatch": {
+    "de": "Suchfenster passen nicht zur Songlänge – kein Loop gesetzt",
+    "en": "Search windows do not fit the song length – no loop set",
+    "ja": "検索範囲が曲の長さに合いません – Loop は設定されません"
+  },
+  "lf_mode_pct_long": {
+    "de": "Prozent der Songdauer",
+    "en": "Percentage of song length",
+    "ja": "曲の長さに対する %"
+  },
+  "lf_mode_time_long": {
+    "de": "Zeit (ab Beginn / vor Ende)",
+    "en": "Time (from start / before end)",
+    "ja": "時間（開始から / 終わりの前から）"
+  },
+  "setting_label_loop_finder_window_mode": {
+    "de": "Loop Finder: Suchfenster als",
+    "en": "Loop Finder: search windows as",
+    "ja": "Loop Finder：検索範囲の指定"
+  },
+  "setting_tip_loop_finder_window_mode": {
+    "de": "Ob der Loop Finder die Suchfenster in Prozent der Songdauer oder als Zeit angibt (Loop-In ab Songbeginn, Loop-Out vor Songende). Umschalten im Loop Finder ändert diesen Wert mit.",
+    "en": "Whether the Loop Finder sets the search windows as a percentage of the song length or as times (Loop-In from the song start, Loop-Out before the song end). Switching in the Loop Finder updates this value too.",
+    "ja": "Loop Finder の検索範囲を曲の長さに対する % で指定するか、時間で指定するか（Loop-In は曲の開始から、Loop-Out は曲の終わりの前から）。Loop Finder で切り替えるとこの値も変わります。"
+  },
+  "pot_bf_loop_preset": {
+    "de": "Loop-Finder-Preset für „Loops fehlen“:",
+    "en": "Loop Finder preset for “Missing loops”:",
+    "ja": "「Loop なし」用の Loop Finder プリセット："
+  },
+  "pot_loop_preset_prompt": {
+    "de": "Mit welchem Loop-Finder-Preset sollen die Loops gesucht werden?",
+    "en": "Which Loop Finder preset should be used to find the loops?",
+    "ja": "どの Loop Finder プリセットで Loop を検索しますか？"
+  },
+  "pot_loop_preset_tooltip": {
+    "de": "Bestimmt Suchfenster und Auswahlstrategie. Songs, zu deren Länge die Fenster nicht passen, werden übersprungen.",
+    "en": "Sets the search windows and the selection strategy. Songs whose length does not fit the windows are skipped.",
+    "ja": "検索範囲と選択方法を決めます。範囲が曲の長さに合わない曲はスキップされます。"
   }
 }
