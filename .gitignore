@@ -53,5 +53,9 @@ installer/class_designer_version_info.txt
 .vscode/
 .idea/
 
+# --- Mutation Testing (mutmut, siehe setup.cfg) ---------------------------
+.mutmut-cache
+html/
+
 # --- Claude Code lokale Einstellungen ----------------------------------------
 .claude/settings.local.json
