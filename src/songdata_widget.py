@@ -1191,6 +1191,22 @@ class SongDataWidget(QWidget):
         self._refresh_variants(song)
         self._refresh_markers(song)
 
+    def clear_song(self):
+        """Zeigt wieder "kein Song geladen" (z. B. nach dem Loeschen, intern#212)."""
+        self._current_song = None
+        self._active_music_variant = None
+        self._active_lyric_variant = None
+        empty = Song()
+        self._populate_fields(empty)
+        self.label_header.setText(_t("no_song_loaded"))
+        self.label_db_info.setText("")
+        self.label_db_info.setStyleSheet("font-size: 11px; color: gray;")
+        for btn in (self.btn_auto_bpm, self.btn_delete_song, self.btn_edit_genre,
+                    self.btn_extended_data, self.btn_feedback):
+            btn.setEnabled(False)
+        self._refresh_variants(empty)
+        self._refresh_markers(empty)
+
     def _on_delete_song(self):
         """Aktuellen Song loeschen mit Sicherheitsabfrage."""
         if not self._current_song:
