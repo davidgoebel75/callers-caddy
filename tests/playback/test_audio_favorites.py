@@ -93,11 +93,15 @@ class _Fenster:
 
 
 @pytest.fixture
-def fenster(qapp, tmp_path):
+def fenster(keep, tmp_path):
     ini = QSettings(str(tmp_path / "w.ini"), QSettings.IniFormat)
     ini.setValue("audio/primary_device", str(SPEAKER))
     ini.setValue("audio/secondary_device", str(HEADSET))
-    return _Fenster(ini)
+    f = _Fenster(ini)
+    # Qt-Widgets am Testende abraeumen (CODING_STANDARDS "Tests", PR #119)
+    keep(f._audio_device_combo)
+    keep(f._btn_audio_favorite)
+    return f
 
 
 def test_start_auf_favorit_1_mit_gekennzeichneter_liste(fenster):
