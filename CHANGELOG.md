@@ -6,6 +6,14 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.162)
+
+### Bugfixes
+- **Call-Mapping: „Circulate“ und ähnliche Calls landen bei der richtigen Figur.** Figuren, die eine Gruppe fest im Namen tragen, wie „All Eight Circulate“, „Centers In“ oder „Ends Bend“, haben bisher den blanken Call geschluckt. Das blanke „Circulate“, aber auch „Heads Circulate“ oder „Ends Circulate“ wurden mit voller Sicherheit „All Eight Circulate“ zugeordnet. Jetzt landen sie bei „(Named Dancers) Circulate“. Umgekehrt finden „All 8 Spin The Top“ und „All 8 Recycle“ jetzt ihre eigene Figur statt „Spin the Top“ und „Recycle“. Beim ersten Start werden bestehende Zuordnungen, die auf diesen alten Fehler zurückgehen, einmal von selbst korrigiert. Das gilt auch für Zuordnungen, die man früher bestätigt hat, solange sie genau auf den alten falschen Vorschlag zeigen. Eine eigene, abweichende Wahl bleibt erhalten.
+- **Mehr Call-Texte werden automatisch erkannt.** „&“ und „and“ gelten jetzt als gleich, ebenso „Eight“ und „8“. „Wheel & Deal“, „Boys Scoot & Weave“ oder „Step & Flip“ werden so ihrer Figur zugeordnet, auch wenn die Figur „Wheel and Deal“ heißt.
+
+---
+
 ## 0.162 — Loop Finder mit Zeitfenstern, Doppelklick in der Playlist & ausgeblendete Sequenzen beim Start (2026-10-15)
 
 ### Verbesserungen

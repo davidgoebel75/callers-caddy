@@ -212,6 +212,12 @@ wird, z. B. "(Anything) & Roll". Gibt es ab Plus.
 _EN_: (Anything) Figure
 _Avoid_: (Anything)-Vorlage, Vorlage
 
+**(Named Dancers)-Figur**:
+Figur mit dem Platzhalter "(Named Dancers)", fuer den der Caller eine beliebige Gruppe
+von Taenzern nennt, z. B. "Heads Circulate" oder "Boys Cross". Eine Figur, die eine
+Gruppe fest im Namen traegt, z. B. "All Eight Circulate", ist eine eigene Figur.
+_EN_: (Named Dancers) Figure
+
 ### Sequenzen
 
 **Sequenz**:
