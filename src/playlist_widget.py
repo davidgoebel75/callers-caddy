@@ -279,6 +279,8 @@ class PlaylistWidget(QWidget):
 
         # Callback: Song aus Playlist angeklickt -> vorladen
         self.on_playlist_song_selected = None
+        # Callback: Song aus Playlist doppelgeklickt -> abspielen (intern#213)
+        self.on_playlist_song_activated = None
         # Callback: Playlist wurde geaendert -> Manager soll refreshen
         self.on_playlist_changed = None
         # Callback: Song aus Playlist in Notizen einfuegen (einzeln, Kontextmenue)
@@ -653,7 +655,13 @@ class PlaylistWidget(QWidget):
         if column == 3:  # Loops-Spalte
             if self.on_loop_count_edit:
                 self.on_loop_count_edit(row)
-        # Andere Spalten: kein Double-Click-Verhalten in Playlist
+        # Andere Spalten: abspielen wie in der Songliste (intern#213). Der
+        # Einfachklick davor hat den Eintrag schon geladen. Mit Strg/Umschalt
+        # hat er nichts geladen (Auswahl, intern#93), also auch nicht starten.
+        elif (0 <= row < len(self._playlist) and self.on_playlist_song_activated
+              and not QApplication.keyboardModifiers()
+              & (Qt.ControlModifier | Qt.ShiftModifier)):
+            self.on_playlist_song_activated(self._playlist[row])
 
     # ---- Klick -> Song vorladen ----
 

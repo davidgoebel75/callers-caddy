@@ -901,6 +901,7 @@ class P29MainWindow(QMainWindow):
         # --- Dock 5: Playlist (getabbt mit Songliste in Spalte 2) ---
         self.playlist_widget = PlaylistWidget(self.db, self.paths)
         self.playlist_widget.on_playlist_song_selected = self._on_playlist_song_selected
+        self.playlist_widget.on_playlist_song_activated = self._on_playlist_song_activated
         self.playlist_widget.on_playlist_changed = self._on_playlist_data_changed
         self.playlist_widget.on_loop_count_edit = self._on_playlist_loop_count_edit
         self.playlist_widget.on_add_to_notes = self._notes_insert_song_shortcode
@@ -2959,6 +2960,14 @@ class P29MainWindow(QMainWindow):
                 self, _t("file_not_found_title"),
                 _t("file_not_found_short", filename=entry.song.filename)
             )
+
+    def _on_playlist_song_activated(self, entry: PlaylistEntry):
+        """Doppelklick in der Playlist: abspielen wie in der Songliste
+        (intern#213). Der Einfachklick davor hat den Eintrag schon geladen;
+        ist das gescheitert (Datei fehlt), startet nichts."""
+        if (self._current_song and self._current_song.id == entry.song.id
+                and self.player.engine.is_loaded()):
+            self.player._on_play()
 
     def _on_playlist_data_changed(self):
         """Wird aufgerufen wenn die Playlist-Daten im PlaylistWidget geaendert wurden.
