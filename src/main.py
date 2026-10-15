@@ -2493,10 +2493,15 @@ class P29MainWindow(QMainWindow):
             return False
 
     def _zip_variant_owner(self, path: str):
-        """Song, bei dem die Datei schon als Variante verknuepft ist (intern#132)."""
-        if not self._zip_same_file_in_library(path):
+        """Song, bei dem die Hauptspur schon als Variante verknuepft ist (intern#132).
+
+        Fuer die Hauptspur zaehlt nur der Name im Musikordner, nicht die
+        Groesse: _import_single_audio verlinkt im Kopiermodus auch eine
+        andere Datei gleichen Namens auf die vorhandene (Review PR #135)."""
+        name = os.path.basename(path)
+        if not os.path.exists(os.path.join(self.paths.music_dir, name)):
             return None
-        return self.db.get_variant_owner(os.path.basename(path))
+        return self.db.get_variant_owner(name)
 
     def _zip_linked_owner(self, path: str, own_song_id: int):
         """Anderer Song, der die Datei schon als Hauptdatei oder Variante hat."""

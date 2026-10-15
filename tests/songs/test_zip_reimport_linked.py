@@ -138,9 +138,20 @@ def test_zusatzspur_als_variante_wird_nicht_angehaengt(fenster, lets_dance, db):
     assert "Let's Dance" in fenster.messages[0]
 
 
-def test_andere_datei_gleichen_namens_ist_kein_treffer(fenster, lets_dance):
+def test_hauptspur_gleichen_namens_mit_anderer_groesse(fenster, lets_dance):
+    """_import_single_audio wuerde auch eine neu getaggte Datei gleichen Namens
+    auf die vorhandene verlinken -> ebenfalls ueberspringen (Review PR #135)."""
+    (fenster.src / "red feather.mp3").write_bytes(b"neu getaggt")  # andere Groesse
+    assert fenster._zip_variant_owner(str(fenster.src / "red feather.mp3")) == lets_dance
+    fenster._import_zip_bundles(None, [_bundle(fenster, "red feather.mp3")])
+    assert fenster.imported == []
+    assert "Let's Dance" in fenster.messages[0]
+
+
+def test_zusatzspur_anderer_groesse_ist_kein_treffer(fenster, lets_dance):
+    """Fuer Zusatzspuren bleibt es bei Name und Groesse (_copy_into)."""
     (fenster.src / "red feather.mp3").write_bytes(b"anders")   # andere Groesse
-    assert fenster._zip_variant_owner(str(fenster.src / "red feather.mp3")) is None
+    assert fenster._zip_linked_owner(str(fenster.src / "red feather.mp3"), None) is None
 
 
 def test_erstimport_bleibt_unveraendert(fenster):
