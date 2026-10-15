@@ -6,7 +6,9 @@ der Doppelklick startet ihn. Die Spalte Loops oeffnet weiter die Loop-Anzahl.
 from types import SimpleNamespace
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 import main
@@ -54,6 +56,28 @@ def test_doppelklick_mit_auswahl_taste_startet_nichts(keep, monkeypatch, taste):
     monkeypatch.setattr(QApplication, "keyboardModifiers", staticmethod(lambda: taste))
     _doppelklick(pw, 0, 2)
     assert started == []
+
+
+def test_echter_doppelklick_laedt_danach_nicht_noch_einmal(keep):
+    # Echte Ereignisfolge: Druecken, Loslassen, Druecken, Doppelklick,
+    # Loslassen. Das letzte Loslassen darf kein cellClicked mehr ausloesen,
+    # sonst laedt die Playlist den eben gestarteten Song neu und er stoppt.
+    pw, started, _ = _playlist(keep)
+    selected = []
+    pw.on_playlist_song_selected = selected.append
+    pw.resize(600, 300)
+    pw.show()
+    vp = pw._pl_table.viewport()
+    p = pw._pl_table.visualRect(pw._pl_table.model().index(1, 2)).center()
+    QTest.mousePress(vp, Qt.LeftButton, Qt.NoModifier, p)
+    QTest.mouseRelease(vp, Qt.LeftButton, Qt.NoModifier, p)
+    QTest.mousePress(vp, Qt.LeftButton, Qt.NoModifier, p)
+    QApplication.sendEvent(vp, QMouseEvent(
+        QEvent.MouseButtonDblClick, QPointF(p), QPointF(vp.mapToGlobal(p)),
+        Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
+    QTest.mouseRelease(vp, Qt.LeftButton, Qt.NoModifier, p)
+    assert [e.song.id for e in selected] == [2]
+    assert [e.song.id for e in started] == [2]
 
 
 class _Fenster:
