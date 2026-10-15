@@ -118,3 +118,42 @@ def test_playlist_ohne_den_song_bleibt_unveraendert():
     pl.remove_song(7)
     assert [e.song.id for e in pl._playlist] == [1, 2]
     assert pl.refreshed == 0
+
+
+# ---- Echter Player: nach dem Leeren bleibt er leer (Review PR #136) -----------
+
+class _VolleEngine:
+    """Engine, die die Audiodaten des geloeschten Songs noch haelt."""
+    playing = False
+    paused = False
+
+    def __init__(self):
+        self.gestartet = 0
+
+    def is_loaded(self):
+        return True
+
+    def is_playing(self):
+        return False
+
+    def is_paused(self):
+        return False
+
+    def play(self, *_a, **_kw):
+        self.gestartet += 1
+
+
+def test_geleerter_player_schaltet_play_nicht_wieder_ein(keep):
+    from player_widget import PlayerWidget
+    engine = _VolleEngine()
+    player = keep(PlayerWidget(engine=engine, paths=None))
+    player._current_filename = "geloescht.mp3"       # wie nach _load_file
+    player.btn_play.setEnabled(True)
+
+    player.clear_loaded_song()
+    player.update_display()                          # naechster 50-ms-Tick
+
+    assert not player.has_file()
+    assert not player.btn_play.isEnabled()
+    player._on_play()                                # Rule/Doppelklick-Weg
+    assert engine.gestartet == 0

@@ -7800,7 +7800,9 @@ class P29MainWindow(QMainWindow):
         # Statusleisten-Player aktualisieren (BL-128)
         if self._sb_player_bar.isVisible():
             _orig = self.engine.get_original_duration()
-            if _orig > 0:
+            # intern#212: geloeschter Song -> Audiodaten noch in der Engine,
+            # aber nichts mehr anzeigen
+            if _orig > 0 and self.player.has_file():
                 _pos = self.engine.get_position_seconds()
                 # Loop-Marker nur zeigen wenn Loop tatsaechlich aktiv ist —
                 # engine.loop_in_seconds enthaelt sonst den gespeicherten DB-Wert

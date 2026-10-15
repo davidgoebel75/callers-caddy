@@ -506,6 +506,7 @@ class PlayerWidget(QWidget):
         title_row = QHBoxLayout()
         title_row.setContentsMargins(0, 0, 0, 0)
         title_row.setSpacing(6)
+        self._current_filename = None   # None = keine Datei angezeigt (intern#212)
         self.label_file = QLabel(_t("no_file_loaded"))
         self.label_file.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.label_file.setWordWrap(True)
@@ -897,6 +898,12 @@ class PlayerWidget(QWidget):
 
     def update_display(self):
         import time as _time
+        # intern#212: Ohne angezeigte Datei (nichts geladen oder Song geloescht)
+        # nichts anzeigen und vor allem btn_play nicht wieder einschalten. Die
+        # Engine behaelt die Audiodaten eines geloeschten Songs bis zum
+        # naechsten Laden, is_loaded() bleibt deshalb True.
+        if not self.has_file():
+            return
         if self.engine.is_playing():
             # Loop-Punkt-Erkennung: Seek zum Loop-In wenn Wiedergabe
             # den Loop-Out erreicht (wie Beat Snap Audition).
@@ -1121,6 +1128,8 @@ class PlayerWidget(QWidget):
         self._load_file(filepath)
 
     def _on_play(self):
+        if not self.has_file():
+            return  # intern#212: nichts geladen oder Song geloescht
         self._exit_audition()  # Audition-Modus beenden, Primaerkanal wiederherstellen
         import time as _time
         is_resume = self.engine.paused  # VOR engine.play() pruefen
@@ -1186,8 +1195,9 @@ class PlayerWidget(QWidget):
         """Zeigt wieder "keine Datei geladen" (intern#212, Song geloescht).
 
         Nur die Oberflaeche: Die Audiodaten bleiben in der Engine, bis der
-        naechste Song geladen wird. Ohne Play-Knopf startet sie auch keine
-        Rule (die klickt btn_play).
+        naechste Song geladen wird. update_display() laesst den Player ohne
+        Datei in Ruhe, damit btn_play aus bleibt; ohne Play-Knopf startet
+        auch keine Rule (die klickt btn_play).
         """
         self._current_filename = None
         self.label_file.setText(_t("no_file_loaded"))
@@ -1196,6 +1206,17 @@ class PlayerWidget(QWidget):
                     self.btn_stop, self.btn_fade):
             btn.setEnabled(False)
         self.slider_position.setEnabled(False)
+        self.slider_position.blockSignals(True)
+        self.slider_position.setValue(0)
+        self.slider_position.blockSignals(False)
+        self.label_time_current.setText(fmt_precise(0.0))
+        self.label_time_total.setText(f" / {fmt_time(0.0)}")
+        self.label_loop_count.setVisible(False)
+        self._reset_play_timer()
+
+    def has_file(self) -> bool:
+        """True, solange der Player eine Datei anzeigt (geladen, nicht geloescht)."""
+        return self._current_filename is not None
 
     def _reset_play_timer(self):
         """Timer zuruecksetzen (Stop, Song-Ende, Fade-Ende)."""
