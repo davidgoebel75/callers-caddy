@@ -209,6 +209,7 @@ from ui_helpers import (
     fmt_precise,
     parse_time_offset,
     show_loop_count_dialog,
+    show_center_overlay,
     _make_icon,
     _SVG_MAGNET,
     _make_dock,
@@ -3561,17 +3562,7 @@ class P29MainWindow(QMainWindow):
             return
         # "Bitte warten"-Overlay wie beim Loop-Finder: signalisiert, dass die
         # Analyse laeuft, damit der Nutzer nicht weiterklickt.
-        self._body_detect_overlay = QLabel(_t("lyric_sync_detecting"), self)
-        self._body_detect_overlay.setAlignment(Qt.AlignCenter)
-        self._body_detect_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._body_detect_overlay.adjustSize()
-        cx = (self.width() - self._body_detect_overlay.width()) // 2
-        cy = (self.height() - self._body_detect_overlay.height()) // 2
-        self._body_detect_overlay.move(cx, cy)
-        self._body_detect_overlay.show()
-        self._body_detect_overlay.raise_()
+        self._body_detect_overlay = show_center_overlay(self, _t("lyric_sync_detecting"))
 
         bpm_hint = getattr(song, "base_bpm", None)
         self._body_worker = SingingBodyWorker(filepath, bpm_hint=bpm_hint)
@@ -5774,8 +5765,9 @@ class P29MainWindow(QMainWindow):
         windows = resolve_loop_windows(preset_data, dur)
         if windows is None:
             # Fenster passen nicht zur Songlaenge: keine Analyse, kein Loop
-            self._show_auto_loop_overlay(_t("auto_loop_windows_mismatch"))
-            hint = self._auto_loop_overlay
+            self._dismiss_auto_loop_overlay()
+            hint = self._auto_loop_overlay = show_center_overlay(
+                self, _t("auto_loop_windows_mismatch"))
             QTimer.singleShot(3000, lambda: (
                 self._dismiss_auto_loop_overlay()
                 if self._auto_loop_overlay is hint else None))
@@ -5783,7 +5775,8 @@ class P29MainWindow(QMainWindow):
         in_start, in_end, out_start, out_end = windows
 
         # "Bitte warten"-Hinweis anzeigen (verschwindet automatisch)
-        self._show_auto_loop_overlay(_t("auto_loop_wait"))
+        self._dismiss_auto_loop_overlay()
+        self._auto_loop_overlay = show_center_overlay(self, _t("auto_loop_wait"))
 
         # Play-Gate: Token holen — startet gleichzeitig ein Song, wartet der
         # hoerbare Audio-Start, bis der Loop-Finder fertig ist (Loop ist dann
@@ -5820,22 +5813,6 @@ class P29MainWindow(QMainWindow):
         print(f"[AutoLoop] Fehler: {msg}")
         self._dismiss_auto_loop_overlay()
 
-    def _show_auto_loop_overlay(self, text: str):
-        """Zeigt einen Hinweis zentriert im Hauptfenster (Auto-Loop-Rule)."""
-        self._dismiss_auto_loop_overlay()
-        self._auto_loop_overlay = QLabel(text, self)
-        self._auto_loop_overlay.setAlignment(Qt.AlignCenter)
-        self._auto_loop_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._auto_loop_overlay.adjustSize()
-        # Zentriert im Hauptfenster positionieren
-        cx = (self.width() - self._auto_loop_overlay.width()) // 2
-        cy = (self.height() - self._auto_loop_overlay.height()) // 2
-        self._auto_loop_overlay.move(cx, cy)
-        self._auto_loop_overlay.show()
-        self._auto_loop_overlay.raise_()
-
     def _dismiss_auto_loop_overlay(self):
         """Entfernt das 'Bitte warten'-Overlay."""
         overlay = getattr(self, '_auto_loop_overlay', None)
@@ -5852,17 +5829,7 @@ class P29MainWindow(QMainWindow):
             return
         if getattr(self, '_rule_bpm_worker', None) is not None:
             return  # Erkennung laeuft bereits
-        self._rule_bpm_overlay = QLabel(_t("auto_bpm_wait"), self)
-        self._rule_bpm_overlay.setAlignment(Qt.AlignCenter)
-        self._rule_bpm_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._rule_bpm_overlay.adjustSize()
-        cx = (self.width()  - self._rule_bpm_overlay.width())  // 2
-        cy = (self.height() - self._rule_bpm_overlay.height()) // 2
-        self._rule_bpm_overlay.move(cx, cy)
-        self._rule_bpm_overlay.show()
-        self._rule_bpm_overlay.raise_()
+        self._rule_bpm_overlay = show_center_overlay(self, _t("auto_bpm_wait"))
         worker = BpmWorker(filepath)
         worker.done.connect(self._on_rule_bpm_result)
         worker.error.connect(self._on_rule_bpm_error)
