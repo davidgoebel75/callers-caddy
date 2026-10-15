@@ -34,6 +34,13 @@ from ui_helpers import (
 )
 
 
+def _is_selection_click():
+    """Strg/Umschalt gedrueckt: der Klick baut nur die Mehrfachauswahl auf,
+    laedt und startet also keinen Song (intern#93, intern#213)."""
+    return bool(QApplication.keyboardModifiers()
+                & (Qt.ControlModifier | Qt.ShiftModifier))
+
+
 def _selected_playlist_rows(table, n):
     """Markierte Zeilen einer Playlist-Tabelle, aufsteigend, auf [0, n) begrenzt.
     Faellt auf currentRow() zurueck, wenn nichts markiert ist — so wirken die
@@ -239,7 +246,13 @@ class _PlaylistTable(QTableWidget):
         if event.button() == Qt.LeftButton and self.on_col_double_click:
             index = self.indexAt(event.position().toPoint())
             if index.isValid():
-                self.on_col_double_click(index.row(), index.column())
+                row, col = index.row(), index.column()
+                # Qt zuerst: setzt den gemerkten Klick-Index zurueck, sonst
+                # meldet das folgende Loslassen noch ein cellClicked und laedt
+                # den eben gestarteten Song neu (intern#213). Vor dem Callback,
+                # weil der die Zeile entfernen kann (Planner).
+                super().mouseDoubleClickEvent(event)
+                self.on_col_double_click(row, col)
                 event.accept()
                 return
         super().mouseDoubleClickEvent(event)
@@ -279,6 +292,8 @@ class PlaylistWidget(QWidget):
 
         # Callback: Song aus Playlist angeklickt -> vorladen
         self.on_playlist_song_selected = None
+        # Callback: Song aus Playlist doppelgeklickt -> abspielen (intern#213)
+        self.on_playlist_song_activated = None
         # Callback: Playlist wurde geaendert -> Manager soll refreshen
         self.on_playlist_changed = None
         # Callback: Song aus Playlist in Notizen einfuegen (einzeln, Kontextmenue)
@@ -526,6 +541,11 @@ class PlaylistWidget(QWidget):
         self.refresh_display()
         self._notify_changed()
 
+    def remove_song(self, song_id: int):
+        """Entfernt alle Eintraege eines Songs (z. B. nach dem Loeschen, intern#212)."""
+        self.remove_rows([i for i, e in enumerate(self._playlist)
+                          if e.song is not None and e.song.id == song_id])
+
     # ---- Block-Operationen (Mehrfachauswahl) — Datenmodell-Kern -----------
     # PlaylistWidget besitzt _playlist; sowohl die eigene Ansicht als auch der
     # Planner delegieren hierher, damit die Logik nur EINMAL existiert. Die
@@ -653,7 +673,12 @@ class PlaylistWidget(QWidget):
         if column == 3:  # Loops-Spalte
             if self.on_loop_count_edit:
                 self.on_loop_count_edit(row)
-        # Andere Spalten: kein Double-Click-Verhalten in Playlist
+        # Andere Spalten: abspielen wie in der Songliste (intern#213). Der
+        # Einfachklick davor hat den Eintrag schon geladen. Mit Strg/Umschalt
+        # hat er nichts geladen (Auswahl, intern#93), also auch nicht starten.
+        elif (0 <= row < len(self._playlist) and self.on_playlist_song_activated
+              and not _is_selection_click()):
+            self.on_playlist_song_activated(self._playlist[row])
 
     # ---- Klick -> Song vorladen ----
 
@@ -663,7 +688,7 @@ class PlaylistWidget(QWidget):
         # Ctrl/Shift-Klick baut nur die (Mehrfach-)Auswahl auf — dann NICHT laden,
         # sonst zieht jeder Auswahl-Klick eine Audiodatei nach (intern#93). Qt hat
         # die Selektion zu diesem Zeitpunkt schon gesetzt.
-        if QApplication.keyboardModifiers() & (Qt.ControlModifier | Qt.ShiftModifier):
+        if _is_selection_click():
             return
         entry = self._playlist[row]
         self._current_index = row
@@ -888,7 +913,7 @@ class PlaylistManagerWidget(QWidget):
     """
 
     def __init__(self, db: SongDatabase, playlist_widget: PlaylistWidget, skin_mgr=None,
-                 settings=None, parent=None):
+                 settings=None, parent=None, session=None):
         super().__init__(parent)
         self.db = db
         self._pw = playlist_widget  # Referenz auf das PlaylistWidget (besitzt die Daten)
@@ -905,6 +930,9 @@ class PlaylistManagerWidget(QWidget):
         self.get_target_duration: callable = lambda: 7.0
 
         self._build_ui()
+        # intern#142: Tips-Vorgabe aus der Lokation der aktuellen Sitzung
+        if session is not None:
+            session.location_changed.connect(self._on_location_changed)
         self.update_skin()
 
     def update_skin(self, skin_mgr=None):
@@ -1135,6 +1163,9 @@ class PlaylistManagerWidget(QWidget):
     def set_planned_tips(self, n: int):
         """Setzt die Tips-Voreinstellung aus der Lokation (0 = keine Vorgabe)."""
         self._planned_tips = n or 0
+
+    def _on_location_changed(self, location):
+        self.set_planned_tips(location.planned_tips if location else 0)
 
     def load_permanent_filters(self):
         """Weiterleitung an die FilterBar (BL-097: Permanente Custom-Filter laden)."""

@@ -27,6 +27,12 @@ Oberbegriff — eine Veranstaltung ist nicht zwingend abends.
 _EN_: Dance-Event
 _Avoid_: Tanzabend, Clubabend, Session, Gig
 
+**Aktuelle Sitzung**:
+Was gerade im Programm gilt, vom Start bis zum Beenden: aktueller Song,
+aktuelle Lokation und Tanzprogramm-Wahl. Nicht die Tanzveranstaltung selbst.
+_EN_: Current Session
+_Avoid_: Zustand, State, Kontext
+
 **Tip**:
 Tanzeinheit aus einem Patter und einem Singing Call, typisch rund 15 Minuten.
 _Avoid_: Runde, Tanzblock
@@ -132,6 +138,12 @@ _EN_: In-band countdown
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
 
+**Suchfenster**:
+Die beiden Bereiche, in denen der Loop Finder nach Loop-In und Loop-Out sucht.
+Angabe in Prozent der Songdauer oder als Zeit: Loop-In ab Songbeginn, Loop-Out
+vor Songende. Passen die Fenster nicht zur Songlaenge, wird nicht gesucht.
+_EN_: Search Window
+
 **Pausen-Uhr**:
 Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
@@ -177,6 +189,13 @@ _Avoid_: Entity
 Eintrag des Katalogs, der eine andere Figur abwandelt statt selbst getanzt zu werden,
 z. B. "All 8 Concept" in "All 8 Right & Left Thru". Zaehlt beim Limit wie eine Figur.
 _EN_: Concept
+
+**Fuellwoerter**:
+Zuordnungsziel fuer Call-Texte, die keine Figur sind, z. B. "Back Away", "Join Hands",
+"Boys go Right". Steht vor allen Programmen und schliesst keine Sequenz aus der
+Tanzprogramm-Wahl aus.
+_EN_: Filler Words
+_Avoid_: Noise, Stoppwort
 
 **Teaching-Order**:
 Offizielle Reihenfolge, in der die Figuren eines Programms beigebracht werden.

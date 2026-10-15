@@ -35,6 +35,21 @@ def test_frische_ini_zeigt_statusleisten_player_an(qapp, tmp_path):
     assert row.widget.isChecked()
 
 
+def test_frische_ini_zeigt_fade_out_und_skin_aus_dem_code(keep, tmp_path):
+    """Ohne mitgelieferte INI (Dev-Start, geloeschte INI): Fade-Out 3 s, Skin
+    default - sonst zeigte der Dialog 0 s und den ersten Skin (intern#199)."""
+    class _Skins:
+        def list_skins(self):
+            return ["blue", "default"]
+
+    ini = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
+    dlg = keep(SettingsDialog(None, ini, skin_mgr=_Skins()))
+    dlg._populate_groups_deferred()
+    rows = {r.full_key: r.widget for r in dlg._rows}
+    assert rows["playlist/fade_out_time"].value() == 3
+    assert rows["display/skin"].currentData() == "default"
+
+
 def _code_defaults() -> dict:
     """{key: {Standardwerte}} aus allen settings.value("key", default) in src/."""
     found = {}
@@ -53,16 +68,14 @@ def _code_defaults() -> dict:
 
 
 def _seeded_keys() -> set:
-    """Keys, die immer in der INI stehen: _write_ini_defaults() oder die
-    mitgelieferte INI. Ihr default im Dialog wird nie angezeigt."""
+    """Keys, die _write_ini_defaults() beim Start setzt. Ihr default im Dialog
+    wird nie angezeigt. Die mitgelieferte INI zaehlt nicht: ohne sie (Dev-Start,
+    geloeschte INI, alte INI per Update-ZIP) fehlen ihre Keys (intern#199)."""
     tree = ast.parse((_SRC / "main.py").read_text(encoding="utf-8"))
     func = next(n for n in ast.walk(tree)
                 if isinstance(n, ast.FunctionDef) and n.name == "_write_ini_defaults")
-    keys = {k.value for n in ast.walk(func) if isinstance(n, ast.Dict)
+    return {k.value for n in ast.walk(func) if isinstance(n, ast.Dict)
             for k in n.keys if isinstance(k, ast.Constant)}
-    ini = QSettings(str(_SRC.parent / "installer" / "callers_caddy_default.ini"),
-                    QSettings.IniFormat)
-    return keys | set(ini.allKeys())
 
 
 def _norm(v) -> str:
@@ -115,3 +128,15 @@ def test_statusleisten_player_schaltet_sofort_um(qapp, tmp_path):
     win._settings.setValue("display/statusbar_player", "false")
     main.P29MainWindow._on_settings_applied(win, ["display/statusbar_player"])
     assert not bar.isVisibleTo(win)
+
+
+def test_zoom_grenzen_im_dialog_wie_im_widget():
+    """Dialog erlaubte 300 %, die Widgets nehmen hoechstens 200 % an: 250
+    gespeichert, 200 angezeigt (intern#201)."""
+    from notes_widget import NotesWidget
+    from sequences_widget import SequencesWidget
+
+    for key, widget in (("sequences/zoom_pct", SequencesWidget),
+                        ("notes/zoom_pct", NotesWidget)):
+        meta = SETTINGS_META[key]
+        assert (meta["min"], meta["max"]) == (widget._ZOOM_MIN, widget._ZOOM_MAX), key

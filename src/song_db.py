@@ -323,7 +323,7 @@ LEFT JOIN song_location_stats sls
 
 # Version der gebuendelten Referenzdaten (reference_calls.json). Hochzaehlen, wenn
 # eine neue Referenz an Bestandsnutzer verteilt werden soll -> Reseed laeuft erneut.
-REFERENCE_DATA_VERSION = 3
+REFERENCE_DATA_VERSION = 4
 
 # Default-Programme inkl. Figuren-Limit (sequence_limit_to, BL-132). Das Limit
 # ist die Programm-Obergrenze aus sequence_mapper._PROGRAMS als ".999999", damit
@@ -607,6 +607,19 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             variants.append((idx, props.get(name_key, ""), props.get(file_key, "")))
             idx += 1
         return variants
+
+    def get_variant_owner(self, filename: str, kind: str = "music") -> Optional[Song]:
+        """Song, bei dem filename als Variante (Index 2+) eingetragen ist, sonst None.
+
+        Vergleich ohne Gross-/Kleinschreibung wie die Varianten-Pruefung des
+        ZIP-Imports (intern#132).
+        """
+        row = self._conn.execute(
+            "SELECT song_id FROM song_properties "
+            "WHERE key LIKE ? ESCAPE '\\' AND lower(value) = lower(?) "
+            "ORDER BY song_id LIMIT 1",
+            (f"{kind}\\_%\\_file", filename)).fetchone()
+        return self.get_by_id(row[0]) if row else None
 
     def add_variant(self, song_id: int, kind: str, name: str, filename: str):
         """Neue Variante anlegen (naechster freier Index ab 2).
@@ -1972,24 +1985,48 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             # BL-210: nach Merges und neuen Teaching-Orders die hoechste Figur je
             # Menge neu bestimmen, Dubletten Haupt/Zusatz aufloesen
             self._normalize_call_text_figures()
-            # 5) Builtin-dance_programs ersetzen (origin='user' bleibt erhalten)
+            # 5) Builtin-dance_programs abgleichen (origin='user' bleibt erhalten).
+            #    intern#206: per code aktualisieren statt loeschen + neu anlegen. Die
+            #    id bleibt so stabil - location_programs, locations.dance_program_id
+            #    und die INI (sequences/dance_programs) speichern ids, ein Neuanlegen
+            #    liess sie ins Leere zeigen. target_duration_min bleibt, wie der
+            #    Nutzer es eingestellt hat.
+            #    Geloescht wird nichts mehr: Ein Programm, das die Referenz nicht
+            #    mehr fuehrt, bleibt nach der Heilung als eigenes stehen, samt
+            #    Lokations-Zuordnung.
+            ref_codes = [dp["code"] for dp in ref["dance_programs"]]
+            # Heilung: Bis intern#206 schrieb insert_dance_program() kein origin,
+            # die Spalte steht auf DEFAULT 'builtin'. Im Tanzprogramm-Manager
+            # angelegte (oder dort umbenannte) Programme sahen also aus wie
+            # mitgelieferte; das alte DELETE hat sie geloescht (seit 0.139 bei
+            # jedem Kunden mit eigenen Programmen). Was weder in der Referenz
+            # noch in den Default-Programmen steht, gehoert dem Nutzer.
+            known = ref_codes + [code for code, *_ in _DEFAULT_DANCE_PROGRAMS]
             self._conn.execute(
-                "DELETE FROM dance_programs WHERE origin IS NULL OR origin='builtin';")
+                "UPDATE dance_programs SET origin='user' "
+                "WHERE (origin IS NULL OR origin='builtin') "
+                f"AND code NOT IN ({','.join('?' * len(known))})", known)
             band_to_pid = {}
             for dp in ref["dance_programs"]:
                 band = int(dp["band"])
-                cur = self._conn.execute(
+                self._conn.execute(
                     "INSERT INTO dance_programs "
                     "(code, label, sort_order, target_duration_min, sequence_limit_to, origin) "
-                    "VALUES (?, ?, ?, ?, ?, 'builtin');",
+                    "VALUES (?, ?, ?, 7.0, ?, 'builtin') "
+                    "ON CONFLICT(code) DO UPDATE SET label=excluded.label, "
+                    "sort_order=excluded.sort_order, "
+                    "sequence_limit_to=excluded.sequence_limit_to, origin='builtin' "
+                    "WHERE origin IS NULL OR origin='builtin';",
                     (dp["code"], dp["label"], dp.get("sort_order", band),
-                     7.0, band + 0.999999))
+                     band + 0.999999))
                 # Class-Varianten teilen sich das Band ihres 2026-/Basis-Programms
                 # (= gleiche Calls). Fuer die Band->Programm-Zuordnung der Lokations-
                 # Migration zaehlt nur das Primaer-Programm, sonst zeigte eine Lokation
                 # auf die Class-Variante statt aufs regulaere Programm.
                 if not dp.get("is_class"):
-                    band_to_pid[band] = cur.lastrowid
+                    band_to_pid[band] = self._conn.execute(
+                        "SELECT id FROM dance_programs WHERE code=?",
+                        (dp["code"],)).fetchone()[0]
             # 6) Lokationen EINMALIG auf das 2026-Set migrieren (Default NEU). Basic 10/20
             #    sind in MS50 (Band 30) absorbiert -> 2026-Baender = 30..100. Nur beim
             #    allerersten Reseed (Flag in app_meta), damit spaetere Referenz-Bumps die
@@ -2068,9 +2105,12 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
     def insert_dance_program(self, code: str, label: str, sort_order: int,
                               target_duration_min: float,
                               sequence_limit_to: float = None) -> int:
+        # intern#206: origin='user', sonst greift DEFAULT 'builtin' und ein
+        # Referenz-Update haelt das Programm fuer ein mitgeliefertes.
         cur = self._conn.execute(
-            "INSERT INTO dance_programs (code, label, sort_order, target_duration_min, sequence_limit_to) "
-            "VALUES (?, ?, ?, ?, ?);",
+            "INSERT INTO dance_programs "
+            "(code, label, sort_order, target_duration_min, sequence_limit_to, origin) "
+            "VALUES (?, ?, ?, ?, ?, 'user');",
             (code.strip(), label.strip(), sort_order, target_duration_min, sequence_limit_to),
         )
         self._conn.commit()

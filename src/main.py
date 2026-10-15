@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.161"
+__version__ = "0.162"
 
 import sys
 import os
@@ -161,6 +161,7 @@ import song_match
 import audio_favorites
 import song_types
 import program_selection
+from current_session import CurrentSession
 from zip_import_dialog import ZipImportPreviewDialog, ask_split as ask_zip_split
 
 
@@ -208,6 +209,7 @@ from ui_helpers import (
     fmt_precise,
     parse_time_offset,
     show_loop_count_dialog,
+    show_center_overlay,
     _make_icon,
     _SVG_MAGNET,
     _make_dock,
@@ -567,6 +569,7 @@ _VERSION = __version__
 
 # --- Loop-Finder-UI -> loopfinder_widget.py (BL-201, Stufe 9) --------------
 from loopfinder_widget import LoopFinderWidget, LoopFinderWorker
+from loop_windows import resolve_windows as resolve_loop_windows
 
 
 
@@ -753,9 +756,9 @@ class P29MainWindow(QMainWindow):
         self.engine.set_min_volume(min_vol)
         _t1 = perf_split("  Paths + DB", _t0)
 
-        # Aktuell geladener Song / Lokation
+        # Aktuell geladener Song; die Lokation haelt die aktuelle Sitzung (intern#142)
         self._current_song: Song = None
-        self._current_location: Location = None
+        self.session = CurrentSession(self)
 
         # Datumsformat (de = DD.MM.YY, us = MM/DD/YY)
         self._date_format = self._settings.value("display/date_format", "de")
@@ -767,7 +770,10 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock 1: Player ---
         _td0 = perf_start()
-        self.player = PlayerWidget(self.engine, self.paths, skin_mgr=self.skin_mgr)
+        self.player = PlayerWidget(self.engine, self.paths, skin_mgr=self.skin_mgr,
+                                   session=self.session)
+        # Nach dem Player anmelden: er kennt die neue Lokation dann schon
+        self.session.location_changed.connect(self._on_location_changed)
         self.player._db = self.db   # BL-083: DB-Zugriff fuer Tanzprogramm-Picker
         # Standard-Tanzprogramm MS vorbelegen
         for _pid, _code, *_ in self.db.get_all_dance_programs():
@@ -817,9 +823,9 @@ class P29MainWindow(QMainWindow):
         self.song_data.on_marker_jump = self._jump_to_time  # BL-185
         self.song_data.on_markers_changed = lambda: setattr(self, '_jm_sig', None)  # BL-185
         self.song_data.get_location_id = lambda: (
-            self._current_location.id if self._current_location else None)
+            self.session.location_id)
         self.song_data.on_add_note = lambda text: self._save_feedback_note(
-            text, self._current_location.id if self._current_location else None)
+            text, self.session.location_id)
         self._lyric_variant_filename = None  # aktive Lyric-Variante (None = Standard)
         self.dock_data = _make_dock(
             self, _t("dock_song_data"), self.song_data, Qt.RightDockWidgetArea
@@ -859,12 +865,9 @@ class P29MainWindow(QMainWindow):
         if _lyrics_auto_width:
             _lyrics_auto_size = False
         if _lyrics_zoom_pct != 100 or not _lyrics_auto_size or _lyrics_auto_width:
-            self.lyrics_widget._btn_auto_size.setChecked(_lyrics_auto_size)
-            self.lyrics_widget._btn_auto_width.setChecked(_lyrics_auto_width)
-            _lz_size = self.lyrics_widget._base_font_size * _lyrics_zoom_pct / 100
-            self.lyrics_widget._set_font_size(_lz_size)
-            self.lyrics_widget._current_font_size = _lz_size
-            self.lyrics_widget._update_zoom_label()
+            self.lyrics_widget.set_auto_size(_lyrics_auto_size)
+            self.lyrics_widget.set_auto_width(_lyrics_auto_width)
+            self.lyrics_widget.apply_zoom_pct(_lyrics_zoom_pct)
         self.dock_lyrics = _make_dock(
             self, _t("dock_lyrics"), self.lyrics_widget, Qt.RightDockWidgetArea
         )
@@ -900,6 +903,7 @@ class P29MainWindow(QMainWindow):
         # --- Dock 5: Playlist (getabbt mit Songliste in Spalte 2) ---
         self.playlist_widget = PlaylistWidget(self.db, self.paths)
         self.playlist_widget.on_playlist_song_selected = self._on_playlist_song_selected
+        self.playlist_widget.on_playlist_song_activated = self._on_playlist_song_activated
         self.playlist_widget.on_playlist_changed = self._on_playlist_data_changed
         self.playlist_widget.on_loop_count_edit = self._on_playlist_loop_count_edit
         self.playlist_widget.on_add_to_notes = self._notes_insert_song_shortcode
@@ -915,7 +919,8 @@ class P29MainWindow(QMainWindow):
         _td6 = perf_split("    Playlist", _td5)
         # --- Dock 6: Playlist-Manager (versteckt, ueber Menu oeffenbar) ---
         self.playlist_manager = PlaylistManagerWidget(
-            self.db, self.playlist_widget, skin_mgr=self.skin_mgr, settings=self._settings)
+            self.db, self.playlist_widget, skin_mgr=self.skin_mgr, settings=self._settings,
+            session=self.session)
         self.playlist_manager.get_target_duration = self._get_current_target_duration
         self.playlist_manager.on_confirm = self._on_manager_confirm
         self.playlist_manager.on_loop_settings_changed = self._sync_loop_settings_if_loaded
@@ -1041,7 +1046,6 @@ class P29MainWindow(QMainWindow):
         # --- Dock: Notizen (lazy — erst beim ersten Oeffnen erstellt) ---
         self.notes_widget = None  # Lazy
         self._notes_placeholder = QWidget()
-        self._notes_location_id = None  # merkt sich die aktuelle Lokation bis zum Init
         self.dock_notes = _make_dock(
             self, _t("dock_notes"), self._notes_placeholder, Qt.RightDockWidgetArea
         )
@@ -1090,8 +1094,6 @@ class P29MainWindow(QMainWindow):
         # minimumSizeHint verhindert genau das.
         self.evening_planner = None
         self._ep_placeholder = QWidget()
-        self._ep_location_id = None      # ausstehende Lokation bis Lazy-Init
-        self._ep_planned_tips = 0        # ausstehende Tips-Zahl bis Lazy-Init
         # Floating-Geometrie der Tool-Fenster (objectName -> QRect): aus der
         # INI bzw. beim Schliessen vorgemerkt, angewandt beim naechsten
         # Sichtbarwerden (#121, siehe _on_float_dock_visible).
@@ -1659,7 +1661,7 @@ class P29MainWindow(QMainWindow):
         """
         if not visible:
             return
-        loc = self._current_location
+        loc = self.session.location
         minutes = (loc.effective_break_minutes if loc is not None
                    else Location.DEFAULT_BREAK_MINUTES)
         self.break_widget.apply_default_duration(minutes * 60)
@@ -2297,7 +2299,8 @@ class P29MainWindow(QMainWindow):
             dlg = ZipImportPreviewDialog(
                 result, lists, self._zip_lists_path(), self,
                 audition_cb=self._audition_zip_play,
-                dup_lookup=self._zip_dup_title)
+                dup_lookup=self._zip_dup_title,
+                linked_lookup=self._zip_linked_title)
             accepted = dlg.exec() == QDialog.Accepted
             self._stop_zip_audition()  # vor Commit/Cleanup Probehören stoppen
             if accepted:
@@ -2334,6 +2337,7 @@ class P29MainWindow(QMainWindow):
         skipped = []    # Dateinamen, die schon existierten (intern#125)
         not_attached = []   # Dateien eines Duplikats, die nicht angehaengt wurden
         attached = 0    # neue Spuren an vorhandene Songs gehaengt
+        linked = []     # (Datei, Titel): schon bei einem anderen Song (intern#132)
         errors = []
         last_dest = None
 
@@ -2343,6 +2347,24 @@ class P29MainWindow(QMainWindow):
                 continue
             try:
                 primary = audio[0]
+                owner = self._zip_variant_owner(primary["path"])
+                if owner is not None:
+                    # Hauptspur ist schon Variante eines anderen Songs: nicht
+                    # als zweiten Song auf dieselbe Datei anlegen (intern#132)
+                    linked.append((os.path.basename(primary["path"]),
+                                   owner.title or owner.filename))
+                    # Weitere Spuren: schon verknuepfte mit Song nennen, nur
+                    # wirklich neue unter "nicht angehaengt"
+                    for a in audio[1:]:
+                        name = os.path.basename(a["path"])
+                        other = self._zip_linked_owner(a["path"], None)
+                        if other is not None:
+                            linked.append((name, other.title or other.filename))
+                        else:
+                            not_attached.append(name)
+                    not_attached.extend(os.path.basename(l["path"])
+                                        for l in d.get("lyrics", []) if l["selected"])
+                    continue
                 r = self._import_single_audio(
                     primary["path"], copy_mode=True,
                     is_pattern=d["is_pattern"], is_singing=d["is_singing"],
@@ -2366,8 +2388,14 @@ class P29MainWindow(QMainWindow):
                         for _i, _n, f in self.db.get_variants(song.id, "music")}
                     for a in audio[1:]:
                         name = os.path.basename(a["path"])
-                        if name.lower() in known or self.db.get_by_filename(name):
+                        if name.lower() in known:
                             skipped.append(name)
+                            continue
+                        # Schon Hauptdatei oder Variante eines anderen Songs:
+                        # mit Titel unter "schon verknuepft" (Review PR #135)
+                        other = self._zip_linked_owner(a["path"], song.id)
+                        if other is not None:
+                            linked.append((name, other.title or other.filename))
                             continue
                         fn = _copy_into(a["path"], music_dir)
                         self.db.add_variant(song.id, "music", a["label_text"], fn)
@@ -2380,6 +2408,11 @@ class P29MainWindow(QMainWindow):
 
                 # Varianten-MP3s (ab Position 2)
                 for a in audio[1:]:
+                    other = self._zip_linked_owner(a["path"], song.id)
+                    if other is not None:
+                        linked.append((os.path.basename(a["path"]),
+                                       other.title or other.filename))
+                        continue
                     fn = _copy_into(a["path"], music_dir)
                     self.db.add_variant(song.id, "music", a["label_text"], fn)
 
@@ -2431,6 +2464,10 @@ class P29MainWindow(QMainWindow):
         if skipped:
             lines.append(_t("import_songs_skipped", count=len(skipped)))
             lines.extend(_t("import_skipped_file", name=n) for n in skipped)
+        if linked:
+            lines.append(_t("zip_skipped_linked", count=len(linked)))
+            lines.extend(_t("zip_skipped_linked_file", name=n, title=t)
+                         for n, t in linked)
         if not_attached:
             lines.append(_t("zip_not_attached", count=len(not_attached)))
             lines.extend(f"  • {n}" for n in not_attached)
@@ -2451,13 +2488,47 @@ class P29MainWindow(QMainWindow):
             return song.title or filename
         return None
 
+    def _zip_same_file_in_library(self, path: str) -> bool:
+        """True, wenn der Musikordner schon dieselbe Datei hat (gleicher Name,
+        gleiche Groesse) - dann wuerde _copy_into auf sie verlinken."""
+        dest = os.path.join(self.paths.music_dir, os.path.basename(path))
+        try:
+            return os.path.exists(dest) and os.path.getsize(dest) == os.path.getsize(path)
+        except OSError:
+            return False
+
+    def _zip_variant_owner(self, path: str):
+        """Song, bei dem die Hauptspur schon als Variante verknuepft ist (intern#132).
+
+        Fuer die Hauptspur zaehlt nur der Name im Musikordner, nicht die
+        Groesse: _import_single_audio verlinkt im Kopiermodus auch eine
+        andere Datei gleichen Namens auf die vorhandene (Review PR #135)."""
+        name = os.path.basename(path)
+        if not os.path.exists(os.path.join(self.paths.music_dir, name)):
+            return None
+        return self.db.get_variant_owner(name)
+
+    def _zip_linked_owner(self, path: str, own_song_id: int):
+        """Anderer Song, der die Datei schon als Hauptdatei oder Variante hat."""
+        if not self._zip_same_file_in_library(path):
+            return None
+        name = os.path.basename(path)
+        for other in (self.db.get_by_filename(name), self.db.get_variant_owner(name)):
+            if other is not None and other.id != own_song_id:
+                return other
+        return None
+
+    def _zip_linked_title(self, path: str):
+        """ZIP-Preview (intern#132): Titel des Songs, bei dem die Hauptspur
+        schon als Variante verknuepft ist, sonst None."""
+        owner = self._zip_variant_owner(path) if path else None
+        return (owner.title or owner.filename) if owner else None
+
     # ---- Lokation-Auswahl ----
 
     def _on_location_button_clicked(self, location_id=None):
         """Oeffnet den Lokation-Auswahl-Dialog."""
-        current_id = location_id if location_id else (
-            self._current_location.id if self._current_location else None
-        )
+        current_id = location_id or self.session.location_id
         dialog = LocationDialog(self.db, current_location_id=current_id, parent=self)
         # Tutorial beim ersten Oeffnen anzeigen (Timer laeuft innerhalb exec())
         if hasattr(self, 'tutorial_engine') and self.tutorial_engine:
@@ -2532,7 +2603,7 @@ class P29MainWindow(QMainWindow):
             if not self._settings.contains("sort/default_mode"):
                 # setCurrentIndex nur ueber findData: der Index haengt an der
                 # Reihenfolge der Eintraege, der Modus an den SORT_*-Konstanten.
-                _mode = (_fb.SORT_RECOMMENDATION if self._current_location
+                _mode = (_fb.SORT_RECOMMENDATION if self.session.location
                          else _fb.SORT_QUALITY)
                 _idx = _fb._combo_sort.findData(_mode)
                 if _idx >= 0:
@@ -2634,11 +2705,14 @@ class P29MainWindow(QMainWindow):
         return None
 
     def _set_current_location(self, location: Location):
-        """Setzt die aktuelle Lokation und aktualisiert UI."""
+        """Setzt die aktuelle Lokation. Player, Planner, Notizen und Abendplaner
+        hoeren selbst auf die aktuelle Sitzung (intern#142)."""
         import crash_handler as _ch
         _ch.log_action(f"Lokation: {location.name if location else '—'}")
-        self._current_location = location
-        self.player.set_location(location)
+        self.session.set_location(location)
+
+    def _on_location_changed(self, location: Location):
+        """Was das Hauptfenster selbst an einem Lokationswechsel haengt."""
         self._update_title()
 
         # MS50: Die Lokation "fuettert" die session-globale Tanzprogramm-Wahl.
@@ -2650,33 +2724,10 @@ class P29MainWindow(QMainWindow):
         if loc_ids:
             self._set_session_program_ids(loc_ids)
 
-        # BL-144: Ziel-BPM hat Vorrang — sie wird pro Song gerechnet, nicht hier
-        # fest gesetzt. Fuer den bereits geladenen Song sofort nachziehen.
-        if location and location.has_target_bpm:
-            self.player._apply_target_bpm()
-            self.player._update_bpm_display()
-        # BL-086: Temporaeres Tempo der Lokation uebernehmen
-        elif location and location.temp_tempo is not None:
-            self.player.spin_today_tempo.setValue(int(location.temp_tempo))
         self._refresh_last_played()
-        # Geplante Tips-Anzahl an Planner und Evening Planner weitergeben
-        planned = location.planned_tips if location else None
-        self.playlist_manager.set_planned_tips(planned or 0)
-        # Evening Planner: Tips-Zahl merken (Lazy-Init liefert sie nach)
-        self._ep_planned_tips = planned or 0
-        if self.evening_planner is not None:
-            self.evening_planner.set_planned_tips(self._ep_planned_tips)
-
-        # Notizen fuer neue Lokation laden (lazy: ID merken, Widget ggf. noch nicht erstellt)
-        self._notes_location_id = location.id if location else None
-        if self.notes_widget:
-            self.notes_widget.refresh(self._notes_location_id)
         if location:
-            # Caller-Workflow: Planner-Button rot → naechster Schritt
-            self.player.set_planner_warning(True)
             print(f"[P21] Lokation gewaehlt: #{location.id} '{location.name}'")
         else:
-            self.player.set_planner_warning(False)
             print("[P21] Keine Lokation gewaehlt")
 
     def _auto_detect_location_on_startup(self):
@@ -2688,7 +2739,7 @@ class P29MainWindow(QMainWindow):
         - Kein Treffer -> nichts (bisheriges Verhalten, roter Lokation-Button).
         Laeuft nur, solange der Nutzer noch keine Lokation gewaehlt hat.
         """
-        if self._current_location is not None:
+        if self.session.location is not None:
             return
         try:
             matches = self.db.find_locations_for_datetime(datetime.now())
@@ -2712,7 +2763,7 @@ class P29MainWindow(QMainWindow):
                    time=_today_start(loc)),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
             if reply == QMessageBox.Yes:
-                self._set_current_location(loc)
+                self._confirm_startup_location(loc)
             return
         # Mehrere Treffer: Auswahl anbieten (bester zuerst vorausgewaehlt)
         names = [m[0].name for m in matches]
@@ -2722,13 +2773,31 @@ class P29MainWindow(QMainWindow):
         if ok and choice:
             for loc, _score in matches:
                 if loc.name == choice:
-                    self._set_current_location(loc)
+                    self._confirm_startup_location(loc)
                     break
+
+    def _confirm_startup_location(self, loc):
+        """Setzt die beim Start bestaetigte Lokation (BL-178).
+
+        intern#205: Die Bestaetigung gehoert noch zum Start. Bringt die Lokation
+        eine andere Tanzprogramm-Wahl mit, beendet set_program_bands() das
+        Einblenden wie jeder Programmwechsel - der Startwert gilt dann erneut.
+        Nur wenn es wirklich beendet wurde: Sonst laedt die ganze Liste ein
+        zweites Mal, und zu diesem Zeitpunkt kann schon Audio laufen.
+        """
+        self._set_current_location(loc)
+        if self._show_hidden_on_start() and not self.sequences_widget.showing_hidden:
+            self.sequences_widget.show_hidden_sequences()
+
+    def _show_hidden_on_start(self) -> bool:
+        """intern#205: Startwert fuer "Auch ausgeblendete Sequenzen anzeigen".
+        Umschalten in der Sitzung aendert ihn nicht."""
+        return self._settings.value("sequences/show_hidden_on_start", False, type=bool)
 
     def _update_title(self):
         """Aktualisiert die Titelzeile mit Lokation-Info."""
-        if self._current_location:
-            self.setWindowTitle(f"{_BASE_TITLE}  @  {self._current_location.name}")
+        if self.session.location:
+            self.setWindowTitle(f"{_BASE_TITLE}  @  {self.session.location.name}")
         else:
             self.setWindowTitle(_BASE_TITLE)
 
@@ -2749,7 +2818,7 @@ class P29MainWindow(QMainWindow):
         # Audition/Beat-Snap nicht in Historie loggen, aber Rules trotzdem feuern
         if not getattr(self, '_suppress_play_log', False):
             self._last_logged_song_id = self._current_song.id
-            location_id = self._current_location.id if self._current_location else None
+            location_id = self.session.location_id
             # Historie-Log ist "best effort": ist die DB gerade gesperrt (z.B.
             # laufende Bulk-Worker), darf das NICHT das Abspielen verhindern.
             try:
@@ -2860,7 +2929,7 @@ class P29MainWindow(QMainWindow):
         if not hasattr(self, "sequences_widget"):
             return
         # MS50: Der Programm-Filter laeuft ueber die Band-Menge der Lokation
-        # (set_program_bands in _set_current_location); das alte Schwellwert-
+        # (set_program_bands in _apply_program_setting); das alte Schwellwert-
         # Auto-Sync entfaellt, der Limit-Combo bleibt manueller Zusatzfilter.
         row = program_selection.program_by_code(self.db.get_all_dance_programs(), code)
         if row is not None:
@@ -2879,15 +2948,13 @@ class P29MainWindow(QMainWindow):
     def _refresh_last_played(self):
         """Holt Zuletzt-Gespielt-Daten fuer die aktuelle Lokation und aktualisiert Songliste + Playlist."""
         _t0 = perf_start()
-        location_id = self._current_location.id if self._current_location else None
+        location_id = self.session.location_id
         last_played_map = self.db.get_last_played_map(location_id)
         _t1 = perf_split("_refresh_last_played.db", _t0)
         self.song_list.set_last_played_map(last_played_map)
         _t2 = perf_split("_refresh_last_played.song_list", _t1)
         self.playlist_manager.set_last_played_map(last_played_map)
         _t3 = perf_split("_refresh_last_played.planner", _t2)
-        # Evening Planner: Lokation merken (Lazy-Init liefert sie nach)
-        self._ep_location_id = location_id
         if self.evening_planner is not None:
             self.evening_planner.set_location(location_id)
         perf_split("_refresh_last_played.evening_planner", _t3)
@@ -2967,6 +3034,14 @@ class P29MainWindow(QMainWindow):
                 _t("file_not_found_short", filename=entry.song.filename)
             )
 
+    def _on_playlist_song_activated(self, entry: PlaylistEntry):
+        """Doppelklick in der Playlist: abspielen wie in der Songliste
+        (intern#213). Der Einfachklick davor hat den Eintrag schon geladen;
+        ist das gescheitert (Datei fehlt), startet nichts."""
+        if (self._current_song and self._current_song.id == entry.song.id
+                and self.player.engine.is_loaded()):
+            self.player._on_play()
+
     def _on_playlist_data_changed(self):
         """Wird aufgerufen wenn die Playlist-Daten im PlaylistWidget geaendert wurden.
         Aktualisiert den Playlist-Spiegel im Manager."""
@@ -2991,7 +3066,8 @@ class P29MainWindow(QMainWindow):
             QTimer.singleShot(0, self._init_notes)
 
     def _init_notes(self):
-        self.notes_widget = NotesWidget(self.db, app_dir=self.paths.app_dir)
+        self.notes_widget = NotesWidget(self.db, app_dir=self.paths.app_dir,
+                                        session=self.session)
         self.notes_widget.apply_skin(self.skin_mgr)
         # Gespeicherten Zoom wiederherstellen
         saved_zoom = int(self._settings.value("notes/zoom_pct", 100))
@@ -3009,9 +3085,6 @@ class P29MainWindow(QMainWindow):
         saved_insert_pos = str(self._settings.value("notes/insert_position", "top"))
         self.notes_widget.set_insert_position(saved_insert_pos)
         self.dock_notes.setWidget(self.notes_widget)
-        # Aktuelle Lokation nachliefern, falls bereits gewaehlt
-        if self._notes_location_id is not None:
-            self.notes_widget.refresh(self._notes_location_id)
         # Shortcode-Ausfuehrung verdrahten
         self.notes_widget.on_shortcode_execute = self._shortcode_dispatch
 
@@ -3036,24 +3109,21 @@ class P29MainWindow(QMainWindow):
         if self.dock_evening_planner.allowedAreas() == Qt.NoDockWidgetArea:
             self.dock_evening_planner.setFloating(True)
         self.evening_planner = EveningPlannerWidget(
-            self.db, settings=self._settings, parent=self)
+            self.db, settings=self._settings, parent=self,
+            session=self.session, start_date=self._start_date)
         self.evening_planner.apply_skin(self.skin_mgr)
         self.evening_planner.sig_export_to_playlist.connect(self._on_ep_export_to_playlist)
         self.evening_planner.sig_export_to_notes.connect(self._on_ep_export_to_notes)
         self.dock_evening_planner.setWidget(self.evening_planner)
-        # Ausstehenden Zustand nachliefern (Start-Datum, Tips-Zahl, Lokation)
-        if self._start_date is not None:
-            self.evening_planner.set_start_date(self._start_date)
-        if self._ep_planned_tips:
-            self.evening_planner.set_planned_tips(self._ep_planned_tips)
-        if self._ep_location_id is not None:
-            self.evening_planner.set_location(self._ep_location_id)
 
     def _preload_evening_planner(self):
         """Baut den Evening Planner nach dem Start im Hintergrund vor, damit beim
         ersten Oeffnen kein leeres Platzhalter-Fenster kurz aufblitzt. No-op, wenn
         er durch frueheres Oeffnen bereits existiert."""
         if self.evening_planner is not None:
+            return
+        if not self.db.is_open():
+            # intern#211: App wurde vor Ablauf des Timers geschlossen
             return
         # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
         # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
@@ -3145,7 +3215,8 @@ class P29MainWindow(QMainWindow):
         """User hat manuell Stop gedrueckt — Trigger feuern.
         Auto-Advance wird jetzt ueber die Rule 'sys_stop_auto_advance' gesteuert."""
         self._was_playing = False
-        self._trigger_song_stopped()
+        # intern#212: Stopp beim Loeschen des Songs -> kein Feedback, keine Rules
+        self._trigger_song_stopped(silent=getattr(self, "_stop_silently", False))
 
     def _save_feedback_note(self, text: str, loc_id):
         """Speichert eine Feedback-Notiz ans Ende der Notizliste der Lokation."""
@@ -3175,11 +3246,14 @@ class P29MainWindow(QMainWindow):
             self.song_data.combo_err.setCurrentIndex(idx)
         self.song_data.combo_err.blockSignals(False)
 
-    def _trigger_song_stopped(self):
+    def _trigger_song_stopped(self, silent: bool = False):
         """Song-Ende verarbeiten: optional Feedback-Dialog zeigen, dann song_stopped feuern.
 
         Zentraler Abfangpunkt fuer beide Stopp-Pfade (natuerliches Ende + manueller Stop).
         Der modale Dialog blockiert den Main-Thread, sodass Auto-Advance erst danach laeuft.
+
+        silent=True (intern#212, Song wurde geloescht): nur aufraeumen, kein
+        Feedback-Dialog und kein song_stopped.
         """
         # Start-Countdown bei Liedstop sofort wegnehmen. Das Overlay ist ein
         # StaysOnTop-Fenster; wuerde es passiv erst im 50ms-Tick verschwinden,
@@ -3202,9 +3276,12 @@ class P29MainWindow(QMainWindow):
         # soll der Trigger suspended bleiben.
         if in_audition and self.rule_engine.is_suspended:
             self.rule_engine.resume("loop_finder_audition")
+        if silent:
+            print("[Rules] song_stopped uebersprungen (Song geloescht)")
+            return
         if (feedback_on and not in_audition and not suppress_break_feedback
                 and getattr(self, '_current_song', None)):
-            loc_id = self._current_location.id if self._current_location else None
+            loc_id = self.session.location_id
             dlg = FeedbackDialog(self._current_song, self, location_id=loc_id)
             result = dlg.exec()
             # Session-Suppression wirkt unabhaengig von Accept/Cancel
@@ -3575,17 +3652,7 @@ class P29MainWindow(QMainWindow):
             return
         # "Bitte warten"-Overlay wie beim Loop-Finder: signalisiert, dass die
         # Analyse laeuft, damit der Nutzer nicht weiterklickt.
-        self._body_detect_overlay = QLabel(_t("lyric_sync_detecting"), self)
-        self._body_detect_overlay.setAlignment(Qt.AlignCenter)
-        self._body_detect_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._body_detect_overlay.adjustSize()
-        cx = (self.width() - self._body_detect_overlay.width()) // 2
-        cy = (self.height() - self._body_detect_overlay.height()) // 2
-        self._body_detect_overlay.move(cx, cy)
-        self._body_detect_overlay.show()
-        self._body_detect_overlay.raise_()
+        self._body_detect_overlay = show_center_overlay(self, _t("lyric_sync_detecting"))
 
         bpm_hint = getattr(song, "base_bpm", None)
         self._body_worker = SingingBodyWorker(filepath, bpm_hint=bpm_hint)
@@ -3705,8 +3772,20 @@ class P29MainWindow(QMainWindow):
         """Callback nachdem ein Song geloescht wurde."""
         # Falls der geloeschte Song gerade geladen ist: Player stoppen
         if self._current_song and self._current_song.id == song_id:
-            self.player._on_stop()
+            # intern#212: still stoppen - kein Feedback, keine Rules fuer
+            # einen Song, den es gleich nicht mehr gibt
+            self._stop_silently = True
+            try:
+                self.player._on_stop()
+            finally:
+                self._stop_silently = False
             self._current_song = None
+            self.player.clear_loaded_song()
+            if hasattr(self, "lyrics_widget"):
+                self.lyrics_widget.clear()
+        # Kein Rest des Songs mehr sichtbar oder per Doppelklick startbar
+        self.song_data.clear_song()
+        self.playlist_widget.remove_song(song_id)
         self.song_list.refresh()
         self.playlist_manager.refresh()
         if hasattr(self, 'potential_widget') and self.potential_widget:
@@ -3770,7 +3849,7 @@ class P29MainWindow(QMainWindow):
         """
         if getattr(self, "_last_logged_song_id", None):
             return self._last_logged_song_id
-        location_id = self._current_location.id if self._current_location else None
+        location_id = self.session.location_id
         lpm = self.db.get_last_played_map(location_id)
         if lpm:
             # Wert = Zeitstempel-String (ISO-aehnlich) -> max = zuletzt gespielt
@@ -3999,6 +4078,11 @@ class P29MainWindow(QMainWindow):
         self.loop_finder.on_audition = self._on_loop_finder_audition
         self.loop_finder.on_stop = self._on_loop_finder_stop
         self.loop_finder.set_presets_dir(self.paths.loop_presets_dir)
+        # intern#207: zuletzt gewaehlter Modus Prozent/Zeit
+        self.loop_finder.set_window_mode(
+            str(self._settings.value("loop/finder_window_mode", "pct")), convert=False)
+        self.loop_finder.on_window_mode_changed = (
+            lambda mode: self._settings.setValue("loop/finder_window_mode", mode))
         self.dock_loop_finder.setWidget(self.loop_finder)
         # Song-Info nachreichen falls bereits ein Song geladen ist
         filepath = getattr(self.loop_widget, '_current_filepath', None)
@@ -4075,7 +4159,7 @@ class P29MainWindow(QMainWindow):
     def _get_rule_context(self) -> dict:
         """Liefert den aktuellen App-Zustand fuer die Rules-Engine."""
         song = self._current_song
-        loc = self._current_location
+        loc = self.session.location
         has_lyrics = False
         if song and hasattr(song, 'lyrics_path') and song.lyrics_path:
             has_lyrics = True
@@ -4361,7 +4445,7 @@ class P29MainWindow(QMainWindow):
         except (TypeError, ValueError):
             minutes = 0
         if minutes <= 0:
-            loc = self._current_location
+            loc = self.session.location
             minutes = (loc.effective_break_minutes if loc is not None
                        else Location.DEFAULT_BREAK_MINUTES)
         return max(1.0, minutes * 60.0)
@@ -5011,7 +5095,7 @@ class P29MainWindow(QMainWindow):
 
     def _notes_require_location(self) -> bool:
         """Prueft ob eine Lokation gewaehlt ist. Zeigt Warnung wenn nicht. True = OK."""
-        if self._notes_location_id is not None:
+        if self.session.location is not None:
             return True
         QMessageBox.warning(
             self,
@@ -5306,7 +5390,12 @@ class P29MainWindow(QMainWindow):
             f"[Diag] Audio-Device Wechsel angefordert: idx={device_index}, "
             f"combo_label='{self._audio_device_combo.currentText()}'"
         )
-        self.engine.set_output_device(device_index)
+        if self.player._audition_active:
+            # intern#182 (wie #180): Das Vorhoeren bleibt auf dem Vorhoer-
+            # Kanal; sein Ende schaltet auf das neue Geraet.
+            self._pre_audition_device = device_index
+        else:
+            self.engine.set_output_device(device_index)
         if device_index is None:
             self._settings.setValue("audio/primary_device", "")
         else:
@@ -5777,26 +5866,24 @@ class P29MainWindow(QMainWindow):
         # Preset-Parameter laden
         preset_name = params.get("preset", self.loop_finder.SINGING_PRESET_NAME)
         preset_data = self.loop_finder._load_preset(str(preset_name))
-        in_start_pct = int(preset_data.get("in_start", self.loop_finder._DEFAULT_IN_START))
-        in_end_pct = int(preset_data.get("in_end", self.loop_finder._DEFAULT_IN_END))
-        out_start_pct = int(preset_data.get("out_start", self.loop_finder._DEFAULT_OUT_START))
-        out_end_pct = int(preset_data.get("out_end", self.loop_finder._DEFAULT_OUT_END))
         compare_beats = int(preset_data.get("compare_beats", 16))
         self._auto_loop_strategy = str(preset_data.get("selection_strategy", "best_64"))
+        # intern#207: Prozent- und Zeit-Presets ueber dieselbe Umrechnung
+        windows = resolve_loop_windows(preset_data, dur)
+        if windows is None:
+            # Fenster passen nicht zur Songlaenge: keine Analyse, kein Loop
+            self._dismiss_auto_loop_overlay()
+            hint = self._auto_loop_overlay = show_center_overlay(
+                self, _t("auto_loop_windows_mismatch"))
+            QTimer.singleShot(3000, lambda: (
+                self._dismiss_auto_loop_overlay()
+                if self._auto_loop_overlay is hint else None))
+            return
+        in_start, in_end, out_start, out_end = windows
 
         # "Bitte warten"-Hinweis anzeigen (verschwindet automatisch)
-        self._auto_loop_overlay = QLabel(_t("auto_loop_wait"), self)
-        self._auto_loop_overlay.setAlignment(Qt.AlignCenter)
-        self._auto_loop_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._auto_loop_overlay.adjustSize()
-        # Zentriert im Hauptfenster positionieren
-        cx = (self.width() - self._auto_loop_overlay.width()) // 2
-        cy = (self.height() - self._auto_loop_overlay.height()) // 2
-        self._auto_loop_overlay.move(cx, cy)
-        self._auto_loop_overlay.show()
-        self._auto_loop_overlay.raise_()
+        self._dismiss_auto_loop_overlay()
+        self._auto_loop_overlay = show_center_overlay(self, _t("auto_loop_wait"))
 
         # Play-Gate: Token holen — startet gleichzeitig ein Song, wartet der
         # hoerbare Audio-Start, bis der Loop-Finder fertig ist (Loop ist dann
@@ -5805,10 +5892,8 @@ class P29MainWindow(QMainWindow):
         gate_token = self._play_barrier.add_token_if_collecting()
         worker = LoopFinderWorker(
             filepath, bpm=bpm, compare_beats=compare_beats,
-            in_start=dur * in_start_pct / 100,
-            in_end=dur * in_end_pct / 100,
-            out_start=dur * out_start_pct / 100,
-            out_end=dur * out_end_pct / 100)
+            in_start=in_start, in_end=in_end,
+            out_start=out_start, out_end=out_end)
         worker.done.connect(self._on_auto_loop_done)
         worker.error.connect(self._on_auto_loop_error)
         # TIC-0029: Referenz erst beim ECHTEN Thread-Ende freigeben (nicht im
@@ -5851,17 +5936,7 @@ class P29MainWindow(QMainWindow):
             return
         if getattr(self, '_rule_bpm_worker', None) is not None:
             return  # Erkennung laeuft bereits
-        self._rule_bpm_overlay = QLabel(_t("auto_bpm_wait"), self)
-        self._rule_bpm_overlay.setAlignment(Qt.AlignCenter)
-        self._rule_bpm_overlay.setStyleSheet(
-            "background: rgba(0,0,0,180); color: white; font-size: 16px; "
-            "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
-        self._rule_bpm_overlay.adjustSize()
-        cx = (self.width()  - self._rule_bpm_overlay.width())  // 2
-        cy = (self.height() - self._rule_bpm_overlay.height()) // 2
-        self._rule_bpm_overlay.move(cx, cy)
-        self._rule_bpm_overlay.show()
-        self._rule_bpm_overlay.raise_()
+        self._rule_bpm_overlay = show_center_overlay(self, _t("auto_bpm_wait"))
         worker = BpmWorker(filepath)
         worker.done.connect(self._on_rule_bpm_result)
         worker.error.connect(self._on_rule_bpm_error)
@@ -6264,7 +6339,10 @@ class P29MainWindow(QMainWindow):
         _ts0 = perf_start()
         count = self.db.get_sequence_count()
         if count > 0:
-            self.sequences_widget.load_sequences()
+            if self._show_hidden_on_start():   # intern#205
+                self.sequences_widget.show_hidden_sequences()
+            else:
+                self.sequences_widget.load_sequences()
             _ts1 = perf_split(f"    _init_sequences.load_sequences ({count})", _ts0)
             print(f"[P28] {count} Sequenzen geladen")
             # SequenceView mit erster Sequenz vorbefuellen (Dock ist noch versteckt)
@@ -6883,8 +6961,7 @@ class P29MainWindow(QMainWindow):
         if self.notes_widget:
             self._settings.setValue("notes/zoom_pct",
                                     self.notes_widget._zoom_pct)
-            self._settings.setValue("notes/first_note_factor",
-                                    self.notes_widget._first_note_factor)
+            # notes/first_note_factor schreibt nur der Einstellungsdialog (intern#198)
         self._save_float_geoms(self._settings)
         self._settings.sync()
         status = self._settings.status()
@@ -6977,6 +7054,8 @@ class P29MainWindow(QMainWindow):
             "player/timer_warn1": "240",
             "player/timer_warn2": "300",
             "loop/crossfade_ms": "46",
+            # intern#207: Suchfenster des Loop Finders in Prozent oder Zeit
+            "loop/finder_window_mode": "pct",
             "debug/performance_logging": "false",
             "audio/min_volume": "0.0",
             # Anti-Ruckler-Schalter (siehe docs/anti_ruckler_backlog.md, AR-009/010).
@@ -6992,6 +7071,8 @@ class P29MainWindow(QMainWindow):
             "feedback/enabled": "false",
             # intern#96: Einfuegeposition neuer Notizen (top/bottom)
             "notes/insert_position": "top",
+            # intern#198: schreibt sonst nur der Einstellungsdialog
+            "notes/first_note_factor": "4.0",
             # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
             # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
             "lyrics/dynamic_invert_enabled": "false",
@@ -7007,6 +7088,8 @@ class P29MainWindow(QMainWindow):
             # intern#148: In-Lesebalken Countdown (Beats bis zum Abschnittswechsel)
             "lyrics/reading_band_countdown": "true",
             "lyrics/reading_band_countdown_beats": "8",
+            # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
+            "sequences/show_hidden_on_start": "false",
         }
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -7086,6 +7169,10 @@ class P29MainWindow(QMainWindow):
                 except Exception:
                     pass
 
+            elif key == "loop/finder_window_mode":
+                if self.loop_finder is not None:
+                    self.loop_finder.set_window_mode(str(val), convert=True)
+
             elif key == "display/statusbar_player":
                 self._sb_player_bar.setVisible(val.lower() == "true")
 
@@ -7107,14 +7194,6 @@ class P29MainWindow(QMainWindow):
                 # INI ist bereits geschrieben -> nur uebernehmen (kein Re-Persist).
                 self._session_program_ids = self._parse_program_ids(val)
                 self._apply_program_setting()
-
-            elif key == "lyrics/zoom_pct":
-                try:
-                    zoom = int(val)
-                    if hasattr(self, "lyrics_widget"):
-                        self.lyrics_widget.set_zoom(zoom)
-                except Exception:
-                    pass
 
             elif key == "lyrics/dynamic_enabled":
                 if hasattr(self, "lyrics_widget"):
@@ -7152,6 +7231,11 @@ class P29MainWindow(QMainWindow):
                 except Exception:
                     pass
 
+            elif key == "notes/first_note_factor":
+                # intern#198: set_first_note_factor() faengt ungueltige Werte selbst ab
+                if self.notes_widget is not None:
+                    self.notes_widget.set_first_note_factor(val)
+
             elif key == "feedback/enabled":
                 pass  # wird beim naechsten Songende frisch aus INI gelesen
 
@@ -7164,6 +7248,10 @@ class P29MainWindow(QMainWindow):
                     self.song_list.refresh()
                 except Exception:
                     pass
+
+        # intern#204: Zoom, Auto-Size und Auto-Breite in fester Reihenfolge
+        if hasattr(self, "lyrics_widget"):
+            self.lyrics_widget.apply_size_settings(self._settings, changed_keys)
 
     # ---- Shortcuts ----
 
@@ -7789,7 +7877,9 @@ class P29MainWindow(QMainWindow):
         # Statusleisten-Player aktualisieren (BL-128)
         if self._sb_player_bar.isVisible():
             _orig = self.engine.get_original_duration()
-            if _orig > 0:
+            # intern#212: geloeschter Song -> Audiodaten noch in der Engine,
+            # aber nichts mehr anzeigen
+            if _orig > 0 and self.player.has_file():
                 _pos = self.engine.get_position_seconds()
                 # Loop-Marker nur zeigen wenn Loop tatsaechlich aktiv ist —
                 # engine.loop_in_seconds enthaelt sonst den gespeicherten DB-Wert
@@ -7842,7 +7932,7 @@ class P29MainWindow(QMainWindow):
     def _crash_context(self) -> dict:
         """Liefert Kontext-Infos fuer den Crash-Handler."""
         song = getattr(self, '_current_song', None)
-        loc  = getattr(self, '_current_location', None)
+        loc  = self.session.location if hasattr(self, 'session') else None
         return {
             "song":     (song.title or song.filename) if song else "—",
             "location": loc.name if loc else "—",

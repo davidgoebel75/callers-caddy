@@ -4343,7 +4343,56 @@ class LyricsWidget(QWidget):
 
     def _manual_zoom(self, delta_px: float):
         """Manueller Zoom: Aendert Schriftgroesse und deaktiviert Auto-Size."""
-        new_size = max(6, self._current_font_size + delta_px)
+        self._zoom_manually(max(6, self._current_font_size + delta_px))
+
+    def apply_zoom_pct(self, pct: int):
+        """Setzt den Zoom in Prozent der Basisgroesse, Auto-Size/-Breite
+        bleiben wie sie sind (Wiederherstellung beim Start)."""
+        size = self._base_font_size * pct / 100
+        self._set_font_size(size)
+        self._current_font_size = size
+        self._update_zoom_label()
+
+    def set_zoom(self, pct: int):
+        """Zoom aus dem Einstellungsdialog: wirkt wie die Zoom-Knoepfe und
+        schaltet Auto-Size/-Breite ab (intern#204)."""
+        self._zoom_manually(self._base_font_size * pct / 100)
+
+    _SIZE_KEYS = ("lyrics/zoom_pct", "lyrics/auto_size", "lyrics/auto_width")
+
+    def apply_size_settings(self, settings, changed_keys) -> None:
+        """Zoom, Auto-Size und Auto-Breite aus dem Einstellungsdialog (intern#204).
+
+        Feste Reihenfolge statt der von changed_keys: Der Zoom schaltet wie die
+        Zoom-Knoepfe Auto-Size/-Breite ab, ein im selben Dialog gesetzter
+        Auto-Haken gewinnt danach. Auto-Breite zuletzt, sie gewinnt wie beim
+        Start ueber Auto-Size.
+        """
+        if not set(self._SIZE_KEYS) & set(changed_keys):
+            return
+        if "lyrics/zoom_pct" in changed_keys:
+            try:
+                self.set_zoom(int(settings.value("lyrics/zoom_pct", 100)))
+            except (TypeError, ValueError):
+                pass
+        if "lyrics/auto_size" in changed_keys:
+            self.set_auto_size(settings.value("lyrics/auto_size", True, type=bool))
+        if "lyrics/auto_width" in changed_keys:
+            self.set_auto_width(settings.value("lyrics/auto_width", False, type=bool))
+        # Der Zoom kann einen Haken abgeschaltet haben, Auto-Breite schaltet
+        # Auto-Size ab: die INI zeigt den wirklichen Zustand wie nach _save_layout().
+        settings.setValue("lyrics/auto_size", self._auto_size_enabled)
+        settings.setValue("lyrics/auto_width", self._auto_width_enabled)
+
+    def set_auto_size(self, on: bool):
+        """Auto-Size wie per Button; schaltet Auto-Breite ab (intern#204)."""
+        self._btn_auto_size.setChecked(on)
+
+    def set_auto_width(self, on: bool):
+        """Auto-Breite wie per Button; schaltet Auto-Size ab (intern#204)."""
+        self._btn_auto_width.setChecked(on)
+
+    def _zoom_manually(self, new_size: float):
         self._set_font_size(new_size)
         self._current_font_size = new_size
         self._update_zoom_label()

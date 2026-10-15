@@ -669,7 +669,7 @@ class NotesWidget(QWidget):
     _INSERT_POS_DEFAULT = "top"  # Einfuegeposition neuer Notizen: "top" | "middle" | "bottom"
     _INSERT_POSITIONS = ("top", "middle", "bottom")  # zugleich Reihenfolge des Umschalters
 
-    def __init__(self, db, app_dir: str = "", parent=None):
+    def __init__(self, db, app_dir: str = "", parent=None, session=None):
         super().__init__(parent)
         self._db = db
         self._notes_dir = os.path.join(app_dir, "notes") if app_dir else ""
@@ -684,6 +684,15 @@ class NotesWidget(QWidget):
         # Shortcode-Callback: wird von MainWindow gesetzt
         self.on_shortcode_execute = None   # Callable[[str, dict], None]
         self._build_ui()
+        # intern#142: Lokation aus der aktuellen Sitzung, auch fuer das spaet
+        # erzeugte Dock
+        if session is not None:
+            session.location_changed.connect(self._on_location_changed)
+            if session.location is not None:
+                self._on_location_changed(session.location)
+
+    def _on_location_changed(self, location):
+        self.refresh(location.id if location else None)
 
     # ── UI Build ──────────────────────────────────────────────────────────────
 

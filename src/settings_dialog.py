@@ -73,6 +73,7 @@ _RESTART_KEYS = {
     # Beide werden nur beim Aufbau des jeweiligen Widgets gelesen:
     "sort/default_mode",
     "sequences/only_program_default",
+    "sequences/show_hidden_on_start",
 }
 
 # ---------------------------------------------------------------------------
@@ -91,13 +92,24 @@ _RESTART_KEYS = {
 #       "step":         Schrittweite
 #       "suffix":       Einheit-String fuer SpinBox (z.B. " ms")
 #       "requires_restart": bool
+#       "default":      Anzeigewert, solange der Key nicht in der INI steht
 #   }
+#
+# Der Standardwert einer Einstellung steht an bis zu vier Stellen, die
+# zusammenpassen muessen (Fehlerkette intern#189, #195, #198, #199):
+#   1. die Lesestelle im Code: settings.value("sektion/key", <Standard>)
+#   2. P29MainWindow._write_ini_defaults() in main.py (schreibt beim Start)
+#   3. installer/callers_caddy_default.ini (mitgelieferte INI)
+#   4. "default" hier in SETTINGS_META (nur die Anzeige im Dialog)
+# Abgleich: tests/settings/test_settings_defaults.py (1 gegen 4) und
+# tests/settings/test_settings_reachable.py (jeder Key braucht 2 oder 3).
 SETTINGS_META: dict[str, dict] = {
     # --- display ---
     "display/skin": {
         "label": "Skin / Theme",
         "widget": "combobox",
         "choices": [],          # wird zur Laufzeit befuellt
+        "default": "default",
         "requires_restart": True,
     },
     "display/language": {
@@ -197,18 +209,27 @@ SETTINGS_META: dict[str, dict] = {
         "min": 0, "max": 500, "step": 1, "suffix": " ms",
         "tooltip": "Überblendzeit beim Loop-Übergang in Millisekunden.",
     },
+    "loop/finder_window_mode": {
+        "label": "Loop Finder: Suchfenster als",
+        "widget": "combobox",
+        "choices": [],          # zur Laufzeit (i18n) befuellt
+        "default": "pct",
+        "tooltip": ("Ob der Loop Finder die Suchfenster in Prozent der Songdauer "
+                    "oder als Zeit angibt (Loop-In ab Songbeginn, Loop-Out vor "
+                    "Songende). Umschalten im Loop Finder ändert diesen Wert mit."),
+    },
     # --- player ---
     "player/timer_warn1": {
         "label": "Timer-Warnung 1",
         "widget": "spinbox",
         "min": 0, "max": 3600, "step": 10, "suffix": " s",
-        "tooltip": "Erste Warnung X Sekunden vor Songabspielzeit.",
+        "tooltip": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 1.",
     },
     "player/timer_warn2": {
         "label": "Timer-Warnung 2",
         "widget": "spinbox",
         "min": 0, "max": 3600, "step": 10, "suffix": " s",
-        "tooltip": "Zweite Warnung X Sekunden vor Songabspielzeit.",
+        "tooltip": "Nach X Sekunden Spieldauer färbt sich die Spieldauer-Anzeige in Warnfarbe 2.",
     },
     # --- playlist ---
     "playlist/start_date": {
@@ -220,6 +241,7 @@ SETTINGS_META: dict[str, dict] = {
         "label": "Fade-Out-Dauer",
         "widget": "spinbox",
         "min": 0, "max": 30, "step": 1, "suffix": " s",
+        "default": 3,
     },
     "playlist/patter_fill_type": {
         "label": "Patter-Füllung im Planner",
@@ -274,7 +296,7 @@ SETTINGS_META: dict[str, dict] = {
     "sequences/zoom_pct": {
         "label": "Zoom",
         "widget": "spinbox",
-        "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "min": 50, "max": 200, "step": 10, "suffix": " %",
         "default": 100,
     },
     "sequences/only_program_default": {
@@ -282,6 +304,18 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "checkbox",
         "default": False,
         "tooltip": "Voreinstellung der \"Nur\"-Checkbox im Sequenzen-Fenster: nur Sequenzen, deren höchster Call im gewählten Programm liegt.",
+        "requires_restart": True,
+    },
+    "sequences/show_hidden_on_start": {
+        "label": "Ausgeblendete Sequenzen beim Start anzeigen",
+        "widget": "checkbox",
+        "default": False,
+        "tooltip": ("Startet das Sequenzen-Fenster wie „Auch ausgeblendete Sequenzen anzeigen“: "
+                    "Auch Sequenzen mit nicht zugeordneten Call-Texten (rot) erscheinen, die "
+                    "Tanzprogramm-Wahl ist für die Liste ausgesetzt. Achtung: Darunter können Calls "
+                    "aus anderen Programmen sein, und bei einer Programm-Änderung werden diese "
+                    "Sequenzen nicht automatisch neu eingestuft. Ein Umschalten per Rechtsklick "
+                    "gilt nur bis zum nächsten Start."),
         "requires_restart": True,
     },
     "sequences/auto_sync_program": {
@@ -299,7 +333,7 @@ SETTINGS_META: dict[str, dict] = {
     "notes/zoom_pct": {
         "label": "Zoom",
         "widget": "spinbox",
-        "min": 50, "max": 300, "step": 10, "suffix": " %",
+        "min": 50, "max": 200, "step": 10, "suffix": " %",
         "default": 100,
     },
     "notes/first_note_factor": {
@@ -713,6 +747,11 @@ class _SettingRow:
                     ("sort_random",          5),
                     ("sort_weighted_random", 6),
                 )]
+            elif self.full_key == "loop/finder_window_mode":
+                choices = [
+                    ("pct",  _t("lf_mode_pct_long")),
+                    ("time", _t("lf_mode_time_long")),
+                ]
             elif self.full_key == "playlist/patter_fill_type":
                 choices = [
                     ("infinite", _t("patter_fill_infinite")),

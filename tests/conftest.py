@@ -14,17 +14,40 @@ import pytest
 # dem Repo-Stamm -> Ausnahmen in Qt-Slots landeten in logs/crashes/ im Repo
 # (intern#159). setup() behaelt einen schon vorhandenen Logger, deshalb hier
 # vorab einen anlegen, der in ein Temp-Verzeichnis schreibt. Muss vor dem
-# Sammeln der Tests passieren (manche importieren main ganz oben).
+# Sammeln der Tests passieren (manche importieren main ganz oben). setup()
+# installiert auch gleich die Hooks, sonst faengt _no_crash_log Ausnahmen nur,
+# wenn vorher ein Test main importiert hat.
 # Am Ende wieder weg, solange leer; mit Crash-Log bleibt er zum Nachsehen.
 import crash_handler
 _crash_dir = tempfile.mkdtemp(prefix="cc-crash-")
-crash_handler._logger = crash_handler.CrashLogger(_crash_dir)
+crash_handler.setup(_crash_dir)
 
 
 @atexit.register
 def _remove_empty_crash_dir():
     with contextlib.suppress(OSError):
         os.rmdir(_crash_dir)
+
+
+def _crash_logs():
+    return set(crash_handler.CrashLogger.find_crash_logs(_crash_dir))
+
+
+@pytest.fixture(autouse=True)
+def _no_crash_log():
+    """Eine Ausnahme in einem Qt-Slot bricht den Test nicht ab, der
+    Crash-Handler schreibt sie nur ins Log, und die Suite bliebe gruen
+    (PR #119). Deshalb schlaegt der Test fehl, sobald waehrend seines Laufs
+    ein neues Crash-Log entsteht."""
+    before = _crash_logs()
+    yield
+    new = sorted(_crash_logs() - before)
+    if new:
+        with open(new[0], encoding="utf-8") as f:
+            text = f.read()
+        _, sep, exception = text.partition("--- Exception ---")
+        pytest.fail(f"Neues Crash-Log {new[0]}\n{sep + exception if sep else text}",
+                    pytrace=False)
 
 # Ohne Bildschirm rendern: so laufen die Tests auch ueber eine Remote-Sitzung
 # und blitzen beim Laufen keine Fenster auf. setdefault, damit man die Variable
@@ -34,9 +57,33 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 @pytest.fixture(scope="session")
 def qapp():
-    """Eine QApplication fuer die ganze Sitzung — Qt vertraegt nur eine."""
+    """Eine QApplication fuer die ganze Sitzung - Qt vertraegt nur eine."""
     from PySide6.QtWidgets import QApplication
     return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture
+def keep(qapp):
+    """Raeumt Widgets und Test-DBs am Testende ab: `w = keep(PlayerWidget(...))`.
+    Bleiben sie liegen, sammelt ein spaeterer gc.collect() sie an zufaelliger
+    Stelle ein - bei David brach so die volle Suite mit 0xc0000374 ab (PR #119).
+    Abgeraeumt wird in umgekehrter Reihenfolge, die DB also zuerst uebergeben."""
+    import shiboken6
+    from PySide6.QtCore import QObject
+    objs = []
+
+    def _keep(obj):
+        objs.append(obj)
+        return obj
+    yield _keep
+    # Aufgeschobene Aufrufe (QTimer.singleShot) noch zu Lebzeiten abarbeiten,
+    # sonst laufen sie spaeter gegen geloeschte Objekte
+    qapp.processEvents()
+    for obj in reversed(objs):
+        if isinstance(obj, QObject):
+            shiboken6.delete(obj)
+        else:
+            obj.close()
 
 
 @pytest.fixture(autouse=True)
@@ -46,3 +93,21 @@ def _fresh_fuzzy_cache(monkeypatch):
     haengt das Verhalten des Dialogs von der Testreihenfolge ab."""
     import sequence_mapper
     monkeypatch.setattr(sequence_mapper, "_fuzzy_cache", (None, {}))
+
+
+@pytest.fixture(autouse=True)
+def _no_modal_dialog(monkeypatch):
+    """Ein modales Fenster wartet offscreen ewig auf einen Klick, und die Suite
+    haengt ohne Meldung (so beim Neustart-Hinweis des Einstellungsdialogs).
+    Deshalb scheitert der Test sofort. Wer das Fenster bewusst ausloest,
+    ersetzt es im Test selbst per monkeypatch."""
+    from PySide6.QtWidgets import QDialog, QMessageBox
+
+    def _blocked(name):
+        def _fail(*args, **kwargs):
+            pytest.fail(f"Modales Fenster im Test: {name}() - im Test per "
+                        f"monkeypatch ersetzen", pytrace=False)
+        return _fail
+    for name in ("exec", "information", "warning", "question", "critical"):
+        monkeypatch.setattr(QMessageBox, name, _blocked(f"QMessageBox.{name}"))
+    monkeypatch.setattr(QDialog, "exec", _blocked("QDialog.exec"))

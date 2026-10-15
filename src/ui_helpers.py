@@ -844,6 +844,24 @@ def _style_date_cell(item, inherited: bool):
     item.setToolTip(_t("tooltip_added_inherited"))
 
 
+def show_center_overlay(parent, text: str) -> QLabel:
+    """Zeigt einen Hinweis zentriert ueber parent ("Bitte warten" u. ae.).
+
+    Gibt das Label zurueck; der Aufrufer entfernt es mit deleteLater().
+    """
+    overlay = QLabel(text, parent)
+    overlay.setAlignment(Qt.AlignCenter)
+    overlay.setStyleSheet(
+        "background: rgba(0,0,0,180); color: white; font-size: 16px; "
+        "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
+    overlay.adjustSize()
+    overlay.move((parent.width() - overlay.width()) // 2,
+                 (parent.height() - overlay.height()) // 2)
+    overlay.show()
+    overlay.raise_()
+    return overlay
+
+
 def mark_toggle(btn, active=False):
     """Einheitliche Toggle-Semantik fuer das Theme-QSS (gemeinsamer Code fuer
     alle umschaltbaren Buttons).

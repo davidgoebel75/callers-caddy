@@ -16,6 +16,8 @@
 - Versionsnummer: `0.XX` (XX = Prototyp-Nummer, zweistellig). Ab offiziellem Launch: `2.0+` (1.x war die alte Version).
 - Siehe „Versions-Bump — PFLICHT-DOPPELPACK" und „Branches und Release".
 
+**Zehnerbloecke:** `CHANGELOG.md` enthaelt nur `(Unreleased)` und den laufenden Zehnerblock (z. B. 0.160 bis 0.169). Aeltere Versionen liegen je Block in `docs/changelog/0.150-0.159.md` usw.; das Verzeichnis steht am Ende von `CHANGELOG.md`. `tools/bump_version.py` lagert den vollen Block beim Bump auf 0.170 selbst aus — nie von Hand verschieben. Neue Eintraege kommen immer in `CHANGELOG.md`; wer eine alte Version sucht, liest gezielt die eine Archivdatei.
+
 ## Branches und Release
 
 `develop` ist Default-Branch und Sammelstelle fuer alles Fertige. `main` enthaelt nur veroeffentlichte Staende.
@@ -44,7 +46,7 @@
 - **`2_Test/`, `3_Build/`, `4_Release/` liegen pro Rechner ausserhalb des Repos:** `2_Test/` = Testumgebung ohne Code (DB, INI, Songs, Skins), CWD beim Dev-Start. `3_Build/` = PyInstaller-Workspace, `4_Release/` = fertige ZIPs pro Version (`X.XX/`). `build.py` nimmt sie aus `CC_BUILD_DIR` und `CC_RELEASE_DIR`, ohne diese Variablen neben dem Klon.
 - **Bauen**: `cd installer && python build.py` — erzeugt EXEs in 3_Build/, ZIPs in 4_Release/
 - **3 ZIP-Typen**: Vollpaket (Neuinstallation), Update (ohne DB/INI/User-Ordner), Source-Code
-- **Pre-Commit-Hook** (`.githooks/pre-commit`): Steckt `src/*.py` oder `src/*.json` im Commit, laufen `pyflakes` (falls in der venv), `tests/settings/test_settings_i18n.py`, `tests/settings/test_settings_reachable.py` (fehlende Uebersetzungen bzw. `SETTINGS_META`-Eintraege) und `tests/db/test_schema.py` (Update-Weg der DB von allen bekannten Altstaenden); schlaegt einer fehl, bricht der Commit ab. Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`. Nimmt `.venv` sonst `python` aus dem PATH. Notfall: `git commit --no-verify`.
+- **Pre-Commit-Hook** (`.githooks/pre-commit`, was er prueft steht dort): einmal pro Klon `git config core.hooksPath .githooks`. Notfall: `git commit --no-verify`.
 - **Tests** (`tests/`, nach Fachthema gruppiert, `pytest.ini` im Stamm): Ordnerliste in `CODING_STANDARDS.md`.
 
 ## Zusammenarbeit — Debugging-Regel

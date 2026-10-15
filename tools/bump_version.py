@@ -6,9 +6,13 @@ veroeffentlichte Version gibt die naechste vor (0.159 -> 0.160), src/main.py
 wird nachgezogen. Damit kann die Nummer dort nicht mehr hinterherhaengen --
 genau das war bei 0.159 passiert.
 
+CHANGELOG.md haelt nur "Unreleased" und den laufenden Zehnerblock (0.160 bis
+0.169). Beginnt der Bump einen neuen Block (0.170), wandert der volle nach
+docs/changelog/0.160-0.169.md (intern#203).
+
 Aufrufe:
     python tools/bump_version.py --title "Kurztitel"
-    python tools/bump_version.py --version 2.0 --title "Launch"
+    python tools/bump_version.py --version 0.170 --title "Kurztitel"
     python tools/bump_version.py --check      # nur pruefen, nichts schreiben
 """
 from __future__ import annotations
@@ -28,6 +32,12 @@ UNRELEASED_RE = re.compile(r"^##\s*\(Unreleased[^\n]*\)[ \t]*$", re.M)
 RELEASED_RE = re.compile(r"^##\s+(\d+\.\d+)\b", re.M)
 VERSION_RE = re.compile(r'^__version__\s*=\s*["\'][^"\']+["\']', re.M)
 
+ARCHIVE_DIR = "docs/changelog"
+# Verzeichnis der Archivdateien am Ende von CHANGELOG.md, wird bei jedem Umzug neu geschrieben.
+ARCHIVE_INDEX_HEADING = "## Ältere Versionen"
+ARCHIVE_INDEX_RE = re.compile(rf"^{re.escape(ARCHIVE_INDEX_HEADING)}[ \t]*$", re.M)
+ARCHIVE_NAME_RE = re.compile(r"^0\.(\d+)-0\.\d+\.md$")
+
 
 def next_version(changelog: str) -> str:
     """Zaehlt die oberste veroeffentlichte Version um eins hoch."""
@@ -37,6 +47,17 @@ def next_version(changelog: str) -> str:
     major, minor = m.group(1).split(".", 1)
     # Stellenzahl beibehalten: 0.159 -> 0.160, nicht 0.16
     return f"{major}.{str(int(minor) + 1).zfill(len(minor))}"
+
+
+def version_key(version: str) -> tuple[int, ...]:
+    """Vergleichswert einer Nummer: '0.161' -> (0, 161), '0.16' -> (0, 16)."""
+    return tuple(int(part) for part in version.split("."))
+
+
+def write_lf(path: Path, text: str) -> None:
+    """Schreibt UTF-8 mit LF: das Repo ist durchgehend LF (siehe .gitattributes)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
 
 
 def unreleased_section(changelog: str) -> tuple[re.Match, str]:
@@ -52,6 +73,76 @@ def unreleased_section(changelog: str) -> tuple[re.Match, str]:
     return head, rest[: nxt.start()] if nxt else rest
 
 
+def block_start(version: str) -> int:
+    """Anfang des Zehnerblocks einer Version: 0.161 -> 160, 0.07 -> 0."""
+    m = re.fullmatch(r"0\.(\d+)", version)
+    if not m:
+        raise SystemExit(
+            f"FEHLER: unbekanntes Nummernformat '{version}' — die Zehnerbloecke des "
+            "Changelogs sind nur fuer 0.XX festgelegt. Erst die Benennung der "
+            f"Archivdateien klaeren (intern#203), dann {Path(__file__).name} anpassen."
+        )
+    return int(m.group(1)) // 10 * 10
+
+
+def block_label(start: int, sep: str = "-") -> str:
+    """Name eines Zehnerblocks: 160 -> '0.160-0.169', 0 -> '0.00-0.09'."""
+    return f"0.{start:02d}{sep}0.{start + 9:02d}"
+
+
+def archive_full_blocks(changelog: str, current_version: str,
+                        root: Path) -> tuple[str, dict[str, str]]:
+    """Lagert alle Abschnitte ausserhalb des laufenden Zehnerblocks aus.
+
+    Schreibt nichts: gibt das gekuerzte Changelog und den neuen Inhalt je
+    Archivdatei zurueck (Pfad relativ zu root). Die Abschnitte wandern
+    unveraendert, neueste Version zuerst.
+    """
+    current = block_start(current_version)
+    index_pos = ARCHIVE_INDEX_RE.search(changelog)
+    if index_pos:
+        changelog = changelog[:index_pos.start()]
+    # Vor jedem '## ' trennen: parts[0] ist der Dateikopf, danach je ein Abschnitt.
+    parts = re.split(r"^(?=##\s)", changelog, flags=re.M)
+    kept, moved = [parts[0]], {}
+    for section in parts[1:]:
+        m = RELEASED_RE.match(section)
+        if m and block_start(m.group(1)) != current:
+            moved.setdefault(block_start(m.group(1)), []).append(section)
+        else:
+            kept.append(section)
+
+    archive_dir = root / ARCHIVE_DIR
+    files = {}
+    for start, sections in moved.items():
+        path = archive_dir / f"{block_label(start)}.md"
+        head = f"# Callers Caddy — Changelog {block_label(start, '–')}\n\n"
+        older = ""
+        if path.exists():
+            existing = path.read_text(encoding="utf-8")
+            if not existing.startswith(head):
+                raise SystemExit(
+                    f"FEHLER: {ARCHIVE_DIR}/{path.name} beginnt nicht mit dem erwarteten "
+                    f"Kopf '{head.strip()}' -- Abbruch, damit nichts verloren geht."
+                )
+            older = existing[len(head):]
+        body = "".join(sections)
+        if older and not body.endswith("\n\n"):
+            body = body.rstrip("\n") + "\n\n"
+        # Der Trenner hinter dem letzten Abschnitt hat in der Archivdatei keinen Nachfolger.
+        text = re.sub(r"\n+---\s*\Z", "", (head + body + older).rstrip("\n"))
+        files[f"{ARCHIVE_DIR}/{path.name}"] = text + "\n"
+
+    starts = {int(m.group(1)) for f in archive_dir.glob("*.md")
+              if (m := ARCHIVE_NAME_RE.match(f.name))} | set(moved)
+    result = "".join(kept).rstrip("\n") + "\n"
+    if starts:
+        links = "".join(f"- [{block_label(s, '–')}]({ARCHIVE_DIR}/{block_label(s)}.md)\n"
+                        for s in sorted(starts, reverse=True))
+        result += f"\n{ARCHIVE_INDEX_HEADING}\n\n{links}"
+    return result, files
+
+
 def bump(version: str = "", title: str = "", date: str = "", *, write: bool = True,
          root: Path = REPO_ROOT) -> str:
     """Setzt die Version in CHANGELOG.md und src/main.py. Gibt die Nummer zurueck."""
@@ -63,22 +154,38 @@ def bump(version: str = "", title: str = "", date: str = "", *, write: bool = Tr
     if not re.search(r"^\s*[-*]\s+\S", body, re.M):
         raise SystemExit("FEHLER: der Unreleased-Abschnitt hat keine Eintraege — Abbruch.")
 
-    version = version or next_version(changelog)
+    if version:
+        block_start(version)  # Nummernformat pruefen, bevor verglichen wird
+        top = RELEASED_RE.search(changelog)
+        # Ein Tippfehler (0.16 statt 0.160) wuerde sonst den laufenden Block auslagern.
+        if top and version_key(version) <= version_key(top.group(1)):
+            raise SystemExit(
+                f"FEHLER: Version {version} liegt nicht ueber der obersten "
+                f"veroeffentlichten {top.group(1)} -- Tippfehler bei --version?"
+            )
+    else:
+        version = next_version(changelog)
     date = date or dt.date.today().isoformat()
     heading = f"## {version} — {title} ({date})" if title else f"## {version} ({date})"
     changelog = changelog[: head.start()] + heading + changelog[head.end():]
+    # Erst umbenennen, dann auslagern: so bleibt die neue Version in CHANGELOG.md
+    # stehen und next_version() findet beim naechsten Bump immer eine Nummer.
+    changelog, archived = archive_full_blocks(changelog, version, root)
 
     main_py = main_path.read_text(encoding="utf-8")
     if not VERSION_RE.search(main_py):
         raise SystemExit(f"FEHLER: __version__ nicht in {main_path} gefunden")
     main_py = VERSION_RE.sub(f'__version__ = "{version}"', main_py, count=1)
 
+    # Geschrieben wird erst, wenn alle Pruefungen durch sind: ein Abbruch laesst
+    # kein Archiv ohne passendes CHANGELOG.md zurueck.
     if write:
-        # newline="\n": das Repo ist durchgehend LF (siehe .gitattributes)
-        with open(changelog_path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(changelog)
-        with open(main_path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(main_py)
+        for name, text in archived.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            write_lf(root / name, text)
+            print(f"ausgelagert: {name}")
+        write_lf(changelog_path, changelog)
+        write_lf(main_path, main_py)
     return version
 
 
