@@ -59,6 +59,9 @@ def test_anderer_inhalt_bei_gleicher_groesse_ist_ein_konflikt(dirs):
     (1_000_000_100, 1_000_000_000, NEWER),
     (1_000_000_000, 1_000_000_100, OLDER),
     (1_000_000_001, 1_000_000_000, UNCLEAR),     # innerhalb der Toleranz
+    (1_000_000_002, 1_000_000_000, UNCLEAR),     # Toleranzgrenze zaehlt noch dazu
+    (1_000_000_000, 1_000_000_002, UNCLEAR),
+    (1_000_000_003, 1_000_000_000, NEWER),       # knapp ausserhalb
 ])
 def test_vermutung_aus_dem_aenderungsdatum(dirs, src_mtime, dest_mtime, guess):
     outside, lyrics = dirs
@@ -108,6 +111,19 @@ def test_beide_behalten_verwendet_eine_inhaltsgleiche_kopie_wieder(conflict):
         "Song.html", "Song_1.html", "Song_2.html"]
 
 
+def test_beide_behalten_beginnt_bei_nummer_1(conflict):
+    c, lyrics = conflict
+    assert lyrics_files.resolve(c, KEEP_BOTH) == "Song_1.html"
+
+
+def test_beide_behalten_vergleicht_den_inhalt_nicht_nur_groesse_und_datum(conflict):
+    c, lyrics = conflict
+    ns = os.stat(c.src).st_mtime_ns
+    _write(lyrics / "Song_1.html", "xyz")                       # gleich gross ...
+    os.utime(lyrics / "Song_1.html", ns=(ns, ns))               # ... und gleich alt
+    assert lyrics_files.resolve(c, KEEP_BOTH) == "Song_2.html"
+
+
 def test_abgebrochenes_ersetzen_laesst_die_vorhandene_datei_ganz(conflict, monkeypatch):
     c, lyrics = conflict
     real_copy2 = lyrics_files.shutil.copy2
@@ -133,6 +149,18 @@ def test_vorhandene_weiterverwenden_aendert_nichts(conflict):
     assert (lyrics / "Song.html").read_text(encoding="utf-8") == "alt"
 
 
+def test_entscheidungen_sind_verschieden_und_nie_none():
+    # None heisst im Dialog "Abbrechen"
+    assert len({REPLACE, KEEP_BOTH, USE_EXISTING} - {None}) == 3
+
+
+def test_fehlende_quelldatei_meldet_fehler_statt_vorhandene_zu_verknuepfen(dirs):
+    outside, lyrics = dirs
+    _write(lyrics / "Song.html", "alt")
+    with pytest.raises(OSError):
+        lyrics_files.find_conflict(str(outside / "Song.html"), str(lyrics))
+
+
 def test_is_inside_erkennt_ordner_und_unterordner(dirs):
     outside, lyrics = dirs
     assert lyrics_files.is_inside(str(lyrics / "Song.html"), str(lyrics))
@@ -140,3 +168,10 @@ def test_is_inside_erkennt_ordner_und_unterordner(dirs):
     assert not lyrics_files.is_inside(str(outside / "Song.html"), str(lyrics))
     # Nachbarordner mit gleichem Namensanfang zaehlt nicht
     assert not lyrics_files.is_inside(str(lyrics) + "2/Song.html", str(lyrics))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Laufwerksbuchstaben gibt es nur unter Windows")
+def test_is_inside_anderes_laufwerk(dirs):
+    _outside, lyrics = dirs
+    other = "Z:\\" if not str(lyrics).upper().startswith("Z") else "Y:\\"
+    assert not lyrics_files.is_inside(other + "Song.html", str(lyrics))

@@ -33,6 +33,7 @@ import ceder_lookup
 import song_data_io
 import song_match
 import song_catalog
+import loop_windows
 
 
 def _app_version():
@@ -89,47 +90,60 @@ class _BulkTimingWorker(QThread):
 
 
 class _BulkAutoLoopWorker(QThread):
-    """Fuehrt Auto-Loop fuer eine Liste von Songs durch (Hintergrundthread)."""
+    """Fuehrt Auto-Loop fuer eine Liste von Songs durch (Hintergrundthread).
+
+    Schreibt nicht selbst in die Datenbank: jeder gefundene Loop geht per
+    loop_found an den Hauptthread, der ihn ueber song_db speichert (intern#207).
+    """
     progress = Signal(int, int, str)     # current, total, song_name
+    loop_found = Signal(int, float, float)  # song_id, loop_in, loop_out
     finished = Signal(int, int)          # done, skipped
     error = Signal(str)
 
-    def __init__(self, jobs, db_path, parent=None):
-        """jobs: list of (song_id, filepath, bpm, name)"""
+    def __init__(self, jobs, preset=None, parent=None):
+        """jobs: list of (song_id, filepath, bpm, name)
+
+        preset: Loop-Finder-Preset (intern#207), bestimmt Suchfenster,
+        Vergleichsfenster und Auswahlstrategie. None = Singing.
+        """
         super().__init__(parent)
         self._jobs = jobs
-        self._db_path = db_path
+        self._preset = preset or loop_windows.singing_preset()
         self._cancelled = False
 
     def cancel(self):
         self._cancelled = True
 
     def run(self):
-        import sqlite3 as _sql
+        import soundfile as _sf
         from loop_finder import find_loop_candidates, apply_selection_strategy
-        conn = _sql.connect(self._db_path)
+        compare_beats = int(self._preset.get("compare_beats", 16))
+        strategy = str(self._preset.get("selection_strategy", "best_64"))
         done = skipped = 0
-        try:
-            for i, (sid, fp, bpm, name) in enumerate(self._jobs):
-                if self._cancelled:
-                    break
-                self.progress.emit(i + 1, len(self._jobs), name)
-                try:
-                    candidates = find_loop_candidates(fp, bpm=bpm or None)
-                    chosen = apply_selection_strategy(candidates, 'best_64')
-                    if chosen:
-                        conn.execute(
-                            "UPDATE songs SET loop_in=?, loop_out=? WHERE id=?",
-                            (chosen.loop_in, chosen.loop_out, sid))
-                        conn.commit()
-                        done += 1
-                    else:
-                        skipped += 1
-                except Exception as e:
-                    print(f"[BulkAutoLoop] Fehler bei Song #{sid}: {e}")
+        for i, (sid, fp, bpm, name) in enumerate(self._jobs):
+            if self._cancelled:
+                break
+            self.progress.emit(i + 1, len(self._jobs), name)
+            try:
+                windows = loop_windows.resolve_windows(
+                    self._preset, _sf.info(fp).duration)
+                if windows is None:
+                    # Fenster passen nicht zur Songlaenge -> uebersprungen
                     skipped += 1
-        finally:
-            conn.close()
+                    continue
+                in_s, in_e, out_s, out_e = windows
+                candidates = find_loop_candidates(
+                    fp, bpm=bpm or None, compare_beats=compare_beats,
+                    in_start=in_s, in_end=in_e, out_start=out_s, out_end=out_e)
+                chosen = apply_selection_strategy(candidates, strategy)
+                if chosen:
+                    self.loop_found.emit(sid, chosen.loop_in, chosen.loop_out)
+                    done += 1
+                else:
+                    skipped += 1
+            except Exception as e:
+                print(f"[BulkAutoLoop] Fehler bei Song #{sid}: {e}")
+                skipped += 1
         self.finished.emit(done, skipped)
 
 
@@ -1408,7 +1422,7 @@ class _BeautifyDialog(QDialog):
     Aktionen sind vorausgewaehlt; loeschende (destruktive) Aktionen bewusst
     nicht. Aktionen ohne Faelle sind deaktiviert."""
 
-    def __init__(self, specs, parent=None):
+    def __init__(self, specs, parent=None, loop_preset_names=None):
         super().__init__(parent)
         self.setWindowTitle(_t('pot_beautify_title'))
         self.setMinimumWidth(440)
@@ -1445,12 +1459,30 @@ class _BeautifyDialog(QDialog):
         self._table = table
         layout.addWidget(table)
 
+        # intern#207: Loop-Finder-Preset fuer „Loops fehlen“
+        self._loop_preset_combo = None
+        if loop_preset_names and any(
+                sp['key'] == 'loop' and sp['count'] > 0 for sp in specs):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(_t('pot_bf_loop_preset')))
+            self._loop_preset_combo = QComboBox()
+            self._loop_preset_combo.addItems(loop_preset_names)
+            self._loop_preset_combo.setToolTip(_t('pot_loop_preset_tooltip'))
+            row.addWidget(self._loop_preset_combo, 1)
+            layout.addLayout(row)
+
         btns = QDialogButtonBox()
         self._run_btn = btns.addButton(_t('pot_beautify_run'), QDialogButtonBox.AcceptRole)
         btns.addButton(QDialogButtonBox.Cancel)
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
+
+    def loop_preset_name(self):
+        """Gewaehltes Loop-Finder-Preset oder None (keine Combo)."""
+        if self._loop_preset_combo is None:
+            return None
+        return self._loop_preset_combo.currentText()
 
     def selected_keys(self):
         keys = set()
@@ -2954,6 +2986,10 @@ class PotentialWidget(QWidget):
             QMessageBox.Yes | QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
+        preset = self._ask_loop_preset(_t('pot_fix_all_loop'))
+        if preset is None:
+            return
+        self._bulk_loop_preset = preset
 
         jobs = []
         for sid, title, filename in rows:
@@ -3003,12 +3039,48 @@ class PotentialWidget(QWidget):
     def _run_bulk_autoloop(self, jobs):
         self._show_progress(_t('pot_processing', current=0, total=len(jobs)),
                             cancel_fn=self._cancel_bulk)
-        self._bulk_worker = _BulkAutoLoopWorker(jobs, self.db.db_path)
+        self._bulk_worker = _BulkAutoLoopWorker(
+            jobs, preset=getattr(self, '_bulk_loop_preset', None))
+        self._bulk_worker.loop_found.connect(self._store_found_loop)
         self._bulk_worker.progress.connect(
             lambda c, t, name: self._update_progress(
                 _t('pot_processing', current=c, total=t) + f"\n{name}"))
         self._bulk_worker.finished.connect(self._on_bulk_done)
         self._bulk_worker.start()
+
+    # ---- Loop-Finder-Presets (intern#207) ----
+
+    def _loop_preset_names(self):
+        """Dieselbe Liste wie in der Rule „Auto-Set Best Loop“."""
+        from loopfinder_widget import LoopFinderWidget
+        return LoopFinderWidget.list_preset_names(
+            getattr(self.paths, 'loop_presets_dir', None))
+
+    def _load_loop_preset(self, name):
+        """Preset per Name fuer Songs OHNE Loop.
+
+        Die Optimize-Stufen haengen an vorhandenen Marken, die diese Songs
+        nicht haben; sie fallen deshalb wie im Loop Finder auf Singing zurueck.
+        """
+        from loopfinder_widget import LoopFinderWidget
+        name = LoopFinderWidget.PRESET_ALIASES.get(name, name)
+        if name in LoopFinderWidget.OPTIMIZE_PRESETS:
+            return loop_windows.singing_preset()
+        return loop_windows.load_preset_file(
+            name, getattr(self.paths, 'loop_presets_dir', None))
+
+    def _store_found_loop(self, song_id, loop_in, loop_out):
+        """Speichert einen Loop aus dem Bulk-Auto-Loop (Hauptthread, ueber song_db)."""
+        self.db.save_playback_settings(song_id, loop_in=loop_in, loop_out=loop_out)
+
+    def _ask_loop_preset(self, title):
+        """Fragt das Preset vor dem Start ab; None = abgebrochen."""
+        names = self._loop_preset_names()
+        name, ok = QInputDialog.getItem(
+            self, title, _t('pot_loop_preset_prompt'), names, 0, False)
+        if not ok or not name:
+            return None
+        return self._load_loop_preset(name)
 
     def _fix_all_beatsnap(self):
         """Beat-Snap fuer alle Songs mit Loop aber ohne BeatSnap."""
@@ -4540,9 +4612,12 @@ class PotentialWidget(QWidget):
             QMessageBox.information(self, _t('pot_beautify_title'),
                                     _t('pot_beautify_nothing'))
             return
-        dlg = _BeautifyDialog(specs, self)
+        dlg = _BeautifyDialog(specs, self,
+                              loop_preset_names=self._loop_preset_names())
         if dlg.exec() != QDialog.Accepted:
             return
+        name = dlg.loop_preset_name()
+        self._bf_loop_preset = self._load_loop_preset(name) if name else None
         keys = dlg.selected_keys()
         selected = [s for s in specs if s['key'] in keys and s['count'] > 0]
         if not selected:
@@ -4634,7 +4709,10 @@ class PotentialWidget(QWidget):
         if not jobs:
             self._beautify_step_done(0, 0)
             return
-        self._beautify_run_worker(_BulkAutoLoopWorker(jobs, self.db.db_path))
+        worker = _BulkAutoLoopWorker(
+            jobs, preset=getattr(self, '_bf_loop_preset', None))
+        worker.loop_found.connect(self._store_found_loop)
+        self._beautify_run_worker(worker)
 
     def _bf_run_beatsnap(self):
         jobs = []
