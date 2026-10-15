@@ -6,7 +6,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
-## (Unreleased — seit 0.161)
+## 0.162 — Loop Finder mit Zeitfenstern, Doppelklick in der Playlist & ausgeblendete Sequenzen beim Start (2026-10-15)
 
 ### Verbesserungen
 - **Loop Finder: Suchfenster wahlweise als Zeit statt in Prozent.** Neben den Presets sitzt ein neuer Umschalter „% / Zeit“. Im Zeitmodus gibt man das Loop-In-Fenster ab Songbeginn an (z. B. +0:20 bis +0:59) und das Loop-Out-Fenster vor Songende (z. B. −0:50 bis −0:20). Das hilft bei Songs, deren Intro und Outro immer etwa gleich lang sind, egal wie lang der Song ist. Beim Umschalten werden die Werte anhand des geladenen Songs umgerechnet. Ist noch kein Song geladen, gelten Standardwerte (Zeit: +0:20 bis +0:59 und −0:50 bis −0:20). Presets merken sich jetzt, ob sie in Prozent oder als Zeit angelegt wurden. Bestehende Presets gelten weiter als Prozent und laufen unverändert. Der zuletzt gewählte Modus bleibt erhalten und lässt sich auch in den Einstellungen unter Loop festlegen. Passen die Fenster nicht zur Songlänge, etwa bei einem sehr kurzen Song, wird nicht gesucht und es erscheint ein Hinweis. Das gilt auch für die Regel „Auto-Set Best Loop“. In Potential fragen „Alle Loops setzen“ und der Schritt „Loops fehlen“ in „Mach alles schön“ jetzt nach dem Preset. Bisher galten dort feste Fenster (0–25 % und 75–100 %). Vorausgewählt ist jetzt „Singing“ (7–21 % und 64–79 %), Patter-Songs bekommen beim einfachen Bestätigen also kürzere Loops als bisher. Wer das alte Verhalten möchte, legt sich dafür ein eigenes Preset an. Songs, zu deren Länge die Fenster nicht passen, werden dort übersprungen.
