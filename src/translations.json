@@ -10458,6 +10458,21 @@
     "en": "The lyrics file could not be copied to the lyrics folder: {error}",
     "ja": "Lyrics ファイルを Lyrics フォルダーにコピーできませんでした: {error}"
   },
+  "zip_preview_linked": {
+    "de": "Ist schon als Variante bei „{title}“ verknüpft und wird übersprungen.",
+    "en": "Already linked as a variant of “{title}” and will be skipped.",
+    "ja": "「{title}」のバリエーションとして既にリンクされているため、スキップされます。"
+  },
+  "zip_skipped_linked": {
+    "de": "{count} Datei(en) übersprungen, weil sie schon bei einem anderen Song verknüpft sind:",
+    "en": "{count} file(s) skipped because they are already linked to another song:",
+    "ja": "{count} 件のファイルは既に別の曲にリンクされているため、スキップされました:"
+  },
+  "zip_skipped_linked_file": {
+    "de": "  • {name} (bei „{title}“)",
+    "en": "  • {name} (in “{title}”)",
+    "ja": "  • {name}（「{title}」）"
+  },
   "lf_mode_time": {
     "de": "Zeit",
     "en": "Time",

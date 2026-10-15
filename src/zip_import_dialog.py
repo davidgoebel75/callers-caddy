@@ -275,7 +275,7 @@ class ZipImportPreviewDialog(QDialog):
     """
 
     def __init__(self, result, lists, lists_path: str, parent=None,
-                 audition_cb=None, dup_lookup=None):
+                 audition_cb=None, dup_lookup=None, linked_lookup=None):
         super().__init__(parent)
         self.setWindowTitle(_t("zip_preview_title"))
         self._result = result
@@ -285,6 +285,9 @@ class ZipImportPreviewDialog(QDialog):
         self._audition_cb = audition_cb   # callable(path) -> 'playing'|'paused'
         # callable(filename) -> Titel des vorhandenen Songs oder None (Duplikat)
         self._dup_lookup = dup_lookup
+        # callable(path) -> Titel des Songs, bei dem die Datei schon als
+        # Variante verknuepft ist, oder None (intern#132)
+        self._linked_lookup = linked_lookup
         self._groups_ui = []   # je ZIP: {"group", "host", "bundles"}
         self.resize(760, 640)
 
@@ -508,18 +511,31 @@ class ZipImportPreviewDialog(QDialog):
 
     def _refresh_dup(self, ui):
         """Zeigt den Duplikat-Hinweis, wenn die Hauptspur (Zeile 0) schon als
-        Song in der DB steht. Aenderung der Reihenfolge prueft neu."""
-        title = None
+        Song in der DB steht. Aenderung der Reihenfolge prueft neu.
+
+        intern#132: Ist sie stattdessen schon Variante eines anderen Songs,
+        erscheint ein eigener Hinweis ohne Anhaengen-Option; der Import
+        ueberspringt sie.
+        """
+        title = linked = None
         item = ui["mp3"].item(0, 0)
         if self._dup_lookup is not None and item is not None:
             try:
                 title = self._dup_lookup(item.text())
             except Exception:
                 title = None
+        if title is None and self._linked_lookup is not None and item is not None:
+            try:
+                linked = self._linked_lookup(item.data(Qt.UserRole))
+            except Exception:
+                linked = None
         ui["is_dup"] = title is not None
-        ui["dup_row"].setVisible(title is not None)
+        ui["dup_row"].setVisible(title is not None or linked is not None)
+        ui["dup_chk"].setVisible(title is not None)
         if title is not None:
             ui["dup_lbl"].setText(_t("zip_preview_dup", title=title))
+        elif linked is not None:
+            ui["dup_lbl"].setText(_t("zip_preview_linked", title=linked))
 
     def _mark_primary(self, table):
         """Hebt Zeile 0 (Hauptlied) optisch hervor."""
