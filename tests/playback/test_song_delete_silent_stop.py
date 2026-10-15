@@ -230,9 +230,14 @@ def test_nachfrage_ohne_laufenden_song_in_der_auswahl(fragen):
     assert "Hey Baby" not in fragen[0]
 
 
-def test_nach_dem_massen_loeschen_raeumt_das_hauptfenster_auf(fragen):
+def test_nach_dem_massen_loeschen_raeumt_das_hauptfenster_auf(fragen, monkeypatch):
     pot = _Potential([3, 7])
     pot._bulk_delete_ids = [3, 7]
+    # Aufgeraeumt sein muss schon, wenn die Fertig-Meldung aufgeht: Endet der
+    # geloeschte Song waehrend der offenen Meldung, kaemen sonst Feedback und Rules
+    bei_meldung = []
+    monkeypatch.setattr(potential_widget.QMessageBox, "information",
+                        lambda *_a: bei_meldung.append(list(pot.deleted)))
     pot._on_bulk_delete_finished(2)
-    assert pot.deleted == [[3, 7]]
-    assert pot.refreshed == 0             # frischt das Hauptfenster einmal auf
+    assert bei_meldung == [[[3, 7]]]
+    assert pot.refreshed == 0     # das Hauptfenster frischt das Potential auf

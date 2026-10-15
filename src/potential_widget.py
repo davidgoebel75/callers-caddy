@@ -1610,6 +1610,7 @@ class PotentialWidget(QWidget):
         self._current_data = []  # [(entity_id, display_name, description), ...]
         self._bulk_worker = None
         self._bulk_delete_worker = None   # BL-148: Massen-Loesch-Worker
+        self._bulk_delete_ids = []        # IDs des laufenden Massen-Loeschens
         self._timing_worker = None
         self._progress_dlg = None
         self._no_mp3_cached_count = None   # None = noch nicht geprueft (Lazy)
@@ -2447,14 +2448,16 @@ class PotentialWidget(QWidget):
 
     def _on_bulk_delete_finished(self, deleted):
         self._bulk_delete_worker = None
+        # Hauptfenster raeumt Playlist/Player/Song Data auf und frischt
+        # Songliste, Planner und Potential (Badge-Counts) je einmal auf.
+        # Vor der Meldung: sonst spielt ein geloeschter Song weiter, solange
+        # sie offen ist, und sein Ende brachte Feedback und Rules.
+        if self.on_songs_deleted:
+            self.on_songs_deleted(self._bulk_delete_ids)
+        self._load_bulk_table()   # Tabelle neu laden (geloeschte raus)
         QMessageBox.information(
             self, _t('pot_bulk_done_title'),
             _t('pot_bulk_done_text').format(n=deleted))
-        self._load_bulk_table()   # Tabelle neu laden (geloeschte raus)
-        # Hauptfenster raeumt Playlist/Player/Song Data auf und frischt
-        # Songliste, Planner und Potential (Badge-Counts) je einmal auf
-        if self.on_songs_deleted:
-            self.on_songs_deleted(self._bulk_delete_ids)
 
     def _on_bulk_delete_error(self, msg):
         self._bulk_delete_worker = None
