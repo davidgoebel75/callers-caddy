@@ -150,6 +150,7 @@ from path_manager import PathManager
 from skin_manager import SkinManager
 from settings_dialog import SettingsDialog
 from i18n import _t, set_language, get_language, get_available_languages
+from qt_translation import install_qt_translation
 from tutorial_engine import TutorialEngine
 from tutorial_definitions import TUTORIALS
 from notes_widget import NotesWidget
@@ -8140,6 +8141,7 @@ def main():
     else:
         lang = str(lang)
     set_language(lang)
+    install_qt_translation(lang)
 
     # Performance-Logging aus INI (Default: aus)
     _perf_enabled = str(settings.value("debug/performance_logging", "false")).lower() == "true"
