@@ -818,7 +818,7 @@ class P29MainWindow(QMainWindow):
         self.song_data.set_lang(get_language())
         self.song_data.on_song_saved = self._on_song_saved
         self.song_data.on_file_changed = self._on_song_file_changed
-        self.song_data.on_song_deleted = self._on_song_deleted
+        self.song_data.on_song_deleted = lambda sid: self._on_songs_deleted([sid])
         self.song_data.on_music_variant = self._on_song_file_changed
         self.song_data.on_lyric_variant = self._on_lyric_variant
         self.song_data.on_marker_jump = self._jump_to_time  # BL-185
@@ -3173,6 +3173,10 @@ class P29MainWindow(QMainWindow):
         self.potential_widget.on_play_song = self._on_qe_play_song
         self.potential_widget.on_stop_song = self._on_qe_stop_song
         self.potential_widget.on_bulk_done = self._on_potential_bulk_done
+        self.potential_widget.on_songs_deleted = self._on_songs_deleted
+        self.potential_widget.get_running_song = lambda: (
+            self._current_song
+            if self.engine.is_playing() or self.engine.is_paused() else None)
         self.potential_widget.paths = self.paths
         self.dock_potential.setWidget(self.potential_widget)
         self.tutorial_engine.register_widget("potential", self.potential_widget)
@@ -3769,10 +3773,12 @@ class P29MainWindow(QMainWindow):
         self.song_data.load_song(song)
         self.song_data._on_delete_song()
 
-    def _on_song_deleted(self, song_id):
-        """Callback nachdem ein Song geloescht wurde."""
-        # Falls der geloeschte Song gerade geladen ist: Player stoppen
-        if self._current_song and self._current_song.id == song_id:
+    def _on_songs_deleted(self, song_ids):
+        """Callback nachdem Songs geloescht wurden (einzeln oder per
+        Massen-Loeschen im Potential, intern#214)."""
+        song_ids = set(song_ids)
+        # Falls ein geloeschter Song gerade geladen ist: Player stoppen
+        if self._current_song and self._current_song.id in song_ids:
             # intern#212: still stoppen - kein Feedback, keine Rules fuer
             # einen Song, den es gleich nicht mehr gibt
             self._stop_silently = True
@@ -3784,9 +3790,12 @@ class P29MainWindow(QMainWindow):
             self.player.clear_loaded_song()
             if hasattr(self, "lyrics_widget"):
                 self.lyrics_widget.clear()
-        # Kein Rest des Songs mehr sichtbar oder per Doppelklick startbar
-        self.song_data.clear_song()
-        self.playlist_widget.remove_song(song_id)
+        # Kein Rest der Songs mehr sichtbar oder per Doppelklick startbar.
+        # Song Data zeigt evtl. einen anderen Song, der bleibt stehen.
+        shown = self.song_data._current_song
+        if shown is None or shown.id in song_ids:
+            self.song_data.clear_song()
+        self.playlist_widget.remove_songs(song_ids)
         self.song_list.refresh()
         self.playlist_manager.refresh()
         if hasattr(self, 'potential_widget') and self.potential_widget:

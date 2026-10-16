@@ -10,6 +10,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Schaltflächen in Rückfragen erscheinen in der eingestellten Sprache.** Bei deutscher oder japanischer Oberfläche standen in vielen Rückfragen trotzdem „Yes“, „No“ und „Cancel“, etwa beim Massen-Löschen im Potential. Jetzt heißen sie „Ja“, „Nein“ und „Abbrechen“ (bzw. Japanisch). Das gilt für alle Standard-Dialoge, auch für Datei-Dialoge und das Rechtsklick-Menü in Textfeldern, und ebenso im Class Designer und im Migrations-Tool.
+- **Massen-Löschen im Potential räumt jetzt auf wie das Einzel-Löschen.** Gelöschte Songs verschwinden aus der Playlist und lassen sich dort nicht mehr per Doppelklick starten. Ist ein gelöschter Song gerade geladen, stoppt der Player still, ohne Feedback-Fenster und ohne Regeln für „Song gestoppt“. Player, Song-Daten und Lyrics werden dann geleert. Läuft einer der ausgewählten Songs gerade oder ist er pausiert, sagt die Sicherheits-Nachfrage das vorher dazu. Songliste, Planner und Potential werden danach je einmal aufgefrischt.
 
 ---
 
