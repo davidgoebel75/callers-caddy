@@ -580,8 +580,9 @@ from loop_windows import resolve_windows as resolve_loop_windows
 #  Break-Timer — Pausen-Uhr (Countdown + Fortschrittsbalken)
 # ================================================================
 
-# --- Pause/Foto -> break_photo_widget.py (BL-201, Stufe 10) ----------------
-from break_photo_widget import BreakWidget, PhotoWidget
+# --- Pausen-Uhr und Foto -> Fachpakete unter caddy/ (intern#220) -----------
+from caddy.playback.break_widget import BreakWidget
+from caddy.camera.photo_widget import PhotoWidget
 
 
 
