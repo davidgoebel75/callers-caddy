@@ -82,15 +82,35 @@ def test_start_knopf_meldet_frischen_start(uhr):
     assert uhr.events == [("started", False)]
 
 
-def test_ablauf_meldet_finished_und_haelt_an(uhr, monkeypatch):
+@pytest.fixture
+def takt(uhr, monkeypatch):
+    """Gestellte Uhrzeit: takt(t) setzt die Zeit und loest einen Timer-Tick aus."""
     import caddy.playback.break_widget as modul
-    uhr_zeit = iter([100.0, 161.0])
-    monkeypatch.setattr(modul.time, "monotonic", lambda: next(uhr_zeit))
+    jetzt = [0.0]
+    monkeypatch.setattr(modul.time, "monotonic", lambda: jetzt[0])
+
+    def _takt(t):
+        jetzt[0] = t
+        uhr._timer.timeout.emit()
+    return _takt
+
+
+def test_ablauf_meldet_finished_und_haelt_an(uhr, takt):
     uhr.start_break(60)
-    uhr._timer.timeout.emit()                   # erster Tick: nur Zeitmarke
-    uhr._timer.timeout.emit()                   # 61 s spaeter: abgelaufen
+    takt(100.0)                                 # erster Tick: nur Zeitmarke
+    takt(161.0)                                 # 61 s spaeter: abgelaufen
     assert uhr.state.finished and not uhr.state.running
     assert uhr.events == [("started", False), ("finished",)]
+
+
+def test_neustart_laufender_uhr_misst_die_zeit_neu(uhr, takt):
+    uhr.start_break(60)
+    takt(100.0)
+    takt(110.0)
+    assert uhr.state.remaining == 50
+    uhr.start_break(60)                         # Rule-Aktion bei laufender Uhr
+    takt(110.2)                                 # erster Tick danach: nur Zeitmarke
+    assert uhr.state.remaining == 60
 
 
 def test_reset_knopf_meldet_kein_finished(uhr):

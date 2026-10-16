@@ -7,6 +7,10 @@ from dataclasses import dataclass, replace
 
 QT_FREE = True
 
+# Ereignisse, die reduce() meldet
+STARTED = "started"     # frischer Start (nicht Fortsetzen)
+FINISHED = "finished"   # echter Ablauf auf 0 (nicht Reset/Abbruch)
+
 
 @dataclass(frozen=True)
 class BreakState:
@@ -51,7 +55,10 @@ class Tick:
     dt: float
 
 
-def reduce(state, action):
+Action = Start | Pause | Reset | SetDuration | Restart | Tick
+
+
+def reduce(state: BreakState, action: Action) -> tuple[BreakState, tuple[str, ...]]:
     match action:
         case Start():
             # Frisch = volle Restzeit oder abgelaufen; Fortsetzen nach Anhalten
@@ -59,7 +66,7 @@ def reduce(state, action):
             if state.finished or state.remaining <= 0:
                 state = replace(state, remaining=state.total, finished=False)
             fresh = state.remaining >= state.total
-            return replace(state, running=True), ("started",) if fresh else ()
+            return replace(state, running=True), (STARTED,) if fresh else ()
         case Pause():
             return replace(state, running=False), ()
         case Reset():
@@ -74,7 +81,7 @@ def reduce(state, action):
         case Restart(seconds):
             state, _ = reduce(replace(state, running=False), SetDuration(seconds))
             return (BreakState(total=state.total, remaining=state.total,
-                               running=True), ("started",))
+                               running=True), (STARTED,))
         case Tick(dt):
             if not state.running:
                 return state, ()
@@ -82,5 +89,5 @@ def reduce(state, action):
             if remaining > 0:
                 return replace(state, remaining=remaining), ()
             return (replace(state, remaining=0.0, running=False, finished=True),
-                    ("finished",))
+                    (FINISHED,))
     raise TypeError(f"Unbekannte Aktion: {action!r}")

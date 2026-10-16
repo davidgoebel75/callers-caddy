@@ -14,7 +14,8 @@ from PySide6.QtCore import Qt, QTimer, Signal, QRect
 from PySide6.QtGui import QPainter, QColor, QPen, QCursor
 
 from caddy.playback.break_clock import (
-    BreakState, Pause, Reset, Restart, SetDuration, Start, Tick, reduce,
+    FINISHED, STARTED, BreakState, Pause, Reset, Restart, SetDuration, Start,
+    Tick, reduce,
 )
 from i18n import _t
 
@@ -96,10 +97,8 @@ class BreakDisplay(QWidget):
         p.end()
 
 
-
-
 class BreakWidget(QWidget):
-    """Pausen-Uhr fuer Tipp-Pausen: Countdown mit Digital-Anzeige + Balken.
+    """Pausen-Uhr zwischen zwei Tips: Countdown mit Digital-Anzeige + Balken.
 
     Angedockt; Klick auf die Uhr -> Dauer aendern. Optionaler Button spielt
     den zuletzt gespielten Song als Wartemusik (ohne Historie, Rules gesperrt).
@@ -189,14 +188,16 @@ class BreakWidget(QWidget):
         self._state, events = reduce(self._state, action)
         if not self._state.running:
             self._timer.stop()
-        elif not self._timer.isActive():
+        elif STARTED in events or not self._timer.isActive():
+            # Frischer Start oder Fortsetzen: Zeitmessung neu, erster Tick
+            # setzt nur die Marke (auch beim Neustart einer laufenden Uhr)
             self._last_mono = None
             self._timer.start()
         self._refresh()
         for event in events:
-            if event == "started" and callable(self.on_break_started):
+            if event == STARTED and callable(self.on_break_started):
                 self.on_break_started(self._music_playing)
-            elif event == "finished" and callable(self.on_break_finished):
+            elif event == FINISHED and callable(self.on_break_finished):
                 self.on_break_finished()
 
     def _refresh(self):
