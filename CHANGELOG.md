@@ -6,6 +6,13 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ---
 
+## (Unreleased — seit 0.162)
+
+### Bugfixes
+- **Schaltflächen in Rückfragen erscheinen in der eingestellten Sprache.** Bei deutscher oder japanischer Oberfläche standen in vielen Rückfragen trotzdem „Yes“, „No“ und „Cancel“, etwa beim Massen-Löschen im Potential. Jetzt heißen sie „Ja“, „Nein“ und „Abbrechen“ (bzw. Japanisch). Das gilt für alle Standard-Dialoge, auch für Datei-Dialoge und das Rechtsklick-Menü in Textfeldern, und ebenso im Class Designer und im Migrations-Tool.
+
+---
+
 ## 0.162 — Loop Finder mit Zeitfenstern, Doppelklick in der Playlist & ausgeblendete Sequenzen beim Start (2026-10-15)
 
 ### Verbesserungen

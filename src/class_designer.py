@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 from i18n import _t, set_language
+from qt_translation import install_qt_translation
 from zoom_wheel import install_ctrl_wheel_zoom
 
 # ── Konstanten ────────────────────────────────────────────────────────────────
@@ -2381,6 +2382,7 @@ def main():
 
     app = QApplication(sys.argv)
     app.setApplicationName(_APP_NAME)
+    install_qt_translation(lang)
 
     colors = _load_colors(app_dir)
     app.setStyleSheet(_build_qss(colors))
