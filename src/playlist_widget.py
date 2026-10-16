@@ -541,10 +541,10 @@ class PlaylistWidget(QWidget):
         self.refresh_display()
         self._notify_changed()
 
-    def remove_song(self, song_id: int):
-        """Entfernt alle Eintraege eines Songs (z. B. nach dem Loeschen, intern#212)."""
+    def remove_songs(self, song_ids):
+        """Entfernt alle Eintraege dieser Songs (nach dem Loeschen, intern#212/#214)."""
         self.remove_rows([i for i, e in enumerate(self._playlist)
-                          if e.song is not None and e.song.id == song_id])
+                          if e.song is not None and e.song.id in song_ids])
 
     # ---- Block-Operationen (Mehrfachauswahl) — Datenmodell-Kern -----------
     # PlaylistWidget besitzt _playlist; sowohl die eigene Ansicht als auch der

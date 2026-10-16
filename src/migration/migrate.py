@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QThread, Signal, QSettings
 
 from i18n import _t, set_language, get_language
+from qt_translation import install_qt_translation
 from migration.mdb_reader import MdbReader
 from migration.sqview_reader import SqViewReader
 from migration.converter import Converter
@@ -1378,6 +1379,7 @@ class MigrationWindow(QWidget):
             set_language("ja")
         else:
             set_language("de")
+        install_qt_translation(get_language())
 
         # Sprachauswahl-UI komplett entfernen
         self._clear_layout(self._lang_layout)
@@ -2295,6 +2297,7 @@ def main():
     # Wenn --lang gesetzt, Sprache direkt setzen (ueberspringt Sprachauswahl)
     if lang:
         set_language(lang)
+        install_qt_translation(lang)
 
     # Dunkles Basis-Styling (standalone, ohne Skin-System)
     app.setStyleSheet("""
