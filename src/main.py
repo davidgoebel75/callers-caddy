@@ -571,6 +571,7 @@ _VERSION = __version__
 # --- Loop-Finder-UI -> loopfinder_widget.py (BL-201, Stufe 9) --------------
 from loopfinder_widget import LoopFinderWidget, LoopFinderWorker
 from loop_windows import resolve_windows as resolve_loop_windows
+from caddy.rules.system_volume import MODE_AT_LEAST, set_system_volume
 
 
 
@@ -1446,14 +1447,12 @@ class P29MainWindow(QMainWindow):
         # Tutorial-System: Erstes Tutorial nach kurzem Delay anbieten
         QTimer.singleShot(1500, self.tutorial_engine.check_and_start)
 
-        # Rules: app_started Trigger nach Init
-        QTimer.singleShot(2000,
-                          lambda: self.rule_engine.fire_trigger("app_started"))
-
         # BL-178: Start-Auto-Erkennung der Lokation (Vorschlag + Bestaetigung).
         # Deferred, damit Fenster/Sequenzen/Rules fertig sind und der Audio-Start
         # nicht belastet wird. Nach dem Tutorial-Delay, um Dialog-Stapelung zu meiden.
-        QTimer.singleShot(2500, self._auto_detect_location_on_startup)
+        # intern#222: Erst danach feuert app_started, damit Regeln die bestaetigte
+        # Lokation schon sehen (frueher fester 2-s-Timer davor).
+        QTimer.singleShot(2500, self._finish_startup)
 
         # Evening Planner nach dem Start im Hintergrund vorbauen, damit das Dock
         # beim ersten Oeffnen sofort gefuellt ist (sonst blitzt ~2s lang das leere
@@ -2730,6 +2729,13 @@ class P29MainWindow(QMainWindow):
             print(f"[P21] Lokation gewaehlt: #{location.id} '{location.name}'")
         else:
             print("[P21] Keine Lokation gewaehlt")
+
+    def _finish_startup(self):
+        """Letzter Start-Schritt: Lokation vorschlagen, dann app_started (intern#222)."""
+        try:
+            self._auto_detect_location_on_startup()
+        finally:
+            self.rule_engine.fire_trigger("app_started")
 
     def _auto_detect_location_on_startup(self):
         """BL-178: Schlaegt beim Start anhand Wochentag/Uhrzeit eine passende
@@ -4308,6 +4314,10 @@ class P29MainWindow(QMainWindow):
         re.register_action("volume_change", self._rule_volume_change)
         re.register_action("live_volume_change", self._rule_live_volume_change)
         re.register_action("live_volume_set", self._rule_live_volume_set)
+        re.register_action("system_volume_set", lambda p: re._log(
+            "INFO", set_system_volume(p.get("value", 80),
+                                      p.get("mode", MODE_AT_LEAST),
+                                      self._selected_output_device_name())))
         re.register_action("auto_set_best_loop", self._rule_auto_set_best_loop)
         re.register_action("auto_detect_bpm",    self._rule_auto_detect_bpm)
         re.register_action("toggle_loop_active", self._rule_toggle_loop_active)
@@ -5390,6 +5400,18 @@ class P29MainWindow(QMainWindow):
             self._countdown_overlay.hide_overlay()
             return
         self._countdown_overlay.show_beat(display)
+
+    def _selected_output_device_name(self):
+        """Name des in der Statusleiste gewaehlten Ausgabegeraets, None = Standard."""
+        combo = getattr(self, "_audio_device_combo", None)
+        idx = combo.currentData() if combo is not None else None
+        if idx is None:
+            return None
+        try:
+            import sounddevice as sd
+            return sd.query_devices(idx)["name"]
+        except Exception:
+            return None
 
     def _on_audio_device_changed(self, _index: int):
         """Wird aufgerufen wenn der Nutzer ein anderes Audio-Ausgabegeraet waehlt."""

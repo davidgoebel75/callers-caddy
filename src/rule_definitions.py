@@ -151,6 +151,13 @@ def register_v1_definitions(engine: RuleEngine):
     reg.add_action("live_volume_set", "Set Live-Volume (absolute %)",
                    {"value": {"type": "int", "default": 100, "min": 0, "max": 100}},
                    group="Audio")
+    # intern#222: Windows-Lautstaerke des Ausgabegeraets (nicht die App-eigene).
+    # at_least hebt nur an, exact setzt genau; Stummschaltung wird aufgehoben.
+    reg.add_action("system_volume_set", "Set System Volume (absolute %)",
+                   {"value": {"type": "int", "default": 80, "min": 0, "max": 100},
+                    "mode": {"type": "choice", "choices": ["at_least", "exact"],
+                             "default": "at_least"}},
+                   group="Audio")
     reg.add_action("auto_set_best_loop", "Auto-Set Best Loop",
                    {"preset": {"type": "preset_choice", "default": "Singing"}},
                    group="Audio")
