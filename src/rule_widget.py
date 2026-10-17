@@ -1031,6 +1031,19 @@ class RulesWidget(QWidget):
                         w.setCurrentIndex(idx)
                 w.setProperty("cond_param_name", param_name)
                 w.currentIndexChanged.connect(self._on_editor_changed)
+            elif param_type == "genre_choice":
+                # intern#218: wie bei den Genre-Aktionen
+                w = QComboBox()
+                w.setEnabled(not readonly)
+                if self._genre_names_provider:
+                    for _, gname in self._genre_names_provider():
+                        w.addItem(gname)
+                if value:
+                    idx = w.findText(str(value))
+                    if idx >= 0:
+                        w.setCurrentIndex(idx)
+                w.setProperty("cond_param_name", param_name)
+                w.currentIndexChanged.connect(self._on_editor_changed)
             elif param_type == "mmss":
                 # BL-205: Zeit-Eingabe mm:ss (auch reine Sekunden), als String
                 # gespeichert; der Evaluator parst zu Sekunden.

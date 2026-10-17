@@ -98,6 +98,11 @@ def register_v1_definitions(engine: RuleEngine):
                       {"kind": {"type": "choice",
                                 "choices": ["all", "without_music", "with_music"],
                                 "default": "all"}})
+    # intern#218: Genre des aktuellen Songs. "Is Not" gilt auch ohne Genre.
+    reg.add_condition("genre_is",               "Genre Is",
+                      {"genre_name": {"type": "genre_choice"}})
+    reg.add_condition("genre_is_not",           "Genre Is Not",
+                      {"genre_name": {"type": "genre_choice"}})
 
     # --- Aktionen ---
 
@@ -163,6 +168,10 @@ def register_v1_definitions(engine: RuleEngine):
                    group="Audio")
     reg.add_action("auto_detect_bpm",    "Auto-Detect BPM",    {}, group="Audio")
     reg.add_action("toggle_loop_active", "Toggle Loop Active", {}, group="Audio")
+    # intern#218: eindeutig ein/aus, egal wie der Schalter vorher stand
+    reg.add_action("set_loop_active", "Set Loop Active",
+                   {"state": {"type": "choice", "choices": ["on", "off"],
+                              "default": "on"}}, group="Audio")
 
     # Layout & Docks
     reg.add_action("dock_open",  "Open Widget",     {"dock_name": {"type": "dock_choice"},
