@@ -135,8 +135,8 @@ def test_play_der_wartemusik_selbst_aendert_nichts(fenster):
 
 
 def test_pausen_uhr_end_break_setzt_zurueck_ohne_finished(keep):
-    from caddy.playback.break_clock import BreakState
-    from caddy.playback.break_widget import BreakWidget
+    from caddy.breaks.break_clock import BreakState
+    from caddy.breaks.break_widget import BreakWidget
     w = keep(BreakWidget())
     fertig = []
     w.on_break_finished = lambda: fertig.append(1)

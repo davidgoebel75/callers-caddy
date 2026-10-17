@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal, QRect
 from PySide6.QtGui import QPainter, QColor, QPen, QCursor
 
-from caddy.playback.break_clock import (
+from caddy.breaks.break_clock import (
     FINISHED, STARTED, BreakState, Pause, Reset, Restart, SetDuration, Start,
     Tick, reduce,
 )

@@ -1,5 +1,5 @@
 """Pausen-Uhr als Reducer (intern#220): Zustand und Uebergaenge ohne Qt."""
-from caddy.playback.break_clock import (
+from caddy.breaks.break_clock import (
     BreakState, Pause, Reset, Restart, SetDuration, Start, Tick, reduce)
 
 

@@ -68,7 +68,7 @@ def test_sperre_ohne_grund_laesst_sich_nicht_umgehen(tmp_path):
 def uhr(keep):
     """Pausen-Uhr mit mitgeschriebenen Callbacks. Die Logik dahinter pruefen die
     Reducer-Tests in test_break_clock.py, hier nur die Verdrahtung."""
-    from caddy.playback.break_widget import BreakWidget
+    from caddy.breaks.break_widget import BreakWidget
     w = keep(BreakWidget())
     w.events = []
     w.on_break_started = lambda with_music: w.events.append(("started", with_music))
@@ -85,7 +85,7 @@ def test_start_knopf_meldet_frischen_start(uhr):
 @pytest.fixture
 def takt(uhr, monkeypatch):
     """Gestellte Uhrzeit: takt(t) setzt die Zeit und loest einen Timer-Tick aus."""
-    import caddy.playback.break_widget as modul
+    import caddy.breaks.break_widget as modul
     jetzt = [0.0]
     monkeypatch.setattr(modul.time, "monotonic", lambda: jetzt[0])
 

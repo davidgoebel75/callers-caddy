@@ -581,7 +581,7 @@ from loop_windows import resolve_windows as resolve_loop_windows
 # ================================================================
 
 # --- Pausen-Uhr und Foto -> Fachpakete unter caddy/ (intern#220) -----------
-from caddy.playback.break_widget import BreakWidget
+from caddy.breaks.break_widget import BreakWidget
 from caddy.camera.photo_widget import PhotoWidget
 
 

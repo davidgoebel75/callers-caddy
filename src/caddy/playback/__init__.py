@@ -1,1 +1,0 @@
-"""Wiedergabe: Pausen-Uhr, Wartemusik."""
