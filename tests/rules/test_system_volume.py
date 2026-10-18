@@ -1,9 +1,9 @@
 """Rule-Aktion "Set System Volume" und Zeitpunkt von "App Started" (intern#222)."""
-import tempfile
 import types
 
 import pytest
 
+from caddy.rules import system_volume
 from caddy.rules.system_volume import pick_endpoint, target_level
 
 
@@ -37,11 +37,48 @@ def test_geraet_ueber_namen(name, erwartet):
     assert pick_endpoint(name, ENDPOINTS) == erwartet
 
 
-def test_aktion_registriert():
+def test_mehrdeutiger_praefix_nimmt_das_standardgeraet():
+    zwei = [("Lautsprecher (Realtek(R) Audio)", "erstes"),
+            ("Lautsprecher (Realtek(R) Audio 2)", "zweites")]
+    assert pick_endpoint("Lautsprecher (Realtek(R) Audi", zwei) is None
+    assert pick_endpoint("Lautsprecher (Realtek(R) Audio)", zwei) == "erstes"
+    assert pick_endpoint("Lautsprecher (Realtek(R) Audio 2)", zwei) == "zweites"
+
+
+def test_aktion_laeuft_im_thread_und_loggt(monkeypatch):
+    main_thread = system_volume.threading.current_thread()
+    seen = {}
+
+    def fake(percent, mode, device_name):
+        seen["thread"] = system_volume.threading.current_thread()
+        return f"ok {percent} {mode} {device_name}"
+    monkeypatch.setattr(system_volume, "set_system_volume", fake)
+    lines = []
+
+    t = system_volume.start_system_volume(70, "exact", "Gerät", log=lines.append)
+    t.join(5)
+
+    assert t.daemon
+    assert seen["thread"] is not main_thread
+    assert lines == ["ok 70 exact Gerät"]
+
+
+def test_fehler_im_thread_landet_im_log(monkeypatch):
+    def kaputt(*_a):
+        raise OSError("COM weg")
+    monkeypatch.setattr(system_volume, "set_system_volume", kaputt)
+    lines = []
+
+    system_volume.start_system_volume(70, log=lines.append).join(5)
+
+    assert lines == ["Set System Volume: Fehler COM weg"]
+
+
+def test_aktion_registriert(tmp_path):
     from rule_definitions import register_v1_definitions
     from rule_engine import RuleEngine
 
-    eng = RuleEngine(tempfile.gettempdir())
+    eng = RuleEngine(str(tmp_path))
     register_v1_definitions(eng)
     a = eng.registry.actions["system_volume_set"]
     assert a.group == "Audio"

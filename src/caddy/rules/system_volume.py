@@ -4,9 +4,14 @@ Ziel ist das in der Statusleiste gewaehlte Ausgabegeraet (Abgleich ueber den
 Namen), sonst das Windows-Standardgeraet. Die Stummschaltung wird immer
 aufgehoben. pycaw wird erst beim Ausfuehren geladen; ausserhalb von Windows
 oder ohne pycaw passiert nichts.
+
+Die COM-Aufrufe koennen deutlich ueber 5 ms dauern und die Aktion ist an jeden
+Trigger bindbar (auch bei laufender Musik). Deshalb laeuft sie ueber
+start_system_volume() in einem Daemon-Thread (Audio-Prioritaet).
 """
 import re
 import sys
+import threading
 
 QT_FREE = True
 
@@ -35,7 +40,8 @@ def pick_endpoint(device_name: str | None, endpoints):
     """Endpunkt zum Geraetenamen aus sounddevice, sonst None.
 
     endpoints: Liste (FriendlyName, Endpunkt). MME kuerzt Namen auf 31 Zeichen,
-    daher zaehlt nach dem exakten Treffer auch ein gemeinsamer Anfang.
+    daher zaehlt nach dem exakten Treffer auch ein gemeinsamer Anfang, aber nur
+    wenn er eindeutig ist ("... Audio)" vs. "... Audio 2)"), sonst None.
     """
     name = _norm(device_name)
     if not name:
@@ -44,10 +50,9 @@ def pick_endpoint(device_name: str | None, endpoints):
     for n, ep in named:
         if n == name:
             return ep
-    for n, ep in named:
-        if n and (n.startswith(name) or name.startswith(n)):
-            return ep
-    return None
+    prefix = [ep for n, ep in named
+              if n and (n.startswith(name) or name.startswith(n))]
+    return prefix[0] if len(prefix) == 1 else None
 
 
 def set_system_volume(percent, mode: str = MODE_AT_LEAST,
@@ -67,6 +72,9 @@ def set_system_volume(percent, mode: str = MODE_AT_LEAST,
                                               DEVICE_STATE.ACTIVE.value)
         device = pick_endpoint(device_name,
                                [(d.FriendlyName, d) for d in active if d])
+    note = ""
+    if device_name and device is None:
+        note = f" (\"{device_name}\" nicht eindeutig gefunden, Standardgeraet)"
     if device is None:
         device = AudioUtilities.GetSpeakers()
     if device is None:
@@ -79,4 +87,33 @@ def set_system_volume(percent, mode: str = MODE_AT_LEAST,
     if new is not None:
         vol.SetMasterVolumeLevelScalar(new, None)
     level = "unveraendert" if new is None else f"{round(new * 100)} %"
-    return f"Set System Volume: {device.FriendlyName} -> {level}"
+    return f"Set System Volume: {device.FriendlyName} -> {level}{note}"
+
+
+def _run_in_thread(percent, mode, device_name, log):
+    com = None
+    try:
+        if sys.platform == "win32":
+            try:
+                import comtypes
+            except ImportError:
+                comtypes = None   # set_system_volume meldet "pycaw fehlt"
+            if comtypes is not None:
+                comtypes.CoInitialize()
+                com = comtypes
+        log(set_system_volume(percent, mode, device_name))
+    except Exception as ex:
+        log(f"Set System Volume: Fehler {ex}")
+    finally:
+        if com is not None:
+            com.CoUninitialize()
+
+
+def start_system_volume(percent, mode: str = MODE_AT_LEAST,
+                        device_name: str | None = None, log=print):
+    """Wie set_system_volume, aber im Daemon-Thread; log bekommt die Zeile."""
+    t = threading.Thread(target=_run_in_thread,
+                         args=(percent, mode, device_name, log),
+                         daemon=True, name="SystemVolume")
+    t.start()
+    return t
