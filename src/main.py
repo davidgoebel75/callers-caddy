@@ -571,7 +571,9 @@ _VERSION = __version__
 # --- Loop-Finder-UI -> loopfinder_widget.py (BL-201, Stufe 9) --------------
 from loopfinder_widget import LoopFinderWidget, LoopFinderWorker
 from loop_windows import resolve_windows as resolve_loop_windows
-from caddy.rules.system_volume import MODE_AT_LEAST, set_system_volume
+
+# --- Rules-Aktion "Set System Volume" -> caddy/rules (intern#222) -----------
+from caddy.rules.system_volume import MODE_AT_LEAST, start_system_volume
 
 
 
@@ -4314,10 +4316,11 @@ class P29MainWindow(QMainWindow):
         re.register_action("volume_change", self._rule_volume_change)
         re.register_action("live_volume_change", self._rule_live_volume_change)
         re.register_action("live_volume_set", self._rule_live_volume_set)
-        re.register_action("system_volume_set", lambda p: re._log(
-            "INFO", set_system_volume(p.get("value", 80),
-                                      p.get("mode", MODE_AT_LEAST),
-                                      self._selected_output_device_name())))
+        # COM-Aufrufe im Daemon-Thread, damit der Main-Thread frei bleibt
+        re.register_action("system_volume_set", lambda p: start_system_volume(
+            p.get("value", 80), p.get("mode", MODE_AT_LEAST),
+            self._selected_output_device_name(),
+            log=lambda line: re._log("INFO", line)))
         re.register_action("auto_set_best_loop", self._rule_auto_set_best_loop)
         re.register_action("auto_detect_bpm",    self._rule_auto_detect_bpm)
         re.register_action("toggle_loop_active", self._rule_toggle_loop_active)
