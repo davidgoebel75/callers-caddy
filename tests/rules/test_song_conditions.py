@@ -1,5 +1,4 @@
 """Bedingungen "Genre Is / Is Not" und Aktion "Set Loop Active" (intern#218)."""
-import tempfile
 import types
 
 import pytest
@@ -12,6 +11,7 @@ from caddy.rules.song_conditions import genre_is, genre_is_not, loop_active_want
     (["dont loop THIS"], "Dont Loop this", True, False),   # Gross/Klein egal
     (["Rock"], "Dont Loop this", False, True),
     ([], "Dont Loop this", False, True),                  # ohne Genre: Is Not wahr
+    (None, "Dont Loop this", False, False),               # kein Song: beide falsch
     (["Rock"], "", False, False),                         # keine Wahl: nie
 ])
 def test_genre_bedingungen(genres, wahl, ist, ist_nicht):
@@ -26,11 +26,11 @@ def test_loop_active_wunsch(state, erwartet):
     assert loop_active_wanted({"state": state}) is erwartet
 
 
-def test_bausteine_registriert():
+def test_bausteine_registriert(tmp_path):
     from rule_definitions import register_v1_definitions
     from rule_engine import RuleEngine
 
-    eng = RuleEngine(tempfile.gettempdir())
+    eng = RuleEngine(str(tmp_path))
     register_v1_definitions(eng)
     reg = eng.registry
     for c in ("genre_is", "genre_is_not"):
@@ -40,7 +40,7 @@ def test_bausteine_registriert():
     assert a.params_schema["state"]["choices"] == ["on", "off"]
 
 
-def test_set_loop_active_setzt_eindeutig(qapp):
+def test_set_loop_active_setzt_eindeutig(keep):
     """Zweimal "off" bleibt aus, "on" schaltet ein - anders als Toggle."""
     import main
     from PySide6.QtWidgets import QCheckBox
@@ -50,7 +50,7 @@ def test_set_loop_active_setzt_eindeutig(qapp):
         def __getattr__(self, name):
             return None
 
-    chk = QCheckBox()
+    chk = keep(QCheckBox())
     chk.setChecked(True)
     handlers = {}
     win = _Win()
@@ -67,24 +67,36 @@ def test_set_loop_active_setzt_eindeutig(qapp):
     assert chk.isChecked() is True
 
 
-def test_genre_bedingung_im_regel_editor_ist_auswahl(qapp):
-    from PySide6.QtWidgets import QComboBox, QHBoxLayout, QWidget
+def _genre_combo(keep, tmp_path, gespeichert):
+    from PySide6.QtWidgets import QHBoxLayout, QWidget
     from rule_definitions import register_v1_definitions
     from rule_engine import RuleEngine
     import rule_widget
 
-    eng = RuleEngine(tempfile.gettempdir())
+    eng = RuleEngine(str(tmp_path))
     register_v1_definitions(eng)
     editor = types.SimpleNamespace(
         _engine=eng,
         _genre_names_provider=lambda: [(1, "Rock"), (2, "Dont Loop this")],
         _on_editor_changed=lambda *a: None)
-    holder = QWidget()
+    holder = keep(QWidget())
     lay = QHBoxLayout(holder)
-
     rule_widget.RulesWidget._add_cond_param_widgets(
-        editor, lay, "genre_is", {"genre_name": "Dont Loop this"}, False)
+        editor, lay, "genre_is", {"genre_name": gespeichert}, False)
+    return lay.itemAt(0).widget()
 
-    w = lay.itemAt(0).widget()
+
+def test_genre_bedingung_im_regel_editor_ist_auswahl(keep, tmp_path):
+    from PySide6.QtWidgets import QComboBox
+
+    w = _genre_combo(keep, tmp_path, "Dont Loop this")
     assert isinstance(w, QComboBox)
     assert w.currentText() == "Dont Loop this"
+
+
+def test_geloeschtes_genre_bleibt_in_der_regel(keep, tmp_path):
+    """Gibt es das gespeicherte Genre nicht mehr, wird es trotzdem angeboten,
+    statt still auf das erste Genre zu springen."""
+    w = _genre_combo(keep, tmp_path, "Altes Genre")
+    assert w.currentText() == "Altes Genre"
+    assert w.count() == 3

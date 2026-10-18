@@ -4257,10 +4257,11 @@ class P29MainWindow(QMainWindow):
         re.register_condition("genre_is_not", lambda ctx, p: song_conditions.genre_is_not(
             self._current_song_genre_names(), p))
 
-    def _current_song_genre_names(self) -> list:
+    def _current_song_genre_names(self) -> list | None:
+        """Genre-Namen des aktuellen Songs, None = kein Song geladen."""
         song = self._current_song
         if not song or not getattr(song, "id", None):
-            return []
+            return None
         return [name for _, name in self.db.get_genres_for_song(song.id)]
 
     @staticmethod
@@ -4336,8 +4337,8 @@ class P29MainWindow(QMainWindow):
         re.register_action("auto_set_best_loop", self._rule_auto_set_best_loop)
         re.register_action("auto_detect_bpm",    self._rule_auto_detect_bpm)
         re.register_action("toggle_loop_active", self._rule_toggle_loop_active)
-        re.register_action("set_loop_active", lambda p: self.loop_widget.chk_loop
-                           .setChecked(song_conditions.loop_active_wanted(p)))
+        re.register_action("set_loop_active", lambda p: self.loop_widget.chk_loop.setChecked(
+            song_conditions.loop_active_wanted(p)))
         re.register_action("goto_position", self._rule_goto_position)
         re.register_action("shift_position", self._rule_shift_position)
         re.register_action("create_jump_marker", self._rule_create_jump_marker)

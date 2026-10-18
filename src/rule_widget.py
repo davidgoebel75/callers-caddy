@@ -1042,6 +1042,11 @@ class RulesWidget(QWidget):
                     idx = w.findText(str(value))
                     if idx >= 0:
                         w.setCurrentIndex(idx)
+                    else:
+                        # Genre geloescht/umbenannt: trotzdem anbieten, sonst
+                        # ueberschreibt das naechste Speichern die Regel still.
+                        w.addItem(str(value))
+                        w.setCurrentText(str(value))
                 w.setProperty("cond_param_name", param_name)
                 w.currentIndexChanged.connect(self._on_editor_changed)
             elif param_type == "mmss":
