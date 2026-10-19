@@ -572,7 +572,8 @@ _VERSION = __version__
 from loopfinder_widget import LoopFinderWidget, LoopFinderWorker
 from loop_windows import resolve_windows as resolve_loop_windows
 
-# --- Rules-Aktion "Set System Volume" -> caddy/rules (intern#222) -----------
+# --- Rules-Bausteine -> caddy/rules (intern#218, intern#222) ---------------
+from caddy.rules import song_conditions
 from caddy.rules.system_volume import MODE_AT_LEAST, start_system_volume
 
 
@@ -4251,6 +4252,18 @@ class P29MainWindow(QMainWindow):
         re.register_condition("song_length", self._eval_song_length)
         # intern#110: Art der letzten Pause (all / without_music / with_music)
         re.register_condition("break_type", self._eval_break_type)
+        # intern#218: Genre des aktuellen Songs; DB-Abfrage nur bei Bedarf
+        re.register_condition("genre_is", lambda ctx, p: song_conditions.genre_is(
+            self._current_song_genre_names(), p))
+        re.register_condition("genre_is_not", lambda ctx, p: song_conditions.genre_is_not(
+            self._current_song_genre_names(), p))
+
+    def _current_song_genre_names(self) -> list | None:
+        """Genre-Namen des aktuellen Songs, None = kein Song geladen."""
+        song = self._current_song
+        if not song or not getattr(song, "id", None):
+            return None
+        return [name for _, name in self.db.get_genres_for_song(song.id)]
 
     @staticmethod
     def _eval_break_type(ctx, p) -> bool:
@@ -4325,6 +4338,8 @@ class P29MainWindow(QMainWindow):
         re.register_action("auto_set_best_loop", self._rule_auto_set_best_loop)
         re.register_action("auto_detect_bpm",    self._rule_auto_detect_bpm)
         re.register_action("toggle_loop_active", self._rule_toggle_loop_active)
+        re.register_action("set_loop_active", lambda p: self.loop_widget.chk_loop.setChecked(
+            song_conditions.loop_active_wanted(p)))
         re.register_action("goto_position", self._rule_goto_position)
         re.register_action("shift_position", self._rule_shift_position)
         re.register_action("create_jump_marker", self._rule_create_jump_marker)
