@@ -134,15 +134,14 @@ def test_play_der_wartemusik_selbst_aendert_nichts(fenster):
     assert fenster.pausen_uhr_beendet == []
 
 
-def test_pausen_uhr_end_break_setzt_zurueck_ohne_finished(qapp):
-    from break_photo_widget import BreakWidget
-    w = BreakWidget()
+def test_pausen_uhr_end_break_setzt_zurueck_ohne_finished(keep):
+    from caddy.breaks.break_clock import BreakState
+    from caddy.breaks.break_widget import BreakWidget
+    w = keep(BreakWidget())
     fertig = []
     w.on_break_finished = lambda: fertig.append(1)
     assert not w.end_break()                 # laeuft nicht -> nichts zu tun
     w.start_break(120)
-    w._remaining = 37.0
     assert w.end_break()
-    assert not w._running and not w._finished
-    assert w._remaining == w._total == 120.0
+    assert w.state == BreakState(total=120, remaining=120)
     assert fertig == []
