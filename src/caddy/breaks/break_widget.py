@@ -119,7 +119,7 @@ class BreakWidget(QWidget):
                                  remaining=float(self.DEFAULT_SECONDS))
         self._last_mono = None   # Zeitmessung fuer Tick, kein Zustand der Uhr
         self._music_playing = False
-        self._close_watched = None   # Dock, dessen X die Pause abbricht
+        self._cancel_dock = None   # Dock, dessen X die Pause abbricht
 
         self._timer = QTimer(self)
         self._timer.setInterval(200)  # 5x/s -> fluessiger Fortschrittsbalken
@@ -235,11 +235,11 @@ class BreakWidget(QWidget):
         end_break (intern#221). Haengt am Close-Event, nicht an
         visibilityChanged: Ausblenden (Ansicht-Menue, Tab, Layout) laesst die
         Uhr laufen. Wartemusik laeuft wie beim Reset-Knopf weiter."""
-        self._close_watched = dock
+        self._cancel_dock = dock
         dock.installEventFilter(self)
 
     def eventFilter(self, obj, event):
-        if obj is self._close_watched and event.type() == QEvent.Close:
+        if obj is self._cancel_dock and event.type() == QEvent.Close:
             self.end_break()
         return super().eventFilter(obj, event)
 

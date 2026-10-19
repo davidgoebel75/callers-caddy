@@ -154,10 +154,9 @@ als gespielt und schaltet die Playlist nicht weiter.
 _EN_: Break Music
 
 **Abgebrochene Pause**:
-Pause, die der Caller vor Ablauf der Pausen-Uhr beendet. Nur eine abgelaufene
-Pause gilt als beendet und loest "Break Finished" aus, eine abgebrochene nicht.
+Pause, die vor Ablauf der Pausen-Uhr endet. Anders als eine abgelaufene Pause
+loest sie kein "Break Finished" aus.
 _EN_: Cancelled Break
-_Avoid_: beendete Pause (fuer den Abbruch)
 
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
