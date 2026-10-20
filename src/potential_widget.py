@@ -34,6 +34,8 @@ import song_data_io
 import song_match
 import song_catalog
 import loop_windows
+from caddy.bulk.bulk_jobs import bpm_step
+from caddy.bulk.bulk_worker import BulkWorker
 
 
 def _app_version():
@@ -147,47 +149,10 @@ class _BulkAutoLoopWorker(QThread):
         self.finished.emit(done, skipped)
 
 
-class _BulkBpmWorker(QThread):
-    """Ermittelt die BPM einer Liste von Songs und schreibt base_bpm (Hintergrund)."""
-    progress = Signal(int, int, str)     # current, total, song_name
-    finished = Signal(int, int)          # done, skipped
-    error = Signal(str)
-
-    def __init__(self, jobs, db_path, parent=None):
-        """jobs: list of (song_id, filepath, name)"""
-        super().__init__(parent)
-        self._jobs = jobs
-        self._db_path = db_path
-        self._cancelled = False
-
-    def cancel(self):
-        self._cancelled = True
-
-    def run(self):
-        import sqlite3 as _sql
-        from bpm_detector import detect_bpm
-        conn = _sql.connect(self._db_path)
-        done = skipped = 0
-        try:
-            for i, (sid, fp, name) in enumerate(self._jobs):
-                if self._cancelled:
-                    break
-                self.progress.emit(i + 1, len(self._jobs), name)
-                try:
-                    bpm = detect_bpm(fp)
-                    if bpm and bpm > 0:
-                        conn.execute(
-                            "UPDATE songs SET base_bpm=? WHERE id=?", (bpm, sid))
-                        conn.commit()
-                        done += 1
-                    else:
-                        skipped += 1
-                except Exception as e:
-                    print(f"[BulkBpm] Fehler bei Song #{sid}: {e}")
-                    skipped += 1
-        finally:
-            conn.close()
-        self.finished.emit(done, skipped)
+def _bpm_worker(jobs, db):
+    """Massenlauf BPM (Geruest caddy.bulk, intern#139). jobs: (song_id, filepath, name)."""
+    return BulkWorker(jobs, bpm_step, db.open_worker_connection,
+                      name_of=lambda job: job[2], label="BulkBpm")
 
 
 class _BulkSingingStartWorker(QThread):
@@ -3455,7 +3420,7 @@ class PotentialWidget(QWidget):
         self._bpm_sample_t0 = _time.perf_counter()
         self._show_progress(_t('pot_measuring', current=0, total=5),
                             cancel_fn=self._cancel_bulk, title=_t('pot_no_bpm'))
-        self._bulk_worker = _BulkBpmWorker(jobs[:5], self.db.db_path)
+        self._bulk_worker = _bpm_worker(jobs[:5], self.db)
         self._bulk_worker.progress.connect(
             lambda c, t, name: self._update_progress(
                 _t('pot_measuring', current=c, total=5)))
@@ -3465,8 +3430,7 @@ class PotentialWidget(QWidget):
     def _on_bpm_sample_done(self, done, skipped):
         """Probelauf (erste 5) fertig — deren BPM ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
-        cancelled = bool(self._bulk_worker
-                         and getattr(self._bulk_worker, '_cancelled', False))
+        cancelled = bool(self._bulk_worker and self._bulk_worker.cancelled)
         self._close_progress()
         self._bulk_worker = None
         self._bpm_accum = (done, skipped)   # Probelauf-Ergebnisse mitzaehlen
@@ -3492,7 +3456,7 @@ class PotentialWidget(QWidget):
     def _run_bulk_bpm(self, jobs):
         self._show_progress(_t('pot_processing', current=0, total=len(jobs)),
                             cancel_fn=self._cancel_bulk, title=_t('pot_no_bpm'))
-        self._bulk_worker = _BulkBpmWorker(jobs, self.db.db_path)
+        self._bulk_worker = _bpm_worker(jobs, self.db)
         self._bulk_worker.progress.connect(
             lambda c, t, name: self._update_progress(
                 _t('pot_processing', current=c, total=t) + f"\n{name}"))
@@ -4704,7 +4668,7 @@ class PotentialWidget(QWidget):
         if not jobs:
             self._beautify_step_done(0, 0)
             return
-        self._beautify_run_worker(_BulkBpmWorker(jobs, self.db.db_path))
+        self._beautify_run_worker(_bpm_worker(jobs, self.db))
 
     def _bf_run_loop(self):
         jobs = []
