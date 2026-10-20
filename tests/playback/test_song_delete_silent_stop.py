@@ -19,6 +19,17 @@ from potential_widget import PotentialWidget
 W = main.P29MainWindow
 
 
+class _Sitzung:
+    """Fake der aktuellen Sitzung: kein QObject (Windows-Crash-Falle), nur song/set_song."""
+
+    def __init__(self, song=None, **kw):
+        self.song = song
+        self.__dict__.update(kw)
+
+    def set_song(self, song):
+        self.song = song
+
+
 class _Fenster:
     _on_songs_deleted = W._on_songs_deleted
     _on_manual_stop = W._on_manual_stop
@@ -32,15 +43,14 @@ class _Fenster:
         self.fired = []
         self.rule_engine = SimpleNamespace(
             is_suspended=False, fire_trigger=self.fired.append)
-        self.session = SimpleNamespace(location_id=1)
-        self._current_song = SimpleNamespace(id=7, quality=0, err=0)
+        self.session = _Sitzung(SimpleNamespace(id=7, quality=0, err=0), location_id=1)
         self.player = SimpleNamespace(
             _on_stop=self._on_manual_stop,
             clear_loaded_song=lambda: self.calls.append("player"))
         self.lyrics_widget = SimpleNamespace(clear=lambda: self.calls.append("lyrics"))
         # Einzel-Loeschen: Song Data hat den Song schon vor dem Callback losgelassen
         self.song_data = SimpleNamespace(
-            _current_song=None, clear_song=lambda: self.calls.append("song_data"))
+            shown_song=None, clear_song=lambda: self.calls.append("song_data"))
         self.playlist_widget = SimpleNamespace(
             remove_songs=lambda ids: self.calls.append(("playlist", sorted(ids))))
         self.refreshed = []
@@ -72,7 +82,7 @@ def test_loeschen_des_geladenen_songs_ohne_feedback_und_rules(feedback):
     f._on_songs_deleted([7])
     assert feedback == []
     assert f.fired == []
-    assert f._current_song is None
+    assert f.session.song is None
     assert f._stop_silently is False      # gilt nur fuer diesen einen Stopp
     assert f.calls == ["player", "lyrics", "song_data", ("playlist", [7])]
 
@@ -88,7 +98,7 @@ def test_loeschen_eines_anderen_songs_laesst_player_in_ruhe(feedback):
     f = _Fenster()
     f._on_songs_deleted([99])
     assert feedback == [] and f.fired == []
-    assert f._current_song.id == 7
+    assert f.session.song.id == 7
     # Song Data zeigte den geloeschten Song; die Playlist verliert ihn
     assert f.calls == ["song_data", ("playlist", [99])]
 
@@ -97,19 +107,19 @@ def test_loeschen_eines_anderen_songs_laesst_player_in_ruhe(feedback):
 
 def test_massen_loeschen_mit_geladenem_song_raeumt_alles_einmal_auf(feedback):
     f = _Fenster()
-    f.song_data._current_song = SimpleNamespace(id=7)
+    f.song_data.shown_song = SimpleNamespace(id=7)
     f._on_songs_deleted([3, 7])
     assert feedback == [] and f.fired == []
-    assert f._current_song is None
+    assert f.session.song is None
     assert f.calls == ["player", "lyrics", "song_data", ("playlist", [3, 7])]
     assert sorted(f.refreshed) == ["planner", "potential", "song_list"]
 
 
 def test_massen_loeschen_laesst_song_data_mit_anderem_song_stehen(feedback):
     f = _Fenster()
-    f.song_data._current_song = SimpleNamespace(id=5)
+    f.song_data.shown_song = SimpleNamespace(id=5)
     f._on_songs_deleted([3, 4])
-    assert f._current_song.id == 7
+    assert f.session.song.id == 7
     assert f.calls == [("playlist", [3, 4])]
 
 
