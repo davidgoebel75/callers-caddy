@@ -59,6 +59,12 @@ def display_score(quality, days) -> int:
     return int(base_score(quality, days))
 
 
+def song_score(song, last_played_map, today, fallback_date) -> int:
+    """Angezeigter Score eines Songs, mit denselben Tagen wie die Sortierung."""
+    return display_score(song.quality, days_since(
+        last_played_map.get(song.id), today, fallback_date))
+
+
 def err_match(err, target_err) -> float:
     """Passung des Song-ERR zum Ziel-ERR: 1.0 genau, 0.5 eins daneben, ...
     ERR 0 heisst "nicht gepflegt" und zaehlt niedrig (0.25)."""

@@ -27,9 +27,10 @@ from perf import perf_start, perf_log
 from stats_widget import add_song_rating_actions
 from songdata_widget import SongFilterBar
 import song_types
+from caddy.songs import recommendation
 from song_types import PlayMode
 from ui_helpers import (
-    _make_icon, _reco_score, _style_date_cell, _WrapButtonBar,
+    _make_icon, _style_date_cell, _WrapButtonBar,
     _SVG_AUTOFILL, calc_auto_loop, show_loop_count_dialog,
 )
 
@@ -1208,7 +1209,8 @@ class PlaylistManagerWidget(QWidget):
                     cell_text = self._format_date(self._start_date.isoformat())
                     inherited = True
             elif role == "score":
-                cell_text = str(_reco_score(song, self._last_played_map, self._start_date))
+                cell_text = str(recommendation.song_score(
+                    song, self._last_played_map, date.today(), self._start_date))
                 tooltip = _t("tooltip_score_col")
             else:
                 lp_str = self._last_played_map.get(song.id, "")

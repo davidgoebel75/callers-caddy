@@ -55,6 +55,13 @@ def test_anzeige_score():
     assert rec.display_score(2, -3) == -6
 
 
+def test_song_score_nutzt_dieselben_tage_wie_die_sortierung():
+    by_id = {s.id: s for s in SONGS}
+    erwartet = {1: 50, 3: 0, 4: 400, 6: -6, 7: 300}
+    assert {i: rec.song_score(by_id[i], LP, HEUTE, START)
+            for i in erwartet} == erwartet
+
+
 def test_planner_score_und_err_passung():
     assert rec.score(4, 10, 5, 5) == 40.0
     assert rec.score(4, 10, 4, 5) == 20.0
