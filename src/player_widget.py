@@ -1492,9 +1492,10 @@ class LoopWidget(QWidget):
     daher passen sie gut zusammen mit dem NEU-Button.
     """
 
-    def __init__(self, engine, parent=None):
+    def __init__(self, engine, parent=None, session=None):
         super().__init__(parent)
         self.engine = engine
+        self._session = session
         self.on_new_clicked = None  # Callback: neuer Song laden
         self.on_new_dropped = None  # Callback(list[str]): Dateien/Ordner gedroppt (BL-179)
         self.on_set_marker = None   # Callback: Custom-Marker an aktueller Pos setzen (BL-185)
@@ -1685,6 +1686,10 @@ class LoopWidget(QWidget):
         self.engine.set_loop_out_at_current()
         self._sync_loop_to_song_data()
         self._save_loop_to_db()
+
+    def _current_song(self):
+        """Geladener Song aus der aktuellen Sitzung (ohne Sitzung: kein Song)."""
+        return self._session.song if self._session is not None else None
 
     def _save_loop_to_db(self):
         """Schreibt loop_in/loop_out aus der Engine direkt in die DB

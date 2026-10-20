@@ -881,7 +881,7 @@ class P29MainWindow(QMainWindow):
 
         _td4 = perf_split("    Lyrics", _td3)
         # --- Dock 2: Loop + NEU (unter Player in Spalte 1) ---
-        self.loop_widget = LoopWidget(self.engine)
+        self.loop_widget = LoopWidget(self.engine, session=self.session)
         self.loop_widget.on_new_clicked = self._on_new_song
         self.loop_widget.on_new_dropped = self._on_new_song_dropped  # BL-179
         self.loop_widget.on_set_marker = self._add_custom_marker  # BL-185
