@@ -2,7 +2,7 @@
 
 Widgets melden sich auf die Signale an und lesen beim Erzeugen den aktuellen
 Wert, statt dass main.py jeden Wechsel von Hand weiterreicht. Schrittweise:
-zuerst die Lokation, Song und Tanzprogramm-Wahl folgen.
+Lokation und aktueller Song (der geladene Song des Players) liegen hier,\ndie Tanzprogramm-Wahl folgt. Das Song-Daten-Dock zeigt ein eigenes Objekt und\nkann vom geladenen Song abweichen.
 """
 from PySide6.QtCore import QObject, Signal
 
@@ -11,10 +11,12 @@ class CurrentSession(QObject):
     # Location oder None. Feuert bei jedem set_location, auch bei derselben
     # Lokation: eine im Dialog geaenderte Lokation soll sofort wirken.
     location_changed = Signal(object)
+    # Song oder None. Feuert bei jedem set_song, auch beim selben Song (z. B.\n    # frisch aus der DB): Listener muessen idempotent sein. Nur Setzen meldet,\n    # Felder am Song aendert man wie bisher am Objekt selbst.\n    song_changed = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._location = None
+        self._song = None
 
     @property
     def location(self):
@@ -28,3 +30,15 @@ class CurrentSession(QObject):
     def set_location(self, location):
         self._location = location
         self.location_changed.emit(location)
+
+    @property
+    def song(self):
+        return self._song
+
+    @property
+    def song_id(self):
+        return self._song.id if self._song else None
+
+    def set_song(self, song):
+        self._song = song
+        self.song_changed.emit(song)

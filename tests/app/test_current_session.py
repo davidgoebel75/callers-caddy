@@ -48,6 +48,41 @@ def test_same_location_notifies_again(session):
     assert seen == [loc, loc]
 
 
+# ---- Song ---------------------------------------------------------------------
+
+def test_set_song_notifies_listeners(session):
+    seen = []
+    session.song_changed.connect(seen.append)
+    song = SimpleNamespace(id=9)
+    session.set_song(song)
+    assert session.song is song
+    assert session.song_id == 9
+    assert seen == [song]
+
+
+def test_no_song_has_no_id(session):
+    assert session.song is None
+    assert session.song_id is None
+
+
+def test_same_song_notifies_again(session):
+    """Frisch aus der DB geholter Song mit neuen Werten wirkt sofort."""
+    seen = []
+    session.song_changed.connect(seen.append)
+    song = SimpleNamespace(id=1)
+    session.set_song(song)
+    session.set_song(song)
+    assert seen == [song, song]
+
+
+def test_set_song_none_notifies_none(session):
+    session.set_song(SimpleNamespace(id=1))
+    seen = []
+    session.song_changed.connect(seen.append)
+    session.set_song(None)
+    assert seen == [None]
+    assert session.song_id is None
+
 # ---- Notizen ------------------------------------------------------------------
 
 class _NotesDB:
