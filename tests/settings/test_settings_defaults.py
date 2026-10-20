@@ -11,6 +11,7 @@ import pathlib
 
 from PySide6.QtCore import QSettings
 
+from caddy.settings import ini_keys
 from settings_dialog import SETTINGS_META, SettingsDialog
 
 _SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
@@ -71,11 +72,7 @@ def _seeded_keys() -> set:
     """Keys, die _write_ini_defaults() beim Start setzt. Ihr default im Dialog
     wird nie angezeigt. Die mitgelieferte INI zaehlt nicht: ohne sie (Dev-Start,
     geloeschte INI, alte INI per Update-ZIP) fehlen ihre Keys (intern#199)."""
-    tree = ast.parse((_SRC / "main.py").read_text(encoding="utf-8"))
-    func = next(n for n in ast.walk(tree)
-                if isinstance(n, ast.FunctionDef) and n.name == "_write_ini_defaults")
-    return {k.value for n in ast.walk(func) if isinstance(n, ast.Dict)
-            for k in n.keys if isinstance(k, ast.Constant)}
+    return ini_keys.seed_keys()
 
 
 def _norm(v) -> str:
@@ -96,7 +93,7 @@ def test_jedes_feld_hat_den_standard_aus_dem_code():
     for key, meta in SETTINGS_META.items():
         # ponytail: sieht nur literale Defaults (settings.value("k", 100)); Lesestellen
         # mit Konstante, Keyword oder Helfer fallen durch. Erst mit einer Quelle fuer
-        # Standardwerte (intern#146) laesst sich das vollstaendig pruefen.
+        # Standardwerte (intern#144) laesst sich das vollstaendig pruefen.
         if key in seeded or key not in code:
             continue
         # Checkbox ohne default: aus. Sonst ohne default: leer.

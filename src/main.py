@@ -587,6 +587,7 @@ from caddy.rules.system_volume import MODE_AT_LEAST, start_system_volume
 
 # --- Pausen-Uhr und Foto -> Fachpakete unter caddy/ (intern#220) -----------
 from caddy.breaks.break_widget import BreakWidget
+from caddy.settings import ini_keys
 from caddy.camera.photo_widget import PhotoWidget
 
 
@@ -7101,47 +7102,7 @@ class P29MainWindow(QMainWindow):
         if old_dev is not None:
             self._settings.remove("audio/output_device")
 
-        defaults = {
-            "player/timer_warn1": "240",
-            "player/timer_warn2": "300",
-            "loop/crossfade_ms": "46",
-            # intern#207: Suchfenster des Loop Finders in Prozent oder Zeit
-            "loop/finder_window_mode": "pct",
-            "debug/performance_logging": "false",
-            "audio/min_volume": "0.0",
-            # Anti-Ruckler-Schalter (siehe docs/anti_ruckler_backlog.md, AR-009/010).
-            # Default an — bei vermutetem Schaden via INI deaktivierbar ohne Neuversion.
-            "audio/mmcss_priority": "true",
-            "audio/log_underflows": "true",
-            # AR-008: WASAPI Exclusive Mode (Default off — User-Opt-in via Checkbox)
-            "audio/wasapi_exclusive": "false",
-            # BL-074: Sekundaerkanal fuer Audition
-            "audio/secondary_device": "",   # leer = System-Standard
-            "audio/secondary_volume": "80",
-            # BL-119: Feedback-Dialog nach Songende (true/false)
-            "feedback/enabled": "false",
-            # intern#96: Einfuegeposition neuer Notizen (top/bottom)
-            "notes/insert_position": "top",
-            # intern#198: schreibt sonst nur der Einstellungsdialog
-            "notes/first_note_factor": "4.0",
-            # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
-            # (der Spiegel-Button fuehrt dann zuerst in die Einstellungen).
-            "lyrics/dynamic_invert_enabled": "false",
-            "lyrics/dynamic_invert_mode": "",
-            # intern#115: Timing-Parameter (Sekunden, negativ = frueher)
-            "lyrics/text_jump_offset": "-4",
-            "lyrics/dynamic_swap_offset": "-4",
-            # intern#76: Leseposition (% von oben) und Lesebalken
-            "lyrics/reading_position_pct": "30",
-            "lyrics/reading_band_enabled": "true",
-            "lyrics/reading_band_height": "20",
-            "lyrics/reading_band_opacity": "30",
-            # intern#148: In-Lesebalken Countdown (Beats bis zum Abschnittswechsel)
-            "lyrics/reading_band_countdown": "true",
-            "lyrics/reading_band_countdown_beats": "8",
-            # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
-            "sequences/show_hidden_on_start": "false",
-        }
+        defaults = ini_keys.seed_items()
         for key, value in defaults.items():
             if self._settings.value(key) is None:
                 self._settings.setValue(key, value)
