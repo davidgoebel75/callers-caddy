@@ -18,6 +18,7 @@ import reading_band_path
 import heads_sides
 import sync_point_lines
 from i18n import _t
+from caddy.settings import ini_keys
 from path_manager import PathManager
 from skin_manager import SkinManager
 from zoom_wheel import install_ctrl_wheel_zoom
@@ -495,7 +496,7 @@ class LyricsWidget(QWidget):
     # ist (Anteil von oben). 0.5 = Mitte: aktuelle Zeile zentriert, gleich viel
     # Kontext darueber wie darunter. Per INI ("lyric_sync/viewport_frac")
     # ueberschreibbar (siehe __init__).
-    _SYNC_ANCHOR_VIEWPORT_FRAC = 0.3   # intern#76: "Leseposition", INI lyrics/reading_position_pct
+    _SYNC_ANCHOR_VIEWPORT_FRAC = ini_keys.default("lyrics/reading_position_pct") / 100.0   # intern#76: "Leseposition", INI lyrics/reading_position_pct
 
     # Manuelles Scrollen (Rad/Ziehen/Tasten) setzt den Auto-Scroll fuer diese
     # Zeitspanne aus, damit man waehrend der Wiedergabe zu einer Zeile blaettern
@@ -714,11 +715,11 @@ class LyricsWidget(QWidget):
         self._last_dur = 0.0              # zuletzt gesehene Songdauer (Neuaufbau)
         self._interp_snapping = False     # letzte Interpolation im Ruecksprung?
         self._heading_kw = None           # Keyword-Woerter (lazy, singing_sections)
-        self._reading_band_enabled = True
-        self._reading_band_height_pct = 20
-        self._reading_band_opacity_pct = 30
-        self._band_countdown_enabled = True   # intern#148: In-Lesebalken Countdown
-        self._band_countdown_beats = 8        # Vorlauf in Beats
+        self._reading_band_enabled = ini_keys.default("lyrics/reading_band_enabled")
+        self._reading_band_height_pct = ini_keys.default("lyrics/reading_band_height")
+        self._reading_band_opacity_pct = ini_keys.default("lyrics/reading_band_opacity")
+        self._band_countdown_enabled = ini_keys.default("lyrics/reading_band_countdown")   # intern#148: In-Lesebalken Countdown
+        self._band_countdown_beats = ini_keys.default("lyrics/reading_band_countdown_beats")   # Vorlauf in Beats
         self._band_countdown = None           # gerade gezeigte Zahl oder None
         self._geom_cache = None               # (Schluessel, Geometrie) der Anker
         self._reading_band = _ReadingBandOverlay(self)
@@ -2329,7 +2330,7 @@ class LyricsWidget(QWidget):
             # Modus frisch aus der INI lesen (koennte ueber Settings geaendert sein)
             settings = self._settings
             try:
-                self._dynamic_mode = str(settings.value("lyrics/dynamic_mode") or "")
+                self._dynamic_mode = str(ini_keys.get(settings, "lyrics/dynamic_mode") or "")
             except Exception:
                 pass
             # Erstaufruf: Modus abfragen und in der INI speichern
@@ -2372,12 +2373,12 @@ class LyricsWidget(QWidget):
         if self._settings is None:
             return
         try:
-            self._dynamic_wanted = self._settings.value(
-                "lyrics/dynamic_enabled", False, type=bool)
+            self._dynamic_wanted = ini_keys.get(
+                self._settings, "lyrics/dynamic_enabled", type=bool)
         except Exception:
             self._dynamic_wanted = False
         try:
-            self._dynamic_mode = str(self._settings.value("lyrics/dynamic_mode") or "")
+            self._dynamic_mode = str(ini_keys.get(self._settings, "lyrics/dynamic_mode") or "")
         except Exception:
             pass
         # Button-Haken den Wunsch widerspiegeln lassen (Apply folgt beim Song).
@@ -2514,10 +2515,10 @@ class LyricsWidget(QWidget):
         if self._settings is None:
             return
         try:
-            self._invert_enabled = self._settings.value(
-                "lyrics/dynamic_invert_enabled", False, type=bool)
+            self._invert_enabled = ini_keys.get(
+                self._settings, "lyrics/dynamic_invert_enabled", type=bool)
             self._invert_mode = str(
-                self._settings.value("lyrics/dynamic_invert_mode") or "").upper()
+                ini_keys.get(self._settings, "lyrics/dynamic_invert_mode") or "").upper()
         except Exception:
             return
         if hasattr(self, "_btn_invert"):
@@ -2537,7 +2538,7 @@ class LyricsWidget(QWidget):
     # Grenzen und Vorgabe der Timing-Parameter (Sekunden), siehe SETTINGS_META.
     # intern#156: Vorgabe gilt auch ohne INI-Eintrag (Update, Neuinstallation).
     _TIMING_OFFSET_LIMIT = 10
-    _TIMING_OFFSET_DEFAULT = -4
+    _TIMING_OFFSET_DEFAULT = ini_keys.default("lyrics/text_jump_offset")
 
     def reload_timing_settings(self):
         """intern#115: "Textsprung timen" und "Texttausch timen" aus der INI
@@ -2549,8 +2550,7 @@ class LyricsWidget(QWidget):
         for attr, key in (("_text_jump_offset", "lyrics/text_jump_offset"),
                           ("_dynamic_swap_offset", "lyrics/dynamic_swap_offset")):
             try:
-                val = int(float(self._settings.value(
-                    key, self._TIMING_OFFSET_DEFAULT) or 0))
+                val = int(float(ini_keys.get(self._settings, key) or 0))
             except (TypeError, ValueError):
                 val = 0
             setattr(self, attr, max(-lim, min(lim, val)))
@@ -2558,24 +2558,25 @@ class LyricsWidget(QWidget):
     def reload_reading_settings(self):
         """intern#76: Leseposition und Lesebalken aus der INI lesen (Start und
         Settings-Live-Apply). Unlesbare Werte gelten als Standard."""
-        def _num(key, default, lo, hi):
+        def _num(key, lo, hi):
+            default = ini_keys.default(key)
             try:
-                val = float(self._settings.value(key, default))
+                val = float(ini_keys.get(self._settings, key))
             except (TypeError, ValueError):
                 val = default
             return max(lo, min(hi, val))
         self._SYNC_ANCHOR_VIEWPORT_FRAC = _num(
-            "lyrics/reading_position_pct", 30, 0, 100) / 100.0
-        raw = self._settings.value("lyrics/reading_band_enabled", True)
+            "lyrics/reading_position_pct", 0, 100) / 100.0
+        raw = ini_keys.get(self._settings, "lyrics/reading_band_enabled")
         self._reading_band_enabled = str(raw).strip().lower() not in (
             "false", "0", "no", "off", "")
-        self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 2, 60)
-        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 5, 100)
-        raw = self._settings.value("lyrics/reading_band_countdown", True)
+        self._reading_band_height_pct = _num("lyrics/reading_band_height", 2, 60)
+        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 5, 100)
+        raw = ini_keys.get(self._settings, "lyrics/reading_band_countdown")
         self._band_countdown_enabled = str(raw).strip().lower() not in (
             "false", "0", "no", "off", "")
         self._band_countdown_beats = int(_num(
-            "lyrics/reading_band_countdown_beats", 8, 2, 16))
+            "lyrics/reading_band_countdown_beats", 2, 16))
         if not self._band_countdown_enabled:
             self._band_countdown = None
         self._scroll_last_val = -1
@@ -4372,13 +4373,13 @@ class LyricsWidget(QWidget):
             return
         if "lyrics/zoom_pct" in changed_keys:
             try:
-                self.set_zoom(int(settings.value("lyrics/zoom_pct", 100)))
+                self.set_zoom(int(ini_keys.get(settings, "lyrics/zoom_pct")))
             except (TypeError, ValueError):
                 pass
         if "lyrics/auto_size" in changed_keys:
-            self.set_auto_size(settings.value("lyrics/auto_size", True, type=bool))
+            self.set_auto_size(ini_keys.get(settings, "lyrics/auto_size", type=bool))
         if "lyrics/auto_width" in changed_keys:
-            self.set_auto_width(settings.value("lyrics/auto_width", False, type=bool))
+            self.set_auto_width(ini_keys.get(settings, "lyrics/auto_width", type=bool))
         # Der Zoom kann einen Haken abgeschaltet haben, Auto-Breite schaltet
         # Auto-Size ab: die INI zeigt den wirklichen Zustand wie nach _save_layout().
         settings.setValue("lyrics/auto_size", self._auto_size_enabled)
