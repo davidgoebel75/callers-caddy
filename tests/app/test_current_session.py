@@ -257,3 +257,48 @@ def test_replace_shown_song_shows_fresh_rating(keep):
     assert dock.shown_song is fresh
     assert dock.spin_quality.value() == 4
     assert dock.combo_err.currentData() == 2
+
+
+# ---- Tanzprogramm-Wahl ----------------------------------------------------------
+
+def test_set_program_ids_notifies_listeners(session):
+    seen = []
+    session.program_ids_changed.connect(seen.append)
+    session.set_program_ids([3, 1])
+    assert session.program_ids == [3, 1]
+    assert seen == [[3, 1]]
+
+
+def test_no_program_choice_is_empty_list(session):
+    assert session.program_ids == []
+
+
+def test_program_ids_is_a_copy(session):
+    session.set_program_ids([2])
+    session.program_ids.append(99)
+    assert session.program_ids == [2]
+
+
+def test_set_program_ids_copies_input(session):
+    ids = [2, 4]
+    session.set_program_ids(ids)
+    ids.append(7)
+    assert session.program_ids == [2, 4]
+
+
+def test_set_program_ids_none_means_empty(session):
+    session.set_program_ids([5])
+    seen = []
+    session.program_ids_changed.connect(seen.append)
+    session.set_program_ids(None)
+    assert seen == [[]]
+    assert session.program_ids == []
+
+
+def test_same_program_ids_notify_again(session):
+    """Reihenfolge und Doppelte bleiben, jedes Setzen meldet."""
+    seen = []
+    session.program_ids_changed.connect(seen.append)
+    session.set_program_ids([4, 4, 1])
+    session.set_program_ids([4, 4, 1])
+    assert seen == [[4, 4, 1], [4, 4, 1]]
