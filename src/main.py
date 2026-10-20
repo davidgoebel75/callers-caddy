@@ -24,7 +24,6 @@ import json
 import math
 import shutil
 import threading
-import random
 import struct
 from time import monotonic
 from datetime import date, datetime
@@ -215,9 +214,6 @@ from ui_helpers import (
     _SVG_MAGNET,
     _make_dock,
     _PlayBarrier,
-    _reco_days_since,
-    _weighted_random_order,
-    _UNRATED_QUALITY,
     opens_combo_popup,
     widen_combo_popup,
 )
@@ -289,7 +285,7 @@ from player_widget import (
 # ===========================================================================
 
 # --- Song-Daten/Filter/Liste -> songdata_widget.py (BL-201, Stufe 7) -------
-# _reco_*/_weighted_random_order/_style_date_cell -> ui_helpers.py
+# _reco_*/_weighted_random_order -> caddy/songs/recommendation.py (intern#141)
 from songdata_widget import BpmWorker, FeedbackDialog, SongDataWidget, SongListWidget
 
 
@@ -334,7 +330,7 @@ class SingingBodyWorker(QThread):
 
 
 
-# _UNRATED_QUALITY -> ui_helpers.py (BL-201, Stufe 7)
+# _UNRATED_QUALITY -> recommendation.UNRATED_IN_RANDOM (intern#141)
 
 
 
@@ -574,6 +570,7 @@ from loop_windows import resolve_windows as resolve_loop_windows
 
 # --- Rules-Bausteine -> caddy/rules (intern#218, intern#222) ---------------
 from caddy.rules import song_conditions
+from caddy.songs import recommendation
 from caddy.rules.system_volume import MODE_AT_LEAST, start_system_volume
 
 
@@ -654,6 +651,17 @@ _LAYOUT_VERSION = 6
 
 
 # _PlayBarrier -> ui_helpers.py (BL-201)
+
+
+# Regel-Aktion "Load Song": Sortier-Label (Praefix) -> Modus der Empfehlungsregel
+_RULE_SORT_MODES = (
+    ("recommendation", recommendation.SORT_RECOMMENDATION),
+    ("weighted", recommendation.SORT_WEIGHTED_RANDOM),
+    ("random", recommendation.SORT_RANDOM),
+    ("quality", recommendation.SORT_QUALITY),
+    ("last played", recommendation.SORT_LAST_PLAYED),
+    ("date added", recommendation.SORT_DATE_ADDED),
+)
 
 
 class P29MainWindow(QMainWindow):
@@ -4887,35 +4895,15 @@ class P29MainWindow(QMainWindow):
                 _t("rule_load_song_none", type=params.get("type", "")), 4000)
             return
 
-        def _days(s):
-            return _reco_days_since(s.id, lpm, start_date)
-
-        # Sortierung waehlen. Fresh-Draw fuer die Zufallsmodi (kein Cache) →
-        # jeder Ausloeser liefert eine neue Reihenfolge/Auswahl.
+        # Sortierung waehlen (Regel: caddy.songs.recommendation). Frische Zufalls-
+        # werte, kein Cache -> jeder Ausloeser liefert eine neue Auswahl.
+        # Erbe-Datum fuer "Date added" ist hier nur start_date.
         label = sort_label.lower()
-        if label.startswith("recommendation"):
-            chosen = max(songs, key=lambda s: (s.quality * _days(s), random.random()))
-        elif label.startswith("weighted"):
-            def _weight(s):
-                q = s.quality if s.quality > 0 else _UNRATED_QUALITY
-                return max(1, q * _days(s) + 1)
-            chosen = _weighted_random_order(
-                songs, _weight, lambda _sid: random.random() or 1e-12)[0]
-        elif label.startswith("random"):
-            chosen = random.choice(songs)
-        elif label.startswith("quality"):
-            chosen = max(songs, key=lambda s: (s.quality, random.random()))
-        elif label.startswith("last played"):
-            chosen = max(songs, key=lambda s: (_days(s), random.random()))
-        elif label.startswith("date added"):
-            def _added_ord(s):
-                try:
-                    return date.fromisoformat(s.date_added[:10]).toordinal()
-                except (ValueError, TypeError):
-                    return start_date.toordinal()
-            chosen = max(songs, key=lambda s: (_added_ord(s), random.random()))
-        else:  # Alphabetical
-            chosen = min(songs, key=lambda s: (s.title or s.filename).lower())
+        mode = next((m for prefix, m in _RULE_SORT_MODES if label.startswith(prefix)),
+                    recommendation.SORT_ALPHA)
+        chosen = recommendation.pick(
+            songs, mode, last_played_map=lpm, today=date.today(),
+            fallback_date=start_date, added_fallback=start_date)
 
         # Song laden (cue, kein Autoplay) ueber den normalen Songlisten-Pfad.
         # offer_copy=False: keine interaktiven Sync-Copy-Dialoge bei Singing —

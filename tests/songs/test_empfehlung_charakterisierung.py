@@ -7,6 +7,7 @@ Friert das heutige Verhalten aller Kopien ein, bevor sie auf das Modul
   K2  Shortcode-Wahl   P29MainWindow._rule_load_song
   K3  Abendplaner      SongScorer
   K4  Helfer           Tage seit zuletzt gespielt, Score, gewichtete Reihenfolge
+      (bis zum Umbau in ui_helpers, danach im Modul; Erwartungen unveraendert)
 
 Die Kopien weichen bewusst voneinander ab (issues/.../abweichungen-fuer-david.md,
 A1 bis A7). Jede Abweichung ist hier ein Test, keine wird korrigiert.
@@ -23,7 +24,7 @@ import pytest
 
 import main
 import songdata_widget
-import ui_helpers
+from caddy.songs import recommendation
 from evening_planner_widget import SongScorer
 from song_db import Song
 
@@ -71,8 +72,12 @@ def _ids(songs):
 # K4 Helfer
 # ---------------------------------------------------------------------------
 
+def _tage(song_id, lpm, fallback):
+    return recommendation.days_since(lpm.get(song_id), HEUTE, fallback)
+
+
 def test_k4_tage_seit_zuletzt_gespielt():
-    f = ui_helpers._reco_days_since
+    f = _tage
     assert f(1, _LP, START) == 10
     assert f(5, _LP, START) == 0
     assert f(6, _LP, START) == -3          # A7: Zukunft ergibt negative Tage
@@ -83,12 +88,14 @@ def test_k4_tage_seit_zuletzt_gespielt():
 
 def test_k4_tage_nehmen_nur_das_datum_vom_zeitstempel():
     lp = {1: _vor(4) + " 23:59:59"}
-    assert ui_helpers._reco_days_since(1, lp, START) == 4
+    assert _tage(1, lp, START) == 4
 
 
 def test_k4_score_ist_qualitaet_mal_tage_als_ganzzahl():
     songs = {s.id: s for s in _songs()}
-    f = ui_helpers._reco_score
+
+    def f(song, lpm, fallback):
+        return recommendation.song_score(song, lpm, HEUTE, fallback)
     assert f(songs[1], _LP, START) == 50
     assert f(songs[3], _LP, START) == 0     # A2: unbewertet = Score 0
     assert f(songs[4], _LP, START) == 400
@@ -98,7 +105,7 @@ def test_k4_score_ist_qualitaet_mal_tage_als_ganzzahl():
 def test_k4_gewichtete_reihenfolge_mit_festen_ziehungen():
     songs = _songs()
     weights = {1: 50, 2: 10, 3: 1, 4: 400, 5: 1, 6: 1, 7: 300, 8: 10}
-    out = ui_helpers._weighted_random_order(
+    out = recommendation.weighted_order(
         songs, lambda s: weights[s.id], lambda sid: _DRAW[sid])
     keys = {i: -math.log(_DRAW[i]) / weights[i] for i in weights}
     assert _ids(out) == sorted(keys, key=keys.get)
@@ -106,7 +113,7 @@ def test_k4_gewichtete_reihenfolge_mit_festen_ziehungen():
 
 
 def test_k4_unbewertet_in_zufall_ist_fuenf():
-    assert ui_helpers._UNRATED_QUALITY == 5
+    assert recommendation.UNRATED_IN_RANDOM == 5
 
 
 # ---------------------------------------------------------------------------
