@@ -6,7 +6,6 @@ Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
 import os
-import re
 import random
 from datetime import date, datetime
 
@@ -28,6 +27,7 @@ from i18n import _t
 import song_data_io
 import lyrics_files
 from caddy.lyrics.sync_keys import is_sync_key
+from caddy.songs import playlist_file
 from dialogs_lyrics_conflict import ask_lyrics_conflict
 from perf import perf_start, perf_split, perf_log
 from stats_widget import add_song_rating_actions
@@ -539,35 +539,15 @@ class CustomFilterDialog(QDialog):
         if not filepath:
             return
         try:
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                with open(filepath, "r", encoding="cp1252") as f:
-                    lines = f.readlines()
+            lines = playlist_file.read(filepath)
         except Exception as e:
             QMessageBox.warning(self, _t("error"), _t("load_failed", error=e))
             return
 
         song_ids = set()
         not_found = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(" ", 2)
-            if len(parts) < 2:
-                continue
-            mode = parts[0].upper()
-            if mode not in ("P", "S"):
-                mode = "P"
-            # LOOPCOUNT-Token "N" oder "N:CUT" (BL-164) ueberspringen; nur Filename noetig
-            if len(parts) == 3 and re.fullmatch(r"\d+(:\d+)?", parts[1]):
-                filename = parts[2]
-            elif len(parts) == 3:
-                filename = parts[1] + " " + parts[2]
-            else:
-                filename = parts[1]
+        for item in lines:
+            filename = item.name   # Zaehler und Cut braucht der Filter nicht
             song = self._db.get_by_title(filename) or self._db.get_by_filename(filename)
             if song:
                 song_ids.add(song.id)
@@ -2063,27 +2043,14 @@ class SongFilterBar(QWidget):
             if not fp or not os.path.isfile(fp):
                 continue
             try:
-                try:
-                    with open(fp, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                except UnicodeDecodeError:
-                    with open(fp, "r", encoding="cp1252") as f:
-                        lines = f.readlines()
+                # with_cut=False: "N:CUT"-Zeilen bleiben hier wie bisher im Namen
+                # haengen (abweichungen-fuer-david.md), nicht vereinheitlichen.
+                lines = playlist_file.read(fp, with_cut=False)
             except Exception:
                 continue
             song_ids = set()
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                parts = line.split(" ", 2)
-                if len(parts) < 2:
-                    continue
-                mode = parts[0].upper()
-                if mode not in ("P", "S"):
-                    mode = "P"
-                filename = parts[2] if (len(parts) == 3 and parts[1].isdigit()) else \
-                           (parts[1] + " " + parts[2]) if len(parts) == 3 else parts[1]
+            for item in lines:
+                filename = item.name
                 song = self._db.get_by_title(filename) or self._db.get_by_filename(filename)
                 if song:
                     song_ids.add(song.id)
