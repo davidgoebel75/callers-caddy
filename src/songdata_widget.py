@@ -27,6 +27,7 @@ from path_manager import PathManager
 from i18n import _t
 import song_data_io
 import lyrics_files
+from caddy.lyrics.sync_keys import is_sync_key
 from dialogs_lyrics_conflict import ask_lyrics_conflict
 from perf import perf_start, perf_split, perf_log
 from stats_widget import add_song_rating_actions
@@ -735,7 +736,7 @@ class SongPropertiesDialog(QDialog):
         # Unbekannte Keys anzeigen (aber KEINE Varianten- oder Sync-Keys)
         for key, value in existing.items():
             if (key not in SONG_PROPERTY_KEYS and not self._is_variant_key(key)
-                    and not key.startswith("lyric_sync_")
+                    and not is_sync_key(key)
                     and not key.startswith("marker_")):
                 rows.append((key, key, value))
 
