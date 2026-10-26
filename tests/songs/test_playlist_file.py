@@ -59,3 +59,14 @@ def test_lesen_utf8_und_cp1252(tmp_path, encoding):
 def test_fehlende_datei_wirft_oserror(tmp_path):
     with pytest.raises(OSError):
         read(str(tmp_path / "gibtsnicht.txt"))
+
+
+def test_unbekannter_modus_wird_zu_p():
+    assert parse_lines(["X 2 Titel"]) == [PlaylistLine("P", 2, 0, "Titel")]
+    assert parse_lines(["s 2 Titel"]) == [PlaylistLine("S", 2, 0, "Titel")]
+
+
+def test_cut_von_einem_beat_wird_geschrieben(tmp_path):
+    p = str(tmp_path / "l.txt")
+    write(p, [PlaylistLine("P", 2, 1, "A")])
+    assert read(p) == [PlaylistLine("P", 2, 1, "A")]
