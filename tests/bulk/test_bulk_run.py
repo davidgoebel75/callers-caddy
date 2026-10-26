@@ -76,3 +76,38 @@ def test_rollback_failure_does_not_stop_run():
         return True
     res, _ = _run(JOBS, step, conn=Dead())
     assert res.done == 2 and res.skipped == 1
+
+
+def test_skipped_counts_every_skip():
+    res, _ = _run(JOBS, lambda c, j: False)
+    assert res == BulkResult(done=0, skipped=3, cancelled=False)
+
+
+def test_cancel_stops_loop_even_if_flag_drops_again():
+    calls = iter([False, True])
+    res, _ = _run(JOBS + [(4, "d", "D")], lambda c, j: True,
+                  is_cancelled=lambda: next(calls, False))
+    assert res == BulkResult(done=1, skipped=0, cancelled=True)
+
+
+def test_error_and_rollback_failure_are_logged_with_song_id():
+    class Dead(FakeConn):
+        def rollback(self):
+            raise RuntimeError("tot")
+
+    def step(c, j):
+        raise ValueError("kaputt")
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        run_bulk([(7, "x")], step, conn=Dead(), is_cancelled=lambda: False,
+                 on_progress=lambda *a: None, label="Test")
+    assert out.getvalue().splitlines() == [
+        "[Test] Fehler bei Song #7: kaputt",
+        "[Test] Rollback fehlgeschlagen: tot"]
+
+
+def test_default_name_is_empty():
+    got = []
+    run_bulk([(1,)], lambda c, j: True, conn=FakeConn(), is_cancelled=lambda: False,
+             on_progress=lambda i, n, name: got.append(name))
+    assert got == [""]
