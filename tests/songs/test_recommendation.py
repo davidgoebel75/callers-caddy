@@ -178,3 +178,29 @@ def test_gewichtete_reihenfolge_folgt_der_schluesselformel():
     out = rec.weighted_order(SONGS, lambda s: w[s.id], DRAW.get)
     keys = {i: -math.log(DRAW[i]) / w[i] for i in w}
     assert [s.id for s in out] == sorted(keys, key=keys.get)
+
+
+def test_sortmodus_zahlen_sind_die_ini_werte():
+    assert [rec.SORT_ALPHA, rec.SORT_QUALITY, rec.SORT_LAST_PLAYED,
+            rec.SORT_RECOMMENDATION, rec.SORT_DATE_ADDED, rec.SORT_RANDOM,
+            rec.SORT_WEIGHTED_RANDOM] == [0, 1, 2, 3, 4, 5, 6]
+
+
+def test_gewicht_qualitaet_eins_zaehlt_als_eins():
+    assert rec.weight(1, 10) == 11
+    assert rec.weight(0, 10) == rec.UNRATED_IN_RANDOM * 10 + 1
+
+
+def test_einfuegedatum_mit_uhrzeit_wird_gelesen():
+    s = SimpleNamespace(id=1, title="a", filename="a", quality=1,
+                        date_added="2026-03-01 12:30:00")
+    assert rec._added_ordinal(s, 0) == date(2026, 3, 1).toordinal()
+
+
+def test_alphabetisch_ohne_titel_nimmt_dateiname():
+    songs = [SimpleNamespace(id=1, title="", filename="b.mp3"),
+             SimpleNamespace(id=2, title=None, filename="a.mp3"),
+             SimpleNamespace(id=3, title="C", filename="a0.mp3")]
+    kw = dict(last_played_map={}, today=HEUTE, fallback_date=START)
+    assert [s.id for s in rec.rank(songs, rec.SORT_ALPHA, **kw)] == [2, 1, 3]
+    assert rec.pick(songs, rec.SORT_ALPHA, **kw).id == 2
