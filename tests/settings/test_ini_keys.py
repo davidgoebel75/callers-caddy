@@ -183,3 +183,10 @@ def test_pathmanager_leere_ini(tmp_path):
     assert pm.playlist_dir == os.path.normpath(os.path.join(base, "playlists"))
     assert [pm.get_music_dir_raw(i) for i in (2, 3, 4)] == ["", "", ""]
     assert pm.find_free_music_slot() == 2
+
+
+def test_seed_standard_ist_aus_und_nur_markierte_werden_gesaet():
+    assert ini_keys.IniKey("a/b", str, "").seed is False
+    assert "lyrics/dynamic_mode" not in ini_keys.seed_keys()
+    assert ini_keys.default("lyrics/dynamic_mode") == ""
+    assert "player/timer_warn1" in ini_keys.seed_keys()
