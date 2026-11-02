@@ -92,11 +92,9 @@ def test_permanenter_filter_laedt_song_ids(tmp_path, keep, db):
     assert bar._custom_slots[0]["song_ids"] == _ids(db, "Alpha", "Käse", "Zwei Worte")
 
 
-def test_permanenter_filter_findet_cut_zeilen_heute_nicht(tmp_path, keep, db):
-    # Bekannte Abweichung (abweichungen-fuer-david.md): "2:16" bleibt im Namen
-    # haengen, der Song fehlt. Verhalten bleibt wie heute.
+def test_permanenter_filter_findet_cut_zeilen(tmp_path, keep, db):
     bar = _bar(keep, db, tmp_path, _write(tmp_path, "P 2:16 Alpha\nP 1 Käse\n"))
-    assert bar._custom_slots[0]["song_ids"] == _ids(db, "Käse")
+    assert bar._custom_slots[0]["song_ids"] == _ids(db, "Alpha", "Käse")
 
 
 def test_playlist_widget_speichert_im_bisherigen_format(tmp_path, keep, db, monkeypatch):

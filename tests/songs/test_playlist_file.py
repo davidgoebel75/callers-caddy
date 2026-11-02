@@ -43,10 +43,9 @@ def test_leere_und_einwortzeilen_werden_uebersprungen():
     assert parse_lines(["", "   ", "Nur", "P 1 A\n"]) == [PlaylistLine("P", 1, 0, "A")]
 
 
-def test_ohne_cut_bleibt_cut_token_im_namen():
-    # Verhalten von load_permanent_filters (Abweichung, siehe abweichungen-fuer-david.md)
-    assert parse_lines(["P 2:16 Titel", "P 2 Titel"], with_cut=False) == [
-        PlaylistLine("P", 0, 0, "2:16 Titel"), PlaylistLine("P", 2, 0, "Titel")]
+def test_cut_zeile_wird_erkannt():
+    assert parse_lines(["P 2:16 Titel", "P 2 Titel"]) == [
+        PlaylistLine("P", 2, 16, "Titel"), PlaylistLine("P", 2, 0, "Titel")]
 
 
 @pytest.mark.parametrize("encoding", ["utf-8", "cp1252"])

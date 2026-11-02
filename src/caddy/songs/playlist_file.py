@@ -31,12 +31,8 @@ def read_text_lines(path: str) -> list[str]:
             return f.readlines()
 
 
-def parse_lines(lines: Iterable[str], *, with_cut: bool = True) -> list[PlaylistLine]:
-    """Zeilen zu Eintraegen. Leere und Einwort-Zeilen fallen weg.
-
-    with_cut=False erkennt nur den Zaehler `N`; bei `N:CUT` bleibt der Token im
-    Namen haengen. So las load_permanent_filters schon vorher (Verhalten bleibt,
-    siehe issues/src-architektur-abschluss/abweichungen-fuer-david.md)."""
+def parse_lines(lines: Iterable[str]) -> list[PlaylistLine]:
+    """Zeilen zu Eintraegen. Leere und Einwort-Zeilen fallen weg."""
     out = []
     for line in lines:
         parts = line.strip().split(" ", 2)
@@ -46,8 +42,7 @@ def parse_lines(lines: Iterable[str], *, with_cut: bool = True) -> list[Playlist
         if mode not in ("P", "S"):
             mode = "P"
         count = cut = 0
-        if len(parts) == 3 and (_COUNTER.fullmatch(parts[1]) if with_cut
-                                else parts[1].isdigit()):
+        if len(parts) == 3 and _COUNTER.fullmatch(parts[1]):
             cnt = parts[1].split(":")
             count = int(cnt[0])
             cut = int(cnt[1]) if len(cnt) > 1 else 0
@@ -60,8 +55,8 @@ def parse_lines(lines: Iterable[str], *, with_cut: bool = True) -> list[Playlist
     return out
 
 
-def read(path: str, *, with_cut: bool = True) -> list[PlaylistLine]:
-    return parse_lines(read_text_lines(path), with_cut=with_cut)
+def read(path: str) -> list[PlaylistLine]:
+    return parse_lines(read_text_lines(path))
 
 
 def write(path: str, entries: Iterable[PlaylistLine]) -> None:

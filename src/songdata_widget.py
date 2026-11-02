@@ -2043,9 +2043,7 @@ class SongFilterBar(QWidget):
             if not fp or not os.path.isfile(fp):
                 continue
             try:
-                # with_cut=False: "N:CUT"-Zeilen bleiben hier wie bisher im Namen
-                # haengen (abweichungen-fuer-david.md), nicht vereinheitlichen.
-                lines = playlist_file.read(fp, with_cut=False)
+                lines = playlist_file.read(fp)
             except Exception:
                 continue
             song_ids = set()
