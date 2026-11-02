@@ -1694,10 +1694,10 @@ class LoopWidget(QWidget):
     def _save_loop_to_db(self):
         """Schreibt loop_in/loop_out aus der Engine direkt in die DB
         (Variante C: keine Sammelspeicherung beim Song-Wechsel mehr)."""
-        main_win = self.window()
         song = self._current_song()
         if not song or not song.id:
             return
+        main_win = self.window()
         loop_in = self.engine.loop_in_seconds
         loop_out = self.engine.loop_out_seconds
         song.loop_in = loop_in
@@ -1721,9 +1721,9 @@ class LoopWidget(QWidget):
         self._sync_loop_to_song_data()
         self.update_display()
         # In DB speichern (clear_loop umgeht Safety-Guard)
-        main_win = self.window()
         song = self._current_song()
         if song:
+            main_win = self.window()
             song.loop_in = 0.0
             song.loop_out = 0.0
             main_win.db.clear_loop(song.id)
