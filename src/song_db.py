@@ -25,7 +25,7 @@ Lokation-Schema (generalisiert aus Club):
 Abspielhistorie (Drei-Schichten-Architektur):
   Schicht 1 — play_history: Unveraenderliches Protokoll (nur INSERTs)
   Schicht 2 — song_location_stats: Materialisierter Cache (last_played, play_count)
-  Schicht 3 — On-the-Fly: julianday('now') - julianday(last_played) fuer Empfehlungen
+  Schicht 3 — On-the-Fly: Kalendertage seit last_played (Ortszeit) fuer Empfehlungen
 
 Design-Entscheidungen:
   - Nur Dateiname gespeichert, KEINE absoluten Pfade (portabel)
@@ -1492,7 +1492,8 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             SELECT s.id, s.title, s.label, s.err, s.quality,
                    s.is_pattern, s.is_singing,
                    COALESCE(
-                       CAST(julianday('now') - julianday(sls.last_played) AS INTEGER),
+                       CAST(julianday(date('now', 'localtime'))
+                            - julianday(date(sls.last_played)) AS INTEGER),
                        ?
                    ) AS days_since,
                    GROUP_CONCAT(g.name, ',') AS genres
