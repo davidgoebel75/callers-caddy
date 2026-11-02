@@ -11,15 +11,14 @@ from song_db import SongDatabase
 
 
 @pytest.fixture
-def db(tmp_path):
+def db(tmp_path, keep):
     with contextlib.redirect_stdout(io.StringIO()):
-        d = SongDatabase(str(tmp_path / "j.db"))
+        d = keep(SongDatabase(str(tmp_path / "j.db")))
     for n in ("a", "b", "c"):
         d._conn.execute("INSERT INTO songs (filename, title) VALUES (?, ?)",
                         (n + ".mp3", n))
     d._conn.commit()
-    yield d
-    d.close()
+    return d
 
 
 def _jobs(db):

@@ -10,11 +10,10 @@ from song_db_potential import PotentialMixin
 
 
 @pytest.fixture
-def db(tmp_path):
+def db(tmp_path, keep):
     with contextlib.redirect_stdout(io.StringIO()):
-        d = SongDatabase(str(tmp_path / "w.db"))
-    yield d
-    d.close()
+        d = keep(SongDatabase(str(tmp_path / "w.db")))
+    return d
 
 
 def _add_song(db):
