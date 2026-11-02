@@ -147,6 +147,7 @@ from audio_engine import ALERT_IDLE_SR, AudioEngine
 from system_report import generate_report
 from song_db import SongDatabase, Song, Location
 from path_manager import PathManager
+from caddy.settings import ini_keys
 from skin_manager import SkinManager
 from settings_dialog import SettingsDialog
 from i18n import _t, set_language, get_language, get_available_languages
@@ -587,7 +588,6 @@ from caddy.rules.system_volume import MODE_AT_LEAST, start_system_volume
 
 # --- Pausen-Uhr und Foto -> Fachpakete unter caddy/ (intern#220) -----------
 from caddy.breaks.break_widget import BreakWidget
-from caddy.settings import ini_keys
 from caddy.camera.photo_widget import PhotoWidget
 
 

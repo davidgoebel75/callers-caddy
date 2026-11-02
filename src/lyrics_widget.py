@@ -2331,6 +2331,8 @@ class LyricsWidget(QWidget):
             settings = self._settings
             try:
                 self._dynamic_mode = str(ini_keys.get(settings, "lyrics/dynamic_mode") or "")
+            except KeyError:
+                raise  # Tippfehler im Schluessel nicht verschlucken
             except Exception:
                 pass
             # Erstaufruf: Modus abfragen und in der INI speichern
@@ -2375,10 +2377,14 @@ class LyricsWidget(QWidget):
         try:
             self._dynamic_wanted = ini_keys.get(
                 self._settings, "lyrics/dynamic_enabled", type=bool)
+        except KeyError:
+            raise  # Tippfehler im Schluessel nicht verschlucken
         except Exception:
             self._dynamic_wanted = False
         try:
             self._dynamic_mode = str(ini_keys.get(self._settings, "lyrics/dynamic_mode") or "")
+        except KeyError:
+            raise
         except Exception:
             pass
         # Button-Haken den Wunsch widerspiegeln lassen (Apply folgt beim Song).
@@ -2519,6 +2525,8 @@ class LyricsWidget(QWidget):
                 self._settings, "lyrics/dynamic_invert_enabled", type=bool)
             self._invert_mode = str(
                 ini_keys.get(self._settings, "lyrics/dynamic_invert_mode") or "").upper()
+        except KeyError:
+            raise
         except Exception:
             return
         if hasattr(self, "_btn_invert"):
