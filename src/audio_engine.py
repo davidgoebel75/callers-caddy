@@ -343,6 +343,12 @@ def compute_loop_offset(audio_data, sample_rate, loop_in, loop_out):
 ALERT_IDLE_SR = 44100
 
 
+class AudioDeviceError(RuntimeError):
+    """Kein Ausgabe-Stream startbar, auch nicht auf dem System-Standardgeraet
+    (intern#237). Erbt von RuntimeError, damit bestehende
+    ``except Exception``-Aufrufer von _ensure_stream unveraendert greifen."""
+
+
 class AudioEngine:
     """Audio-Engine mit Tempo, Pitch, Loop und Seek."""
 
@@ -364,6 +370,9 @@ class AudioEngine:
         # Fallback-Cache: {requested_device → effective_device} wenn WASAPI-Init in dieser
         # Session fehlgeschlagen ist. Verhindert erneuten WASAPI-Versuch z.B. nach Audition.
         self._device_fallback: dict = {}
+        # intern#237: anstehender Geraete-Hinweis fuer die Oberflaeche
+        # (siehe take_device_notice), None = nichts zu melden
+        self._device_notice = None
 
         # Device-Recovery: Zeitstempel des letzten Wiederherstellungsversuchs
         self._last_recovery_attempt = 0.0
@@ -1182,17 +1191,13 @@ class AudioEngine:
                     )
             except Exception as _e:
                 _diag_log(f"[Diag] Stream-Init Versuch: device={effective_device} (Info nicht lesbar: {_e})")
+            # intern#237: Oeffnen UND Starten laufen durch dieselben Fallbacks.
+            # Frueher war nur sd.OutputStream() abgesichert; scheiterte erst
+            # stream.start() (Geraet nicht erreichbar, WDM-KS GLE 0x48F), ging
+            # die PortAudioError ungefangen bis zum Crash-Report durch.
+            self.stream = None
             try:
-                self.stream = sd.OutputStream(
-                    samplerate=self.sample_rate,
-                    channels=self.channels,
-                    dtype='float32',
-                    callback=self._callback,
-                    blocksize=BLOCK_SIZE,
-                    latency='low',
-                    device=effective_device,
-                    extra_settings=extra,
-                )
+                self.stream = self._open_started_stream(effective_device, extra)
             except Exception as e:
                 # Fallback 1: ohne extra_settings (Exclusive-Init kann scheitern)
                 if extra is not None:
@@ -1206,15 +1211,7 @@ class AudioEngine:
                         f"— Fallback 1 auf gleiches Device ohne extra_settings"
                     )
                 try:
-                    self.stream = sd.OutputStream(
-                        samplerate=self.sample_rate,
-                        channels=self.channels,
-                        dtype='float32',
-                        callback=self._callback,
-                        blocksize=BLOCK_SIZE,
-                        latency='low',
-                        device=effective_device,
-                    )
+                    self.stream = self._open_started_stream(effective_device, None)
                 except Exception as e2:
                     # Fallback 2: System-Standard-Device verwenden falls das gewaehlte nicht verfuegbar ist
                     _diag_log(
@@ -1222,18 +1219,21 @@ class AudioEngine:
                         f"— Fallback 2 auf System-Standard (Default-Hostapi, meist MME). "
                         f"User-Auswahl device={self._output_device} wird IGNORIERT!"
                     )
-                    self.stream = sd.OutputStream(
-                        samplerate=self.sample_rate,
-                        channels=self.channels,
-                        dtype='float32',
-                        callback=self._callback,
-                        blocksize=BLOCK_SIZE,
-                        latency='low'
-                    )
+                    try:
+                        self.stream = self._open_started_stream(None, None)
+                    except Exception as e3:
+                        _diag_log(f"[Diag] Stream-Init Fallback 2 ebenfalls fehlgeschlagen ({e3}) "
+                                  f"— kein Ausgabegeraet nutzbar")
+                        self._stream_sr = None
+                        self._stream_ch = None
+                        self._stream_device = None
+                        self._stream_exclusive = False
+                        raise AudioDeviceError(str(e3)) from e3
                     # Fallback-Cache eintragen: naechstes Mal direkt System-Default nehmen
-                    self._device_fallback[self._output_device] = None
+                    if effective_device is not None:
+                        self._device_fallback[self._output_device] = None
+                        self._device_notice = ("fallback", self._device_name(effective_device))
                     effective_device = None
-            self.stream.start()
             self._stream_sr = self.sample_rate
             self._stream_ch = self.channels
             self._stream_device = effective_device  # tatsaechliches Geraet (nach Fallback-Aufloesung)
@@ -1273,6 +1273,56 @@ class AudioEngine:
             self._wasapi_session = None
             threading.Thread(target=self._wasapi_lookup_delayed,
                              daemon=True).start()
+
+    def _open_started_stream(self, device, extra):
+        """Oeffnet einen OutputStream und startet ihn (intern#237).
+
+        Scheitert start(), wird der halb geoeffnete Stream geschlossen und der
+        Fehler weitergereicht, damit der Aufrufer die naechste Fallback-Stufe
+        versuchen kann.
+        """
+        kwargs = dict(
+            samplerate=self.sample_rate,
+            channels=self.channels,
+            dtype='float32',
+            callback=self._callback,
+            blocksize=BLOCK_SIZE,
+            latency='low',
+        )
+        if device is not None:
+            kwargs['device'] = device
+        if extra is not None:
+            kwargs['extra_settings'] = extra
+        stream = sd.OutputStream(**kwargs)
+        try:
+            stream.start()
+        except Exception:
+            try:
+                stream.close()
+            except Exception:
+                pass
+            raise
+        return stream
+
+    @staticmethod
+    def _device_name(device):
+        """Lesbarer Name eines Geraete-Index fuer Hinweise (Fallback: Nummer)."""
+        try:
+            return sd.query_devices(int(device))['name']
+        except Exception:
+            return str(device)
+
+    def take_device_notice(self):
+        """Holt einen anstehenden Geraete-Hinweis ab und loescht ihn (intern#237).
+
+        Rueckgabe: None, ("fallback", geraetename) wenn auf das System-
+        Standardgeraet ausgewichen wurde, oder ("failed", fehlertext) wenn gar
+        kein Ausgabegeraet startete. Die Oberflaeche zeigt daraus die Meldung;
+        die Engine bleibt Qt-frei.
+        """
+        notice = self._device_notice
+        self._device_notice = None
+        return notice
 
     def _wasapi_lookup_delayed(self):
         """Sucht WASAPI-Session nach kurzem Delay (Stream braucht ~100ms zum Registrieren)."""
@@ -1548,7 +1598,14 @@ class AudioEngine:
         # Stream wiederverwenden statt jedes Mal neu erstellen
         # Der Feeder-Thread laeuft bereits seit __init__ und uebernimmt
         # ab jetzt das kontinuierliche Fuettern (playing=True)
-        self._ensure_stream()
+        try:
+            self._ensure_stream()
+        except AudioDeviceError as e:
+            # intern#237: Kein Ausgabegeraet nutzbar — nicht abstuerzen, sondern
+            # als "nicht gestartet" zuruecklassen. Die Oberflaeche zeigt den
+            # Hinweis (take_device_notice) und setzt die Knoepfe zurueck.
+            self.playing = False
+            self._device_notice = ("failed", str(e))
 
     def pause(self):
         if self.playing:

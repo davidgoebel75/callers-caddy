@@ -225,6 +225,21 @@
     "en": "File could not be loaded",
     "ja": "ファイルを読み込めませんでした"
   },
+  "audio_device_title": {
+    "de": "Ausgabegerät nicht erreichbar",
+    "en": "Output device not available",
+    "ja": "出力デバイスに接続できません"
+  },
+  "audio_device_fallback_body": {
+    "de": "Das gewählte Ausgabegerät „{device}“ war nicht erreichbar. Die Musik läuft jetzt über das Windows-Standardgerät.\n\nBitte Gerät prüfen oder unter Einstellungen → Audio ein anderes wählen.",
+    "en": "The selected output device \"{device}\" was not available. Music is now playing through the Windows default device.\n\nPlease check the device or choose another one under Settings → Audio.",
+    "ja": "選択した出力デバイス「{device}」に接続できませんでした。現在、Windowsの既定のデバイスで再生しています。\n\nデバイスを確認するか、設定 → Audioで別のデバイスを選択してください。"
+  },
+  "audio_device_failed_body": {
+    "de": "Es konnte kein Ausgabegerät gestartet werden, auch nicht das Windows-Standardgerät. Der Song wurde nicht gestartet.\n\nBitte Gerät prüfen (eingeschaltet, verbunden?) oder unter Einstellungen → Audio ein anderes wählen.",
+    "en": "No output device could be started, not even the Windows default device. The song was not started.\n\nPlease check the device (switched on, connected?) or choose another one under Settings → Audio.",
+    "ja": "出力デバイスを開始できませんでした（Windowsの既定のデバイスも含む）。曲は再生されていません。\n\nデバイス（電源・接続）を確認するか、設定 → Audioで別のデバイスを選択してください。"
+  },
   "err_mp3_title": {
     "de": "MP3 nicht lesbar",
     "en": "MP3 unreadable",

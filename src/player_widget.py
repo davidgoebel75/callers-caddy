@@ -898,6 +898,7 @@ class PlayerWidget(QWidget):
 
     def update_display(self):
         import time as _time
+        self._show_device_notice()
         # intern#212: Ohne angezeigte Datei (nichts geladen oder Song geloescht)
         # nichts anzeigen und vor allem btn_play nicht wieder einschalten. Die
         # Engine behaelt die Audiodaten eines geloeschten Songs bis zum
@@ -1155,6 +1156,31 @@ class PlayerWidget(QWidget):
             if is_resume and self.on_resumed:
                 self.on_resumed()
 
+    def _show_device_notice(self):
+        """Zeigt einen Geraete-Hinweis der Engine an (intern#237).
+
+        Nicht-modal: Die Musik laeuft beim Ausweichen aufs Standardgeraet schon,
+        der Hinweis darf nichts blockieren. Ein noch offener Hinweis wird
+        ersetzt statt gestapelt.
+        """
+        notice = self.engine.take_device_notice()
+        if notice is None:
+            return
+        kind, detail = notice
+        if kind == "fallback":
+            body = _t("audio_device_fallback_body", device=detail)
+        else:
+            body = _t("audio_device_failed_body")
+        box = getattr(self, "_device_notice_box", None)
+        if box is None:
+            box = QMessageBox(QMessageBox.Warning, _t("audio_device_title"), "",
+                              QMessageBox.Ok, self)
+            box.setModal(False)
+            self._device_notice_box = box
+        box.setText(body)
+        box.show()
+        box.raise_()
+
     def _do_play(self, is_resume: bool):
         """Startet die AUDIO-Wiedergabe + UI-Zustand. Feuert bewusst KEINE
         Rule-Trigger — das macht der Orchestrator vor bzw. nach diesem Aufruf,
@@ -1162,6 +1188,11 @@ class PlayerWidget(QWidget):
         import time as _time
         self.engine.reset_audio_diag()
         self.engine.play()
+        if not self.engine.playing and self.engine.is_loaded():
+            # intern#237: kein Ausgabegeraet startbar — Knoepfe bleiben im
+            # Stop-Zustand, Hinweis sofort statt erst beim naechsten Tick.
+            self._show_device_notice()
+            return
         self.btn_pause.setEnabled(True)
         self.btn_stop.setEnabled(True)
         self.btn_fade.setEnabled(True)
