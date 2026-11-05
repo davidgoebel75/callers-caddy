@@ -155,7 +155,7 @@ def _bpm_worker(jobs, db):
                       name_of=lambda job: job[2], label="BulkBpm")
 
 
-def _cancelled_part(jobs_total, done, skipped):
+def _cancelled_line(jobs_total, done, skipped):
     """Abbruchzeile fuer den Ergebnisdialog, wenn Songs offen blieben (intern#226).
     Offen heisst: abgebrochen im Probelauf oder im Rest, oder "Nein" bei der
     Zeitschaetzung."""
@@ -3481,8 +3481,7 @@ class PotentialWidget(QWidget):
         """Ergebnis anzeigen (inkl. Probelauf-Anteil) + Tabelle/Badges auffrischen."""
         ad, ask = getattr(self, '_bpm_accum', (0, 0))
         self._show_bpm_result(done + ad, skipped + ask,
-                              getattr(self, '_bpm_missing', []) or [],
-                              jobs_total=getattr(self, '_bpm_total', 0))
+                              getattr(self, '_bpm_missing', []) or [])
         self._bpm_missing = []
         self._bpm_accum = (0, 0)
         self._load_no_bpm_table()
@@ -3490,7 +3489,7 @@ class PotentialWidget(QWidget):
         if self.on_bulk_done:
             self.on_bulk_done()
 
-    def _show_bpm_result(self, done, skipped, missing, jobs_total=0):
+    def _show_bpm_result(self, done, skipped, missing):
         """Ergebnis-Dialog nach dem BPM-Lauf. Listet zusaetzlich Songs, deren
         Audiodatei fehlt (Existenz-Check) — sonst blieben sie unerklaert als
         Kandidaten stehen (siehe Tab 'Ohne MP3')."""
@@ -3498,7 +3497,7 @@ class PotentialWidget(QWidget):
         parts = []
         if total > 0:
             parts.append(_t('pot_fix_all_done', done=done, total=total, skipped=skipped))
-        cancelled = _cancelled_part(jobs_total, done, skipped)
+        cancelled = _cancelled_line(getattr(self, '_bpm_total', 0), done, skipped)
         if cancelled:
             parts.append(cancelled)
         if missing:
@@ -3760,7 +3759,7 @@ class PotentialWidget(QWidget):
         parts = []
         if done or skipped:
             parts.append(_t('pot_no_sstart_done', done=done, total=total, skipped=skipped))
-        cancelled = _cancelled_part(getattr(self, '_sstart_total', 0), done, skipped)
+        cancelled = _cancelled_line(getattr(self, '_sstart_total', 0), done, skipped)
         if cancelled:
             parts.append(cancelled)
         if marked:
@@ -4065,7 +4064,7 @@ class PotentialWidget(QWidget):
         if total:
             parts.append(_t('pot_sync_done', done=done, total=total,
                             skipped=skipped + len(missing)))
-        cancelled = _cancelled_part(getattr(self, '_syncpts_total', 0), done, skipped)
+        cancelled = _cancelled_line(getattr(self, '_syncpts_total', 0), done, skipped)
         if cancelled:
             parts.append(cancelled)
         for names, hint_key in ((skipped_names, 'pot_sync_skipped_hint'),
@@ -4556,7 +4555,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker = None
         total = done + skipped
         text = _t('pot_fix_all_done', done=done, total=total, skipped=skipped)
-        cancelled = _cancelled_part(jobs_total, done, skipped)
+        cancelled = _cancelled_line(jobs_total, done, skipped)
         if cancelled:
             text += "\n\n" + cancelled
         QMessageBox.information(self, _t('pot_fix_all_loop'), text)

@@ -92,9 +92,7 @@ def test_bpm_vollstaendig_meldet_keinen_abbruch(dialog):
     w._bulk_worker = _worker(False)
     w._on_bpm_sample_done(5, 0)
     w._on_bpm_bulk_done(14, 1)
-    assert len(dialog.shown) == 1
-    assert _t('pot_fix_all_done', done=19, total=20, skipped=1) in dialog.shown[0]
-    assert "Abgebrochen" not in dialog.shown[0]
+    assert dialog.shown == [_t('pot_fix_all_done', done=19, total=20, skipped=1)]
 
 
 def test_bpm_abbruch_im_rest_meldet_offene_songs(dialog):
@@ -123,12 +121,6 @@ def test_bpm_nein_bei_zeitschaetzung_zaehlt_als_abbruch(dialog):
     assert _cancel_line(15) in dialog.shown[0]
 
 
-def test_bpm_uebersprungen_nennt_keinen_dateigrund(dialog):
-    w = _bpm(3, 0)
-    w._on_bpm_bulk_done(2, 1)
-    assert "Datei nicht gefunden" not in dialog.shown[0]
-
-
 # ---- Anfang/Ende und Sync-Punkte --------------------------------------
 
 def test_sstart_nein_bei_zeitschaetzung_zaehlt_als_abbruch(dialog):
@@ -149,7 +141,7 @@ def test_sstart_vollstaendig_meldet_keinen_abbruch(dialog):
     w._sstart_accum = (0, 0)
     w._sstart_unsure = []
     w._on_sstart_bulk_done(2, 1, [])
-    assert "Abgebrochen" not in dialog.shown[0]
+    assert dialog.shown == [_t('pot_no_sstart_done', done=2, total=3, skipped=1)]
 
 
 def test_syncpts_abbruch_im_rest(dialog):
@@ -178,4 +170,4 @@ def test_loop_lauf_vollstaendig_meldet_keinen_abbruch(dialog):
     w = _Stub()
     w._bulk_worker = _worker(False, jobs=range(4))
     w._on_bulk_done(3, 1)
-    assert "Abgebrochen" not in dialog.shown[0]
+    assert dialog.shown == [_t('pot_fix_all_done', done=3, total=4, skipped=1)]
