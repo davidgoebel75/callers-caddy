@@ -2901,20 +2901,7 @@ class LyricsWidget(QWidget):
         heraus, damit die Basis wieder die UNskalierten Groessen enthaelt."""
         if not factor or factor <= 0:
             factor = 1.0
-        self._original_sizes = []
-        doc = self._browser.document()
-        block = doc.begin()
-        while block.isValid():
-            it = block.begin()
-            while not it.atEnd():
-                frag = it.fragment()
-                if frag.isValid():
-                    pt = frag.charFormat().fontPointSize()
-                    if pt and pt > 0:
-                        self._original_sizes.append(
-                            (frag.position(), frag.length(), float(pt) / factor))
-                it += 1
-            block = block.next()
+        self._original_sizes = self._collect_inline_sizes(factor)
 
     def _active_anchors(self) -> list:
         """SyncPoints, die das Auto-Scroll gerade nutzt (dynamisch oder Original)."""
@@ -4537,35 +4524,64 @@ class LyricsWidget(QWidget):
         Nach jedem setHtml/setPlainText aufrufen — die Liste ist die
         Basis fuer relative Zoom-Skalierung in _apply_zoom_factor.
         """
-        self._original_sizes = []
+        self._original_sizes = self._collect_inline_sizes(1.0)
+
+    def _collect_inline_sizes(self, factor: float) -> list:
+        """[(pristine_pos, length, pt / factor)] aller Fragmente mit eigener Groesse.
+
+        Positionen ohne Sync-Marken (intern#197): Stehen beim Einsammeln Marken
+        im Dokument, werden sie uebersprungen und die Positionen zurueckgerechnet.
+        """
+        sizes = []
         doc = self._browser.document()
+        marker_bg = QColor(self._SYNC_MARKER_BG)
         block = doc.begin()
         while block.isValid():
             it = block.begin()
             while not it.atEnd():
                 frag = it.fragment()
                 if frag.isValid():
-                    pt = frag.charFormat().fontPointSize()
-                    if pt and pt > 0:
-                        self._original_sizes.append(
-                            (frag.position(), frag.length(), float(pt))
-                        )
+                    fmt = frag.charFormat()
+                    pt = fmt.fontPointSize()
+                    if (pt and pt > 0 and not (self._marker_inserts
+                            and fmt.background().color() == marker_bg)):
+                        sizes.append((self._display_to_pristine(frag.position()),
+                                      frag.length(), float(pt) / factor))
                 it += 1
             block = block.next()
+        return sizes
+
+    def _display_segments(self, pos: int, length: int):
+        """Pristine-Bereich -> Anzeige-Bereiche [(start, laenge)] (intern#197).
+
+        Eine Marke an pristine-Position mp steht VOR dem Zeichen mp. Liegt sie
+        innerhalb des Bereichs, wird er dort geteilt, damit die Marke selbst
+        nicht mitformatiert wird.
+        """
+        end = pos + length
+        cuts = [mp for mp, _ml in sorted(self._marker_inserts) if pos < mp < end]
+        starts = [pos] + cuts
+        ends = cuts + [end]
+        return [(self._pristine_to_display(s), e - s) for s, e in zip(starts, ends)]
 
     def _apply_zoom_factor(self, factor: float):
-        """Skaliert alle gecachten Inline-Schriftgroessen um factor."""
+        """Skaliert alle gecachten Inline-Schriftgroessen um factor.
+
+        _original_sizes steht in Positionen ohne Sync-Marken; im Sync-Modus
+        werden die Bereiche auf das Dokument mit Marken umgerechnet (intern#197).
+        """
         if not self._original_sizes:
             return
         doc = self._browser.document()
         cursor = QTextCursor(doc)
         cursor.beginEditBlock()
         for (pos, length, orig_pt) in self._original_sizes:
-            cursor.setPosition(pos)
-            cursor.setPosition(pos + length, QTextCursor.KeepAnchor)
             fmt = QTextCharFormat()
             fmt.setFontPointSize(orig_pt * factor)
-            cursor.mergeCharFormat(fmt)
+            for start, seg_len in self._display_segments(pos, length):
+                cursor.setPosition(start)
+                cursor.setPosition(start + seg_len, QTextCursor.KeepAnchor)
+                cursor.mergeCharFormat(fmt)
         cursor.endEditBlock()
         # BL-171: Zoom aendert den Textfluss → Abschnittsflaechen neu vermessen
         self.refresh_section_overlay()
