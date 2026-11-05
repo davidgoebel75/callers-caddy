@@ -5698,9 +5698,19 @@
     "ja": "再生履歴のない {count} 件のロケーションを削除しますか？\n\nこれらのロケーションは一度も使用されていません。"
   },
   "pot_fix_all_done": {
-    "de": "{done} von {total} Songs erfolgreich bearbeitet. {skipped} übersprungen (Datei nicht gefunden).",
-    "en": "{done} of {total} songs processed successfully. {skipped} skipped (file not found).",
-    "ja": "{total} 曲中 {done} 曲を正常に処理しました。{skipped} 件をスキップ（ファイルが見つかりません）。"
+    "de": "{done} von {total} Songs erfolgreich bearbeitet. {skipped} übersprungen (kein Ergebnis).",
+    "en": "{done} of {total} songs processed successfully. {skipped} skipped (no result).",
+    "ja": "{total} 曲中 {done} 曲を正常に処理しました。{skipped} 件をスキップ（結果なし）。"
+  },
+  "pot_bulk_no_files": {
+    "de": "Keine Audiodatei gefunden ({count} Songs).",
+    "en": "No audio file found ({count} songs).",
+    "ja": "オーディオファイルが見つかりません（{count} 曲）。"
+  },
+  "pot_bulk_cancelled": {
+    "de": "Abgebrochen – {open} Songs nicht bearbeitet. Bereits bearbeitete bleiben erhalten.",
+    "en": "Cancelled – {open} songs not processed. Songs already processed are kept.",
+    "ja": "中止しました。{open} 曲は未処理です。処理済みの曲はそのまま保持されます。"
   },
   "pot_beautify_btn": {
     "de": "✨ Mach alles schön",
