@@ -1654,7 +1654,10 @@ class AudioEngine:
         """
         if not self.playing or self.paused:
             return
-        if self.stream is None or self.stream.active:
+        # intern#237: stream is None bei playing=True heisst, ein Neustart
+        # (Recovery oder Geraetewechsel) ist komplett gescheitert — weiter
+        # versuchen, bis wieder ein Geraet da ist.
+        if self.stream is not None and self.stream.active:
             return  # Stream laeuft normal
 
         import time as _t
