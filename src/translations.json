@@ -10561,12 +10561,12 @@
   "diag_open_logs": {
     "de": "Logs-Ordner öffnen",
     "en": "Open logs folder",
-    "ja": "ログフォルダーを開く"
+    "ja": "ログフォルダを開く"
   },
   "diag_intro": {
     "de": "Hier kannst du auf deinem System ein paar Tests laufen lassen, die dem Entwickler helfen, Aussetzer-Ursachen zu finden. Jeder Test schreibt eine Log-Datei nach <code>logs/diagnose/</code>. Am Ende kannst du mit „Bundle senden“ alles in eine ZIP-Datei packen und per E-Mail schicken.",
     "en": "Here you can run a few tests on your system that help the developer find the cause of audio dropouts. Each test writes a log file to <code>logs/diagnose/</code>. At the end, use “Send bundle” to pack everything into a ZIP file and send it by e-mail.",
-    "ja": "ここでは、音切れの原因を開発者が調べるためのテストをいくつか実行できます。各テストはログファイルを <code>logs/diagnose/</code> に保存します。最後に「バンドル送信」ですべてをZIPファイルにまとめ、メールで送ってください。"
+    "ja": "ここでは、音飛びの原因を開発者が調べるためのテストをいくつか実行できます。各テストはログファイルを <code>logs/diagnose/</code> に保存します。最後に「バンドル送信」で、すべてを ZIP ファイルにまとめてメールで送れます。"
   },
   "diag_tab_system": {
     "de": "System",
@@ -10626,7 +10626,7 @@
   "diag_btn_open_folder": {
     "de": "Ordner öffnen",
     "en": "Open folder",
-    "ja": "フォルダーを開く"
+    "ja": "フォルダを開く"
   },
   "diag_status_ready": {
     "de": "Bereit.",
@@ -10636,12 +10636,12 @@
   "diag_status_done": {
     "de": "{icon} Test abgeschlossen.",
     "en": "{icon} Test finished.",
-    "ja": "{icon} テスト完了。"
+    "ja": "{icon} テストが完了しました。"
   },
   "diag_status_cancelled": {
     "de": "Test abgebrochen — nichts gespeichert.",
     "en": "Test cancelled — nothing saved.",
-    "ja": "テストを中止しました — 何も保存されていません。"
+    "ja": "テストを中止しました。何も保存されていません。"
   },
   "diag_log_saved": {
     "de": "Log gespeichert unter:\n{path}",
@@ -10661,7 +10661,7 @@
   "diag_none": {
     "de": "(keiner)",
     "en": "(none)",
-    "ja": "(なし)"
+    "ja": "（なし）"
   },
   "diag_todo_just_start": {
     "de": "Klicke auf „Test starten“. Es ist nichts weiter zu tun.",
@@ -10686,7 +10686,7 @@
   "diag_a_measures": {
     "de": "Wir sammeln Eckdaten deines Systems: Windows-Version, CPU, RAM, Audio-Geräte mit allen verfügbaren Backends, Callers-Caddy-Version und INI-Einstellungen.",
     "en": "We collect key data about your system: Windows version, CPU, RAM, audio devices with all available backends, Callers Caddy version and INI settings.",
-    "ja": "システムの基本情報を収集します: Windowsのバージョン、CPU、メモリ、利用可能なすべてのバックエンドのオーディオデバイス、Callers Caddyのバージョン、INI設定。"
+    "ja": "次のシステム情報を収集します: Windows のバージョン、CPU、メモリ、オーディオデバイス（利用可能なすべてのバックエンド）、Callers Caddy のバージョン、INI 設定。"
   },
   "diag_a_duration": {
     "de": "ca. 2 Sekunden",
@@ -10731,12 +10731,12 @@
   "diag_d_done_suspicious": {
     "de": "{count} aktive QTimer. ⚠ {suspicious} mit Intervall ≥ 30 s — bitte Log an Entwickler.",
     "en": "{count} active QTimers. ⚠ {suspicious} with an interval ≥ 30 s — please send the log to the developer.",
-    "ja": "動作中の QTimer: {count} 個。⚠ 間隔 30 秒以上: {suspicious} 個 — ログを開発者に送ってください。"
+    "ja": "動作中の QTimer: {count} 個。⚠ 間隔が 30 秒以上のもの: {suspicious} 個。ログを開発者に送ってください。"
   },
   "diag_d_done_ok": {
     "de": "{count} aktive QTimer, keiner mit ≥ 30 s Intervall.",
     "en": "{count} active QTimers, none with an interval ≥ 30 s.",
-    "ja": "動作中の QTimer: {count} 個。間隔 30 秒以上のものはありません。"
+    "ja": "動作中の QTimer: {count} 個。間隔が 30 秒以上のものはありません。"
   },
   "diag_f_tab": {
     "de": "F) Externe Last",
@@ -10751,12 +10751,12 @@
   "diag_f_measures": {
     "de": "Wir prüfen, welche anderen Programme während der Wiedergabe CPU brauchen — Antivirus, Cloud-Sync, Treiber-Dienste usw. Hilft, mögliche Ruckler-Verursacher von außen einzugrenzen.",
     "en": "We check which other programs use CPU during playback — antivirus, cloud sync, driver services, etc. This helps narrow down external causes of stutter.",
-    "ja": "再生中にCPUを使用しているほかのプログラム（ウイルス対策、クラウド同期、ドライバーサービスなど）を調べます。外部からの音飛びの原因を絞り込むのに役立ちます。"
+    "ja": "再生中に CPU を使用しているほかのプログラム（ウイルス対策、クラウド同期、ドライバーサービスなど）を調べます。外部からの音飛びの原因を絞り込むのに役立ちます。"
   },
   "diag_f_todo": {
     "de": "① Klicke auf „Test starten“. ② Mach in den nächsten 60 Sekunden das, was du sonst auch machst, während Musik läuft (Browser, Word, andere Programme öffnen). ③ Warte, bis der Test fertig ist.",
     "en": "① Click “Start test”. ② For the next 60 seconds, do what you normally do while music is playing (open a browser, Word, other programs). ③ Wait until the test has finished.",
-    "ja": "①「テスト開始」をクリックします。② 次の60秒間、音楽再生中に普段行う操作（ブラウザー、Word、その他のプログラムを開くなど）をしてください。③ テストが終わるまで待ちます。"
+    "ja": "①「テスト開始」をクリックします。② 次の60秒間、音楽の再生中に普段行う操作（ブラウザ、Word、その他のプログラムを開くなど）をしてください。③ テストが終わるまで待ちます。"
   },
   "diag_f_duration": {
     "de": "60 Sekunden",
@@ -10766,7 +10766,7 @@
   "diag_f_status_start": {
     "de": "Starte Messung…",
     "en": "Starting sampling…",
-    "ja": "計測を開始中…"
+    "ja": "計測を開始しています…"
   },
   "diag_f_progress": {
     "de": "Läuft… {elapsed}/{total} s. Aktuell Top: {top}",
@@ -10776,12 +10776,12 @@
   "diag_f_no_samples": {
     "de": "Kein Messwert erfasst (Test zu früh abgebrochen?).",
     "en": "No samples recorded (test cancelled too early?).",
-    "ja": "計測値がありません（テストを早く中止しすぎましたか？）。"
+    "ja": "計測値が記録されませんでした（テストを早く中止しすぎた可能性があります）。"
   },
   "diag_f_done": {
     "de": "{count} Messwerte erfasst. Häufigster Prozess mit hoher CPU-Last (außer Callers Caddy): {name}",
     "en": "{count} samples recorded. Most frequent high-CPU process (other than Callers Caddy): {name}",
-    "ja": "{count} 件の計測値を記録しました。CPU負荷の高いプロセスで最も多かったもの（Callers Caddy を除く）: {name}"
+    "ja": "{count} 件の計測値を記録しました。CPU 負荷の高いプロセスで最も多かったもの（Callers Caddy を除く）: {name}"
   },
   "diag_g_tab": {
     "de": "G) Stall-Sentinel",
@@ -10791,7 +10791,7 @@
   "diag_g_title": {
     "de": "G) Stall-Sentinel (passive Hintergrund-Überwachung)",
     "en": "G) Stall sentinel (passive background monitoring)",
-    "ja": "G) 停止監視（バックグラウンドでの受動的な監視）"
+    "ja": "G) 停止監視（バックグラウンドで常時動作）"
   },
   "diag_g_measures": {
     "de": "Der Sentinel läuft die ganze Zeit im Hintergrund mit und prüft alle 50 ms, ob der Main-Thread blockiert war. Bei jedem Block über 100 ms wird ein Eintrag im Perflog erzeugt. Hier siehst du nur den aktuellen Status.",
@@ -10856,12 +10856,12 @@
   "diag_h_measures": {
     "de": "Packt die letzten Logs in eine ZIP-Datei, die du per E-Mail an den Entwickler schicken kannst.",
     "en": "Packs the latest logs into a ZIP file that you can send to the developer by e-mail.",
-    "ja": "最新のログをZIPファイルにまとめます。このファイルをメールで開発者に送ってください。"
+    "ja": "最新のログを ZIP ファイルにまとめます。このファイルはメールで開発者に送れます。"
   },
   "diag_h_todo": {
     "de": "① Klicke auf „Test starten“. ② Anschließend den Ordner öffnen und die ZIP-Datei an eine E-Mail anhängen.",
     "en": "① Click “Start test”. ② Then open the folder and attach the ZIP file to an e-mail.",
-    "ja": "①「テスト開始」をクリックします。② 次にフォルダーを開き、ZIPファイルをメールに添付します。"
+    "ja": "①「テスト開始」をクリックします。② 次にフォルダを開き、ZIP ファイルをメールに添付します。"
   },
   "diag_h_duration": {
     "de": "ca. 5 Sekunden",
@@ -10871,7 +10871,7 @@
   "diag_h_result_hint": {
     "de": "ZIP-Datei in logs/diagnose/",
     "en": "ZIP file in logs/diagnose/",
-    "ja": "logs/diagnose/ 内のZIPファイル"
+    "ja": "logs/diagnose/ 内の ZIP ファイル"
   },
   "diag_h_status": {
     "de": "Sammle Logs…",
@@ -10881,17 +10881,17 @@
   "diag_h_no_logs": {
     "de": "Kein logs-Ordner gefunden — nichts zu bündeln.",
     "en": "No logs folder found — nothing to bundle.",
-    "ja": "logs フォルダーが見つかりません — まとめるものがありません。"
+    "ja": "logs フォルダが見つかりません。まとめるものがありません。"
   },
   "diag_h_error": {
     "de": "Bundle-Fehler: {error}",
     "en": "Bundle error: {error}",
-    "ja": "バンドルのエラー: {error}"
+    "ja": "バンドル作成エラー: {error}"
   },
   "diag_h_done": {
     "de": "Bundle mit {count} Datei(en) erstellt ({size}).\n\nBitte diese ZIP-Datei per E-Mail an den Entwickler senden. Vielen Dank für die Mithilfe!",
     "en": "Bundle created with {count} file(s) ({size}).\n\nPlease send this ZIP file to the developer by e-mail. Thank you for your help!",
-    "ja": "{count} 個のファイルでバンドルを作成しました（{size}）。\n\nこのZIPファイルをメールで開発者に送ってください。ご協力ありがとうございます！"
+    "ja": "{count} 個のファイルでバンドルを作成しました（{size}）。\n\nこの ZIP ファイルをメールで開発者に送ってください。ご協力ありがとうございます！"
   },
   "diag_soon_btn": {
     "de": "In Vorbereitung",
@@ -10910,18 +10910,18 @@
   },
   "diag_b_tab": {
     "de": "B) Stille-Wiedergabe",
-    "en": "B) Silent playback",
-    "ja": "B) 無音再生"
+    "en": "B) Quiet playback",
+    "ja": "B) 低音量再生"
   },
   "diag_b_title": {
     "de": "B) Stille-Wiedergabe-Test (60 s) — Vorbereitung",
-    "en": "B) Silent playback test (60 s) — in preparation",
-    "ja": "B) 無音再生テスト（60秒）— 準備中"
+    "en": "B) Quiet playback test (60 s) — in preparation",
+    "ja": "B) 低音量再生テスト（60秒、準備中）"
   },
   "diag_b_measures": {
     "de": "Wir spielen einen leisen Test-Ton (Sinus + Rauschen) für 60 s und protokollieren Aussetzer und Stalls.",
     "en": "We play a quiet test tone (sine + noise) for 60 s and log dropouts and stalls.",
-    "ja": "小さなテスト音（正弦波とノイズ）を60秒間再生し、音切れと停止を記録します。"
+    "ja": "小さな音量のテスト音（正弦波とノイズ）を60秒間再生し、音飛びと停止を記録します。"
   },
   "diag_b_todo": {
     "de": "Klicke auf „Test starten“, sobald verfügbar. Bis dahin bitte Test A und F nutzen, die liefern schon viele Informationen.",
@@ -10936,12 +10936,12 @@
   "diag_c_title": {
     "de": "C) Hostapi-Vergleich — Vorbereitung",
     "en": "C) Host API comparison — in preparation",
-    "ja": "C) Host API 比較 — 準備中"
+    "ja": "C) Host API 比較（準備中）"
   },
   "diag_c_measures": {
     "de": "Wir spielen den Test-Ton nacheinander über jedes verfügbare Audio-Backend (MME, WASAPI, WDM-KS) und vergleichen die Aussetzer-Quote.",
     "en": "We play the test tone through each available audio backend in turn (MME, WASAPI, WDM-KS) and compare the dropout rate.",
-    "ja": "利用可能な各オーディオバックエンド（MME、WASAPI、WDM-KS）で順にテスト音を再生し、音切れの割合を比較します。"
+    "ja": "利用可能な各オーディオバックエンド（MME、WASAPI、WDM-KS）で順にテスト音を再生し、音飛びの発生率を比較します。"
   },
   "diag_e_tab": {
     "de": "E) Fade-Out-Stress",
@@ -10951,11 +10951,11 @@
   "diag_e_title": {
     "de": "E) Fade-Out-Stress-Test — Vorbereitung",
     "en": "E) Fade-out stress test — in preparation",
-    "ja": "E) フェードアウト負荷テスト — 準備中"
+    "ja": "E) フェードアウト負荷テスト（準備中）"
   },
   "diag_e_measures": {
     "de": "Wir messen, wie sauber der Fade-Out auf deinem System läuft. Seit v0.91 ist der Fade-Out vektorisiert und sollte auch auf schwacher CPU glatt sein.",
     "en": "We measure how smoothly the fade-out runs on your system. Since v0.91 the fade-out is vectorized and should be smooth even on a weak CPU.",
-    "ja": "お使いのシステムでフェードアウトがどれだけ滑らかに動作するかを測定します。v0.91 以降、フェードアウトはベクトル化されており、性能の低いCPUでも滑らかなはずです。"
+    "ja": "お使いのシステムでフェードアウトがどれだけ滑らかに動作するかを測定します。v0.91 以降、フェードアウトはベクトル化されており、性能の低い CPU でも滑らかなはずです。"
   }
 }

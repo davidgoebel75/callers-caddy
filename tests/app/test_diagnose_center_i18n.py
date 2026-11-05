@@ -68,6 +68,36 @@ def test_alle_schluessel_vollstaendig_und_platzhalter_gleich():
     assert not fehler, "\n".join(fehler)
 
 
+_J = r"[぀-ヿ一-鿿]"
+
+
+def test_japanisch_hausregeln():
+    """Schreibweisen wie im Rest der App (erhoben aus translations.json):
+    Leerzeichen zwischen lateinischen Woertern und Japanisch, フォルダ statt
+    フォルダー, vollbreite Klammern, 音飛び fuer Aussetzer, keine Halbbreit-
+    Katakana, kein Gedankenstrich mitten im Satz, Satzende wie im Deutschen."""
+    tr = _tr()
+    fehler = []
+    for k in sorted(_verwendete_schluessel() | {"menu_diagnose_center", "diag_open_error"}):
+        de, ja = tr[k]["de"], re.sub(r"<[^>]+>", "", tr[k]["ja"])
+        if re.search(rf"[A-Za-z]{_J}|{_J}[A-Za-z]", ja):
+            fehler.append(f"{k}: Leerzeichen Latein/Japanisch fehlt: {ja}")
+        if re.search(rf"{_J}\(|\){_J}|^\(", ja):
+            fehler.append(f"{k}: schmale Klammer: {ja}")
+        for falsch in ("フォルダー", "音切れ"):
+            if falsch in ja:
+                fehler.append(f"{k}: {falsch}: {ja}")
+        if re.search(r"[｡-ﾟ]", ja):
+            fehler.append(f"{k}: Halbbreit-Katakana: {ja}")
+        if re.search(rf"{_J} ?— ?{_J}", ja):
+            fehler.append(f"{k}: Gedankenstrich im Satz: {ja}")
+        if de.rstrip().endswith(".") and not ja.rstrip().endswith(("。", "！")):
+            fehler.append(f"{k}: Satzende fehlt: {ja}")
+        if ja.count("「") != ja.count("」") or ja.count("（") != ja.count("）"):
+            fehler.append(f"{k}: Klammern unpaarig: {ja}")
+    assert not fehler, "\n".join(fehler)
+
+
 def test_keine_festen_texte_mehr_in_der_oberflaeche():
     """Keine deutschen String-Literale mehr an Qt-Widgets / finish / set_status."""
     src = (_SRC / "diagnose_center.py").read_text(encoding="utf-8")
