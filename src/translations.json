@@ -235,6 +235,11 @@
     "en": "The selected output device \"{device}\" was not available. Music is now playing through the Windows default device.\n\nThis stays until another device is chosen in the status bar (bottom right) or Callers Caddy is restarted.",
     "ja": "選択した出力デバイス「{device}」に接続できませんでした。現在、Windows の既定のデバイスで再生しています。\n\n右下のステータスバーで別のデバイスを選択するか、Callers Caddy を再起動するまで、この状態が続きます。"
   },
+  "audio_device_lost_body": {
+    "de": "Das Ausgabegerät ist nicht mehr erreichbar, und auch das Windows-Standardgerät ließ sich nicht starten. Gerade ist nichts zu hören.\n\nCallers Caddy versucht es weiter, sobald wieder ein Gerät da ist. Alternativ unten rechts in der Statusleiste ein anderes Gerät wählen.",
+    "en": "The output device is no longer available, and the Windows default device could not be started either. Nothing is audible right now.\n\nCallers Caddy keeps trying as soon as a device is available again. Alternatively, choose another device in the status bar (bottom right).",
+    "ja": "出力デバイスに接続できなくなり、Windows の既定のデバイスも使用できませんでした。現在、音は出ていません。\n\nデバイスが再び使用可能になると、Callers Caddy は自動的に再接続を試みます。右下のステータスバーで別のデバイスを選択することもできます。"
+  },
   "audio_device_failed_body": {
     "de": "Es konnte kein Ausgabegerät gestartet werden, auch nicht das Windows-Standardgerät. Der Song wurde nicht gestartet.\n\nBitte das Gerät prüfen (eingeschaltet, verbunden?) oder unten rechts in der Statusleiste ein anderes wählen.",
     "en": "No output device could be started, not even the Windows default device. The song was not started.\n\nPlease check the device (switched on, connected?) or choose another one in the status bar (bottom right).",

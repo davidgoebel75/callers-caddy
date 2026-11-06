@@ -1169,6 +1169,8 @@ class PlayerWidget(QWidget):
         kind, detail = notice
         if kind == "fallback":
             body = _t("audio_device_fallback_body", device=detail)
+        elif kind == "lost":
+            body = _t("audio_device_lost_body")
         else:
             body = _t("audio_device_failed_body")
         box = getattr(self, "_device_notice_box", None)
@@ -1497,6 +1499,13 @@ class PlayerWidget(QWidget):
         self._audition_active = True
         self.engine.seek(0)
         self.engine.play()
+        if not self.engine.playing:
+            # intern#237: kein Ausgabegeraet startbar — wie beim Play im
+            # Stop-Zustand bleiben, Hinweis zeigen, Vorhoeren beenden
+            # (stellt das Hauptgeraet wieder her).
+            self._show_device_notice()
+            self._exit_audition()
+            return
         self.btn_pause.setEnabled(True)
         self.btn_stop.setEnabled(True)
         self.btn_fade.setEnabled(True)

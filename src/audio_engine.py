@@ -376,6 +376,8 @@ class AudioEngine:
 
         # Device-Recovery: Zeitstempel des letzten Wiederherstellungsversuchs
         self._last_recovery_attempt = 0.0
+        # intern#237: "lost"-Hinweis nur einmal je Ausfall, nicht alle 2 s
+        self._recovery_failure_noticed = False
         # Gewaehltes Ausgabegeraet (None = System-Standard, int = sd-Geraete-Index)
         self._output_device = None
         # AR-008: WASAPI Exclusive Mode (umgeht den Shared-Mode-Glitch, PortAudio #303).
@@ -1575,6 +1577,7 @@ class AudioEngine:
     def play(self):
         if self.audio_data is None:
             return
+        self._recovery_failure_noticed = False   # intern#237: neuer Start, neuer Ausfall
         self._fading = False
         self._fade_volume = 1.0
         self._fade_step = 0.0
@@ -1677,9 +1680,30 @@ class AudioEngine:
         self._stream_device = None
         try:
             self._ensure_stream()
+            self._recovery_failure_noticed = False
             print("[AudioEngine] Stream neu gestartet (Device-Recovery erfolgreich)")
         except Exception as e:
             print(f"[AudioEngine] Stream-Neustart fehlgeschlagen: {e}")
+            # intern#237: Ohne Hinweis liefe die Anzeige weiter, der Ton waere
+            # weg. Einmal je Ausfall melden; die Versuche laufen weiter.
+            if not self._recovery_failure_noticed:
+                self._recovery_failure_noticed = True
+                self._device_notice = ("lost", str(e))
+
+    def forget_device_fallback(self, device_index):
+        """Vergisst das Ausweichen fuer ein Geraet (intern#237).
+
+        Fuer eine bewusste Geraetewahl (Statusleiste, Favorit, Einstellungen):
+        Danach wird das Geraet wieder selbst versucht. Das Vorhoeren ruft das
+        bewusst NICHT auf, damit beim Hin- und Herschalten kein Geraet, das in
+        dieser Sitzung schon gescheitert ist, erneut versucht wird.
+        Laeuft das Geraet gerade ueber das Ausweichgeraet, wird sofort neu
+        versucht.
+        """
+        had_fallback = device_index in self._device_fallback
+        self._device_fallback.pop(device_index, None)
+        if had_fallback and self._output_device == device_index:
+            self._restart_stream_after_config_change()
 
     def set_output_device(self, device_index):
         """Setzt das Audio-Ausgabegeraet und startet den Stream bei Bedarf neu.

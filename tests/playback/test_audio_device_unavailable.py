@@ -52,7 +52,7 @@ def engine(tmp_path, monkeypatch):
                                          "hostapi": 0, "default_samplerate": SR})
     monkeypatch.setattr(e, "_wasapi_lookup_delayed", lambda: None)
     yield e
-    e.playing = False
+    e.shutdown()   # Feeder-Thread beenden, sonst bleibt je Test einer zurueck
 
 
 def _geraete(monkeypatch, kaputt):
@@ -154,3 +154,69 @@ def test_normalfall_unveraendert(engine, monkeypatch):
     assert engine.playing
     assert len(log) == 1 and log[0].device == GEWAEHLT
     assert engine.take_device_notice() is None
+
+
+# ---- Ausweichen aufheben (Review #158) ----------------------------------
+
+ANDERES = 7
+
+
+def test_bewusste_wahl_versucht_geraet_wieder(engine, monkeypatch):
+    """Headset weg -> Standardgeraet; Headset wieder da, Nutzerin waehlt ein
+    anderes Geraet und dann wieder das Headset -> Headset wird erneut versucht."""
+    _geraete(monkeypatch, kaputt={GEWAEHLT})
+    engine.play()
+    assert engine.stream.device is None
+    engine.take_device_notice()
+    _geraete(monkeypatch, kaputt=set())           # Headset wieder da
+    for dev in (ANDERES, GEWAEHLT):               # wie _on_audio_device_changed
+        engine.forget_device_fallback(dev)
+        engine.set_output_device(dev)
+    assert engine.stream.device == GEWAEHLT and engine.stream.active
+    assert GEWAEHLT not in engine._device_fallback
+    assert engine.take_device_notice() is None
+
+
+def test_bewusste_wahl_desselben_geraets_versucht_sofort(engine, monkeypatch):
+    _geraete(monkeypatch, kaputt={GEWAEHLT})
+    engine.play()
+    _geraete(monkeypatch, kaputt=set())
+    engine.forget_device_fallback(GEWAEHLT)      # z. B. ueber die Einstellungen
+    assert engine.stream.device == GEWAEHLT and engine.stream.active
+
+
+def test_vorhoeren_behaelt_ausweichen(engine, monkeypatch):
+    """Das Vorhoeren schaltet nur per set_output_device hin und zurueck: Ein in
+    dieser Sitzung gescheitertes Geraet wird dabei nicht erneut versucht."""
+    _geraete(monkeypatch, kaputt={GEWAEHLT})
+    engine.play()
+    engine.take_device_notice()
+    log = _geraete(monkeypatch, kaputt={GEWAEHLT})
+    engine.set_output_device(ANDERES)            # Vorhoeren an
+    engine.set_output_device(GEWAEHLT)           # Vorhoeren aus
+    assert engine.stream.device is None
+    assert not any(s.device == GEWAEHLT for s in log)
+    assert engine.take_device_notice() is None
+
+
+# ---- Recovery scheitert komplett (Review #158) --------------------------
+
+def test_recovery_ohne_geraet_meldet_einmal(engine, monkeypatch):
+    _geraete(monkeypatch, kaputt=set())
+    engine.play()
+    engine.stream.active = False                 # Geraet weg
+    _geraete(monkeypatch, kaputt={GEWAEHLT, None})
+    engine.ensure_stream_alive()
+    kind, detail = engine.take_device_notice()
+    assert kind == "lost" and "0x0000048F" in detail
+    engine._last_recovery_attempt = 0.0
+    engine.ensure_stream_alive()                 # weiterer Fehlversuch
+    assert engine.take_device_notice() is None   # nicht alle 2 s erneut
+    _geraete(monkeypatch, kaputt=set())          # Geraet wieder da
+    engine._last_recovery_attempt = 0.0
+    engine.ensure_stream_alive()
+    engine.stream.active = False                 # naechster Ausfall
+    _geraete(monkeypatch, kaputt={GEWAEHLT, None})
+    engine._last_recovery_attempt = 0.0
+    engine.ensure_stream_alive()
+    assert engine.take_device_notice()[0] == "lost"
