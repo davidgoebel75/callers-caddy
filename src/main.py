@@ -6317,7 +6317,7 @@ class P29MainWindow(QMainWindow):
         report_action = info_menu.addAction(_t("menu_system_report"))
         report_action.triggered.connect(self._create_system_report)
 
-        diagnose_action = info_menu.addAction("Diagnose-Center…")
+        diagnose_action = info_menu.addAction(_t("menu_diagnose_center"))
         diagnose_action.triggered.connect(self._open_diagnose_center)
 
         info_menu.addSeparator()
@@ -6434,8 +6434,8 @@ class P29MainWindow(QMainWindow):
             dlg.exec()
         except Exception as e:
             QMessageBox.warning(
-                self, "Diagnose-Center",
-                f"Konnte Diagnose-Center nicht oeffnen: {e}")
+                self, _t("diag_window_title"),
+                _t("diag_open_error", error=e))
 
     def _create_system_report(self):
         """Erstellt einen System-Report und zeigt den Pfad an."""
