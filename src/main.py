@@ -4614,6 +4614,8 @@ class P29MainWindow(QMainWindow):
         # und die eigene Floating-Groesse beider Docks sichern, BEVOR
         # setVisible() die vorgemerkte Groesse verbraucht.
         self._dual_view_remember(left_dock, right_dock)
+        self._dual_view_watch(left_dock)
+        self._dual_view_watch(right_dock)
 
         left_dock.setVisible(True)
         left_dock.setFloating(True)
@@ -4690,6 +4692,40 @@ class P29MainWindow(QMainWindow):
         self._dual_view_saved = {}
         self._pre_dual_view_state = None
         self._dual_view_active = None
+
+    def _dual_view_watch(self, dock):
+        """Beobachtet ein Dual-View-Dock einmalig (intern#231, Review #161).
+
+        Schliesst der Nutzer die Fenster per X oder dockt sie an, endet Dual
+        View - sonst galte bis Sitzungsende das Layout von vorher und ein
+        spaeteres Oeffnen kaeme in Dual-View-Groesse. Nicht nur ueber die
+        Tool-Docks (_on_float_dock_visible), denn auch z. B. Sequences kann
+        in Dual View stehen."""
+        watched = self.__dict__.setdefault("_dual_view_watched", set())
+        name = dock.objectName()
+        if not name or name in watched:
+            return
+        watched.add(name)
+        dock.visibilityChanged.connect(lambda _v: self._dual_view_schedule_check())
+        dock.topLevelChanged.connect(lambda _f: self._dual_view_schedule_check())
+
+    def _dual_view_schedule_check(self):
+        """Pruefung einen Tick spaeter: Andocken, Abdocken und restoreState
+        schalten Sichtbarkeit und Floating nacheinander um."""
+        if getattr(self, "_dual_view_saved", None):
+            QTimer.singleShot(0, self._dual_view_check_ended)
+
+    def _dual_view_check_ended(self):
+        """Beendet Dual View, wenn keins seiner Docks mehr schwebt und
+        sichtbar ist (per X geschlossen oder angedockt)."""
+        saved = getattr(self, "_dual_view_saved", None)
+        if not saved or not getattr(self, "_dual_view_active", None):
+            return
+        for name in saved:
+            dock = self.findChild(QDockWidget, name)
+            if dock is not None and dock.isFloating() and dock.isVisible():
+                return
+        self._dual_view_discard()
 
     def _dual_view_discard(self):
         """Beendet den Dual-View-Zustand OHNE das Layout von vorher
@@ -7135,9 +7171,9 @@ class P29MainWindow(QMainWindow):
         if not filepath.endswith(".ini"):
             filepath += ".ini"
         s = QSettings(filepath, QSettings.IniFormat)
-        s.setValue("geometry", self.saveGeometry())
-        s.setValue("windowState", self.saveState(_LAYOUT_VERSION))
-        s.setValue("raisedTabs", self._raised_tab_docknames())
+        # intern#231: waehrend Dual View das Layout von vorher, passend zu
+        # den eigenen floatrect-Werten aus _save_float_geoms
+        self._write_layout_state(s)
         self._save_float_geoms(s)
         s.sync()
         print(f"[Layout] Gespeichert: {filepath}")
@@ -7168,9 +7204,6 @@ class P29MainWindow(QMainWindow):
         # (sonst setzt ein dabei eingeblendetes Dock seine alte Position) und
         # DANACH (restoreState versteckt schwebende Docks -> visibilityChanged
         # merkt deren aktuelle Position neu vor). Massgeblich ist die Datei.
-        # intern#231: Ein geladenes Layout beendet auch Dual View - ein
-        # spaeterer Toggle darf nicht das Layout von davor zurueckholen.
-        self._dual_view_discard()
         self._pending_float_geom.clear()
         if geometry is not None:
             self.restoreGeometry(geometry)
@@ -7178,6 +7211,13 @@ class P29MainWindow(QMainWindow):
             if not self.restoreState(state, _LAYOUT_VERSION):
                 print(f"[Layout] Version stimmt nicht, State ignoriert: {path}")
                 return False
+        # intern#231: Ein geladenes Layout beendet auch Dual View - ein
+        # spaeterer Toggle darf nicht das Layout von davor zurueckholen.
+        # Erst nach erfolgreichem restoreState: scheitert es, bleiben die
+        # Fenster offen und der Toggle muss sie weiter schliessen koennen.
+        # Waehrend restoreState steht _dual_view_saved noch, die Docks merken
+        # sich also nicht die Dual-View-Groesse vor.
+        self._dual_view_discard()
         self._pending_float_geom.clear()
         print(f"[Layout] Geladen: {path}")
         self._reapply_dock_features()
@@ -7796,7 +7836,6 @@ class P29MainWindow(QMainWindow):
         self._settings.remove("raisedTabs")
         # Fullsize-State zuruecksetzen
         self._pre_fullsize_state = {}
-        self._dual_view_discard()  # intern#231
         # Alle Haupt-Docks sichtbar machen und andocken
         for dock in [self.dock_player, self.dock_loop,
                      self.dock_data, self.dock_list, self.dock_playlist,
@@ -7840,6 +7879,11 @@ class P29MainWindow(QMainWindow):
         self.dock_evening_planner.setFloating(True)
         self.dock_evening_planner.hide()
         self.resize(1100, 650)
+        # intern#231: erst NACH setFloating(False)/hide(). Beide feuern
+        # visibilityChanged, solange das Dock noch schwebt; stuende Dual View
+        # da schon nicht mehr, merkte _on_float_dock_visible die Dual-View-
+        # Groesse als eigene vor. So ueberschreibt discard die Vormerkung.
+        self._dual_view_discard()
         print("[Layout] Auf Default zurueckgesetzt")
 
     # ---- Skin-Wechsel ----

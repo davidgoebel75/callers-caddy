@@ -36,6 +36,11 @@ class _Haupt(QMainWindow):
     _dual_view_remember = W._dual_view_remember
     _dual_view_restore = W._dual_view_restore
     _dual_view_discard = W._dual_view_discard
+    _dual_view_watch = W._dual_view_watch
+    _dual_view_schedule_check = W._dual_view_schedule_check
+    _dual_view_check_ended = W._dual_view_check_ended
+    _reset_layout = W._reset_layout
+    _save_layout_to_file = W._save_layout_to_file
     _apply_layout_file = W._apply_layout_file
     _write_layout_state = W._write_layout_state
     _raised_tab_docknames = W._raised_tab_docknames
@@ -317,3 +322,122 @@ def test_discard_gibt_eigene_groesse_in_vormerkung(haupt, qapp):
     assert haupt._dual_view_active is None and haupt._pre_dual_view_state is None
     _beenden(haupt)                     # Speichern danach: wieder wie ohne Dual View
     assert haupt._settings.value("floatrect/dock_lyrics") == EIGEN
+
+
+# ---- Review #161 -------------------------------------------------------------
+
+DUAL_RULES = {"dock_left": "rules", "dock_right": "lyrics", "split": "50:50"}
+
+
+def _dual(h, qapp, params):
+    """dual_view per Regel (nicht Toggle), wie im Szenario aus dem Review."""
+    h._rule_dual_view(params)
+    qapp.processEvents()
+
+
+def test_beide_per_x_geschlossen_beendet_dual_view(haupt, qapp, ini):
+    lyr = _schwebend(haupt, "dock_lyrics", EIGEN)
+    _dual(haupt, qapp, DUAL)
+    seq = haupt.docks["dock_sequences"]
+    lyr.hide()
+    qapp.processEvents()
+    assert haupt._dual_view_active is not None          # Sequences noch offen
+    seq.hide()
+    qapp.processEvents()
+    assert haupt._dual_view_active is None and haupt._dual_view_saved == {}
+    lyr.show()                                           # spaeter uebers Menue
+    qapp.processEvents()
+    assert lyr.geometry() == EIGEN
+    lyr.setGeometry(QRect(40, 50, 500, 400))             # danach groesser gezogen
+    haupt._write_layout_state(ini)
+    _beenden(haupt)
+    assert ini.value("floatrect/dock_lyrics") == QRect(40, 50, 500, 400)
+    assert bytes(ini.value("windowState")) == bytes(
+        haupt.saveState(main._LAYOUT_VERSION))           # aktuelles Layout
+    _toggle(haupt, qapp)                                 # oeffnet neu
+    assert haupt._dual_view_active is not None
+
+
+def test_beide_angedockt_beendet_dual_view(haupt, qapp):
+    _schwebend(haupt, "dock_lyrics", EIGEN)
+    _dual(haupt, qapp, DUAL)
+    for name in ("dock_lyrics", "dock_sequences"):
+        haupt.docks[name].setFloating(False)
+    qapp.processEvents()
+    assert haupt._dual_view_active is None
+    assert haupt._pending_float_geom["dock_lyrics"] == EIGEN
+    _beenden(haupt)
+    assert haupt._settings.value("floatrect/dock_lyrics") == EIGEN
+
+
+def test_toggle_schliessen_beendet_ohne_discard(haupt, qapp):
+    """Waehrend _dual_view_restore verstecken/zeigen sich die Docks; die
+    Pruefung darf das Wiederherstellen nicht vorzeitig abbrechen."""
+    lyr = _schwebend(haupt, "dock_lyrics", EIGEN)
+    _toggle(haupt, qapp)
+    _toggle(haupt, qapp)
+    qapp.processEvents()
+    assert lyr.isFloating() and lyr.isVisible() and lyr.geometry() == EIGEN
+    assert "dock_lyrics" not in haupt._pending_float_geom
+
+
+def _fuer_reset(h, monkeypatch):
+    """_reset_layout fasst alle Haupt-Docks an; fehlende als echte Docks
+    nachreichen, die Tool-Docks des Stellvertreters bleiben dieselben.
+    Das Anordnen (add/split/tabify) ist hier ohne Belang und stuerzte im
+    Stellvertreter in der vollen Suite in Qt ab; massgeblich sind
+    setFloating(False)/hide() und die Reihenfolge von discard."""
+    for meth in ("addDockWidget", "splitDockWidget", "tabifyDockWidget"):
+        monkeypatch.setattr(h, meth, lambda *a, **k: None)
+    for attr in ("dock_player", "dock_loop", "dock_data", "dock_list",
+                 "dock_playlist", "dock_loop_finder", "dock_manager",
+                 "dock_reports", "dock_potential", "dock_photo"):
+        d = QDockWidget(attr, h)
+        d.setObjectName(attr)
+        d.setWidget(QWidget())
+        QMainWindow.addDockWidget(h, Qt.LeftDockWidgetArea, d)
+        setattr(h, attr, d)
+    for name in ("dock_lyrics", "dock_sequences", "dock_rules"):
+        setattr(h, name, h.docks[name])
+    h._pre_fullsize_state = {}
+
+
+def test_layout_zuruecksetzen_waehrend_dual_view_behaelt_eigene_groesse(
+        haupt, qapp, ini, monkeypatch):
+    _fuer_reset(haupt, monkeypatch)
+    rules = _schwebend(haupt, "dock_rules", EIGEN_RULES)
+    _dual(haupt, qapp, DUAL_RULES)
+    assert rules.geometry() != EIGEN_RULES
+    haupt._reset_layout()
+    qapp.processEvents()
+    assert haupt._dual_view_active is None
+    _beenden(haupt)
+    assert ini.value("floatrect/dock_rules") == EIGEN_RULES
+
+
+def test_layout_in_datei_waehrend_dual_view_speichert_layout_von_vorher(
+        haupt, qapp, tmp_path, monkeypatch):
+    _schwebend(haupt, "dock_lyrics", EIGEN)
+    vorher = haupt.saveState(main._LAYOUT_VERSION)
+    _toggle(haupt, qapp)
+    ziel = str(tmp_path / "export.ini")
+    monkeypatch.setattr(main.QFileDialog, "getSaveFileName",
+                        lambda *a, **k: (ziel, ""))
+    haupt.skin_mgr = type("S", (), {"skins_dir": str(tmp_path)})()
+    haupt._save_layout_to_file()
+    datei = QSettings(ziel, QSettings.IniFormat)
+    assert bytes(datei.value("windowState")) == bytes(vorher)
+    assert datei.value("floatrect/dock_lyrics") == EIGEN
+
+
+def test_layout_laden_mit_falscher_version_laesst_dual_view_offen(haupt, qapp, tmp_path):
+    _schwebend(haupt, "dock_lyrics", EIGEN)
+    datei = QSettings(str(tmp_path / "alt.ini"), QSettings.IniFormat)
+    datei.setValue("windowState", haupt.saveState(main._LAYOUT_VERSION + 1))
+    datei.sync()
+    _toggle(haupt, qapp)
+    assert not haupt._apply_layout_file(datei.fileName())
+    qapp.processEvents()
+    assert haupt._dual_view_active is not None           # Toggle schliesst weiter
+    _toggle(haupt, qapp)
+    assert haupt.docks["dock_lyrics"].geometry() == EIGEN
