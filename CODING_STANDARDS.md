@@ -71,6 +71,8 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 
 - **StyleSheet haengt `setFont()` aus — Schriftgroesse IMMER per `font-size` im StyleSheet setzen**: Hat ein Widget ein StyleSheet gesetzt (schon ein blosses `color: …` reicht), ignoriert Qt spaetere `setFont()`/`setPixelSize()`-Aufrufe stillschweigend — die Schrift bleibt auf Standardgroesse. Das kostet jedes Mal eine Debug-Schleife. **Regel:** Wenn ein Widget ein StyleSheet hat und die Schriftgroesse dynamisch/berechnet ist, die Groesse ins selbe StyleSheet schreiben (`f"color: {c}; font-size: {px}px;"`), NICHT ueber `setFont()`. `QFontMetrics` zum Ausmessen ist ok — nur das Anwenden muss ueber das StyleSheet laufen. Trat u.a. bei BL-189 auf (dynamischer Header im `SequenceViewWidget`).
 
+- **`tabifyDockWidget()` nur mit Docks, die in keiner Tab-Gruppe stecken (intern#240)**: Qt kommt damit nur zurecht, wenn beide Docks am Hauptfenster angedockt sind und das zweite noch nicht getabbt ist. Sonst zerstoert Qt 6.10 seine interne Dock-Liste, und die App stuerzt spaeter an wechselnder Stelle mit einer Access Violation ab (ohne Python-Traceback, nur `faulthandler` zeigt die Zeile). Qt faengt das erst mit dem Commit „Harden QMainWindowLayout::tabifyDockWidgets()“ (QTBUG-143841) ab; laut Qt-Log nicht nach 6.10/6.11 uebernommen, also erst ab 6.12. **Regel:** Wer Docks neu anordnet, nimmt sie zuerst per `removeDockWidget()` aus dem Layout und haengt Tab-Mitglieder nur per `tabifyDockWidget()` ein, ohne `addDockWidget()` davor (Muster `_reset_layout`). Gespeicherte Layouts ueber `restoreState()` sind nicht betroffen.
+
 - **QTableWidget-Pattern** (aus P27):
   ```python
   table.setUpdatesEnabled(False)
