@@ -58,6 +58,15 @@
 
 Gilt besonders fuer: UI-Bugs, Layout-Probleme, unerwartetes Verhalten das schwer aus dem Code abzulesen ist.
 
+**Frueh online recherchieren statt lange selbst eingrenzen.** Qt/PySide, PortAudio, sounddevice, numpy und SQLite sind etabliert; schwierige Fehler darin hatten fast immer schon andere. Sofort suchen, wenn
+- ein nativer Absturz ohne Python-Traceback auftritt (Access Violation, Segfault, 0xc0000005/0xc0000374; nur `python -X faulthandler` zeigt die Zeile),
+- der Fehler bei gleicher Lage mal auftritt und mal nicht,
+- er sich ohne App-Code nachstellen laesst,
+- spaetestens nach 2-3 Runden eigener Eingrenzung ohne Durchbruch.
+
+Suchen nach Bibliothek + Version + Symptom + Funktionsname (z. B. "Qt 6.10 tabifyDockWidget crash"); Bugtracker (QTBUG), Commit-Log der Quelldatei (`code.qt.io/cgit/qt/qtbase.git/log/<pfad>?showmsg=1`), Forum, Quelltext direkt lesen. Erst wenn nichts passt, selbst weiter eingrenzen.
+Beweis aus der Praxis: intern#240 (Absturz "Layout zuruecksetzen") - rund acht Runden Eigen-Eingrenzung, die Suche fand danach in Minuten den Qt-Commit (QTBUG-143841). AR-021 (Tempo-Ruckler) - fuenf Eigenversuche, die SoundTouch-Quelle zeigte eine 4-Zeilen-Loesung.
+
 ## Audio-Prioritaet — Eiserne Regel (TIC-0025, v0.80)
 
 **Ein aktiver AudioStream MUSS IMMER absolute Prioritaet haben.** Er darf NIE von UI-Operationen ausgehungert werden. Diese Regel hat Vorrang vor allen anderen Architektur-Entscheidungen. Jede Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines der Pflicht-Pattern verwenden.
