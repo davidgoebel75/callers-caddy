@@ -151,7 +151,8 @@ def test_sqlite_only_in_song_db():
         f"song_db; behobene Stellen aus _KNOWN_SQLITE_IMPORTS streichen.")
 
 _SYNC_KEYS = "caddy/lyrics/sync_keys.py"
-# Schluessel-Fragmente (auch in SQL- und Regex-Texten): "lyric_sync_",\n# "lyric_sync_m1_l1_%", "lyric_sync_m{...}", "lyric_sync_m(\\d+)"; nicht
+# Schluessel-Fragmente (auch in SQL- und Regex-Texten): "lyric_sync_",
+# "lyric_sync_m1_l1_%", "lyric_sync_m{...}", "lyric_sync_m(\\d+)"; nicht
 # die Uebersetzungs-Schluessel (lyric_sync_move_line, lyric_sync_detect_*).
 _SYNC_KEY_LITERAL = re.compile(r"lyric_sync_(m(\d|\()|%|['\"]|$)")
 

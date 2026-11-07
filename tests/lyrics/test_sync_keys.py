@@ -44,3 +44,8 @@ def test_body_laenge():
 def test_body_detect_nutzt_dieselbe_zahl():
     src = (pathlib.Path(sync_keys.__file__).parents[2] / "singing_body_detect.py")
     assert "SINGING_BODY_BEATS as BODY_BEATS" in src.read_text(encoding="utf-8")
+
+
+def test_like_pattern_mit_nur_einem_slot_ist_allgemein():
+    assert like_pattern(1) == "lyric_sync_%"
+    assert like_pattern(lyric_slot=1) == "lyric_sync_%"
