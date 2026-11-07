@@ -3,7 +3,7 @@
 ## Systemvoraussetzungen (Endnutzer)
 
 - **Betriebssystem: Windows 10 oder 11 (64-bit).** Windows 7 und 8/8.1 werden **nicht** unterstuetzt.
-  - Grund: **Qt 6 / PySide6** (aktuell 6.10) hat Win 7/8 fallengelassen und zielt nur auf Win 10/11. **Python 3.12** (im Build gebuendelt) verlangt ebenfalls mind. Windows 8.1 — praktisch also auch kein Win 7.
+  - Grund: **Qt 6 / PySide6** (fest gepinnt auf 6.12.0 in `installer/requirements.txt`, intern#241) hat Win 7/8 fallengelassen und zielt nur auf Win 10/11. **Python 3.12** (im Build gebuendelt) verlangt ebenfalls mind. Windows 8.1 — praktisch also auch kein Win 7.
   - Ein Start unter Windows 7 schlaegt mit fehlenden System-DLLs fehl. Das ist **erwartetes Verhalten, kein Bug** — es gibt keinen sinnvollen Workaround, ohne die Qt-/Python-Version zurueckzudrehen.
 - **Architektur: x86-64.** Kein offizielles ARM-Build.
 - **Kein Python noetig:** Die EXE buendelt Python + alle Abhaengigkeiten (PyInstaller).

@@ -7844,7 +7844,7 @@ class P29MainWindow(QMainWindow):
         main_docks = [self.dock_player, self.dock_loop,
                       self.dock_data, self.dock_list, self.dock_playlist,
                       self.dock_lyrics, self.dock_sequences]
-        # intern#240: Qt 6.10 stuerzt (Access Violation) beim Umhaengen von
+        # intern#240: Qt bis 6.10.2 stuerzt (Access Violation) beim Umhaengen von
         # Docks zwischen bestehenden Tab-Gruppen ab, auch ohne App-Code
         # nachstellbar. Stabil nur so: alle Haupt-Docks erst aus dem Layout
         # nehmen und die Tab-Mitglieder (Playlist, SongDaten, Sequenzen) NUR
