@@ -5551,6 +5551,8 @@ class P29MainWindow(QMainWindow):
             f"[Diag] Audio-Device Wechsel angefordert: idx={device_index}, "
             f"combo_label='{self._audio_device_combo.currentText()}'"
         )
+        # intern#237: bewusste Wahl -> Geraet wieder selbst versuchen
+        self.engine.forget_device_fallback(device_index)
         if self.player._audition_active:
             # intern#182 (wie #180): Das Vorhoeren bleibt auf dem Vorhoer-
             # Kanal; sein Ende schaltet auf das neue Geraet.
@@ -5637,6 +5639,7 @@ class P29MainWindow(QMainWindow):
             perf.perf_write(
                 f"[Diag] Audio-Favorit {target} angefordert: idx={device}, "
                 f"label='{self._audio_device_label(device)}'")
+            self.engine.forget_device_fallback(device)   # intern#237
             self.engine.set_output_device(device)
             combo.blockSignals(True)
             combo.setCurrentIndex(idx)
@@ -7316,6 +7319,7 @@ class P29MainWindow(QMainWindow):
             elif key == "audio/primary_device":
                 try:
                     dev = int(val) if val else None
+                    self.engine.forget_device_fallback(dev)   # intern#237
                     if self.player._audition_active:
                         # intern#180: Das Vorhoeren bleibt auf dem Vorhoer-
                         # Kanal; sein Ende schaltet auf das neue Geraet.
@@ -7340,6 +7344,7 @@ class P29MainWindow(QMainWindow):
                     dev = int(val) if val else None
                     combo_idx = self._audio_device_combo.findData(dev)
                     if self._audio_favorite == 2 and combo_idx >= 0:
+                        self.engine.forget_device_fallback(dev)   # intern#237
                         self.engine.set_output_device(dev)
                         if self.player._audition_active:
                             # intern#180: sonst stellt das Ende des Vorhoerens
