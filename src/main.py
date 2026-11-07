@@ -7841,10 +7841,18 @@ class P29MainWindow(QMainWindow):
         self._settings.remove("raisedTabs")
         # Fullsize-State zuruecksetzen
         self._pre_fullsize_state = {}
+        main_docks = [self.dock_player, self.dock_loop,
+                      self.dock_data, self.dock_list, self.dock_playlist,
+                      self.dock_lyrics, self.dock_sequences]
+        # intern#240: Qt 6.10 stuerzt (Access Violation) beim Umhaengen von
+        # Docks zwischen bestehenden Tab-Gruppen ab, auch ohne App-Code
+        # nachstellbar. Stabil nur so: alle Haupt-Docks erst aus dem Layout
+        # nehmen und die Tab-Mitglieder (Playlist, SongDaten, Sequenzen) NUR
+        # per tabifyDockWidget einhaengen, ohne addDockWidget davor.
+        for dock in main_docks:
+            self.removeDockWidget(dock)
         # Alle Haupt-Docks sichtbar machen und andocken
-        for dock in [self.dock_player, self.dock_loop,
-                     self.dock_data, self.dock_list, self.dock_playlist,
-                     self.dock_lyrics, self.dock_sequences]:
+        for dock in main_docks:
             dock.setFloating(False)
             dock.setVisible(True)
         # Schritt 1: Player als Anker (Spalte 1)
@@ -7862,13 +7870,10 @@ class P29MainWindow(QMainWindow):
         self.dock_loop_finder.setFloating(True)
         self.dock_loop_finder.hide()
         # Schritt 5: Playlist getabbt mit Songliste (Spalte 2)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_playlist)
         self.tabifyDockWidget(self.dock_list, self.dock_playlist)
         self.dock_list.raise_()
         # Schritt 6: SongDaten + Sequenzen getabbt mit Lyrics (Spalte 3)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_data)
         self.tabifyDockWidget(self.dock_lyrics, self.dock_data)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_sequences)
         self.tabifyDockWidget(self.dock_data, self.dock_sequences)
         self.dock_lyrics.raise_()
         # Versteckte Fenster
