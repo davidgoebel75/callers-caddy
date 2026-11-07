@@ -1,8 +1,8 @@
 """„Layout zurücksetzen“ stürzt nicht ab (intern#240).
 
 Qt 6.10 zerstört beim tabifyDockWidget() die interne Dock-Liste, wenn eines
-der beiden Docks schon in einer Tab-Gruppe steckt (vgl. QTBUG-143841, ab Qt
-6.11 abgefangen) – die App stürzte dann mit einer Access Violation ab. Der
+der beiden Docks schon in einer Tab-Gruppe steckt (vgl. QTBUG-143841, erst ab
+Qt 6.12 abgefangen) – die App stürzte dann mit einer Access Violation ab. Der
 Reset nimmt deshalb die Haupt-Docks erst aus dem Layout und tabbt nur Docks,
 die in keiner Gruppe stecken.
 
@@ -28,6 +28,8 @@ VERSTECKT = ("dock_loop_finder", "dock_manager", "dock_reports", "dock_potential
 
 class _Haupt(QMainWindow):
     _reset_layout = W._reset_layout
+    # Dual View (intern#231) beendet _reset_layout am Ende; hier ohne Belang
+    _dual_view_discard = lambda self: None
 
     def __init__(self, ini):
         super().__init__()
