@@ -169,6 +169,9 @@ class _VolleEngine:
     def play(self, *_a, **_kw):
         self.gestartet += 1
 
+    def take_device_notice(self):
+        return None
+
 
 def test_geleerter_player_schaltet_play_nicht_wieder_ein(keep):
     from player_widget import PlayerWidget
