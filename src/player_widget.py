@@ -394,9 +394,14 @@ class PlayerWidget(QWidget):
         self._theme_font_px  = 13  # aus skin.json font_size, Standard 13
         # NEU-Button ist jetzt im Loop-Widget, aber _load_file bleibt hier
         self._build_ui()
-        # intern#142: Lokationswechsel kommt aus der aktuellen Sitzung
+        # intern#142: Lokationswechsel und geladener Song kommen aus der aktuellen Sitzung
+        self._session = session
         if session is not None:
             session.location_changed.connect(self.set_location)
+
+    def _current_song(self):
+        """Geladener Song aus der aktuellen Sitzung (ohne Sitzung: kein Song)."""
+        return self._session.song if self._session is not None else None
 
     def _build_ui(self):
         _pb0 = perf_start()
@@ -1023,8 +1028,7 @@ class PlayerWidget(QWidget):
         ueber MainWindow._flush_player_values()."""
         if not getattr(self, '_tempo_dirty', False):
             return
-        main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
         db = getattr(self, '_db', None)
         if not song or not song.id or db is None:
             self._tempo_dirty = False
@@ -1038,8 +1042,7 @@ class PlayerWidget(QWidget):
         """Schreibt Pitch in DB falls geaendert. Idempotent."""
         if not getattr(self, '_pitch_dirty', False):
             return
-        main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
         db = getattr(self, '_db', None)
         if not song or not song.id or db is None:
             self._pitch_dirty = False
@@ -1529,9 +1532,10 @@ class LoopWidget(QWidget):
     daher passen sie gut zusammen mit dem NEU-Button.
     """
 
-    def __init__(self, engine, parent=None):
+    def __init__(self, engine, parent=None, session=None):
         super().__init__(parent)
         self.engine = engine
+        self._session = session
         self.on_new_clicked = None  # Callback: neuer Song laden
         self.on_new_dropped = None  # Callback(list[str]): Dateien/Ordner gedroppt (BL-179)
         self.on_set_marker = None   # Callback: Custom-Marker an aktueller Pos setzen (BL-185)
@@ -1723,13 +1727,17 @@ class LoopWidget(QWidget):
         self._sync_loop_to_song_data()
         self._save_loop_to_db()
 
+    def _current_song(self):
+        """Geladener Song aus der aktuellen Sitzung (ohne Sitzung: kein Song)."""
+        return self._session.song if self._session is not None else None
+
     def _save_loop_to_db(self):
         """Schreibt loop_in/loop_out aus der Engine direkt in die DB
         (Variante C: keine Sammelspeicherung beim Song-Wechsel mehr)."""
-        main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
         if not song or not song.id:
             return
+        main_win = self.window()
         loop_in = self.engine.loop_in_seconds
         loop_out = self.engine.loop_out_seconds
         song.loop_in = loop_in
@@ -1753,11 +1761,12 @@ class LoopWidget(QWidget):
         self._sync_loop_to_song_data()
         self.update_display()
         # In DB speichern (clear_loop umgeht Safety-Guard)
-        main_win = self.window()
-        if hasattr(main_win, '_current_song') and main_win._current_song:
-            main_win._current_song.loop_in = 0.0
-            main_win._current_song.loop_out = 0.0
-            main_win.db.clear_loop(main_win._current_song.id)
+        song = self._current_song()
+        if song:
+            main_win = self.window()
+            song.loop_in = 0.0
+            song.loop_out = 0.0
+            main_win.db.clear_loop(song.id)
 
     def _sync_loop_to_song_data(self):
         """Aktualisiert Loop-SpinBoxes im Song-Daten-Widget."""
@@ -1853,7 +1862,7 @@ class LoopWidget(QWidget):
         self.update_display()
 
         main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
 
         # Loop-Offset automatisch messen und anwenden
         offset_ms = None
