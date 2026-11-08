@@ -73,6 +73,8 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 
 - **`tabifyDockWidget()` nur mit Docks, die in keiner Tab-Gruppe stecken (intern#240)**: Qt kommt damit nur zurecht, wenn beide Docks am Hauptfenster angedockt sind und das zweite noch nicht getabbt ist. Sonst zerstoert Qt 6.10 seine interne Dock-Liste, und die App stuerzt spaeter an wechselnder Stelle mit einer Access Violation ab (ohne Python-Traceback, nur `faulthandler` zeigt die Zeile). Qt faengt das erst mit dem Commit „Harden QMainWindowLayout::tabifyDockWidgets()“ (QTBUG-143841) ab; laut Qt-Log nicht nach 6.10/6.11 uebernommen, also erst ab 6.12. **Regel:** Wer Docks neu anordnet, nimmt sie zuerst per `removeDockWidget()` aus dem Layout und haengt Tab-Mitglieder nur per `tabifyDockWidget()` ein, ohne `addDockWidget()` davor (Muster `_reset_layout`). Gespeicherte Layouts ueber `restoreState()` sind nicht betroffen.
 
+- **Event-Handler ueberschreiben (`mousePressEvent`, `mouseDoubleClickEvent`, `keyPressEvent` …) → `super()` aufrufen**: Qt fuehrt in seinem eigenen Handler Buch (gemerkter Klick-Index, Auswahl, Fokus). Faellt der Aufruf weg, stimmt dieser Zustand nicht mehr, und Folge-Events laufen falsch. Bei intern#213 loeste das Loslassen nach dem Doppelklick ein zweites `cellClicked` aus, das den gerade gestarteten Song neu lud und stoppte. Weglassen nur, wenn Qts Verhalten bewusst unterdrueckt werden soll, dann mit Kommentar.
+
 - **QTableWidget-Pattern** (aus P27):
   ```python
   table.setUpdatesEnabled(False)
@@ -93,5 +95,5 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 
 Neue Tests in den passenden Fachordner unter `tests/`, nicht flach nach `tests/`: `app/` Infrastruktur, Dialoge, Architektur-Regeln · `assignments/` Zuordnung, Figuren-Menge · `db/` DB-Schema, Update-Weg von Altständen · `lyrics/` Lyrics, Singing-Abschnitte, Heads/Sides · `breaks/` Pausen-Uhr, Wartemusik · `bulk/` Massenlaeufe (Geruest, Worker) · `playback/` Wiedergabe, Loop, Player · `rules/` Regeln (Trigger, Bedingungen, Aktionen) · `sequences/` Sequenzen, Filter, Import · `settings/` INI, Einstellungsdialog, Skins · `songs/` Song-Katalog, Metadaten, ZIP-Import, Playlist. Tests laufen aus dem Stamm, aus `tests/` und aus jedem Unterordner.
 
-- **Widgets und Test-DBs gehen durch die Fixture `keep`** (`tests/conftest.py`), die sie am Testende abraeumt. Was liegen bleibt, sammelt ein spaeterer `gc.collect()` an zufaelliger Stelle ein, und die volle Suite stuerzt nur auf manchen Rechnern ab (PR #119).
+- **Widgets und Test-DBs gehen durch die Fixture `keep`** (`tests/conftest.py`), die sie am Testende abraeumt. Was liegen bleibt, sammelt ein spaeterer `gc.collect()` an zufaelliger Stelle ein, und die volle Suite stuerzt nur auf manchen Rechnern ab (PR #119). `tests/app/test_keep_regel.py` prueft `SongDatabase(...)` und `deleteLater()` mechanisch; Widgets bleiben Sache des Reviews.
 - **Mutation Testing** (mutmut, lokal bei Bedarf) prueft, ob Tests ein Ergebnis wirklich pruefen statt es nur auszufuehren. Einrichtung, Ablauf und Windows-Fallen stehen in `setup.cfg`.
