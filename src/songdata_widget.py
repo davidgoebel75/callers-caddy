@@ -6,7 +6,6 @@ Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
 import os
-import re
 import random
 from datetime import date, datetime
 
@@ -27,6 +26,8 @@ from path_manager import PathManager
 from i18n import _t
 import song_data_io
 import lyrics_files
+from caddy.lyrics.sync_keys import is_sync_key
+from caddy.songs import playlist_file
 from dialogs_lyrics_conflict import ask_lyrics_conflict
 from perf import perf_start, perf_split, perf_log
 from caddy.songs import recommendation
@@ -538,35 +539,15 @@ class CustomFilterDialog(QDialog):
         if not filepath:
             return
         try:
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                with open(filepath, "r", encoding="cp1252") as f:
-                    lines = f.readlines()
+            lines = playlist_file.read(filepath)
         except Exception as e:
             QMessageBox.warning(self, _t("error"), _t("load_failed", error=e))
             return
 
         song_ids = set()
         not_found = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(" ", 2)
-            if len(parts) < 2:
-                continue
-            mode = parts[0].upper()
-            if mode not in ("P", "S"):
-                mode = "P"
-            # LOOPCOUNT-Token "N" oder "N:CUT" (BL-164) ueberspringen; nur Filename noetig
-            if len(parts) == 3 and re.fullmatch(r"\d+(:\d+)?", parts[1]):
-                filename = parts[2]
-            elif len(parts) == 3:
-                filename = parts[1] + " " + parts[2]
-            else:
-                filename = parts[1]
+        for item in lines:
+            filename = item.name   # Zaehler und Cut braucht der Filter nicht
             song = self._db.get_by_title(filename) or self._db.get_by_filename(filename)
             if song:
                 song_ids.add(song.id)
@@ -735,7 +716,7 @@ class SongPropertiesDialog(QDialog):
         # Unbekannte Keys anzeigen (aber KEINE Varianten- oder Sync-Keys)
         for key, value in existing.items():
             if (key not in SONG_PROPERTY_KEYS and not self._is_variant_key(key)
-                    and not key.startswith("lyric_sync_")
+                    and not is_sync_key(key)
                     and not key.startswith("marker_")):
                 rows.append((key, key, value))
 
@@ -1163,6 +1144,24 @@ class SongDataWidget(QWidget):
             event.ignore()
             return True
         return super().eventFilter(obj, event)
+
+    @property
+    def shown_song(self):
+        """Der im Dock angezeigte Song (kann vom geladenen Song abweichen)."""
+        return self._current_song
+
+    def replace_shown_song(self, fresh: Song):
+        """Frisch aus der DB geholter Song mit gleicher ID: Objekt ersetzen und
+        die von aussen geaenderten Bewertungsfelder neu zeigen."""
+        self._current_song = fresh
+        self.spin_quality.blockSignals(True)
+        self.spin_quality.setValue(fresh.quality or 0)
+        self.spin_quality.blockSignals(False)
+        self.combo_err.blockSignals(True)
+        idx = self.combo_err.findData(fresh.err or 0)
+        if idx >= 0:
+            self.combo_err.setCurrentIndex(idx)
+        self.combo_err.blockSignals(False)
 
     def load_song(self, song: Song):
         if self._current_song is None or self._current_song.id != song.id:
@@ -2062,27 +2061,12 @@ class SongFilterBar(QWidget):
             if not fp or not os.path.isfile(fp):
                 continue
             try:
-                try:
-                    with open(fp, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                except UnicodeDecodeError:
-                    with open(fp, "r", encoding="cp1252") as f:
-                        lines = f.readlines()
+                lines = playlist_file.read(fp)
             except Exception:
                 continue
             song_ids = set()
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                parts = line.split(" ", 2)
-                if len(parts) < 2:
-                    continue
-                mode = parts[0].upper()
-                if mode not in ("P", "S"):
-                    mode = "P"
-                filename = parts[2] if (len(parts) == 3 and parts[1].isdigit()) else \
-                           (parts[1] + " " + parts[2]) if len(parts) == 3 else parts[1]
+            for item in lines:
+                filename = item.name
                 song = self._db.get_by_title(filename) or self._db.get_by_filename(filename)
                 if song:
                     song_ids.add(song.id)

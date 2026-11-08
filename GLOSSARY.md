@@ -164,6 +164,13 @@ Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
 _EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
 
+**Massenlauf**:
+Eine Pruefung oder Reparatur im Potential-Dock, die viele Songs nacheinander
+bearbeitet (z. B. BPM ermitteln, Loops suchen). Ab einer gewissen Menge erst ein
+Probelauf mit wenigen Songs zur Zeitschaetzung; abbrechen laesst Bearbeitetes stehen.
+_EN_: Bulk Run
+_Avoid_: Batch-Lauf, Bulk-Job
+
 ### Figuren und Programme
 
 **Programm**:

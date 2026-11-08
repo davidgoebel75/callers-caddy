@@ -21,6 +21,17 @@ W = main.P29MainWindow
 NEWER, OLDER = 2_000_000_000, 1_000_000_000
 
 
+class _Sitzung:
+    """Fake der aktuellen Sitzung: kein QObject (Windows-Crash-Falle), nur song/set_song."""
+
+    def __init__(self, song=None, **kw):
+        self.song = song
+        self.__dict__.update(kw)
+
+    def set_song(self, song):
+        self.song = song
+
+
 def _write(path, text, mtime=None):
     path.write_text(text, encoding="utf-8")
     if mtime is not None:
@@ -209,7 +220,7 @@ class _Fenster:
     def __init__(self, lyrics):
         self.paths = _paths(lyrics)
         self.updated = []
-        self._current_song = None       # kein Song geladen
+        self.session = _Sitzung()       # kein Song geladen
         self.db = SimpleNamespace(
             update_lyrics_file=lambda sid, name: self.updated.append((sid, name)))
 
@@ -279,7 +290,7 @@ def test_nach_dem_ersetzen_zeigt_das_lyric_fenster_den_neuen_text(
         main, "resolve_with_dialog",
         lambda _parent, c: dialogs_lyrics_conflict.resolve_with_dialog(None, c))
     fenster = _Fenster(lyrics)
-    fenster._current_song = SimpleNamespace(id=3)
+    fenster.session.set_song(SimpleNamespace(id=3))
     shown_path = str(lyrics / shown)
     fenster.lyrics_widget = SimpleNamespace(is_showing=lambda p: p == shown_path)
     calls = []

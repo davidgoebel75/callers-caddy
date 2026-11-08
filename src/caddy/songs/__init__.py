@@ -1,1 +1,1 @@
-"""Song-Logik ohne Qt (intern#141): Empfehlungsregel."""
+"""Fachpaket Songs: Song-Katalog, Metadaten, Playlist-Datei und Empfehlungsregel (intern#141)."""
