@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QSettings
 
+import program_selection
 from i18n import _t
 
 
@@ -587,19 +588,6 @@ def _play_ping(volume: float, device_idx):
 # Widget-Zeile: Label + Widget (+ optional Browse-Button)
 # ---------------------------------------------------------------------------
 
-def _parse_id_list(raw) -> list:
-    """Kommagetrennte ID-Liste (z.B. '3,4') -> [3, 4]. Robust gegen Leerzeichen."""
-    out = []
-    for part in str(raw or "").split(","):
-        part = part.strip()
-        if part:
-            try:
-                out.append(int(part))
-            except ValueError:
-                pass
-    return out
-
-
 class _SettingRow:
     """Kapselt Label, Widget und den aktuellen Wert fuer eine INI-Einstellung."""
 
@@ -664,7 +652,7 @@ class _SettingRow:
         if widget_type == "program_picker":
             # Nur-Anzeige der aktuell gewaehlten Programm-Codes; editiert wird ueber
             # den Picker-Button (self.picker_btn -> _pick_programs).
-            self._program_ids = _parse_id_list(raw_value)
+            self._program_ids = program_selection.parse_ids(raw_value)
             w = QLineEdit()
             w.setReadOnly(True)
             if self._program_label_cb:
