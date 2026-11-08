@@ -54,7 +54,7 @@ _SQLITE_ALLOWED = ("song_db.py", "song_db_schema.py", "song_db_sequences.py",
 
 # sqlite3-Importe ausserhalb davon, vorgefunden. Abbau: intern#139.
 _KNOWN_SQLITE_IMPORTS = {
-    "potential_widget.py": 6,
+    "potential_widget.py": 5,
 }
 
 
