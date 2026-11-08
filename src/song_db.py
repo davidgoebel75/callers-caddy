@@ -989,6 +989,18 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
               f"(Historie {'mit' if delete_history else 'behalten'})")
         return deleted
 
+    def open_worker_connection(self):
+        """Neue Verbindung fuer einen Hintergrund-Worker (intern#139).
+
+        Eigene Verbindung, weil SQLite-Verbindungen threadgebunden sind und die
+        Haupt-Verbindung nicht mitbenutzt werden darf. Liest nur self.db_path,
+        ist also aus dem Worker-Thread aufrufbar. Gleiche PRAGMAs wie die
+        Haupt-Verbindung. Der Aufrufer schliesst sie."""
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA busy_timeout=30000;")
+        conn.execute("PRAGMA foreign_keys=ON;")
+        return conn
+
     def bulk_delete_songs(self, song_ids: list, delete_history: bool = False) -> int:
         """Main-Thread-Variante (kleine Mengen). Delegiert an
         bulk_delete_on_connection mit der eigenen Connection."""

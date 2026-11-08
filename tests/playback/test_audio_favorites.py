@@ -51,10 +51,14 @@ class _Engine:
     def __init__(self):
         self.device = SPEAKER
         self.switches = []
+        self.forgotten = []
 
     def set_output_device(self, device):
         self.device = device
         self.switches.append(device)
+
+    def forget_device_fallback(self, device):
+        self.forgotten.append(device)
 
 
 class _Fenster:
@@ -184,6 +188,7 @@ def test_neuer_favorit_1_im_vorhoeren_schaltet_erst_danach(fenster):
     assert fenster.engine.switches == []                    # Vorhoeren bleibt, wo es ist
     assert fenster._pre_audition_device == OTHER
     assert fenster._btn_audio_favorite.text() == "1"
+    assert fenster.engine.forgotten == [OTHER]              # intern#237: danach neu versuchen
 
 
 def test_neuer_favorit_1_ohne_vorhoeren_schaltet_sofort(fenster):
@@ -210,6 +215,7 @@ def test_footer_auswahl_ohne_vorhoeren_schaltet_sofort(fenster):
     combo.setCurrentIndex(combo.findData(OTHER))
     fenster._on_audio_device_changed(combo.currentIndex())
     assert fenster.engine.switches == [OTHER]
+    assert fenster.engine.forgotten == [OTHER]              # intern#237
 
 
 def test_tooltip_nennt_beide_geraete(fenster):

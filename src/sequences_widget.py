@@ -75,7 +75,7 @@ class SequenceViewWidget(QWidget):
     Wird von SequencesWidget über on_open_detail gesteuert.
     """
 
-    def __init__(self, db, skin_mgr=None):
+    def __init__(self, db, skin_mgr=None, session=None):
         super().__init__()
         self._db = db
         self._skin_mgr = skin_mgr
@@ -85,6 +85,12 @@ class SequenceViewWidget(QWidget):
         # intern#176: Baender der Tanzprogramm-Wahl fuer das Programm-Etikett
         # hinter jedem Call (None = keine Wahl, z. B. im Beispiel-Betrachter).
         self._program_bands = None
+        # intern#142: Tanzprogramm-Wahl aus der aktuellen Sitzung (ohne: keine Wahl)
+        self._session = session
+        if session is not None:
+            self._program_bands = program_selection.bands_for(
+                db.get_all_dance_programs(), session.program_ids)
+            session.program_ids_changed.connect(self._on_program_ids_changed)
         # BL-182: Zufalls-Modus (Würfel). Wenn aktiv, springt „Weiter" (Button,
         # Pfeiltaste, Dynamic-Lyrics-advance) zu einer zufälligen anderen Sequenz
         # aus der aktuell gefilterten Liste — Ziehen ohne Zurücklegen. Das
@@ -464,6 +470,10 @@ class SequenceViewWidget(QWidget):
         danach macht der Aufgerufene (P29MainWindow._open_call_mapping)."""
         self.on_open_call_mapping([call_text])
 
+    def _on_program_ids_changed(self, ids):
+        self.set_program_bands(program_selection.bands_for(
+            self._db.get_all_dance_programs(), ids))
+
     def set_program_bands(self, bands):
         """intern#176: Tanzprogramm-Wahl uebernehmen und das Programm-Etikett
         der gezeigten Sequenz neu rechnen."""
@@ -658,7 +668,7 @@ class SequencesWidget(QWidget):
     _ZOOM_MAX = 200
     _ZOOM_STEP = 10
 
-    def __init__(self, db, skin_mgr=None, settings=None):
+    def __init__(self, db, skin_mgr=None, settings=None, session=None):
         super().__init__()
         self.db = db
         self._skin_mgr = skin_mgr
@@ -686,6 +696,14 @@ class SequencesWidget(QWidget):
         self._program_sort_to = None
 
         self._build_ui()
+        # intern#142: Tanzprogramm-Wahl aus der aktuellen Sitzung. Beim Start nur
+        # die Baender setzen (defer_load): das teure Laden macht _init_sequences()
+        # nach window.show().
+        if session is not None:
+            self._session = session
+            self.set_program_bands(program_selection.bands_for(
+                db.get_all_dance_programs(), session.program_ids), defer_load=True)
+            session.program_ids_changed.connect(self._on_program_ids_changed)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -1036,6 +1054,15 @@ class SequencesWidget(QWidget):
         self._check_only_program.setChecked(bool(enabled))
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
+
+    def _on_program_ids_changed(self, _ids):
+        """Neues Laden kostet Main-Thread-Zeit: per singleShot entkoppeln (Audio-
+        Regel). Gerechnet wird mit der Wahl von dann, nicht mit dem Signalwert."""
+        QTimer.singleShot(0, self._apply_session_programs)
+
+    def _apply_session_programs(self):
+        self.set_program_bands(program_selection.bands_for(
+            self.db.get_all_dance_programs(), self._session.program_ids))
 
     def set_program_bands(self, bands, defer_load=False):
         """MS50: Setzt die Programm-Band-Menge der aktuellen Lokation (Mengen-Filter).

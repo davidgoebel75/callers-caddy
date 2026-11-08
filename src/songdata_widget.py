@@ -6,7 +6,6 @@ Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
 import os
-import re
 import random
 from datetime import date, datetime
 
@@ -27,13 +26,15 @@ from path_manager import PathManager
 from i18n import _t
 import song_data_io
 import lyrics_files
+from caddy.lyrics.sync_keys import is_sync_key
+from caddy.songs import playlist_file
 from dialogs_lyrics_conflict import ask_lyrics_conflict
 from perf import perf_start, perf_split, perf_log
+from caddy.songs import recommendation
 from stats_widget import add_song_rating_actions
 from ui_helpers import (
     fmt_time, fmt_precise, _make_icon, _clear_layout, parse_time_offset,
-    _SVG_PENCIL, _SVG_CLOCK, _SVG_REMOVE_X, _WrapButtonBar, _UNRATED_QUALITY,
-    _reco_days_since, _reco_score, _weighted_random_order, _style_date_cell,
+    _SVG_PENCIL, _SVG_CLOCK, _SVG_REMOVE_X, _WrapButtonBar, _style_date_cell,
 )
 
 
@@ -538,35 +539,15 @@ class CustomFilterDialog(QDialog):
         if not filepath:
             return
         try:
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                with open(filepath, "r", encoding="cp1252") as f:
-                    lines = f.readlines()
+            lines = playlist_file.read(filepath)
         except Exception as e:
             QMessageBox.warning(self, _t("error"), _t("load_failed", error=e))
             return
 
         song_ids = set()
         not_found = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(" ", 2)
-            if len(parts) < 2:
-                continue
-            mode = parts[0].upper()
-            if mode not in ("P", "S"):
-                mode = "P"
-            # LOOPCOUNT-Token "N" oder "N:CUT" (BL-164) ueberspringen; nur Filename noetig
-            if len(parts) == 3 and re.fullmatch(r"\d+(:\d+)?", parts[1]):
-                filename = parts[2]
-            elif len(parts) == 3:
-                filename = parts[1] + " " + parts[2]
-            else:
-                filename = parts[1]
+        for item in lines:
+            filename = item.name   # Zaehler und Cut braucht der Filter nicht
             song = self._db.get_by_title(filename) or self._db.get_by_filename(filename)
             if song:
                 song_ids.add(song.id)
@@ -735,7 +716,7 @@ class SongPropertiesDialog(QDialog):
         # Unbekannte Keys anzeigen (aber KEINE Varianten- oder Sync-Keys)
         for key, value in existing.items():
             if (key not in SONG_PROPERTY_KEYS and not self._is_variant_key(key)
-                    and not key.startswith("lyric_sync_")
+                    and not is_sync_key(key)
                     and not key.startswith("marker_")):
                 rows.append((key, key, value))
 
@@ -1163,6 +1144,24 @@ class SongDataWidget(QWidget):
             event.ignore()
             return True
         return super().eventFilter(obj, event)
+
+    @property
+    def shown_song(self):
+        """Der im Dock angezeigte Song (kann vom geladenen Song abweichen)."""
+        return self._current_song
+
+    def replace_shown_song(self, fresh: Song):
+        """Frisch aus der DB geholter Song mit gleicher ID: Objekt ersetzen und
+        die von aussen geaenderten Bewertungsfelder neu zeigen."""
+        self._current_song = fresh
+        self.spin_quality.blockSignals(True)
+        self.spin_quality.setValue(fresh.quality or 0)
+        self.spin_quality.blockSignals(False)
+        self.combo_err.blockSignals(True)
+        idx = self.combo_err.findData(fresh.err or 0)
+        if idx >= 0:
+            self.combo_err.setCurrentIndex(idx)
+        self.combo_err.blockSignals(False)
 
     def load_song(self, song: Song):
         if self._current_song is None or self._current_song.id != song.id:
@@ -1747,13 +1746,13 @@ class SongFilterBar(QWidget):
 
     sig_changed = Signal()
 
-    SORT_ALPHA           = 0
-    SORT_QUALITY         = 1
-    SORT_LAST_PLAYED     = 2
-    SORT_RECOMMENDATION  = 3
-    SORT_DATE_ADDED      = 4
-    SORT_RANDOM          = 5   # BL-170: reiner Zufall (Gleichverteilung)
-    SORT_WEIGHTED_RANDOM = 6   # BL-170: gewichteter Zufall (Roulette-Wheel)
+    SORT_ALPHA           = recommendation.SORT_ALPHA
+    SORT_QUALITY         = recommendation.SORT_QUALITY
+    SORT_LAST_PLAYED     = recommendation.SORT_LAST_PLAYED
+    SORT_RECOMMENDATION  = recommendation.SORT_RECOMMENDATION
+    SORT_DATE_ADDED      = recommendation.SORT_DATE_ADDED
+    SORT_RANDOM          = recommendation.SORT_RANDOM   # BL-170: reiner Zufall (Gleichverteilung)
+    SORT_WEIGHTED_RANDOM = recommendation.SORT_WEIGHTED_RANDOM   # BL-170: gewichteter Zufall (Roulette-Wheel)
 
     def __init__(self, show_genre=False, show_recommendation=False,
                  show_custom_filter=False, db=None, pl_dir="", settings=None,
@@ -2062,27 +2061,12 @@ class SongFilterBar(QWidget):
             if not fp or not os.path.isfile(fp):
                 continue
             try:
-                try:
-                    with open(fp, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                except UnicodeDecodeError:
-                    with open(fp, "r", encoding="cp1252") as f:
-                        lines = f.readlines()
+                lines = playlist_file.read(fp)
             except Exception:
                 continue
             song_ids = set()
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                parts = line.split(" ", 2)
-                if len(parts) < 2:
-                    continue
-                mode = parts[0].upper()
-                if mode not in ("P", "S"):
-                    mode = "P"
-                filename = parts[2] if (len(parts) == 3 and parts[1].isdigit()) else \
-                           (parts[1] + " " + parts[2]) if len(parts) == 3 else parts[1]
+            for item in lines:
+                filename = item.name
                 song = self._db.get_by_title(filename) or self._db.get_by_filename(filename)
                 if song:
                     song_ids.add(song.id)
@@ -2135,22 +2119,17 @@ class SongFilterBar(QWidget):
         if custom_ids is not None:
             songs = [s for s in songs if s.id in custom_ids]
 
-        # Sortierung
+        # Sortierung (Regel: caddy.songs.recommendation)
         today = date.today()
         sd    = start_date or today
         af    = added_fallback or start_date or today
 
-        def _days_since(song_id):
-            return _reco_days_since(song_id, last_played_map, sd)
-
         # BL-113: Stabiler Zufalls-Tiebreaker — einmal pro Session zuweisen, dann cachen.
         # Die Checkbox ist immer schaltbar; der Tiebreaker greift aber nur bei
-        # score-basierten Sortierungen mit moeglichen Gleichstaenden. In anderen
-        # Modi (alphabetisch, Zufall) ist der Haken bewusst folgenlos.
-        _tb_relevant = self.sort_mode in (self.SORT_QUALITY,
-                                          self.SORT_RECOMMENDATION,
-                                          self.SORT_DATE_ADDED)
-        use_tb = self._chk_random_tb.isChecked() and _tb_relevant
+        # score-basierten Sortierungen mit moeglichen Gleichstaenden
+        # (recommendation.LIST_TIEBREAK_MODES). In anderen Modi (alphabetisch,
+        # Zufall) ist der Haken bewusst folgenlos.
+        use_tb = self._chk_random_tb.isChecked()
 
         def _tb(song_id):
             if song_id not in self._sort_random:
@@ -2172,53 +2151,15 @@ class SongFilterBar(QWidget):
                 self._sort_draw[song_id] = u
             return u
 
-        def _added_ord(song):
-            """Einfuegedatum als Ordinalzahl. Ohne Datum: Erstaufnahme-Datum aus
-            der INI (playlist/start_date) — der migrierte Altbestand hat kein
-            date_added, war aber zur Erstaufnahme bereits in der Bibliothek."""
-            try:
-                return date.fromisoformat(song.date_added[:10]).toordinal()
-            except (ValueError, TypeError):
-                return af.toordinal()
-
         sm = self.sort_mode
-        if sm == self.SORT_ALPHA:
-            songs = sorted(songs, key=lambda s: (s.title or s.filename).lower())
-        elif sm == self.SORT_QUALITY:
-            songs = sorted(songs, key=lambda s: (-s.quality, _tb(s.id)))
-        elif sm == self.SORT_LAST_PLAYED:
-            songs = sorted(songs, key=lambda s: -_days_since(s.id))
-        elif sm == self.SORT_RECOMMENDATION:
-            songs = sorted(songs, key=lambda s: (-(s.quality * _days_since(s.id)), _tb(s.id)))
-        elif sm == self.SORT_DATE_ADDED:
-            # Neueste Zugaenge zuerst.
-            songs = sorted(songs, key=lambda s: (-_added_ord(s), _tb(s.id)))
-        elif sm == self.SORT_RANDOM:
-            # Reiner Zufall: jeder Song gleich wahrscheinlich.
-            _t0 = perf_start()
-            songs = sorted(songs, key=lambda s: _draw(s.id))
+        _t0 = perf_start() if sm in (self.SORT_RANDOM,
+                                     self.SORT_WEIGHTED_RANDOM) else None
+        songs = recommendation.rank(
+            songs, sm, last_played_map=last_played_map, today=today,
+            fallback_date=sd, added_fallback=af, tiebreak=_tb, draw=_draw)
+        if sm == self.SORT_RANDOM:
             perf_log(f"SongFilterBar.sort_random ({len(songs)} songs)", _t0)
         elif sm == self.SORT_WEIGHTED_RANDOM:
-            # Gewichteter Zufall (Roulette-Wheel). Gewicht = Empfehlungs-Score
-            # + 1, damit ein Score von 0 nicht Wahrscheinlichkeit 0 bedeutet.
-            #
-            # quality 0 heisst "noch nicht bewertet", nicht "schlecht". Mit dem
-            # echten Wert 0 waere das Gewicht immer 1 und solche Songs kaemen
-            # nie dran — sie koennten damit auch nie bewertet werden. Deshalb
-            # zaehlt eine fehlende Bewertung HIER (und nur hier, nicht in der
-            # Empfehlungs-Sortierung) als neutrale 5.
-            #
-            # Ein heute gespielter Song behaelt dagegen bewusst Gewicht 1: der
-            # soll am selben Abend nicht nochmal drankommen.
-            _t0 = perf_start()
-
-            def _weight(s):
-                q = s.quality if s.quality > 0 else _UNRATED_QUALITY
-                # max(): ein in der Zukunft liegendes "zuletzt gespielt"
-                # ergaebe negative Tage und damit ein negatives Gewicht.
-                return max(1, q * _days_since(s.id) + 1)
-
-            songs = _weighted_random_order(songs, _weight, _draw)
             perf_log(f"SongFilterBar.sort_weighted_random ({len(songs)} songs)", _t0)
 
         return songs
@@ -2439,7 +2380,8 @@ class SongListWidget(QWidget):
             if role == "added":
                 cell_text, inherited = self._added_cell(song)
             elif role == "score":
-                cell_text = str(_reco_score(song, self._last_played_map, self._start_date))
+                cell_text = str(recommendation.song_score(
+                    song, self._last_played_map, date.today(), self._start_date))
                 tooltip = _t("tooltip_score_col")
             else:
                 last_played_str = self._last_played_map.get(song.id, "")
