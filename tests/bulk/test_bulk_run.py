@@ -2,6 +2,8 @@
 import contextlib
 import io
 
+import pytest
+
 from caddy.bulk.bulk_run import BulkCounts, BulkResult, run_bulk
 
 
@@ -120,11 +122,7 @@ def test_counts_hold_state_when_loop_raises():
     def progress(i, n, name):
         if i == 3:
             raise RuntimeError("weg")
-    try:
+    with pytest.raises(RuntimeError):
         run_bulk([(1,), (2,), (3,)], lambda c, j: j[0] == 1, conn=FakeConn(),
                  is_cancelled=lambda: False, on_progress=progress, counts=counts)
-    except RuntimeError:
-        pass
-    else:
-        raise AssertionError("Ausnahme erwartet")
     assert counts == BulkCounts(done=1, skipped=1)
