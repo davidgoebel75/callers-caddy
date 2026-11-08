@@ -1145,6 +1145,24 @@ class SongDataWidget(QWidget):
             return True
         return super().eventFilter(obj, event)
 
+    @property
+    def shown_song(self):
+        """Der im Dock angezeigte Song (kann vom geladenen Song abweichen)."""
+        return self._current_song
+
+    def replace_shown_song(self, fresh: Song):
+        """Frisch aus der DB geholter Song mit gleicher ID: Objekt ersetzen und
+        die von aussen geaenderten Bewertungsfelder neu zeigen."""
+        self._current_song = fresh
+        self.spin_quality.blockSignals(True)
+        self.spin_quality.setValue(fresh.quality or 0)
+        self.spin_quality.blockSignals(False)
+        self.combo_err.blockSignals(True)
+        idx = self.combo_err.findData(fresh.err or 0)
+        if idx >= 0:
+            self.combo_err.setCurrentIndex(idx)
+        self.combo_err.blockSignals(False)
+
     def load_song(self, song: Song):
         if self._current_song is None or self._current_song.id != song.id:
             # Neuer Song — Varianten-Auswahl zuruecksetzen
