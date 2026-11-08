@@ -1322,6 +1322,8 @@ class P29MainWindow(QMainWindow):
         self.dock_break.hide()  # Default; restoreState() stellt echten Zustand her
         # Beim Oeffnen die Standard-Pausendauer der aktuellen Lokation uebernehmen
         self.dock_break.visibilityChanged.connect(self._on_break_visibility)
+        # Das X bricht eine laufende Pause ab, ohne break_finished (intern#221)
+        self.break_widget.cancel_on_close(self.dock_break)
         self._add_view_menu_entry(self.dock_break, _t("dock_break"))
         perf_log("    Break dock", _tbreak)
 
