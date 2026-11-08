@@ -97,6 +97,11 @@ Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
 _EN_: Song Catalog
 _Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
 
+**Empfehlungs-Score**:
+Qualitaet des Songs mal Tage seit zuletzt gespielt; nie gespielte Songs zaehlen ab
+dem Erstaufnahme-Datum. Je hoeher, desto eher kommt der Song wieder dran.
+_EN_: Recommendation score
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.
