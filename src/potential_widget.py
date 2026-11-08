@@ -155,6 +155,14 @@ def _bpm_worker(jobs, db):
                       name_of=lambda job: job[2], label="BulkBpm")
 
 
+def _cancelled_line(jobs_total, done, skipped):
+    """Abbruchzeile fuer den Ergebnisdialog, wenn Songs offen blieben (intern#226).
+    Offen heisst: abgebrochen im Probelauf oder im Rest, oder "Nein" bei der
+    Zeitschaetzung."""
+    rest = jobs_total - done - skipped
+    return _t('pot_bulk_cancelled', open=rest) if rest > 0 else None
+
+
 class _BulkSingingStartWorker(QThread):
     """Ermittelt Songanfang+Ende (Singing-Body) einer Liste und schreibt fuer
      JEDEN erkennbaren Song singing_start_m1/singing_end_m1 (Hintergrund,
@@ -2978,7 +2986,7 @@ class PotentialWidget(QWidget):
 
         if not jobs:
             QMessageBox.information(self, _t('pot_fix_all_loop'),
-                                    _t('pot_fix_all_done', done=0, total=n, skipped=n))
+                                    _t('pot_bulk_no_files', count=n))
             return
 
         if len(jobs) <= 5:
@@ -3085,7 +3093,7 @@ class PotentialWidget(QWidget):
 
         if not jobs:
             QMessageBox.information(self, _t('pot_fix_all_beatsnap'),
-                                    _t('pot_fix_all_done', done=0, total=n, skipped=n))
+                                    _t('pot_bulk_no_files', count=n))
             return
 
         if len(jobs) <= 5:
@@ -3219,7 +3227,7 @@ class PotentialWidget(QWidget):
 
         if not jobs:
             QMessageBox.information(self, _t('pot_loop_optimize'),
-                                    _t('pot_fix_all_done', done=0, total=n, skipped=n))
+                                    _t('pot_bulk_no_files', count=n))
             return
 
         if len(jobs) <= 5:
@@ -3396,6 +3404,7 @@ class PotentialWidget(QWidget):
         jobs, missing = self._bpm_build_jobs(rows)
         self._bpm_missing = missing
         self._bpm_accum = (0, 0)
+        self._bpm_total = len(jobs)
         if not jobs:
             # Alle Kandidaten ohne auffindbare Datei → nur Existenz-Report
             self._show_bpm_result(0, 0, missing)
@@ -3488,6 +3497,9 @@ class PotentialWidget(QWidget):
         parts = []
         if total > 0:
             parts.append(_t('pot_fix_all_done', done=done, total=total, skipped=skipped))
+        cancelled = _cancelled_line(getattr(self, '_bpm_total', 0), done, skipped)
+        if cancelled:
+            parts.append(cancelled)
         if missing:
             names = "\n".join("• " + m for m in missing[:20])
             if len(missing) > 20:
@@ -3649,6 +3661,7 @@ class PotentialWidget(QWidget):
         self._sstart_missing = missing
         self._sstart_accum = (0, 0)
         self._sstart_unsure = []
+        self._sstart_total = len(jobs)
         if not jobs:
             self._show_sstart_result(0, 0, [])
             return
@@ -3746,6 +3759,9 @@ class PotentialWidget(QWidget):
         parts = []
         if done or skipped:
             parts.append(_t('pot_no_sstart_done', done=done, total=total, skipped=skipped))
+        cancelled = _cancelled_line(getattr(self, '_sstart_total', 0), done, skipped)
+        if cancelled:
+            parts.append(cancelled)
         if marked:
             names = "\n".join("• " + m for m in marked[:20])
             if len(marked) > 20:
@@ -3943,6 +3959,7 @@ class PotentialWidget(QWidget):
         self._syncpts_missing = missing
         self._syncpts_accum = (0, 0)
         self._syncpts_skipped = []
+        self._syncpts_total = len(jobs)
         if not jobs:
             self._show_syncpts_result(0, 0, [])
             return
@@ -4047,6 +4064,9 @@ class PotentialWidget(QWidget):
         if total:
             parts.append(_t('pot_sync_done', done=done, total=total,
                             skipped=skipped + len(missing)))
+        cancelled = _cancelled_line(getattr(self, '_syncpts_total', 0), done, skipped)
+        if cancelled:
+            parts.append(cancelled)
         for names, hint_key in ((skipped_names, 'pot_sync_skipped_hint'),
                                 (missing, 'pot_sync_missing_hint')):
             if not names:
@@ -4530,13 +4550,15 @@ class PotentialWidget(QWidget):
         self._close_progress()
 
     def _on_bulk_done(self, done, skipped):
+        jobs_total = len(getattr(self._bulk_worker, '_jobs', ()))
         self._close_progress()
         self._bulk_worker = None
         total = done + skipped
-        QMessageBox.information(
-            self, _t('pot_fix_all_loop'),
-            _t('pot_fix_all_done', done=done, total=total, skipped=skipped)
-        )
+        text = _t('pot_fix_all_done', done=done, total=total, skipped=skipped)
+        cancelled = _cancelled_line(jobs_total, done, skipped)
+        if cancelled:
+            text += "\n\n" + cancelled
+        QMessageBox.information(self, _t('pot_fix_all_loop'), text)
         self.refresh()
         # Einmaliger Hauptfenster-Refresh (Song-Liste + aktueller Song), damit
         # die geaenderten Loops sofort sichtbar sind — NICHT pro Song.
