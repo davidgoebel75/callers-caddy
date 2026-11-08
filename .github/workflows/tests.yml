@@ -1,8 +1,11 @@
 name: Tests
 
 on:
+  # Jede Basis, auch gestapelte PRs auf einen Feature-Branch.
   pull_request:
-    branches: [main, develop]
+  # Nach dem Merge: zwei einzeln gruene PRs koennen zusammen rot sein.
+  push:
+    branches: [develop]
 
 jobs:
   pytest:
