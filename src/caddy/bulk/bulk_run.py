@@ -15,15 +15,26 @@ class BulkResult:
     cancelled: bool
 
 
+@dataclass
+class BulkCounts:
+    """Laufende Zaehlung, die run_bulk nach jedem Job fortschreibt. Wer sie
+    uebergibt, kennt den Stand auch dann, wenn run_bulk mit einer Ausnahme
+    aussteigt (intern#239)."""
+    done: int = 0
+    skipped: int = 0
+
+
 def run_bulk(jobs, step, *, conn, is_cancelled, on_progress,
-             name_of=lambda job: "", label="Bulk") -> BulkResult:
+             name_of=lambda job: "", label="Bulk", counts=None) -> BulkResult:
     """Fuehrt step(conn, job) fuer jeden Job aus.
 
     step gibt True (erledigt) oder False (uebersprungen) zurueck. Eine
     Ausnahme zaehlt als uebersprungen: Log, rollback, weiter mit dem naechsten
     Job. Nach jedem erledigten Job commit (Ergebnisse bleiben bei Abbruch).
-    Jobs sind Tupel mit der Song-ID an Stelle 0."""
-    done = skipped = 0
+    Jobs sind Tupel mit der Song-ID an Stelle 0. counts (BulkCounts, optional)
+    wird nach jedem Job auf den aktuellen Stand gesetzt."""
+    if counts is None:
+        counts = BulkCounts()
     cancelled = False
     total = len(jobs)
     for i, job in enumerate(jobs):
@@ -34,14 +45,14 @@ def run_bulk(jobs, step, *, conn, is_cancelled, on_progress,
         try:
             if step(conn, job):
                 conn.commit()
-                done += 1
+                counts.done += 1
             else:
-                skipped += 1
+                counts.skipped += 1
         except Exception as e:
             print(f"[{label}] Fehler bei Song #{job[0]}: {e}")
-            skipped += 1
+            counts.skipped += 1
             try:
                 conn.rollback()
             except Exception as e2:
                 print(f"[{label}] Rollback fehlgeschlagen: {e2}")
-    return BulkResult(done, skipped, cancelled)
+    return BulkResult(counts.done, counts.skipped, cancelled)

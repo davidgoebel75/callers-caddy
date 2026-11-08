@@ -54,3 +54,20 @@ def test_cancel_property_and_stop(keep):
     assert w.cancelled is True
     assert _collect(w) == [("finished", 0, 0)]
     assert conn.closed
+
+
+def test_error_mid_run_keeps_count_so_far(keep):
+    """Wirft der Lauf nach k Jobs ausserhalb des Schritts, meldet finished den
+    Stand bis dahin statt (0, 0) (intern#239)."""
+    conn = FakeConn()
+    jobs = [(i, str(i), str(i)) for i in range(1, 6)]
+
+    def name_of(job):
+        if job[0] == 4:
+            raise RuntimeError("weg")
+        return job[2]
+    w = keep(BulkWorker(jobs, lambda c, j: j[0] != 2, lambda: conn,
+                        name_of=name_of, label="T"))
+    events = _collect(w)
+    assert events[-2:] == [("error", "weg"), ("finished", 2, 1)]
+    assert conn.closed

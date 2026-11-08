@@ -2,7 +2,9 @@
 import contextlib
 import io
 
-from caddy.bulk.bulk_run import BulkResult, run_bulk
+import pytest
+
+from caddy.bulk.bulk_run import BulkCounts, BulkResult, run_bulk
 
 
 class FakeConn:
@@ -111,3 +113,16 @@ def test_default_name_is_empty():
     run_bulk([(1,)], lambda c, j: True, conn=FakeConn(), is_cancelled=lambda: False,
              on_progress=lambda i, n, name: got.append(name))
     assert got == [""]
+
+
+def test_counts_hold_state_when_loop_raises():
+    """counts traegt den Stand auch, wenn run_bulk aussteigt (intern#239)."""
+    counts = BulkCounts()
+
+    def progress(i, n, name):
+        if i == 3:
+            raise RuntimeError("weg")
+    with pytest.raises(RuntimeError):
+        run_bulk([(1,), (2,), (3,)], lambda c, j: j[0] == 1, conn=FakeConn(),
+                 is_cancelled=lambda: False, on_progress=progress, counts=counts)
+    assert counts == BulkCounts(done=1, skipped=1)
