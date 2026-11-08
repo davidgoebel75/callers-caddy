@@ -18,6 +18,7 @@ import pathlib
 
 import pytest
 
+from caddy.settings import ini_keys
 from settings_dialog import (SETTINGS_META, _EXCLUDED_KEYS, _EXCLUDED_SECTIONS,
                              _EXCLUDED_SUFFIX)
 
@@ -76,14 +77,9 @@ def _settings_calls(attr: str):
 
 
 def _defaults_table() -> set:
-    """Keys aus P29MainWindow._write_ini_defaults() — die kanonische Saat."""
-    tree = ast.parse((_SRC / "main.py").read_text(encoding="utf-8"), "main.py")
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "_write_ini_defaults":
-            return {k.value for sub in ast.walk(node) if isinstance(sub, ast.Dict)
-                    for k in sub.keys
-                    if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-    pytest.fail("_write_ini_defaults() nicht gefunden — Scan anpassen.")
+    """Keys, die P29MainWindow._write_ini_defaults() saet - die kanonische
+    Saat steht in caddy/settings/ini_keys.py (intern#144)."""
+    return ini_keys.seed_keys()
 
 
 def _default_ini_keys() -> set:

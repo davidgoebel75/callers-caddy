@@ -100,6 +100,8 @@ _RESTART_KEYS = {
 # zusammenpassen muessen (Fehlerkette intern#189, #195, #198, #199):
 #   1. die Lesestelle im Code: settings.value("sektion/key", <Standard>)
 #   2. P29MainWindow._write_ini_defaults() in main.py (schreibt beim Start)
+#      Fuer umgestellte Module (intern#144) gilt statt 1 und 2 das Verzeichnis
+#      caddy/settings/ini_keys.py: Lesestelle ini_keys.get(..), Saat daraus.
 #   3. installer/callers_caddy_default.ini (mitgelieferte INI)
 #   4. "default" hier in SETTINGS_META (nur die Anzeige im Dialog)
 # Abgleich: tests/settings/test_settings_defaults.py (1 gegen 4) und
