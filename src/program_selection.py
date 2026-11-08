@@ -10,6 +10,20 @@ Das Band eines Programms ist der Ganzzahlteil von sequence_limit_to
 """
 
 
+def parse_ids(raw):
+    """Kommagetrennte ID-Liste (INI-Wert 'sequences/dance_programs') -> [int, ...].
+    Leerzeichen und Muell werden uebergangen, die Reihenfolge bleibt."""
+    out = []
+    for part in str(raw or "").split(","):
+        part = part.strip()
+        if part:
+            try:
+                out.append(int(part))
+            except ValueError:
+                pass
+    return out
+
+
 def band_of(limit_to):
     """Band zu einem sequence_limit_to-Wert, None ohne Limit."""
     return int(limit_to) if limit_to is not None else None

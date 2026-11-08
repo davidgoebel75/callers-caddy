@@ -20,6 +20,7 @@ from PySide6.QtGui import (
 from song_db import Song, Location, CHECK_BEATSNAP_GENRE_NAME
 from path_manager import PathManager
 from skin_manager import SkinManager
+import program_selection
 from i18n import _t
 from perf import perf_start, perf_split
 from ui_helpers import (
@@ -396,8 +397,10 @@ class PlayerWidget(QWidget):
         self._build_ui()
         # intern#142: Lokationswechsel und geladener Song kommen aus der aktuellen Sitzung
         self._session = session
+        self._db = None   # main setzt die DB nach dem Bauen (BL-083)
         if session is not None:
             session.location_changed.connect(self.set_location)
+            session.program_ids_changed.connect(self.apply_program_selection)
 
     def _current_song(self):
         """Geladener Song aus der aktuellen Sitzung (ohne Sitzung: kein Song)."""
@@ -829,6 +832,16 @@ class PlayerWidget(QWidget):
         self.set_planner_warning(location is not None)
 
     # BL-083 ----------------------------------------------------------------
+    def apply_program_selection(self, _ids=None):
+        """Oberstes Programm der Tanzprogramm-Wahl aus der Sitzung anzeigen
+        (intern#142). Ohne DB (main setzt sie erst nach dem Bauen) passiert nichts;
+        main ruft das beim Start einmal selbst, sobald die Verdrahtung steht."""
+        if self._db is None or self._session is None:
+            return
+        top_id, top_code = program_selection.top_program(
+            self._db.get_all_dance_programs(), self._session.program_ids)
+        self.set_dance_program(top_id, top_code)
+
     def set_dance_program(self, program_id, code: str):
         """Setzt das aktive Tanzprogramm und aktualisiert den Button-Text."""
         self._dance_program_id = program_id

@@ -727,11 +727,6 @@ class P29MainWindow(QMainWindow):
         ini_path = os.path.join(self._app_dir, "callers_caddy.ini")
         self._settings = QSettings(ini_path, QSettings.IniFormat)
 
-        # MS50: session-globale Tanzprogramm-Wahl (Programm-IDs) aus INI laden.
-        # Steuert den Sequenz-Filter; eine gewaehlte Lokation ueberschreibt sie.
-        self._session_program_ids = self._parse_program_ids(
-            self._settings.value("sequences/dance_programs", ""))
-
         # PathManager (zentrale Pfadverwaltung)
         self.paths = PathManager(self._settings)
         self.paths.ensure_directories()
@@ -764,6 +759,11 @@ class P29MainWindow(QMainWindow):
 
         # Aktuell geladener Song; die Lokation haelt die aktuelle Sitzung (intern#142)
         self.session = CurrentSession(self)
+        # MS50: session-globale Tanzprogramm-Wahl (Programm-IDs) aus INI laden.
+        # Steuert den Sequenz-Filter; eine gewaehlte Lokation ueberschreibt sie.
+        # Vor den Widgets setzen: sie lesen die Wahl beim Erzeugen.
+        self.session.set_program_ids(program_selection.parse_ids(
+            self._settings.value("sequences/dance_programs", "")))
 
         # Datumsformat (de = DD.MM.YY, us = MM/DD/YY)
         self._date_format = self._settings.value("display/date_format", "de")
@@ -779,6 +779,8 @@ class P29MainWindow(QMainWindow):
                                    session=self.session)
         # Nach dem Player anmelden: er kennt die neue Lokation dann schon
         self.session.location_changed.connect(self._on_location_changed)
+        # Nur die INI: Player und Sequenzen-Widgets hoeren selbst auf die Wahl
+        self.session.program_ids_changed.connect(self._on_program_ids_changed)
         self.player._db = self.db   # BL-083: DB-Zugriff fuer Tanzprogramm-Picker
         # Standard-Tanzprogramm MS vorbelegen
         for _pid, _code, *_ in self.db.get_all_dance_programs():
@@ -941,7 +943,8 @@ class P29MainWindow(QMainWindow):
         # --- SongDaten + Sequenzen getabbt mit Lyrics (Spalte 3) ---
         self.tabifyDockWidget(self.dock_lyrics, self.dock_data)
         self.sequences_widget = SequencesWidget(self.db, skin_mgr=self.skin_mgr,
-                                                settings=self._settings)
+                                                settings=self._settings,
+                                                session=self.session)
         _seq_zoom = int(self._settings.value("sequences/zoom_pct", 100))
         if _seq_zoom != 100:
             self.sequences_widget.set_zoom(_seq_zoom)
@@ -955,12 +958,12 @@ class P29MainWindow(QMainWindow):
         _td8 = perf_split("    SequencesWidget", _td7)
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
-        self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr)
-        # MS50: session-globale Tanzprogramm-Wahl auf Filter, Sequenz-Detail
-        # (intern#176) + Player-Button anwenden. Erst hier, damit beide Widgets
-        # existieren. defer_seq_load: nur Baender setzen; das (kalt teure)
-        # Sequenzen-Laden macht _init_sequences() erst nach window.show().
-        self._apply_program_setting(defer_seq_load=True)
+        self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr,
+                                                       session=self.session)
+        # MS50: Sequenz-Filter und Sequenz-Detail (intern#176) lesen die Wahl beim
+        # Erzeugen selbst (Sequenzen laedt _init_sequences() erst nach window.show()).
+        # Der Player-Button braucht erst die fertige Verdrahtung (DB, Sequenzen-Sync).
+        self.player.apply_program_selection()
         self.dock_sequence_view = _make_dock(
             self, _t("dock_sequence_view"), self.sequence_view_widget, Qt.RightDockWidgetArea
         )
@@ -2634,19 +2637,6 @@ class P29MainWindow(QMainWindow):
         self._toggle_dock(self.dock_lyrics,
                           self._button_open_position(self.dock_lyrics))
 
-    @staticmethod
-    def _parse_program_ids(raw) -> list:
-        """Kommagetrennte ID-Liste (INI-Wert 'sequences/dance_programs') -> [int, ...]."""
-        out = []
-        for part in str(raw or "").split(","):
-            part = part.strip()
-            if part:
-                try:
-                    out.append(int(part))
-                except ValueError:
-                    pass
-        return out
-
     def _location_program_ids(self, location):
         """Programm-IDs einer Lokation inkl. Legacy-Fallback auf dance_program_id."""
         if not location or getattr(location, "id", None) is None:
@@ -2656,34 +2646,13 @@ class P29MainWindow(QMainWindow):
             ids = [location.dance_program_id]
         return ids
 
-    def _apply_program_setting(self, defer_seq_load=False):
-        """MS50: session-globale Tanzprogramm-Wahl anwenden — Sequenz-Filter (Band-Menge)
-        + aktives Programm fuer die Ziel-Tanzdauer (oberstes gewaehltes Programm).
-
-        defer_seq_load=True (nur beim Startup): Baender setzen, aber das teure
-        Sequenzen-Laden NICHT sofort ausloesen — das uebernimmt _init_sequences()
-        nach window.show() (haelt den Cover-Compute vom kritischen Startpfad fern).
-        """
-        ids = self._session_program_ids
-        programs = self.db.get_all_dance_programs()
-        bands = program_selection.bands_for(programs, ids)
-        if getattr(self, "sequences_widget", None) is not None:
-            self.sequences_widget.set_program_bands(bands, defer_load=defer_seq_load)
-        if getattr(self, "sequence_view_widget", None) is not None:
-            self.sequence_view_widget.set_program_bands(bands)
-        top_id, top_code = program_selection.top_program(programs, ids)
-        self.player.set_dance_program(top_id, top_code)
-
-    def _set_session_program_ids(self, ids, persist: bool = True):
-        """Setzt die session-globale Tanzprogramm-Wahl, persistiert sie (INI) und
-        wendet sie an. persist=False fuer rein transiente Aktualisierungen."""
-        self._session_program_ids = list(ids or [])
-        if persist:
-            self._settings.setValue(
-                "sequences/dance_programs",
-                ",".join(str(i) for i in self._session_program_ids))
+    def _on_program_ids_changed(self, ids):
+        """Schreibt die Tanzprogramm-Wahl in die INI, wenn sie dort noch anders
+        steht (aus dem Einstellungsfenster steht sie schon drin)."""
+        new = ",".join(str(i) for i in ids)
+        if str(self._settings.value("sequences/dance_programs", "")) != new:
+            self._settings.setValue("sequences/dance_programs", new)
             self._settings.sync()
-        self._apply_program_setting()
 
     def _program_codes_label(self, ids):
         """Anzeige-String der Programm-Codes fuer eine ID-Liste (fuer Settings-Fenster)."""
@@ -2697,9 +2666,9 @@ class P29MainWindow(QMainWindow):
     def _pick_session_programs(self):
         """Player-Button: session-globale Tanzprogramm-Wahl aendern (ohne Lokation)."""
         dlg = _MultiProgramPickerDialog(
-            self.db, selected_ids=list(self._session_program_ids), parent=self)
+            self.db, selected_ids=self.session.program_ids, parent=self)
         if dlg.exec() == QDialog.Accepted:
-            self._set_session_program_ids(dlg.get_selected_ids())
+            self.session.set_program_ids(dlg.get_selected_ids())
 
     def _settings_pick_programs(self, current_ids, parent_widget=None):
         """Callback fuers Settings-Fenster: oeffnet den Picker, gibt neue IDs zurueck
@@ -2730,7 +2699,7 @@ class P29MainWindow(QMainWindow):
         # entkoppelt und session-global).
         loc_ids = self._location_program_ids(location)
         if loc_ids:
-            self._set_session_program_ids(loc_ids)
+            self.session.set_program_ids(loc_ids)
 
         self._refresh_last_played()
         if location:
@@ -2944,7 +2913,7 @@ class P29MainWindow(QMainWindow):
         if not hasattr(self, "sequences_widget"):
             return
         # MS50: Der Programm-Filter laeuft ueber die Band-Menge der Lokation
-        # (set_program_bands in _apply_program_setting); das alte Schwellwert-
+        # (SequencesWidget hoert auf die Sitzung); das alte Schwellwert-
         # Auto-Sync entfaellt, der Limit-Combo bleibt manueller Zusatzfilter.
         row = program_selection.program_by_code(self.db.get_all_dance_programs(), code)
         if row is not None:
@@ -4930,7 +4899,7 @@ class P29MainWindow(QMainWindow):
                 ids.append(int(part))
         valid = {r[0] for r in self.db.get_all_dance_programs()}
         ids = [i for i in ids if i in valid]
-        self._set_session_program_ids(ids)
+        self.session.set_program_ids(ids)
 
     # --- Provider fuer die Rule-Editor-Dropdowns (BL-192..197) ---
 
@@ -5204,7 +5173,7 @@ class P29MainWindow(QMainWindow):
         # der Programm-Button im Player) -- trifft den Normalfall am Clubabend.
         label_by_id = {r[0]: (r[2] or r[1]) for r in progs}
         top_id, _code = program_selection.top_program(
-            progs, getattr(self, '_session_program_ids', []) or [])
+            progs, self.session.program_ids)
         active_label = label_by_id.get(top_id, "")
         if not active_label and progs:
             active_label = progs[0][2] or progs[0][1]
@@ -7379,8 +7348,7 @@ class P29MainWindow(QMainWindow):
             elif key == "sequences/dance_programs":
                 # MS50: session-globale Tanzprogramm-Wahl aus dem Settings-Fenster.
                 # INI ist bereits geschrieben -> nur uebernehmen (kein Re-Persist).
-                self._session_program_ids = self._parse_program_ids(val)
-                self._apply_program_setting()
+                self.session.set_program_ids(program_selection.parse_ids(val))
 
             elif key == "lyrics/dynamic_enabled":
                 if hasattr(self, "lyrics_widget"):
