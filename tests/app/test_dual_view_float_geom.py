@@ -195,7 +195,7 @@ def test_close_ohne_dual_view_tut_nichts(haupt, qapp):
     assert lyr.isFloating() and lyr.geometry() == EIGEN
 
 
-def test_beenden_waehrend_dual_view_speichert_layout_von_vorher(haupt, qapp, ini):
+def test_beenden_waehrend_dual_view_speichert_layout_von_vorher(haupt, qapp, ini, keep):
     """Entscheidung 1: windowState/geometry von VOR Dual View in die INI."""
     _schwebend(haupt, "dock_lyrics", EIGEN)
     vorher = haupt.saveState(main._LAYOUT_VERSION)
@@ -205,16 +205,13 @@ def test_beenden_waehrend_dual_view_speichert_layout_von_vorher(haupt, qapp, ini
     _beenden(haupt)
     assert bytes(ini.value("windowState")) == bytes(vorher)
     # "Neustart": anderes Fenster liest die INI
-    neu = _Haupt(QSettings(ini.fileName(), QSettings.IniFormat))
-    try:
-        neu.restoreState(neu._settings.value("windowState"), main._LAYOUT_VERSION)
-        neu._restore_float_geoms(neu._settings)
-        qapp.processEvents()
-        lyr = neu.docks["dock_lyrics"]
-        assert lyr.isFloating() and lyr.isVisible()
-        assert lyr.geometry() == EIGEN
-    finally:
-        neu.deleteLater()
+    neu = keep(_Haupt(QSettings(ini.fileName(), QSettings.IniFormat)))
+    neu.restoreState(neu._settings.value("windowState"), main._LAYOUT_VERSION)
+    neu._restore_float_geoms(neu._settings)
+    qapp.processEvents()
+    lyr = neu.docks["dock_lyrics"]
+    assert lyr.isFloating() and lyr.isVisible()
+    assert lyr.geometry() == EIGEN
 
 
 def test_ohne_dual_view_speichert_wie_bisher(haupt, qapp, ini):

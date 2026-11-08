@@ -146,31 +146,29 @@ def dok(request):
 
 @pytest.mark.parametrize("lage", sorted(ANKER_LAGEN))
 @pytest.mark.parametrize("zoom", [25, 68, 100, 191, 400])
-def test_pruefregel_direkter_zoom(qapp, tmp_path, dok, lage, zoom):
-    w = _laden(qapp, tmp_path, dok)
+def test_pruefregel_direkter_zoom(qapp, tmp_path, keep, dok, lage, zoom):
+    w = keep(_laden(qapp, tmp_path, dok))
     orig = _original_je_zeichen(w)
     _anker(w, ANKER_LAGEN[lage](w))
     w.set_zoom(zoom)
     _pruefen(w, orig)
-    w.deleteLater()
 
 
 @pytest.mark.parametrize("lage", ["zeilenanfaenge", "mitten_im_wort", "dicht_an_dicht"])
-def test_pruefregel_zoom_zickzack(qapp, tmp_path, dok, lage):
+def test_pruefregel_zoom_zickzack(qapp, tmp_path, keep, dok, lage):
     """Viele Zoom-Schritte hintereinander: kein Aufschaukeln."""
-    w = _laden(qapp, tmp_path, dok)
+    w = keep(_laden(qapp, tmp_path, dok))
     orig = _original_je_zeichen(w)
     _anker(w, ANKER_LAGEN[lage](w))
     for z in (68, 191, 30, 150, 68, 400, 68):
         w.set_zoom(z)
         _pruefen(w, orig)
-    w.deleteLater()
 
 
-def test_marken_neu_zeichnen_im_zoom(qapp, tmp_path, dok):
+def test_marken_neu_zeichnen_im_zoom(qapp, tmp_path, keep, dok):
     """Marken werden bei schon gezoomtem Dokument neu gezeichnet (z. B. neuer
     Sync Point gesetzt) und danach weiter gezoomt."""
-    w = _laden(qapp, tmp_path, dok)
+    w = keep(_laden(qapp, tmp_path, dok))
     orig = _original_je_zeichen(w)
     w.set_zoom(68)
     _anker(w, _alle_zeilenanfaenge(w))
@@ -179,11 +177,10 @@ def test_marken_neu_zeichnen_im_zoom(qapp, tmp_path, dok):
     _pruefen(w, orig)
     w.set_zoom(191)
     _pruefen(w, orig)
-    w.deleteLater()
 
 
-def test_sync_aus_und_wieder_an(qapp, tmp_path, dok):
-    w = _laden(qapp, tmp_path, dok)
+def test_sync_aus_und_wieder_an(qapp, tmp_path, keep, dok):
+    w = keep(_laden(qapp, tmp_path, dok))
     orig = _original_je_zeichen(w)
     _anker(w, _alle_zeilenanfaenge(w))
     w.set_zoom(68)
@@ -196,15 +193,14 @@ def test_sync_aus_und_wieder_an(qapp, tmp_path, dok):
     w._render_sync_markers()
     w.set_zoom(68)
     _pruefen(w, orig)
-    w.deleteLater()
 
 
 @pytest.mark.parametrize("modus", ["auto_size", "auto_width"])
 @pytest.mark.parametrize("groesse", [(250, 150), (900, 900)])
-def test_pruefregel_auto_fit(qapp, tmp_path, dok, modus, groesse):
+def test_pruefregel_auto_fit(qapp, tmp_path, keep, dok, modus, groesse):
     """Auto-Size/Auto-Breite: die Fit-Schleife setzt viele Zwischengroessen,
     waehrend die Marken im Dokument stehen."""
-    w = _laden(qapp, tmp_path, dok, *groesse)
+    w = keep(_laden(qapp, tmp_path, dok, *groesse))
     orig = _original_je_zeichen(w)
     _anker(w, _alle_zeilenanfaenge(w))
     if modus == "auto_size":
@@ -222,15 +218,14 @@ def test_pruefregel_auto_fit(qapp, tmp_path, dok, modus, groesse):
     else:
         w.auto_fit_width()
     _pruefen(w, orig)
-    w.deleteLater()
 
 
-def test_basis_neu_einsammeln_bei_zoom_mit_marken(qapp, tmp_path, dok):
+def test_basis_neu_einsammeln_bei_zoom_mit_marken(qapp, tmp_path, keep, dok):
     """_recache_original_sizes_scaled bei gezoomtem Dokument MIT Marken
     (Dynamic-Lyrics-Weg) liefert dieselbe Basis wie nach dem Laden."""
     # Zeichen fuer Zeichen vergleichen: Marken mitten in einem Span teilen
     # ihn beim Einsammeln in Stuecke, die dieselben Zeichen abdecken.
-    w = _laden(qapp, tmp_path, dok)
+    w = keep(_laden(qapp, tmp_path, dok))
     basis = _original_je_zeichen(w)
     _anker(w, _alle_zeilenanfaenge(w))
     w.set_zoom(68)
@@ -244,13 +239,12 @@ def test_basis_neu_einsammeln_bei_zoom_mit_marken(qapp, tmp_path, dok):
     w._clear_sync_markers()
     w.set_zoom(68)
     _pruefen(w, orig)
-    w.deleteLater()
 
 
-def test_marken_text_bleibt_lesbar(qapp, tmp_path):
+def test_marken_text_bleibt_lesbar(qapp, tmp_path, keep):
     """Die Marken selbst (Zeittext) sind nach dem Zoom vollstaendig und
     unveraendert - kein Zeichen geht beim Teilen der Bereiche verloren."""
-    w = _laden(qapp, tmp_path, EIN_BLOCK)
+    w = keep(_laden(qapp, tmp_path, EIN_BLOCK))
     vor = w._browser.document().toPlainText()
     _anker(w, _alle_zeilenanfaenge(w))
     mit = w._browser.document().toPlainText()
@@ -260,4 +254,3 @@ def test_marken_text_bleibt_lesbar(qapp, tmp_path):
     w._sync_mode = False
     w._clear_sync_markers()
     assert w._browser.document().toPlainText() == vor
-    w.deleteLater()

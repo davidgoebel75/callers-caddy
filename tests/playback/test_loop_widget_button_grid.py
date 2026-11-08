@@ -53,3 +53,12 @@ def test_kanten_fluchten_auch_mit_langem_text(qapp, loop_widget):
     widths = {getattr(w, n).width() for n in
               ("btn_set_in", "btn_clear_loop", "btn_set_out", "btn_test")}
     assert max(widths) - min(widths) <= 1    # Rundung auf ganze Pixel
+
+
+def test_loop_widget_liest_song_aus_sitzung(keep):
+    """intern#142: LoopWidget braucht die Sitzung, sonst AttributeError beim Loop-Speichern."""
+    from types import SimpleNamespace
+    song = SimpleNamespace(id=7)
+    w = keep(LoopWidget(engine=None, session=SimpleNamespace(song=song)))
+    assert w._current_song() is song
+    assert keep(LoopWidget(engine=None))._current_song() is None

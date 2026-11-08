@@ -19,6 +19,17 @@ from song_types import PlayMode
 LOOPS = 3
 
 
+class _Sitzung:
+    """Fake der aktuellen Sitzung: kein QObject (Windows-Crash-Falle), nur song/set_song."""
+
+    def __init__(self, song=None, **kw):
+        self.song = song
+        self.__dict__.update(kw)
+
+    def set_song(self, song):
+        self.song = song
+
+
 def _playlist(keep):
     pw = keep(PlaylistWidget(db=None, paths=SimpleNamespace(find_song_file=lambda f: None)))
     for nr in (1, 2):
@@ -85,7 +96,7 @@ class _Fenster:
     _on_playlist_song_activated = main.P29MainWindow._on_playlist_song_activated
 
     def __init__(self, geladen_id, engine_geladen=True):
-        self._current_song = Song(id=geladen_id) if geladen_id else None
+        self.session = _Sitzung(Song(id=geladen_id) if geladen_id else None)
         self.plays = 0
         self.player = SimpleNamespace(
             engine=SimpleNamespace(is_loaded=lambda: engine_geladen),

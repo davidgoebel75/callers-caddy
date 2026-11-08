@@ -22,10 +22,10 @@ HTML = ("<html><body><h1>OPENER, BREAK, ENDING</h1>"
 
 
 @pytest.fixture
-def widget(qapp, tmp_path):
+def widget(qapp, tmp_path, keep):
     from path_manager import PathManager
     ini = QSettings(str(tmp_path / "w.ini"), QSettings.IniFormat)
-    w = LyricsWidget(PathManager(ini))
+    w = keep(LyricsWidget(PathManager(ini)))
     w.resize(500, 400)
     w.show()
     qapp.processEvents()
@@ -34,8 +34,7 @@ def widget(qapp, tmp_path):
     f = tmp_path / "song.htm"
     f.write_text(HTML, encoding="utf-8")
     w._load_file(str(f), f.name)
-    yield w
-    w.deleteLater()
+    return w
 
 
 def _zeichen(w):

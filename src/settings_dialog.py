@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QSettings
 
+import program_selection
 from i18n import _t
 
 
@@ -99,6 +100,8 @@ _RESTART_KEYS = {
 # zusammenpassen muessen (Fehlerkette intern#189, #195, #198, #199):
 #   1. die Lesestelle im Code: settings.value("sektion/key", <Standard>)
 #   2. P29MainWindow._write_ini_defaults() in main.py (schreibt beim Start)
+#      Fuer umgestellte Module (intern#144) gilt statt 1 und 2 das Verzeichnis
+#      caddy/settings/ini_keys.py: Lesestelle ini_keys.get(..), Saat daraus.
 #   3. installer/callers_caddy_default.ini (mitgelieferte INI)
 #   4. "default" hier in SETTINGS_META (nur die Anzeige im Dialog)
 # Abgleich: tests/settings/test_settings_defaults.py (1 gegen 4) und
@@ -585,19 +588,6 @@ def _play_ping(volume: float, device_idx):
 # Widget-Zeile: Label + Widget (+ optional Browse-Button)
 # ---------------------------------------------------------------------------
 
-def _parse_id_list(raw) -> list:
-    """Kommagetrennte ID-Liste (z.B. '3,4') -> [3, 4]. Robust gegen Leerzeichen."""
-    out = []
-    for part in str(raw or "").split(","):
-        part = part.strip()
-        if part:
-            try:
-                out.append(int(part))
-            except ValueError:
-                pass
-    return out
-
-
 class _SettingRow:
     """Kapselt Label, Widget und den aktuellen Wert fuer eine INI-Einstellung."""
 
@@ -662,7 +652,7 @@ class _SettingRow:
         if widget_type == "program_picker":
             # Nur-Anzeige der aktuell gewaehlten Programm-Codes; editiert wird ueber
             # den Picker-Button (self.picker_btn -> _pick_programs).
-            self._program_ids = _parse_id_list(raw_value)
+            self._program_ids = program_selection.parse_ids(raw_value)
             w = QLineEdit()
             w.setReadOnly(True)
             if self._program_label_cb:

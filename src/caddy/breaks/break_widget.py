@@ -10,7 +10,7 @@ import time
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QInputDialog,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QRect
+from PySide6.QtCore import Qt, QEvent, QTimer, Signal, QRect
 from PySide6.QtGui import QPainter, QColor, QPen, QCursor
 
 from caddy.breaks.break_clock import (
@@ -119,6 +119,7 @@ class BreakWidget(QWidget):
                                  remaining=float(self.DEFAULT_SECONDS))
         self._last_mono = None   # Zeitmessung fuer Tick, kein Zustand der Uhr
         self._music_playing = False
+        self._cancel_dock = None   # Dock, dessen X die Pause abbricht
 
         self._timer = QTimer(self)
         self._timer.setInterval(200)  # 5x/s -> fluessiger Fortschrittsbalken
@@ -228,6 +229,19 @@ class BreakWidget(QWidget):
             return False
         self._dispatch(Reset())
         return True
+
+    def cancel_on_close(self, dock):
+        """Schliessen des Docks ueber das X bricht eine laufende Pause ab wie
+        end_break (intern#221). Haengt am Close-Event, nicht an
+        visibilityChanged: Ausblenden (Ansicht-Menue, Tab, Layout) laesst die
+        Uhr laufen. Wartemusik laeuft wie beim Reset-Knopf weiter."""
+        self._cancel_dock = dock
+        dock.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is self._cancel_dock and event.type() == QEvent.Close:
+            self.end_break()
+        return super().eventFilter(obj, event)
 
     def _edit_duration(self):
         """Klick auf die Uhr: Countdown pausieren und Dauer neu setzen."""
