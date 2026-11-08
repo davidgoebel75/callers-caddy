@@ -97,6 +97,11 @@ Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
 _EN_: Song Catalog
 _Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
 
+**Empfehlungs-Score**:
+Qualitaet des Songs mal Tage seit zuletzt gespielt; nie gespielte Songs zaehlen ab
+dem Erstaufnahme-Datum. Je hoeher, desto eher kommt der Song wieder dran.
+_EN_: Recommendation score
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.
@@ -158,6 +163,13 @@ Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
 Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
 _EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
+
+**Massenlauf**:
+Eine Pruefung oder Reparatur im Potential-Dock, die viele Songs nacheinander
+bearbeitet (z. B. BPM ermitteln, Loops suchen). Ab einer gewissen Menge erst ein
+Probelauf mit wenigen Songs zur Zeitschaetzung; abbrechen laesst Bearbeitetes stehen.
+_EN_: Bulk Run
+_Avoid_: Batch-Lauf, Bulk-Job
 
 ### Figuren und Programme
 
