@@ -26,8 +26,9 @@ import perf
 from perf import perf_log, perf_split
 from song_db import CHECK_START_GENRE_NAME, CHECK_BEATSNAP_GENRE_NAME
 from i18n import _t
-from lyrics_widget import LyricsWidget, lyric_plain_text, lyric_section_lines
+from lyrics_widget import lyric_plain_text, lyric_section_lines
 import zip_import
+from caddy.lyrics.sync_keys import SINGING_BODY_BEATS, like_pattern, make_key
 import singing_sections
 import ceder_lookup
 import song_data_io
@@ -320,7 +321,7 @@ class _BulkSyncPointsWorker(QThread):
                     # aus der alten Synchronisation stehen.
                     conn.execute(
                         "DELETE FROM song_properties WHERE song_id = ? "
-                        "AND key LIKE 'lyric_sync_m1_l1_%'", (sid,))
+                        "AND key LIKE ?", (sid, like_pattern(1, 1)))
                     conn.execute(
                         "DELETE FROM song_properties WHERE song_id = ? "
                         "AND key LIKE 'lyric_sections_l1_%'", (sid,))
@@ -335,7 +336,7 @@ class _BulkSyncPointsWorker(QThread):
                         conn.execute(
                             "INSERT OR REPLACE INTO song_properties "
                             "(song_id, key, value) VALUES (?, ?, ?)",
-                            (sid, f"lyric_sync_m1_l1_{idx}", f"{sec:.2f}|{int(block)}"))
+                            (sid, make_key(1, 1, idx), f"{sec:.2f}|{int(block)}"))
                     # BL-171: Abschnitte als Zeilenbereiche mitschreiben, sonst
                     # bliebe der Abschnittsstreifen im Lyric-Fenster leer und
                     # der Bulk-Lauf haette die Analyse umsonst gemacht.
@@ -3814,7 +3815,7 @@ class PotentialWidget(QWidget):
             except (TypeError, ValueError):
                 end = 0.0
             if end <= start:
-                end = start + LyricsWidget._SINGING_BODY_BEATS * (60.0 / bpm)
+                end = start + SINGING_BODY_BEATS * (60.0 / bpm)
             jobs.append((sid, path, song.lyrics_file, name, start, end))
         return jobs, missing
 

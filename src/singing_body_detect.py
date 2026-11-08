@@ -27,10 +27,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from caddy.lyrics.sync_keys import SINGING_BODY_BEATS as BODY_BEATS
 from loop_finder import _load_audio
 from bpm_detector import detect_beat_grid
 
-BODY_BEATS = 448
 SECTION_BEATS = 64
 DEFAULT_CALIB_OFFSET = 2      # Beats; gleicht Klick-Latenz + Detektor-Versatz aus
 

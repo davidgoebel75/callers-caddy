@@ -17,6 +17,8 @@ import singing_sections
 import reading_band_path
 import heads_sides
 import sync_point_lines
+from caddy.lyrics.sync_keys import (
+    SINGING_BODY_BEATS, key_prefix, make_key, parse_key)
 from i18n import _t
 from path_manager import PathManager
 from skin_manager import SkinManager
@@ -2910,7 +2912,7 @@ class LyricsWidget(QWidget):
         return self._sync_anchors
 
     def _sync_key_prefix(self) -> str:
-        return f"lyric_sync_m{self._sync_music_slot}_l{self._sync_lyric_slot}_"
+        return key_prefix(self._sync_music_slot, self._sync_lyric_slot)
 
     def _load_sync_anchors(self):
         """Laedt die Anker der aktuellen (Musik x Lyric)-Kombi aus song_properties
@@ -2948,7 +2950,9 @@ class LyricsWidget(QWidget):
                 for idx, (sec, block) in enumerate(
                         sorted(self._sync_anchors, key=lambda a: a[0]), start=1):
                     self._db.set_property(
-                        self._sync_song_id, f"{prefix}{idx}", f"{sec:.2f}|{int(block)}")
+                        self._sync_song_id,
+                        make_key(self._sync_music_slot, self._sync_lyric_slot, idx),
+                        f"{sec:.2f}|{int(block)}")
             except Exception as e:
                 print(f"[BL-160] Sync-Punkte speichern fehlgeschlagen: {e}")
         # Songstart bleibt an den fruehesten SyncPoint gekoppelt (siehe unten).
@@ -3175,7 +3179,6 @@ class LyricsWidget(QWidget):
     # Ein Singing-Call-Body ist starr 7×64 = 448 Beats. Damit ist das Ende durch
     # Startpunkt + BPM determiniert — der Ende-Klick ist nur noch optionaler
     # Feinschliff (Tempo-Drift / ungenaue BPM), keine Pflicht mehr.
-    _SINGING_BODY_BEATS = 448
 
     def _sync_song_bpm(self) -> float:
         """Base-BPM des gerade gesyncten Songs (fuer die Ende-Ableitung)."""
@@ -3240,7 +3243,7 @@ class LyricsWidget(QWidget):
         bpm = self._sync_song_bpm()
         if bpm > 0:
             # Ende deterministisch aus 448 Beats (7×64) ableiten → ein Klick reicht.
-            end = self._auto_start_sec + self._SINGING_BODY_BEATS * (60.0 / bpm)
+            end = self._auto_start_sec + SINGING_BODY_BEATS * (60.0 / bpm)
             self._finish_auto_calc(self._auto_start_sec, end, derived=True)
         else:
             self._maybe_finish_auto_calc()   # Fallback ohne BPM: manuelles Ende
@@ -3774,15 +3777,14 @@ class LyricsWidget(QWidget):
             props = self._db.get_properties(self._sync_song_id)
         except Exception:
             return
-        import re as _re
         # Andere Kombis mit Sync-Punkten sammeln: (ms, ls) -> Anzahl
         others = {}
         cur = (self._sync_music_slot, self._sync_lyric_slot)
         for key in props:
-            m = _re.match(r'^lyric_sync_m(\d+)_l(\d+)_\d+$', key)
-            if not m:
+            parsed = parse_key(key)
+            if not parsed:
                 continue
-            pair = (int(m.group(1)), int(m.group(2)))
+            pair = parsed[:2]
             if pair == cur:
                 continue
             others[pair] = others.get(pair, 0) + 1
@@ -3811,7 +3813,7 @@ class LyricsWidget(QWidget):
 
     def _copy_sync_from(self, props: dict, src):
         """Kopiert die Sync-Keys der Quell-Kombi src=(ms,ls) auf die aktuelle."""
-        src_prefix = f"lyric_sync_m{src[0]}_l{src[1]}_"
+        src_prefix = key_prefix(*src)
         self._sync_anchors = []
         for key, value in props.items():
             if not key.startswith(src_prefix):

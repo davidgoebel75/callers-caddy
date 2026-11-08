@@ -7,6 +7,7 @@ Die acht Methoden ohne potential_-Praefix (z. B. songs_bpm_empty,
 singing_no_start) sind kein eigener Check, sondern liefern die Songlisten fuer
 die Stapel-Aktionen im Potential-Dock. Sie gehoeren deshalb trotzdem hierher.
 """
+from caddy.lyrics.sync_keys import like_pattern
 
 
 class PotentialMixin:
@@ -95,10 +96,10 @@ class PotentialMixin:
               AND pi.entity_id IS NULL
               AND s.id NOT IN (
                   SELECT sp.song_id FROM song_properties sp
-                  WHERE sp.key LIKE 'lyric_sync_%'
+                  WHERE sp.key LIKE ?
               )
             ORDER BY s.title;
-        """)
+        """, (like_pattern(),))
         return cur.fetchall()
 
     def singing_with_lyrics(self) -> list:
@@ -134,8 +135,8 @@ class PotentialMixin:
             q = ",".join("?" * len(part))
             rows = self._conn.execute(
                 f"SELECT DISTINCT song_id FROM song_properties "
-                f"WHERE key LIKE 'lyric_sync_m1_l1_%' AND song_id IN ({q});",
-                part).fetchall()
+                f"WHERE key LIKE ? AND song_id IN ({q});",
+                [like_pattern(1, 1)] + part).fetchall()
             out.update(r[0] for r in rows)
         return out
 
