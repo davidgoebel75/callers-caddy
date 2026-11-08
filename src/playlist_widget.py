@@ -619,6 +619,16 @@ class PlaylistWidget(QWidget):
     def get_current_index(self) -> int:
         return self._current_index
 
+    def anchor_to_song(self, song_id) -> int:
+        """Setzt den aktuellen Eintrag auf den ersten noch ungespielten Eintrag
+        dieses Songs und gibt dessen Index zurueck; -1 (Index unveraendert),
+        wenn der Song nicht ungespielt in der Playlist steht."""
+        for idx, entry in enumerate(self._playlist):
+            if entry.song.id == song_id and not entry.played:
+                self._current_index = idx
+                return idx
+        return -1
+
     def set_playing_song(self, song_id):
         """Setzt den aktuell spielenden Song und aktualisiert das Highlight.
 

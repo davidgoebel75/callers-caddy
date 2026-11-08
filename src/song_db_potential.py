@@ -13,6 +13,12 @@ from caddy.lyrics.sync_keys import like_pattern
 class PotentialMixin:
     """Datenqualitaets-Checks fuer den Potential-Dock."""
 
+    @staticmethod
+    def write_base_bpm(conn, song_id: int, bpm: float) -> None:
+        """Schreibt base_bpm auf der gegebenen Connection, OHNE Commit
+        (Massenlauf-Geruest, intern#139: das Commit gehoert dem Geruest)."""
+        conn.execute("UPDATE songs SET base_bpm=? WHERE id=?", (bpm, song_id))
+
     def potential_singing_no_lyrics(self) -> list:
         """Singing Calls ohne verknuepfte Lyrics-Datei."""
         cur = self._conn.execute("""

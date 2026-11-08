@@ -35,6 +35,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont
 
+from i18n import _t
+
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -75,18 +77,24 @@ def fmt_size(n_bytes: int) -> str:
 
 class BaseTestWidget(QWidget):
     """Pattern fuer jeden Test:
-        - Titel
+        - Titel (Klassenattribute sind Translations-Schluessel, intern#236;
+          uebersetzt wird erst beim Aufbau, damit die aktuelle Sprache gilt)
         - "Was misst dieser Test" + "Was du tun musst" + Dauer + Ergebnis
         - Start / Abbrechen Buttons
         - Live-Status-Zeile
         - Ergebnis-Karte mit Pfad + Ordner-oeffnen
     """
 
-    title = "Test"
+    title = ""
     what_it_measures = ""
     what_you_do = ""
     expected_duration = ""
     expected_result_hint = ""
+
+    @staticmethod
+    def _tr(key: str) -> str:
+        """Schluessel uebersetzen; leer bleibt leer, "—" bleibt "—"."""
+        return _t(key) if key and key != "—" else key
 
     def __init__(self, app_dir: str, parent=None):
         super().__init__(parent)
@@ -101,7 +109,7 @@ class BaseTestWidget(QWidget):
         lay.setSpacing(10)
 
         # Titel
-        title_lbl = QLabel(self.title)
+        title_lbl = QLabel(self._tr(self.title))
         font = title_lbl.font()
         font.setBold(True)
         font.setPointSize(font.pointSize() + 2)
@@ -110,18 +118,20 @@ class BaseTestWidget(QWidget):
 
         # "Was misst dieser Test"
         if self.what_it_measures:
-            lay.addWidget(self._make_section("Was misst dieser Test:",
-                                             self.what_it_measures))
+            lay.addWidget(self._make_section(_t("diag_section_measures"),
+                                             self._tr(self.what_it_measures)))
         if self.what_you_do:
-            lay.addWidget(self._make_section("Was du tun musst:",
-                                             self.what_you_do))
+            lay.addWidget(self._make_section(_t("diag_section_todo"),
+                                             self._tr(self.what_you_do)))
 
         # Meta-Zeile
         meta_lines = []
         if self.expected_duration:
-            meta_lines.append(f"Dauer:    {self.expected_duration}")
+            meta_lines.append(_t("diag_meta_duration",
+                                 value=self._tr(self.expected_duration)))
         if self.expected_result_hint:
-            meta_lines.append(f"Ergebnis: {self.expected_result_hint}")
+            meta_lines.append(_t("diag_meta_result",
+                                 value=self._tr(self.expected_result_hint)))
         if meta_lines:
             meta = QLabel("\n".join(meta_lines))
             meta.setStyleSheet("color: #555;")
@@ -129,9 +139,9 @@ class BaseTestWidget(QWidget):
 
         # Button-Reihe
         btn_row = QHBoxLayout()
-        self._start_btn = QPushButton("Test starten")
+        self._start_btn = QPushButton(_t("diag_btn_start"))
         self._start_btn.clicked.connect(self._on_start_clicked)
-        self._cancel_btn = QPushButton("Abbrechen")
+        self._cancel_btn = QPushButton(_t("diag_btn_cancel"))
         self._cancel_btn.clicked.connect(self._on_cancel_clicked)
         self._cancel_btn.setEnabled(False)
         btn_row.addWidget(self._start_btn)
@@ -140,7 +150,7 @@ class BaseTestWidget(QWidget):
         lay.addLayout(btn_row)
 
         # Status
-        self._status_lbl = QLabel("Bereit.")
+        self._status_lbl = QLabel(_t("diag_status_ready"))
         self._status_lbl.setStyleSheet("color: #444; padding: 4px;")
         lay.addWidget(self._status_lbl)
 
@@ -160,7 +170,7 @@ class BaseTestWidget(QWidget):
         rlay.addWidget(self._result_path_lbl)
 
         result_btn_row = QHBoxLayout()
-        self._open_folder_btn = QPushButton("Ordner öffnen")
+        self._open_folder_btn = QPushButton(_t("diag_btn_open_folder"))
         self._open_folder_btn.clicked.connect(self._on_open_folder)
         result_btn_row.addWidget(self._open_folder_btn)
         result_btn_row.addStretch()
@@ -203,12 +213,12 @@ class BaseTestWidget(QWidget):
         self._start_btn.setEnabled(True)
         self._cancel_btn.setEnabled(False)
         icon = "✓" if ok else "⚠"
-        self._status_lbl.setText(f"{icon} Test abgeschlossen.")
+        self._status_lbl.setText(_t("diag_status_done", icon=icon))
         self._result_summary.setText(summary)
         if file_path:
             self._last_result_path = file_path
             self._result_path_lbl.setText(
-                f"Log gespeichert unter:\n{file_path}")
+                _t("diag_log_saved", path=file_path))
             self._open_folder_btn.setVisible(True)
         else:
             self._last_result_path = ""
@@ -226,7 +236,7 @@ class BaseTestWidget(QWidget):
         try:
             self.run_test()
         except Exception as e:
-            self.finish(f"Fehler: {e}", "", ok=False)
+            self.finish(_t("diag_error", error=e), "", ok=False)
 
     def _on_cancel_clicked(self):
         if not self._running:
@@ -235,7 +245,7 @@ class BaseTestWidget(QWidget):
         self._running = False
         self._start_btn.setEnabled(True)
         self._cancel_btn.setEnabled(False)
-        self.set_status("Test abgebrochen — nichts gespeichert.")
+        self.set_status(_t("diag_status_cancelled"))
 
     def _on_open_folder(self):
         if self._last_result_path:
@@ -247,16 +257,14 @@ class BaseTestWidget(QWidget):
 # ---------------------------------------------------------------------------
 
 class SystemSnapshotTest(BaseTestWidget):
-    title = "A) System-Snapshot"
-    what_it_measures = ('Wir sammeln Eckdaten deines Systems: Windows-Version, '
-                        'CPU, RAM, Audio-Geräte mit allen verfügbaren Backends, '
-                        'Callers-Caddy-Version und INI-Einstellungen.')
-    what_you_do = 'Klicke auf „Test starten". Es ist nichts weiter zu tun.'
-    expected_duration = "ca. 2 Sekunden"
-    expected_result_hint = "Log-Datei in logs/diagnose/"
+    title = "diag_a_title"
+    what_it_measures = "diag_a_measures"
+    what_you_do = "diag_todo_just_start"
+    expected_duration = "diag_a_duration"
+    expected_result_hint = "diag_result_log_file"
 
     def run_test(self):
-        self.set_status("Sammle Daten…")
+        self.set_status(_t("diag_a_status"))
         try:
             from system_report import generate_compact_header
         except ImportError:
@@ -319,12 +327,12 @@ class SystemSnapshotTest(BaseTestWidget):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
         except OSError as e:
-            self.finish(f"Konnte Datei nicht schreiben: {e}", "", ok=False)
+            self.finish(_t("diag_write_error", error=e), "", ok=False)
             return
 
         self.finish(
-            f"System-Snapshot erstellt ({len(lines)} Zeilen, "
-            f"{fmt_size(os.path.getsize(path))}).",
+            _t("diag_a_done", lines=len(lines),
+               size=fmt_size(os.path.getsize(path))),
             path, ok=True)
 
 
@@ -333,17 +341,14 @@ class SystemSnapshotTest(BaseTestWidget):
 # ---------------------------------------------------------------------------
 
 class QTimerInventoryTest(BaseTestWidget):
-    title = "D) QTimer-Inventur"
-    what_it_measures = ('Wir listen alle aktiven Timer in Callers Caddy mit '
-                        'ihrem Intervall auf. Hilft uns zu prüfen, ob ein '
-                        'interner Timer im 60-Sekunden-Takt feuert (siehe '
-                        'Anti-Ruckler-Backlog AR-017).')
-    what_you_do = 'Klicke auf „Test starten". Es ist nichts weiter zu tun.'
-    expected_duration = "sofort"
-    expected_result_hint = "Log-Datei in logs/diagnose/"
+    title = "diag_d_title"
+    what_it_measures = "diag_d_measures"
+    what_you_do = "diag_todo_just_start"
+    expected_duration = "diag_d_duration"
+    expected_result_hint = "diag_result_log_file"
 
     def run_test(self):
-        self.set_status("Suche aktive Timer…")
+        self.set_status(_t("diag_d_status"))
         timers = self._collect_timers()
         lines = []
         lines.append(f"=== QTimer-Inventur {datetime.now():%Y-%m-%d %H:%M:%S} ===")
@@ -368,17 +373,15 @@ class QTimerInventoryTest(BaseTestWidget):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
         except OSError as e:
-            self.finish(f"Konnte Datei nicht schreiben: {e}", "", ok=False)
+            self.finish(_t("diag_write_error", error=e), "", ok=False)
             return
 
         suspicious = sum(1 for t in timers if t[0] >= 30000)
         if suspicious > 0:
-            summary = (f"{len(timers)} aktive QTimer. "
-                       f"⚠ {suspicious} mit Intervall ≥ 30 s "
-                       f"— bitte Log an Entwickler.")
+            summary = _t("diag_d_done_suspicious", count=len(timers),
+                         suspicious=suspicious)
         else:
-            summary = (f"{len(timers)} aktive QTimer, "
-                       "keiner mit ≥ 30 s Intervall.")
+            summary = _t("diag_d_done_ok", count=len(timers))
         self.finish(summary, path, ok=(suspicious == 0))
 
     def _collect_timers(self):
@@ -470,24 +473,17 @@ class ExternalLoadWorker(QObject):
             samples.append((stamp, top_str))
             elapsed = int(now - t_start)
             self.progress.emit(
-                f"Läuft… {elapsed}/{self._duration_s} s. "
-                f"Aktuell Top: {top_str[:80]}")
+                _t("diag_f_progress", elapsed=elapsed,
+                   total=self._duration_s, top=top_str[:80]))
         self.finished.emit(samples)
 
 
 class ExternalLoadTest(BaseTestWidget):
-    title = "F) Externe-Last-Sampling (60 s)"
-    what_it_measures = ("Wir prüfen, welche anderen Programme während der "
-                        "Wiedergabe CPU brauchen — Antivirus, Cloud-Sync, "
-                        "Treiber-Services etc. Hilft den möglichen "
-                        "Ruckler-Verursacher von außen einzugrenzen.")
-    what_you_do = ('① Klick auf „Test starten". '
-                   '② Mach in den nächsten 60 Sekunden das, was du sonst auch '
-                   'machst während Musik läuft (Browser, Word, andere '
-                   'Programme öffnen). '
-                   '③ Warte bis der Test fertig ist.')
-    expected_duration = "60 Sekunden"
-    expected_result_hint = "Log-Datei in logs/diagnose/"
+    title = "diag_f_title"
+    what_it_measures = "diag_f_measures"
+    what_you_do = "diag_f_todo"
+    expected_duration = "diag_f_duration"
+    expected_result_hint = "diag_result_log_file"
 
     def __init__(self, app_dir, parent=None):
         super().__init__(app_dir, parent)
@@ -495,7 +491,7 @@ class ExternalLoadTest(BaseTestWidget):
         self._thread = None
 
     def run_test(self):
-        self.set_status("Starte Sampling…")
+        self.set_status(_t("diag_f_status_start"))
         self._worker = ExternalLoadWorker(duration_s=60)
         self._thread = QThread(self)
         self._worker.moveToThread(self._thread)
@@ -515,8 +511,7 @@ class ExternalLoadTest(BaseTestWidget):
         except Exception:
             pass
         if not samples:
-            self.finish("Kein Sample erfasst (Test zu kurz abgebrochen?).",
-                        "", ok=False)
+            self.finish(_t("diag_f_no_samples"), "", ok=False)
             return
         # Aggregat: welche Prozesse traten wie oft in Top-5 auf?
         from collections import Counter
@@ -548,13 +543,12 @@ class ExternalLoadTest(BaseTestWidget):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
         except OSError as e:
-            self.finish(f"Konnte Datei nicht schreiben: {e}", "", ok=False)
+            self.finish(_t("diag_write_error", error=e), "", ok=False)
             return
 
-        top_name = top_culprits[0][0] if top_culprits else "(keine)"
+        top_name = top_culprits[0][0] if top_culprits else _t("diag_none")
         self.finish(
-            f"60 Samples erfasst. Häufigster Top-CPU-Prozess "
-            f"(außer Callers Caddy): {top_name}",
+            _t("diag_f_done", count=len(samples), name=top_name),
             path, ok=True)
 
 
@@ -563,19 +557,15 @@ class ExternalLoadTest(BaseTestWidget):
 # ---------------------------------------------------------------------------
 
 class StallSentinelStatus(BaseTestWidget):
-    title = "G) Stall-Sentinel (passive Hintergrund-Überwachung)"
-    what_it_measures = ("Der Sentinel läuft die ganze Zeit im Hintergrund mit "
-                        "und prüft alle 50 ms, ob der Main-Thread blockiert "
-                        "war. Bei jedem Block > 100 ms wird ein Eintrag im "
-                        "Perflog erzeugt. Hier siehst du nur den aktuellen "
-                        "Status.")
-    what_you_do = 'Nichts. Klicke auf „Aktualisieren" für aktuelle Zahlen.'
+    title = "diag_g_title"
+    what_it_measures = "diag_g_measures"
+    what_you_do = "diag_g_todo"
     expected_duration = "—"
-    expected_result_hint = "Stalls landen direkt im Perflog (logs/perf/)"
+    expected_result_hint = "diag_g_result_hint"
 
     def __init__(self, app_dir, parent=None):
         super().__init__(app_dir, parent)
-        self._start_btn.setText("Aktualisieren")
+        self._start_btn.setText(_t("diag_g_refresh"))
         self._cancel_btn.setVisible(False)
 
     def run_test(self):
@@ -592,25 +582,20 @@ class StallSentinelStatus(BaseTestWidget):
             stats = None
 
         if not stats:
-            self.finish(
-                "Sentinel-Statistik nicht verfügbar (alte Version oder "
-                "Sentinel deaktiviert).", "", ok=False)
+            self.finish(_t("diag_g_unavailable"), "", ok=False)
             return
 
         lines = []
-        lines.append(f"Sentinel aktiv seit:        {stats.get('uptime', '?')}")
-        lines.append(f"Stalls > 100 ms erkannt:    {stats.get('count', 0)}")
-        lines.append(f"Längster Stall:             "
-                     f"{stats.get('max_ms', 0)} ms")
+        lines.append(_t("diag_g_stat_uptime", value=stats.get('uptime', '?')))
+        lines.append(_t("diag_g_stat_count", value=stats.get('count', 0)))
+        lines.append(_t("diag_g_stat_max", value=stats.get('max_ms', 0)))
         if stats.get("last_at"):
-            lines.append(f"Letzter Stall:              {stats['last_at']}")
+            lines.append(_t("diag_g_stat_last", value=stats['last_at']))
         self._result_summary.setText("\n".join(lines))
-        self._result_path_lbl.setText(
-            "Tipp: Stalls landen automatisch im Perflog der laufenden Sitzung "
-            "(logs/perf/). Bitte das Perflog ans Bundle anhängen.")
+        self._result_path_lbl.setText(_t("diag_g_tip"))
         self._open_folder_btn.setVisible(False)
         self._result_frame.setVisible(True)
-        self._status_lbl.setText("Status aktualisiert.")
+        self._status_lbl.setText(_t("diag_g_status_updated"))
         self._running = False
         self._start_btn.setEnabled(True)
 
@@ -620,20 +605,17 @@ class StallSentinelStatus(BaseTestWidget):
 # ---------------------------------------------------------------------------
 
 class BundleTest(BaseTestWidget):
-    title = 'H) Bundle „Senden an Entwickler"'
-    what_it_measures = ("Packt die letzten Logs in eine ZIP-Datei, die du "
-                        "per E-Mail an den Entwickler schicken kannst.")
-    what_you_do = ('① Klick auf „Test starten". '
-                   '② Anschließend Ordner öffnen, ZIP per Mail anhängen.')
-    expected_duration = "ca. 5 Sekunden"
-    expected_result_hint = "ZIP-Datei in logs/diagnose/"
+    title = "diag_h_title"
+    what_it_measures = "diag_h_measures"
+    what_you_do = "diag_h_todo"
+    expected_duration = "diag_h_duration"
+    expected_result_hint = "diag_h_result_hint"
 
     def run_test(self):
-        self.set_status("Sammle Logs…")
+        self.set_status(_t("diag_h_status"))
         logs_root = os.path.join(self._app_dir, "logs")
         if not os.path.isdir(logs_root):
-            self.finish("Kein logs/-Ordner gefunden — nichts zu bündeln.",
-                        "", ok=False)
+            self.finish(_t("diag_h_no_logs"), "", ok=False)
             return
 
         stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -702,15 +684,12 @@ class BundleTest(BaseTestWidget):
                     f"Bundle erstellt: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
                     f"OS: {platform.platform()}\n")
         except OSError as e:
-            self.finish(f"Bundle-Fehler: {e}", "", ok=False)
+            self.finish(_t("diag_h_error", error=e), "", ok=False)
             return
 
         size = os.path.getsize(out_path)
         self.finish(
-            f"Bundle erstellt mit {added} Datei(en) "
-            f"({fmt_size(size)}).\n\n"
-            f"Bitte diese ZIP-Datei per E-Mail an den Entwickler senden. "
-            f"Vielen Dank für die Mithilfe!",
+            _t("diag_h_done", count=added, size=fmt_size(size)),
             out_path, ok=True)
 
 
@@ -724,13 +703,10 @@ class _ComingSoonWidget(BaseTestWidget):
 
     def _build_ui(self):
         super()._build_ui()
-        self._start_btn.setText("In Vorbereitung")
+        self._start_btn.setText(_t("diag_soon_btn"))
         self._start_btn.setEnabled(False)
         self._cancel_btn.setVisible(False)
-        info = QLabel(
-            "Dieser Test ist in Vorbereitung und kommt mit der nächsten "
-            "Version (v0.92). Bis dahin sind die Tests A, D, F und H "
-            "die aussagekräftigsten.")
+        info = QLabel(_t("diag_soon_info"))
         info.setStyleSheet(
             "color: #b58900; font-style: italic; padding: 6px; "
             "background: #fff8e0; border: 1px solid #e8c060; "
@@ -741,29 +717,21 @@ class _ComingSoonWidget(BaseTestWidget):
 
 
 class SilencePlaybackTest(_ComingSoonWidget):
-    title = "B) Stille-Wiedergabe-Test (60 s) — Vorbereitung"
-    what_it_measures = ("Wir spielen einen leisen Test-Ton (Sinus + "
-                        "Rauschen) für 60 s und protokollieren Aussetzer "
-                        "und Stalls.")
-    what_you_do = ('Klick auf „Test starten" — sobald verfügbar. '
-                   'Solange: bitte Test A + F nutzen, das liefert schon '
-                   'viel Information.')
+    title = "diag_b_title"
+    what_it_measures = "diag_b_measures"
+    what_you_do = "diag_b_todo"
 
 
 class HostapiCompareTest(_ComingSoonWidget):
-    title = "C) Hostapi-Vergleich — Vorbereitung"
-    what_it_measures = ("Wir spielen den Test-Ton nacheinander durch jedes "
-                        "verfügbare Audio-Backend (MME, WASAPI, WDM-KS) "
-                        "und vergleichen die Aussetzer-Quote.")
-    what_you_do = 'Klick auf „Test starten" — sobald verfügbar.'
+    title = "diag_c_title"
+    what_it_measures = "diag_c_measures"
+    what_you_do = "diag_soon_todo"
 
 
 class FadeOutStressTest(_ComingSoonWidget):
-    title = "E) Fade-Out-Stress-Test — Vorbereitung"
-    what_it_measures = ("Wir messen wie sauber der Fade-Out auf deinem "
-                        "System läuft. Seit v0.91 ist Fade-Out vektorisiert "
-                        "und sollte auch auf schwacher CPU glatt sein.")
-    what_you_do = 'Klick auf „Test starten" — sobald verfügbar.'
+    title = "diag_e_title"
+    what_it_measures = "diag_e_measures"
+    what_you_do = "diag_soon_todo"
 
 
 # ---------------------------------------------------------------------------
@@ -775,7 +743,7 @@ class DiagnoseCenterDialog(QDialog):
 
     def __init__(self, app_dir: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Diagnose-Center")
+        self.setWindowTitle(_t("diag_window_title"))
         self.resize(720, 600)
         self._app_dir = app_dir
 
@@ -783,20 +751,15 @@ class DiagnoseCenterDialog(QDialog):
 
         # Kopfzeile mit "Logs-Ordner öffnen"
         top = QHBoxLayout()
-        title = QLabel("<h2>Diagnose-Center</h2>")
+        title = QLabel(f"<h2>{_t('diag_window_title')}</h2>")
         top.addWidget(title)
         top.addStretch()
-        open_logs_btn = QPushButton("Logs-Ordner öffnen")
+        open_logs_btn = QPushButton(_t("diag_open_logs"))
         open_logs_btn.clicked.connect(self._open_logs)
         top.addWidget(open_logs_btn)
         lay.addLayout(top)
 
-        intro = QLabel(
-            "Hier kannst du auf deinem System ein paar Tests laufen lassen, "
-            "die dem Entwickler helfen, Aussetzer-Ursachen zu finden. Jeder "
-            "Test schreibt eine Log-Datei nach <code>logs/diagnose/</code>. "
-            'Am Ende kannst du mit „Bundle" alles in eine ZIP packen und '
-            "per E-Mail schicken.")
+        intro = QLabel(_t("diag_intro"))
         intro.setWordWrap(True)
         intro.setStyleSheet("padding: 4px 0 8px 0; color: #444;")
         lay.addWidget(intro)
@@ -806,40 +769,40 @@ class DiagnoseCenterDialog(QDialog):
         sys_tabs = QTabWidget()
         sys_tabs.setTabPosition(QTabWidget.West)
         sys_tabs.addTab(SystemSnapshotTest(app_dir),
-                        "A) System-Snapshot")
+                        _t("diag_a_tab"))
         sys_tabs.addTab(QTimerInventoryTest(app_dir),
-                        "D) QTimer-Inventur")
-        tabs.addTab(sys_tabs, "System")
+                        _t("diag_d_tab"))
+        tabs.addTab(sys_tabs, _t("diag_tab_system"))
 
         # Audio
         audio_tabs = QTabWidget()
         audio_tabs.setTabPosition(QTabWidget.West)
         audio_tabs.addTab(SilencePlaybackTest(app_dir),
-                          "B) Stille-Wiedergabe")
+                          _t("diag_b_tab"))
         audio_tabs.addTab(HostapiCompareTest(app_dir),
-                          "C) Hostapi-Vergleich")
+                          _t("diag_c_tab"))
         audio_tabs.addTab(FadeOutStressTest(app_dir),
-                          "E) Fade-Out-Stress")
-        tabs.addTab(audio_tabs, "Audio")
+                          _t("diag_e_tab"))
+        tabs.addTab(audio_tabs, _t("diag_tab_audio"))
 
         # Externes
         ext_tabs = QTabWidget()
         ext_tabs.setTabPosition(QTabWidget.West)
         ext_tabs.addTab(ExternalLoadTest(app_dir),
-                        "F) Externe-Last")
+                        _t("diag_f_tab"))
         ext_tabs.addTab(StallSentinelStatus(app_dir),
-                        "G) Stall-Sentinel")
-        tabs.addTab(ext_tabs, "Externes")
+                        _t("diag_g_tab"))
+        tabs.addTab(ext_tabs, _t("diag_tab_external"))
 
         # Bundle
-        tabs.addTab(BundleTest(app_dir), "Bundle senden")
+        tabs.addTab(BundleTest(app_dir), _t("diag_tab_bundle"))
 
         lay.addWidget(tabs)
 
         # Footer
         footer = QHBoxLayout()
         footer.addStretch()
-        close_btn = QPushButton("Schließen")
+        close_btn = QPushButton(_t("diag_close"))
         close_btn.clicked.connect(self.accept)
         footer.addWidget(close_btn)
         lay.addLayout(footer)
