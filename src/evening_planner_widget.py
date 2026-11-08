@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
+from caddy.songs import recommendation
 from i18n import _t
 from ui_helpers import mark_toggle
 from zoom_wheel import install_ctrl_wheel_zoom
@@ -300,12 +301,7 @@ class SongScorer:
 
     @staticmethod
     def _score(quality, days, err, target_err):
-        if err == 0:
-            err_match = 0.25          # ERR nicht gepflegt → niedrige Gewichtung
-        else:
-            diff = abs(err - target_err)
-            err_match = 1.0 / (diff + 1)   # diff=0→1.0, diff=1→0.5, diff=2→0.33, …
-        return quality * int(days) * err_match
+        return recommendation.score(quality, days, err, target_err)
 
 
 # ─── Curve Canvas ──────────────────────────────────────────────────────────────

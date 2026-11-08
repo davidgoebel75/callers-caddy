@@ -16,12 +16,23 @@ from song_types import PlayMode
 W = main.P29MainWindow
 
 
+class _Sitzung:
+    """Fake der aktuellen Sitzung: kein QObject (Windows-Crash-Falle), nur song/set_song."""
+
+    def __init__(self, song=None, **kw):
+        self.song = song
+        self.__dict__.update(kw)
+
+    def set_song(self, song):
+        self.song = song
+
+
 class _Fenster:
     _sync_loop_settings_if_loaded = W._sync_loop_settings_if_loaded
     _loaded_playlist_entry = W._loaded_playlist_entry
 
     def __init__(self, song, current_entry):
-        self._current_song = song
+        self.session = _Sitzung(song)
         self.playlist_widget = SimpleNamespace(get_current_entry=lambda: current_entry)
         self.an_engine = []
 

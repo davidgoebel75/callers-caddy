@@ -47,6 +47,8 @@ def test_beenden_ueberschreibt_den_faktor_nicht(qapp, tmp_path):
         _current_font_size=20, _base_font_size=20,
         _auto_size_enabled=True, _auto_width_enabled=False)
     win._raised_tab_docknames = lambda: []
+    win._write_layout_state = (
+        lambda settings: main.P29MainWindow._write_layout_state(win, settings))
     win._save_float_geoms = lambda settings: None
     main.P29MainWindow._save_layout(win)
     assert win._settings.value("notes/first_note_factor") == "2.5"
