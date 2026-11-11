@@ -25,9 +25,15 @@ def test_license_is_gplv2():
     assert "Version 2, June 1991" in text
 
 
+def _component_column():
+    """Erste Spalte der Tabelle in THIRD_PARTY.txt (Zeilen nach der ----Linie)."""
+    rows = OVERVIEW.read_text(encoding="utf-8").split("\n---", 1)[1].split("\n\n", 1)[0]
+    return " ".join(re.split(r" {2,}", r)[0] for r in rows.splitlines()[1:]).lower()
+
+
 def test_every_requirement_listed():
-    overview = OVERVIEW.read_text(encoding="utf-8").lower()
-    missing = [n for n in _requirement_names() if n.lower() not in overview]
+    components = _component_column()
+    missing = [n for n in _requirement_names() if n.lower() not in components]
     assert not missing, f"In THIRD_PARTY.txt nachtragen: {missing}"
 
 

@@ -24,10 +24,8 @@
 - saveState()/restoreState() fuer Layout-Persistenz
 - Lizenz: LGPLv3 (kompatibel mit Open Source UND Closed Source)
 
-## Audio: Rubber Band + sounddevice
-- **Rubber Band** (C-Library): Time-Stretching + Pitch-Shifting (beste Qualitaet)
-  - Anbindung via ctypes oder cffi
-  - GPLv2 → Projekt wird Open Source
+## Audio: eigener Time-Stretcher + sounddevice
+- **Rubber Band** (C-Library) war geplant, wird aber nicht eingesetzt: Time-Stretching + Pitch-Shifting sind eigener Code (WSOLA, SoundTouch-Stil, `src/time_stretcher.py`, `src/pitch_shifter.py`)
 - **sounddevice** (PortAudio-Wrapper): Low-Latency Audio-Ausgabe
   - Callbacks laufen in C → kein GIL-Problem
 - **MP3-Decoding**: pydub/ffmpeg oder audioread/soundfile

@@ -9,24 +9,27 @@ The program bundles the components below. Each one keeps its own license;
 the license texts are in this folder. Versions: see installer/requirements.txt
 in the source code.
 
-Component                         License                       File
---------------------------------  ----------------------------  ------------------
-Python (runtime)                  PSF License                   Python.txt
-PySide6, shiboken6 (Qt 6)         LGPL-3.0                      LGPL-3.0.txt, GPL-3.0.txt
-FFmpeg (bundled with Qt Multimedia)  LGPL-2.1-or-later          LGPL-2.1.txt
-numpy                             BSD-3-Clause and others       numpy.txt
-scipy                             BSD-3-Clause and others       scipy.txt
-soundfile                         BSD-3-Clause                  soundfile.txt
-libsndfile (bundled with soundfile)  LGPL-2.1-or-later          LGPL-2.1.txt
-sounddevice                       MIT                           sounddevice.txt
-PortAudio (bundled with sounddevice)  MIT                       PortAudio.txt
-cffi                              MIT-0                         cffi.txt
-pycparser                         BSD-3-Clause                  pycparser.txt
-access-parser                     Apache-2.0                    Apache-2.0.txt
-pycaw                             MIT                           pycaw.txt
-comtypes                          MIT                           comtypes.txt
-psutil                            BSD-3-Clause                  psutil.txt
-pypdf                             BSD-3-Clause                  pypdf.txt
+Component                    License                  File
+---------------------------  -----------------------  -------------------------
+Python (runtime)             PSF License              Python.txt
+PySide6, shiboken6 (Qt 6)    LGPL-3.0                 LGPL-3.0.txt, GPL-3.0.txt
+FFmpeg (via Qt Multimedia)   LGPL-2.1-or-later        LGPL-2.1.txt
+numpy                        BSD-3-Clause and others  numpy.txt
+scipy                        BSD-3-Clause and others  scipy.txt
+soundfile                    BSD-3-Clause             soundfile.txt
+libsndfile (via soundfile)   LGPL-2.1-or-later        LGPL-2.1.txt
+sounddevice                  MIT                      sounddevice.txt
+PortAudio (via sounddevice)  MIT                      PortAudio.txt
+cffi                         MIT-0                    cffi.txt
+pycparser                    BSD-3-Clause             pycparser.txt
+typing_extensions            PSF-2.0                  typing_extensions.txt
+access-parser                Apache-2.0               Apache-2.0.txt
+construct                    MIT                      construct.txt
+tabulate                     MIT                      tabulate.txt
+pycaw                        MIT                      pycaw.txt
+comtypes                     MIT                      comtypes.txt
+psutil                       BSD-3-Clause             psutil.txt
+pypdf                        BSD-3-Clause             pypdf.txt
 
 Notes
 -----
