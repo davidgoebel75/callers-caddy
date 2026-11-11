@@ -39,10 +39,12 @@
 - Python: sqlite3 (built-in) oder SQLAlchemy
 - 10k Songs: trivial
 
-## Lizenz: Open Source (GPLv2+)
-- Ermoeglicht Rubber Band ohne kommerzielle Lizenz
-- PySide6 (LGPL) kompatibel
+## Lizenz: Open Source (GPL-2.0-or-later)
+- Lizenztext: `LICENSE` im Projektstamm (unveraenderter GPLv2-Text); "oder spaeter" steht im About-Dialog und hier
+- Rubber Band (urspruenglicher Anlass fuer die GPL) wird nicht mehr ausgeliefert; Time-Stretching/Pitch-Shifting sind eigener Code
+- PySide6 wird unter LGPL-3.0 genutzt, kompatibel
 - Quellcode oeffentlich, kostenlose Nutzung
+- **Fremdkomponenten:** `installer/licenses/THIRD_PARTY.txt` listet jede mitgelieferte Komponente mit Lizenzdatei; `build.py` legt `LICENSE` und `licenses/` neben die EXE. Neue Zeile in `installer/requirements.txt` → dort nachtragen (Test `tests/app/test_third_party_licenses.py` erinnert). Kommt eine Komponente ohne Python-Paket dazu (z. B. `tam_cli.exe`, GPLv3+), ebenfalls dort eintragen.
 
 ## Distribution
 - PyInstaller oder cx_Freeze → standalone .exe / .app

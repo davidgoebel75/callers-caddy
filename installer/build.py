@@ -89,6 +89,7 @@ def move_to_root(internal_dir: Path, root_dir: Path):
     - translations.json
     - callers_caddy_clean.db -> callers_caddy.db
     - callers_caddy_default.ini -> callers_caddy.ini
+    - LICENSE und licenses/ (intern#248)
     """
     moves = [
         # (Quelle in _internal, Ziel im Root, ist Ordner?)
@@ -97,6 +98,8 @@ def move_to_root(internal_dir: Path, root_dir: Path):
         ("translations.json", "translations.json", False),
         ("callers_caddy_clean.db", "callers_caddy.db", False),
         ("callers_caddy_default.ini", "callers_caddy.ini", False),
+        ("LICENSE", "LICENSE", False),
+        ("licenses", "licenses", True),
     ]
     for src_name, dst_name, is_dir in moves:
         src = internal_dir / src_name

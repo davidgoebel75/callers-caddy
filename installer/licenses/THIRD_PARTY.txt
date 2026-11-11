@@ -1,0 +1,41 @@
+Callers Caddy - Third-party components
+=====================================
+
+Callers Caddy is free software, licensed under the GNU General Public
+License, version 2 or (at your option) any later version. The full text
+is in the file LICENSE next to the program.
+
+The program bundles the components below. Each one keeps its own license;
+the license texts are in this folder. Versions: see installer/requirements.txt
+in the source code.
+
+Component                         License                       File
+--------------------------------  ----------------------------  ------------------
+Python (runtime)                  PSF License                   Python.txt
+PySide6, shiboken6 (Qt 6)         LGPL-3.0                      LGPL-3.0.txt, GPL-3.0.txt
+FFmpeg (bundled with Qt Multimedia)  LGPL-2.1-or-later          LGPL-2.1.txt
+numpy                             BSD-3-Clause and others       numpy.txt
+scipy                             BSD-3-Clause and others       scipy.txt
+soundfile                         BSD-3-Clause                  soundfile.txt
+libsndfile (bundled with soundfile)  LGPL-2.1-or-later          LGPL-2.1.txt
+sounddevice                       MIT                           sounddevice.txt
+PortAudio (bundled with sounddevice)  MIT                       PortAudio.txt
+cffi                              MIT-0                         cffi.txt
+pycparser                         BSD-3-Clause                  pycparser.txt
+access-parser                     Apache-2.0                    Apache-2.0.txt
+pycaw                             MIT                           pycaw.txt
+comtypes                          MIT                           comtypes.txt
+psutil                            BSD-3-Clause                  psutil.txt
+pypdf                             BSD-3-Clause                  pypdf.txt
+
+Notes
+-----
+- Qt for Python is offered under LGPL-3.0, GPL-2.0 or GPL-3.0; Callers Caddy
+  uses it under LGPL-3.0. The LGPL-3.0 builds on the GPL-3.0, so both texts
+  are included. Qt itself contains further third-party code, listed at
+  https://doc.qt.io/qt-6/licenses-used-in-qt.html
+- The Qt, FFmpeg and libsndfile libraries are shipped as separate DLL files
+  and can be replaced by the user.
+- Source code of the LGPL components: https://download.qt.io,
+  https://ffmpeg.org, https://github.com/libsndfile/libsndfile
+- Source code of Callers Caddy: https://github.com/davidgoebel75/callers-caddy
