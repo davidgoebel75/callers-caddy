@@ -1421,6 +1421,20 @@ class P29MainWindow(QMainWindow):
         self._add_view_menu_entry(self.dock_pilot_square, _t("dock_pilot_square"))
         perf_log("    PilotSquare dock", _tsq)
 
+        # --- Dock: Uhr (Digitaluhr, intern#235) — vollwertig andockbar ---
+        # Vor _restore_layout(), damit Position/Groesse/Sichtbarkeit ueber
+        # windowState wiederhergestellt werden.
+        _tclock = perf_start()
+        from caddy.clock.clock_widget import ClockWidget
+        self.clock_widget = ClockWidget(self.skin_mgr, self._settings)
+        self.dock_clock = _make_dock(
+            self, _t("dock_clock"), self.clock_widget, Qt.RightDockWidgetArea
+        )
+        self.dock_clock.setObjectName("dock_clock")
+        self.dock_clock.hide()  # Default; restoreState() stellt echten Zustand her
+        self._add_view_menu_entry(self.dock_clock, _t("dock_clock"))
+        perf_log("    Clock dock", _tclock)
+
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
         self._wire_dock_context_menus()
         # #121: Floating-Geometrie-Handler auch ohne gespeichertes Layout
@@ -7850,6 +7864,9 @@ class P29MainWindow(QMainWindow):
                 self.pilot_square_widget.apply_skin(self.skin_mgr)
             # Break-Pausen-Uhr (Dock + ggf. Overlay)
             self.break_widget.set_skin(self.skin_mgr)
+            # Uhr-Dock (intern#235)
+            if getattr(self, "clock_widget", None) is not None:
+                self.clock_widget.set_skin(self.skin_mgr)
             # Stream Deck: Icons mit neuen Theme-Farben neu einfaerben
             if hasattr(self, 'stream_deck_widget'):
                 self.stream_deck_widget.apply_skin(self.skin_mgr)

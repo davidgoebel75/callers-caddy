@@ -7458,6 +7458,26 @@
     "en": "Break",
     "ja": "Break"
   },
+  "dock_clock": {
+    "de": "Uhr",
+    "en": "Clock",
+    "ja": "時計"
+  },
+  "clock_menu_seconds": {
+    "de": "Sekunden anzeigen",
+    "en": "Show seconds",
+    "ja": "秒を表示"
+  },
+  "clock_menu_12h": {
+    "de": "12-Stunden-Format (AM/PM)",
+    "en": "12-hour format (AM/PM)",
+    "ja": "12時間表示 (AM/PM)"
+  },
+  "clock_menu_date": {
+    "de": "Datum anzeigen",
+    "en": "Show date",
+    "ja": "日付を表示"
+  },
   "break_btn_tooltip": {
     "de": "Pausen-Uhr öffnen",
     "en": "Open break timer",

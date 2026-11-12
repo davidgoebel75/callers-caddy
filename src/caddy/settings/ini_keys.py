@@ -74,6 +74,10 @@ _ENTRIES = (
     _k("lyrics/auto_size", bool, True),
     _k("lyrics/auto_width", bool, False),
     _k("lyrics/zoom_pct", int, 100),
+    # intern#235: Uhr-Dock (Rechtsklick-Optionen)
+    _k("clock/show_seconds", bool, False),
+    _k("clock/twelve_hour", bool, False),
+    _k("clock/show_date", bool, True),
     # Pfade relativ zum App-Verzeichnis; Slots 2..4 leer = nicht genutzt
     _k("paths/music_dir_1", str, "music"),
     _k("paths/music_dir_2", str, ""),
