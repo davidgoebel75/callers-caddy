@@ -7284,6 +7284,10 @@ class P29MainWindow(QMainWindow):
                 except Exception:
                     pass
 
+            elif key.startswith("clock/"):
+                # intern#235: Uhr-Optionen aus dem Einstellungsdialog
+                self.clock_widget.reload_settings()
+
             elif key == "loop/crossfade_ms":
                 try:
                     self.engine.set_loop_crossfade_ms(int(val))
@@ -7798,6 +7802,7 @@ class P29MainWindow(QMainWindow):
         self.dock_lyrics.raise_()
         # Versteckte Fenster
         self.dock_manager.hide()
+        self.dock_clock.hide()  # intern#235: Standard versteckt
         self.dock_reports.setFloating(True)
         self.dock_reports.hide()
         self.dock_potential.setFloating(True)
@@ -7865,8 +7870,7 @@ class P29MainWindow(QMainWindow):
             # Break-Pausen-Uhr (Dock + ggf. Overlay)
             self.break_widget.set_skin(self.skin_mgr)
             # Uhr-Dock (intern#235)
-            if getattr(self, "clock_widget", None) is not None:
-                self.clock_widget.set_skin(self.skin_mgr)
+            self.clock_widget.set_skin(self.skin_mgr)
             # Stream Deck: Icons mit neuen Theme-Farben neu einfaerben
             if hasattr(self, 'stream_deck_widget'):
                 self.stream_deck_widget.apply_skin(self.skin_mgr)

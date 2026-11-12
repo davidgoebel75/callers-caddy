@@ -24,7 +24,7 @@ HAUPT = {"dock_player": "dock_player", "dock_loop": "dock_loop",
          "dock_playlist": "dock_playlist", "dock_lyrics": "dock_lyrics",
          "dock_sequences": "dock_sequences"}
 VERSTECKT = ("dock_loop_finder", "dock_manager", "dock_reports", "dock_potential",
-             "dock_photo", "dock_rules", "dock_evening_planner")
+             "dock_photo", "dock_rules", "dock_evening_planner", "dock_clock")
 
 
 class _Haupt(QMainWindow):

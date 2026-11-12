@@ -25,6 +25,12 @@ class IniKey:
     seed: bool = False  # True = _write_ini_defaults() schreibt ihn beim Start
 
 
+# Schluessel, die mehrere Module brauchen (intern#235)
+CLOCK_SHOW_SECONDS = "clock/show_seconds"
+CLOCK_TWELVE_HOUR = "clock/twelve_hour"
+CLOCK_SHOW_DATE = "clock/show_date"
+
+
 def _k(key, typ, default, seed=False):
     return IniKey(key, typ, default, seed)
 
@@ -68,16 +74,16 @@ _ENTRIES = (
     _k("lyrics/reading_band_countdown_beats", int, 8, True),
     # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
     _k("sequences/show_hidden_on_start", bool, False, True),
+    # intern#235: Uhr-Dock, eigene Sektion [clock] (Rechtsklick + Dialog)
+    _k(CLOCK_SHOW_SECONDS, bool, False, True),
+    _k(CLOCK_TWELVE_HOUR, bool, False, True),
+    _k(CLOCK_SHOW_DATE, bool, True, True),
     # --- ohne Saat ---
     _k("lyrics/dynamic_enabled", bool, False),
     _k("lyrics/dynamic_mode", str, ""),
     _k("lyrics/auto_size", bool, True),
     _k("lyrics/auto_width", bool, False),
     _k("lyrics/zoom_pct", int, 100),
-    # intern#235: Uhr-Dock (Rechtsklick-Optionen)
-    _k("clock/show_seconds", bool, False),
-    _k("clock/twelve_hour", bool, False),
-    _k("clock/show_date", bool, True),
     # Pfade relativ zum App-Verzeichnis; Slots 2..4 leer = nicht genutzt
     _k("paths/music_dir_1", str, "music"),
     _k("paths/music_dir_2", str, ""),

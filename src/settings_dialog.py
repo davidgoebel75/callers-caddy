@@ -480,6 +480,22 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Ab wie vielen Beats vor dem Abschnittswechsel der "
                    "Countdown erscheint.",
     },
+    # --- clock (intern#235) ---
+    "clock/show_seconds": {
+        "label": "Sekunden anzeigen",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "clock/twelve_hour": {
+        "label": "12-Stunden-Format (AM/PM)",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "clock/show_date": {
+        "label": "Datum anzeigen",
+        "widget": "checkbox",
+        "default": True,
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",
@@ -503,6 +519,7 @@ _SECTION_LABELS = {
     "sequences": "Sequenzen",
     "notes":     "Notizen",
     "lyrics":    "Lyrics",
+    "clock":     "Uhr",
     "debug":     "Debug",
     "rules":     "Rules (System)",
 }
@@ -1014,7 +1031,7 @@ class SettingsDialog(QDialog):
         sections = [s for s in top_groups if not _is_excluded_section(s, self._settings)]
 
         _ORDER = ["display", "paths", "audio", "loop", "player", "playlist",
-                  "feedback", "sort", "sequences", "notes", "lyrics", "debug",
+                  "feedback", "sort", "sequences", "notes", "lyrics", "clock", "debug",
                   "rules"]
         ordered = [s for s in _ORDER if s in sections]
         rest = sorted(s for s in sections if s not in _ORDER)

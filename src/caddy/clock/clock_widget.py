@@ -21,9 +21,9 @@ _LOCALES = {
     "ja": QLocale(QLocale.Japanese, QLocale.Japan),
 }
 
-_KEY_SECONDS = "clock/show_seconds"
-_KEY_12H = "clock/twelve_hour"
-_KEY_DATE = "clock/show_date"
+_KEY_SECONDS = ini_keys.CLOCK_SHOW_SECONDS
+_KEY_12H = ini_keys.CLOCK_TWELVE_HOUR
+_KEY_DATE = ini_keys.CLOCK_SHOW_DATE
 
 
 class ClockWidget(QWidget):
@@ -38,9 +38,7 @@ class ClockWidget(QWidget):
         super().__init__(parent)
         self._skin_mgr = skin_mgr
         self._settings = settings
-        self._show_seconds = self._read_bool(_KEY_SECONDS)
-        self._twelve_hour = self._read_bool(_KEY_12H)
-        self._show_date = self._read_bool(_KEY_DATE)
+        self._load_options()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setTimerType(Qt.PreciseTimer)
@@ -49,6 +47,17 @@ class ClockWidget(QWidget):
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
     # --- Einstellungen ---------------------------------------------------
+
+    def _load_options(self):
+        self._show_seconds = self._read_bool(_KEY_SECONDS)
+        self._twelve_hour = self._read_bool(_KEY_12H)
+        self._show_date = self._read_bool(_KEY_DATE)
+
+    def reload_settings(self):
+        """Nach Aenderung im Einstellungsdialog: Optionen neu lesen."""
+        self._load_options()
+        if self.isVisible():
+            self._tick()  # Takt haengt an den Sekunden
 
     def _read_bool(self, key):
         if self._settings is None:
@@ -63,7 +72,7 @@ class ClockWidget(QWidget):
         self._skin_mgr = skin_mgr
         self.update()
 
-    def _c(self, key, fallback):
+    def _color(self, key, fallback):
         return QColor(self._skin_mgr.color(key, fallback) if self._skin_mgr else fallback)
 
     # --- Takt ------------------------------------------------------------
@@ -97,6 +106,7 @@ class ClockWidget(QWidget):
             act.toggled.connect(
                 lambda on, a=attr, k=key: self._set_option(a, k, on))
         menu.exec(event.globalPos())
+        menu.deleteLater()
         event.accept()
 
     def _set_option(self, attr, key, on):
@@ -109,7 +119,7 @@ class ClockWidget(QWidget):
 
     @staticmethod
     def _fit_font(base, text, width, height):
-        """Schrift, mit der `text` in width x height passt (Punktgroesse >= 6)."""
+        """Schrift, mit der `text` in width x height passt (Pixelgroesse >= 6)."""
         f = QFont(base)
         f.setBold(True)
         f.setPixelSize(max(6, int(height)))
@@ -138,12 +148,20 @@ class ClockWidget(QWidget):
         date_h = h * self._DATE_FRAC if self._show_date else 0.0
         time_h = h - date_h
 
-        # Platz fuer AM/PM einplanen: Zeit + Zusatz zusammen auf die Breite
-        # bringen. Ziffernhoehe ~0.72 der Pixelgroesse -> Faktor 1.3 nutzt die
-        # Hoehe besser aus, die Breitenbegrenzung faengt es wieder ein.
-        probe = text + (" " + suffix if suffix else "")
-        f_time = self._fit_font(p.font(), probe, w, time_h * 1.3)
+        # Ziffernhoehe ~0.72 der Pixelgroesse -> Faktor 1.3 nutzt die Hoehe
+        # besser aus, die Breitenbegrenzung faengt es wieder ein.
+        f_time = self._fit_font(p.font(), text, w, time_h * 1.3)
         fm = QFontMetricsF(f_time)
+        if suffix:
+            # Platz fuer AM/PM: Zusatz (_SUFFIX_FRAC) und Abstand (halbes
+            # Leerzeichen) in der Groesse messen, in der sie gezeichnet werden.
+            f_s = QFont(f_time)
+            f_s.setPixelSize(max(6, int(f_time.pixelSize() * self._SUFFIX_FRAC)))
+            need = (fm.horizontalAdvance(text) + fm.horizontalAdvance(" ") * 0.5
+                    + QFontMetricsF(f_s).horizontalAdvance(suffix))
+            if need > w:
+                f_time.setPixelSize(max(6, int(f_time.pixelSize() * w / need)))
+                fm = QFontMetricsF(f_time)
         if fm.height() > time_h * 1.25:
             f_time.setPixelSize(max(6, int(f_time.pixelSize() * time_h * 1.25 / fm.height())))
             fm = QFontMetricsF(f_time)
@@ -158,7 +176,7 @@ class ClockWidget(QWidget):
         # Grundlinie so, dass die Ziffern (capHeight) vertikal mittig sitzen
         baseline = pad + (time_h + fm.capHeight()) / 2
 
-        p.setPen(QPen(self._c("text", "#f0f0f0")))
+        p.setPen(QPen(self._color("text", "#f0f0f0")))
         p.setFont(f_time)
         p.drawText(int(x0), int(baseline), text)
         if suffix:
@@ -176,7 +194,7 @@ class ClockWidget(QWidget):
             if dw > w:
                 f_date.setPixelSize(max(6, int(f_date.pixelSize() * w / dw)))
             p.setFont(f_date)
-            p.setPen(QPen(self._c("text_dim", "#999999")))
+            p.setPen(QPen(self._color("text_dim", "#999999")))
             p.drawText(QRectF(pad, pad + time_h, w, date_h),
                        Qt.AlignHCenter | Qt.AlignTop, date_text)
         p.end()
