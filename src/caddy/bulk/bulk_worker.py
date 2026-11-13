@@ -3,23 +3,44 @@
 Die Schleife selbst steht in bulk_run.py (ohne Qt). Hier nur, was QThread und
 Signal braucht (daher kein QT_FREE).
 """
-from PySide6.QtCore import QThread, Signal
+import warnings
+
+from PySide6.QtCore import QCoreApplication, QThread, Signal
 
 from caddy.bulk.bulk_run import BulkCounts, run_bulk
 
+# Signale, die nur die Oberflaeche bedienen oder Folge-Laeufe starten. Beim
+# Beenden getrennt; Ergebnis-Signale wie loop_found (Auto-Loop speichert im
+# Hauptthread) bleiben verbunden.
+_UI_SIGNALS = ('progress', 'finished', 'error', 'finished_ok', 'failed')
 
-def stop_and_wait(workers):
-    """Bricht laufende Worker ab und wartet ohne Zeitlimit auf ihr Ende
-    (intern#242). cancel() greift zwischen zwei Songs, der laufende Song wird
-    noch fertig geschrieben. Worker ohne cancel() (Loeschen, Ceder) laufen zu
-    Ende. Nur fuers Beenden: Signale werden blockiert, damit kein finished-Slot
-    mehr gegen die gleich geschlossene DB laeuft."""
+
+def stop_for_shutdown(workers):
+    """Bricht laufende Worker beim Beenden ab und wartet ohne Zeitlimit auf ihr
+    Ende (intern#242). cancel() greift zwischen zwei Songs, der laufende Song
+    wird noch fertig bearbeitet. Worker ohne cancel() (Loeschen, Ceder) laufen
+    zu Ende. UI-Signale werden getrennt, damit kein Slot einen Folge-Lauf
+    startet oder nach db.close() die DB anfasst; beim Warten laufen Events
+    weiter, damit loop_found den letzten Loop noch speichert."""
     for w in workers:
-        w.blockSignals(True)
+        for name in _UI_SIGNALS:
+            sig = getattr(w, name, None)
+            if sig is None:
+                continue
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')   # nichts verbunden
+                try:
+                    sig.disconnect()
+                except (RuntimeError, TypeError, SystemError):
+                    pass
         if hasattr(w, 'cancel'):
             w.cancel()
+    # ponytail: ein vor dem Trennen schon eingereihtes finished laeuft hier
+    # noch (Fenster von Mikrosekunden nach der Rueckfrage)
     for w in workers:
-        w.wait()
+        while not w.wait(20):
+            QCoreApplication.processEvents()
+    QCoreApplication.processEvents()   # letztes loop_found nach Thread-Ende
 
 
 class BulkWorker(QThread):

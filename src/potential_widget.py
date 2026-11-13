@@ -1583,6 +1583,7 @@ class PotentialWidget(QWidget):
         self.db = db
         self.paths = paths          # fuer Lyrics-Ordner und config/
         self._settings = settings   # fuer den Ceder-Schalter
+        # Worker-Attribute: neue auch in _WORKER_ATTRS eintragen (Beenden, intern#242)
         self._ceder_worker = None
         self._ceder_dl_worker = None
         self._krabbel_worker = None

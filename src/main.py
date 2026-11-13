@@ -437,7 +437,7 @@ from reports_widget import ReportsWidget
 # (inkl. Bulk-Worker, Meta-Import/CSV-Match, Ceder-, Krabbelkiste- und
 #  Beautify-Dialoge; _ReindexWorker bleibt hier in main.)
 from potential_widget import PotentialWidget
-from caddy.bulk.bulk_worker import stop_and_wait
+from caddy.bulk.bulk_worker import stop_for_shutdown
 
 
 
@@ -8077,7 +8077,7 @@ class P29MainWindow(QMainWindow):
         self._save_current_song()
         self.rule_engine.close()
         self.engine.shutdown()
-        stop_and_wait(workers)
+        stop_for_shutdown(workers)
         self.db.close()
         event.accept()
 
