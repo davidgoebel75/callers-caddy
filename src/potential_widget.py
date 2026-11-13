@@ -1537,6 +1537,12 @@ class _BeautifyProgressDialog(QDialog):
         self._render()
 
 
+# Attribute, in denen PotentialWidget seine Hintergrund-Worker haelt (intern#242)
+_WORKER_ATTRS = ('_bulk_worker', '_bulk_delete_worker', '_timing_worker',
+                 '_bf_worker', '_krabbel_worker', '_ceder_worker',
+                 '_ceder_dl_worker')
+
+
 class PotentialWidget(QWidget):
     """Datenqualitaets-Dashboard: Zeigt Optimierungspotential in der Songdatenbank."""
 
@@ -1590,6 +1596,12 @@ class PotentialWidget(QWidget):
         self._no_mp3_cached_count = None   # None = noch nicht geprueft (Lazy)
         self._bad_mp3_cached_count = None  # None = noch nicht geprueft (Lazy)
         self._build_ui()
+
+    def running_workers(self):
+        """Alle Hintergrund-Worker, die gerade laufen (intern#242: Beenden
+        fragt nach und wartet auf sie)."""
+        workers = (getattr(self, a, None) for a in _WORKER_ATTRS)
+        return [w for w in workers if w is not None and w.isRunning()]
 
     def _build_ui(self):
         layout = QVBoxLayout(self)

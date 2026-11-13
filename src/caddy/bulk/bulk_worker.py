@@ -8,6 +8,20 @@ from PySide6.QtCore import QThread, Signal
 from caddy.bulk.bulk_run import BulkCounts, run_bulk
 
 
+def stop_and_wait(workers):
+    """Bricht laufende Worker ab und wartet ohne Zeitlimit auf ihr Ende
+    (intern#242). cancel() greift zwischen zwei Songs, der laufende Song wird
+    noch fertig geschrieben. Worker ohne cancel() (Loeschen, Ceder) laufen zu
+    Ende. Nur fuers Beenden: Signale werden blockiert, damit kein finished-Slot
+    mehr gegen die gleich geschlossene DB laeuft."""
+    for w in workers:
+        w.blockSignals(True)
+        if hasattr(w, 'cancel'):
+            w.cancel()
+    for w in workers:
+        w.wait()
+
+
 class BulkWorker(QThread):
     """Hintergrund-Worker fuer einen Massenlauf ueber eine Liste von Jobs.
 

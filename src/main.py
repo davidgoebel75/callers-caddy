@@ -437,6 +437,7 @@ from reports_widget import ReportsWidget
 # (inkl. Bulk-Worker, Meta-Import/CSV-Match, Ceder-, Krabbelkiste- und
 #  Beautify-Dialoge; _ReindexWorker bleibt hier in main.)
 from potential_widget import PotentialWidget
+from caddy.bulk.bulk_worker import stop_and_wait
 
 
 
@@ -8055,6 +8056,18 @@ class P29MainWindow(QMainWindow):
         }
 
     def closeEvent(self, event):
+        # intern#242: laufende Massenlaeufe erst nach Rueckfrage abbrechen;
+        # gewartet wird unten, bis der aktuelle Song fertig geschrieben ist
+        workers = (self.potential_widget.running_workers()
+                   if self.potential_widget is not None else [])
+        if workers:
+            reply = QMessageBox.question(
+                self, _t("pot_bulk_close_title"), _t("pot_bulk_close_confirm"),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                event.ignore()
+                return
+            self.hide()
         # Update-Timer ZUERST stoppen — verhindert dass _update_all oder
         # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
         # die DB zugreifen (TIC-0026: Cannot operate on a closed database)
@@ -8064,6 +8077,7 @@ class P29MainWindow(QMainWindow):
         self._save_current_song()
         self.rule_engine.close()
         self.engine.shutdown()
+        stop_and_wait(workers)
         self.db.close()
         event.accept()
 
