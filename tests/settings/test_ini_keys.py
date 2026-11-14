@@ -44,6 +44,9 @@ _SAAT_VORHER = {
     "lyrics/reading_band_countdown": "true",
     "lyrics/reading_band_countdown_beats": "8",
     "sequences/show_hidden_on_start": "false",
+    "clock/show_seconds": "false",
+    "clock/twelve_hour": "false",
+    "clock/show_date": "true",
 }
 
 

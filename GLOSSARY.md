@@ -153,6 +153,11 @@ _EN_: Search Window
 Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
 
+**Uhr**:
+Dock mit der aktuellen Uhrzeit als Digitaluhr. Nicht verwechseln mit der
+Pausen-Uhr, die rueckwaerts zaehlt.
+_EN_: Clock
+
 **Wartemusik**:
 Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
 als gespielt und schaltet die Playlist nicht weiter.
