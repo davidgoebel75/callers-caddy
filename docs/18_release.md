@@ -11,11 +11,11 @@ Die harten Regeln (Versions-Bump-Doppelpack, Merge-Commit, Build nur nach Rueckf
 5. Build pruefen: `python installer/check_release.py <alt> <neu>` (mit `CC_RELEASE_DIR` wie beim Build). Vergleicht ZIP-Groessen mit der Vorversion, sucht Nutzerdaten im Update-ZIP, gleicht Skins mit `main` ab und prueft die Version. Nur Code geaendert ⇒ ZIPs wachsen kaum (0.158→0.159: +0,1 MB).
 6. Schema-Abbild der neuen Version ablegen: `python tests/db/test_schema.py 2.0.X` → `tests/db/schemas/2.0.X.sql` committen. Damit prueft jeder spaetere Testlauf das Update von diesem Stand aus (intern#145).
 7. Nach Davids Test am gebauten Paket Tag setzen: `git tag -a 2.0.X -m "Release 2.0.X"` und `git push origin 2.0.X` (Format wie `2.0.16`, ohne `v`).
-8. Im Download-Bereich (Google Drive) einen Ordner mit der vollen Nummer anlegen (`2.0.16`) und die drei ZIPs hochladen. Die Update-Pruefung erkennt Ordner und Update-ZIP nur mit genau diesem Namen.
+8. Im Download-Bereich (Google Drive) einen Ordner mit der vollen Nummer anlegen (`2.0.16`) und die drei ZIPs hochladen. Die Update-Pruefung erkennt Ordner und Update-ZIP nur mit genau diesem Namen. Zusaetzlich den Ordner `2.0` mit dem Inhalt von `4_Release/2.0/` ersetzen (Bruecken-ZIP `Callers_Caddy_Update_2.0.zip`, legt `build.py` bei jedem 2.x-Build an).
 
 ## Hinweise
 
 - **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
 - Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
-- **Umstieg 0.162 → 2.0.0:** Installationen bis 0.162 kennen nur zweistellige Nummern und sehen den Ordner `2.0.0` in ihrer Update-Pruefung nicht. Wer 0.162 oder aelter hat, laedt 2.0.0 einmal von Hand; ab 2.0.0 meldet die App jedes weitere Update selbst.
+- **Bruecke fuer Installationen bis 0.162:** Deren Update-Pruefung kennt nur zweistellige Nummern und uebersieht Ordner wie `2.0.16`. Den Ordner `2.0` mit `Callers_Caddy_Update_2.0.zip` finden sie und melden „Version 2.0 verfuegbar“. Darin liegt immer die neueste 2.x-Update-ZIP unter diesem Namen (die ZIP enthaelt keinen Versionsordner, umbenennen reicht). Ab 2.0.0 ueberspringt die Update-Pruefung den Ordner (`update_check._is_bridge`). Den Ordner `2.0` nie loeschen, solange es Nutzer mit 0.x gibt, und nie einen anderen zweistelligen 2.x-Ordner anlegen.
 - Bauen, Ordner und ZIP-Typen: `CLAUDE.md`, Abschnitt „Ordner und Entwicklungs-Workflow".

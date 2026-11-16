@@ -70,7 +70,8 @@ _SNOOZE_VERSION_KEY = "update/snooze_version"  # verschobene Version
 _DATA_ID_RE = re.compile(r'data-id="([a-zA-Z0-9_-]{20,})"')
 # Versionsordner: aria-label="2.0.16 Shared folder" (bis 0.162: "0.130 ...").
 # Die zugehoerige data-id steht zuverlaessig davor (naechste data-id vor dem Label).
-# Achtung: Clients bis 0.162 kennen nur zwei Stellen und sehen 2.x-Ordner nicht.
+# Clients bis 0.162 kennen nur zwei Stellen: fuer sie gibt es den Brueckenordner
+# "2.0" (siehe _is_bridge).
 _FOLDER_LABEL_RE = re.compile(r'aria-label="(\d+(?:\.\d+){1,2}) Shared folder"')
 # Nur die schlanke Update-ZIP ist ein gueltiges Download-Ziel.
 _UPDATE_FILE_RE = re.compile(r"Callers_Caddy_Update_(\d+(?:\.\d+){1,2})\.zip")
@@ -87,6 +88,17 @@ def _parse_version(text):
         return tuple(int(part) for part in text.strip().split("."))
     except (ValueError, AttributeError):
         return None
+
+
+def _is_bridge(version_tuple):
+    """Zweistellige Nummer ab 2 ('2.0') = Brueckenordner, kein echtes Release.
+
+    Clients bis 0.162 erkennen nur zweistellige Nummern. Damit sie den Umstieg
+    finden, liegt im Download-Bereich ein Ordner "2.0" mit
+    Callers_Caddy_Update_2.0.zip (Kopie der neuesten 2.x-Update-ZIP, legt
+    build.py an). Ab 2.0.0 wird er uebergangen.
+    """
+    return len(version_tuple) == 2 and version_tuple[0] >= 2
 
 
 def _fetch(url):
@@ -115,6 +127,8 @@ def _list_version_folders(parent_html):
     for m in _FOLDER_LABEL_RE.finditer(parent_html):
         vt = _parse_version(m.group(1))
         fid = _nearest_id_before(ids, m.start())
+        if vt and _is_bridge(vt):
+            continue  # Bruecke fuer Clients bis 0.162, kein eigenes Release
         if vt and fid:
             out.append((vt, m.group(1), fid))
     out.sort(reverse=True)  # hoechste Version zuerst

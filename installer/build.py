@@ -236,6 +236,33 @@ def create_update_zip(app_dir: Path, version: str) -> Path:
     return zip_path
 
 
+BRIDGE_VERSION = "2.0"
+
+
+def create_bridge_zip(update_zip: Path, version: str) -> Path | None:
+    """Kopiert die Update-ZIP als Bruecke fuer Clients bis 0.162.
+
+    Deren Update-Pruefung erkennt nur zweistellige Nummern ("0.162") und
+    uebersieht Ordner wie "2.0.16". Den Ordner "2.0" mit
+    Callers_Caddy_Update_2.0.zip finden sie dagegen und bieten ihn an.
+    Ab 2.0.0 ueberspringt die Update-Pruefung den Ordner (update_check._is_bridge).
+    Die ZIP enthaelt keinen Versionsordner, eine umbenannte Kopie reicht.
+    Liegt in 4_Release/2.0/ und wird bei jedem 2.x-Build durch die neueste ersetzt.
+    """
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version) or int(version.split(".")[0]) < 2:
+        return None
+    bridge_dir = RELEASES_DIR / BRIDGE_VERSION
+    bridge_dir.mkdir(parents=True, exist_ok=True)
+    bridge_path = bridge_dir / f"Callers_Caddy_Update_{BRIDGE_VERSION}.zip"
+    shutil.copy2(update_zip, bridge_path)
+    (bridge_dir / "INHALT.txt").write_text(
+        f"Bruecke fuer Installationen bis 0.162: Update-ZIP von {version}.\n",
+        encoding="utf-8",
+    )
+    print(f"  Bruecken-ZIP erstellt: {bridge_path} (= Update {version})")
+    return bridge_path
+
+
 def create_source_zip(version: str) -> Path:
     """Erstellt ein ZIP-Archiv des Source-Codes in 4_Release/<version>/.
 
@@ -413,6 +440,7 @@ def main():
     zip_path = create_zip(app_dir, version)
     update_zip_path = create_update_zip(app_dir, version)
     source_zip_path = create_source_zip(version)
+    bridge_zip_path = create_bridge_zip(update_zip_path, version)
 
     # --- Schritt 5: Zusammenfassung ---
     step("Build abgeschlossen!")
@@ -422,6 +450,9 @@ def main():
     print(f"  Vollpaket-ZIP: {zip_path}")
     print(f"  Update-ZIP:    {update_zip_path}")
     print(f"  Source-ZIP:    {source_zip_path}")
+    if bridge_zip_path:
+        print(f"  Bruecke 0.x:   {bridge_zip_path}")
+        print("              -> im Download-Bereich Ordner '2.0' ersetzen (fuer Clients bis 0.162)")
     print(f"\n  Release-Ordner: {RELEASES_DIR / version}")
     print("  Vollpaket = Neuinstallation (alles enthalten)")
     print("  Update    = Ueber bestehende Installation drueberextrahieren")

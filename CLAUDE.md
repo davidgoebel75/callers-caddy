@@ -22,7 +22,7 @@ Ab dem Launch gilt **Major.Minor.Patch**, z. B. `2.0.16`. Die Prototyp-Nummern `
 - **Minor** (die 0): grosse Aenderungen und neue Funktionen, z. B. die Einbindung von Taminations oder eine erneuerte Sequenzsuche. Patch faengt wieder bei 0 an (`2.1.0`).
 - **Patch** (die 16): kleine Funktionen, Fehlerbehebungen und andere kleine Aenderungen. Der Normalfall.
 - Bump: `python tools/bump_version.py --title "…"` zaehlt Patch hoch, `--part minor` / `--part major` die anderen Stellen, `--version 2.1.0` erzwingt eine Nummer. Im Release-Workflow dasselbe als Auswahlfeld.
-- Ordner, ZIP-Namen und Git-Tags tragen die volle Nummer: `4_Release/2.0.16/`, `Callers_Caddy_Update_2.0.16.zip`, Tag `2.0.16` (ohne `v`).
+- Ordner, ZIP-Namen und Git-Tags tragen die volle Nummer: `4_Release/2.0.16/`, `Callers_Caddy_Update_2.0.16.zip`, Tag `2.0.16` (ohne `v`). Einzige Ausnahme: der Brueckenordner `2.0` im Download-Bereich fuer Installationen bis 0.162 (siehe `docs/18_release.md`).
 
 **Archiv pro Minor-Linie:** `CHANGELOG.md` enthaelt nur `(Unreleased)` und die laufende Minor-Linie (alle `2.0.x`). Mit dem ersten `2.1.0` wandert die ganze Linie nach `docs/changelog/2.0.md`. Die Prototyp-Versionen liegen in Zehnerbloecken (`docs/changelog/0.160-0.169.md` usw.). Das Verzeichnis steht am Ende von `CHANGELOG.md`. `tools/bump_version.py` lagert selbst aus — nie von Hand verschieben. Neue Eintraege kommen immer in `CHANGELOG.md`; wer eine alte Version sucht, liest gezielt die eine Archivdatei.
 
