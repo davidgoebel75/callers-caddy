@@ -33,6 +33,7 @@ _SAAT_VORHER = {
     "feedback/enabled": "false",
     "notes/insert_position": "top",
     "notes/first_note_factor": "4.0",
+    "notes/line_spacing_pct": "100",
     "lyrics/dynamic_invert_enabled": "false",
     "lyrics/dynamic_invert_mode": "",
     "lyrics/text_jump_offset": "-4",

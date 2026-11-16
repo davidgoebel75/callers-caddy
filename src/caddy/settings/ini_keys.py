@@ -58,6 +58,8 @@ _ENTRIES = (
     _k("notes/insert_position", str, "top", True),
     # intern#198
     _k("notes/first_note_factor", float, 4.0, True),
+    # intern#246: Zeilenabstand der Notizen, 100 = echte Zeilenhoehe
+    _k("notes/line_spacing_pct", int, 100, True),
     # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
     _k("lyrics/dynamic_invert_enabled", bool, False, True),
     _k("lyrics/dynamic_invert_mode", str, "", True),

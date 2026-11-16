@@ -3088,6 +3088,8 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        self.notes_widget.set_line_spacing(
+            self._settings.value("notes/line_spacing_pct", 100))   # intern#246
         # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
         # der UI aendert das nur fuer die laufende Session, nicht die INI.
         # Der Default wird in _write_ini_defaults() gesaet.
@@ -7359,6 +7361,11 @@ class P29MainWindow(QMainWindow):
                 # intern#198: set_first_note_factor() faengt ungueltige Werte selbst ab
                 if self.notes_widget is not None:
                     self.notes_widget.set_first_note_factor(val)
+
+            elif key == "notes/line_spacing_pct":
+                # intern#246: set_line_spacing() faengt ungueltige Werte selbst ab
+                if self.notes_widget is not None:
+                    self.notes_widget.set_line_spacing(val)
 
             elif key == "feedback/enabled":
                 pass  # wird beim naechsten Songende frisch aus INI gelesen
