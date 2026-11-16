@@ -19,3 +19,16 @@ Die harten Regeln (Versions-Bump-Doppelpack, Merge-Commit, Build nur nach Rueckf
 - Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
 - **Bruecke fuer Installationen bis 0.162:** Deren Update-Pruefung kennt nur zweistellige Nummern und uebersieht Ordner wie `2.0.16`. Den Ordner `2.0` mit `Callers_Caddy_Update_2.0.zip` finden sie und melden „Version 2.0 verfuegbar“. Darin liegt immer die neueste 2.x-Update-ZIP unter diesem Namen (die ZIP enthaelt keinen Versionsordner, umbenennen reicht). Ab 2.0.0 ueberspringt die Update-Pruefung den Ordner (`update_check._is_bridge`). Den Ordner `2.0` nie loeschen, solange es Nutzer mit 0.x gibt, und nie einen anderen zweistelligen 2.x-Ordner anlegen.
 - Bauen, Ordner und ZIP-Typen: `CLAUDE.md`, Abschnitt „Ordner und Entwicklungs-Workflow".
+
+## Updater testen
+
+Der Download-Bereich ist live: was dort liegt, sehen alle Nutzer beim naechsten Start. Deshalb nie dort testen.
+
+1. In Google Drive einen eigenen Ordner anlegen, der nirgends verlinkt ist, und „Jeder mit dem Link: Betrachter“ freigeben (optional mit Redirect, z. B. `callerscaddy.de/callers-caddy-test`).
+2. Darin Versionsordner wie im echten Bereich anlegen, z. B. `2.0` (Bruecke), `2.0.0`, `2.0.1`. Die Erkennung haengt nur an Ordner- und Dateinamen, eine winzige Platzhalter-ZIP mit dem richtigen Namen (`Callers_Caddy_Update_2.0.1.zip`) reicht.
+3. `python tools/update_check_probe.py <link> --as 0.162 2.0.0 2.0.1 --download`. Das Skript laesst die aktuelle Erkennung und die eingefrorene aus 0.162 gegen den Ordner laufen und fragt die erzeugten Links an.
+4. Danach den Test-Ordner loeschen.
+
+Erwartung (Stand 2.0.0-Umstieg, getestet 2026-11-16): 0.162 meldet „2.0“, 2.0.0 meldet „2.0.1“ und uebergeht die Bruecke, 2.0.1 meldet nichts; beide Links liefern die ZIP direkt.
+
+Ausserdem vor dem ersten Release mit neuem Nummernschema oder neuem Qt: das Update-ZIP ueber eine frisch entpackte Vorversion entpacken und starten. Uebrig gebliebene Dateien der Vorversion (z. B. alte Qt-Plugins) bleiben dabei liegen und duerfen den Start nicht stoeren.
