@@ -204,6 +204,7 @@ def test_geleerter_player_schaltet_play_nicht_wieder_ein(keep):
 class _Potential:
     _on_bulk_delete_clicked = PotentialWidget._on_bulk_delete_clicked
     _on_bulk_delete_finished = PotentialWidget._on_bulk_delete_finished
+    shutting_down = False   # intern#242
 
     def __init__(self, ids, running=None):
         self._bulk_delete_worker = None

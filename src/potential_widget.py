@@ -1538,9 +1538,8 @@ class _BeautifyProgressDialog(QDialog):
         self._render()
 
 
-# Attribute, in denen PotentialWidget seine Hintergrund-Worker haelt (intern#242)
 def _held_while_closing(slot):
-    """Probelauf-Slot (Ergebnis, Rueckfrage, Folge-Lauf) waehrend des Beendens
+    """Lauf-Ende-Slot (Ergebnis, Rueckfrage, Folge-Lauf) waehrend des Beendens
     zurueckhalten (intern#242, Review #172): Ist die Beenden-Rueckfrage offen
     oder das Beenden bestaetigt, merkt sich der Slot nur seinen Aufruf.
     Bei "Nein" holt resume_held_calls() ihn nach, bei "Ja" verfaellt er."""
@@ -1553,6 +1552,7 @@ def _held_while_closing(slot):
     return wrapper
 
 
+# Attribute, in denen PotentialWidget seine Hintergrund-Worker haelt (intern#242)
 _WORKER_ATTRS = ('_bulk_worker', '_bulk_delete_worker', '_timing_worker',
                  '_bf_worker', '_krabbel_worker', '_ceder_worker',
                  '_ceder_dl_worker')
@@ -1627,8 +1627,10 @@ class PotentialWidget(QWidget):
         """Beenden abgelehnt: zurueckgehaltene Probelauf-Slots nachholen, in
         der Reihenfolge ihres Eintreffens (intern#242, Review #172)."""
         self.shutting_down = False
-        held, self._held_calls = self._held_calls, []
-        for call, args in held:
+        while self._held_calls and not self.shutting_down:
+            # einzeln entnehmen: ein nachgeholter Slot kann modal fragen, und
+            # wird dabei erneut beendet, bleibt der Rest zurueckgehalten
+            call, args = self._held_calls.pop(0)
             call(*args)
 
     def _build_ui(self):
@@ -2460,6 +2462,7 @@ class PotentialWidget(QWidget):
         self._bulk_delete_worker.error.connect(self._on_bulk_delete_error)
         self._bulk_delete_worker.start()
 
+    @_held_while_closing
     def _on_bulk_delete_finished(self, deleted):
         self._bulk_delete_worker = None
         # Hauptfenster raeumt Playlist/Player/Song Data auf und frischt
@@ -3518,6 +3521,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_bpm_bulk_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_bpm_bulk_done(self, done, skipped):
         self._close_progress()
         self._bulk_worker = None
@@ -3777,6 +3781,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_sstart_bulk_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_sstart_bulk_done(self, done, skipped, unsure):
         self._close_progress()
         self._bulk_worker = None
@@ -4084,6 +4089,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_syncpts_bulk_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_syncpts_bulk_done(self, done, skipped, skipped_names):
         self._close_progress()
         self._bulk_worker = None
@@ -4597,6 +4603,7 @@ class PotentialWidget(QWidget):
             self._bulk_worker.cancel()
         self._close_progress()
 
+    @_held_while_closing
     def _on_bulk_done(self, done, skipped):
         jobs_total = len(getattr(self._bulk_worker, '_jobs', ()))
         self._close_progress()
@@ -4701,6 +4708,7 @@ class PotentialWidget(QWidget):
                 a[0] if len(a) > 0 else 0, a[1] if len(a) > 1 else 0))
         worker.start()
 
+    @_held_while_closing
     def _beautify_step_done(self, done, skipped):
         self._bf_worker = None
         spec = self._bf_queue[self._bf_index]

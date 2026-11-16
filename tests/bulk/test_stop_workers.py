@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from PySide6.QtCore import QThread, Signal
 
 from caddy.bulk.bulk_worker import stop_for_shutdown
-from potential_widget import PotentialWidget
+from potential_widget import PotentialWidget, _held_while_closing
 
 
 class SongWorker(QThread):
@@ -114,6 +114,13 @@ _PROBE_SLOTS = [
     ('_on_beatsnap_timing_done', (1.0, [1])),
     ('_on_loop_optimize_timing_done', (1.0, [1], 0.1)),
     ('_on_bad_mp3_timing_done', ('bad_mp3', 1.0, [1], [])),
+    # Ergebnis-Slots der Hauptlaeufe: zeigen sonst "... Cancelled" beim Beenden
+    ('_on_bulk_delete_finished', (3,)),
+    ('_on_bpm_bulk_done', (5, 0)),
+    ('_on_sstart_bulk_done', (5, 0, 0)),
+    ('_on_syncpts_bulk_done', (5, 0, [])),
+    ('_on_bulk_done', (5, 0)),
+    ('_beautify_step_done', (5, 0)),
 ]
 
 
@@ -136,3 +143,38 @@ def test_resume_held_calls_runs_them_in_order():
     PotentialWidget.resume_held_calls(owner)
     assert seen == [(1,), (2, 3)]
     assert owner.shutting_down is False and owner._held_calls == []
+
+
+class _Slots:
+    def __init__(self):
+        self.shutting_down = False
+        self._held_calls = []
+        self.seen = []
+
+    @_held_while_closing
+    def done(self, *args):
+        self.seen.append(args)
+
+    resume_held_calls = PotentialWidget.resume_held_calls
+
+
+def test_held_call_reaches_real_slot_with_its_args():
+    o = _Slots()
+    o.shutting_down = True
+    o.done(5, 0)
+    assert o.seen == []
+    o.resume_held_calls()
+    assert o.seen == [(5, 0)]
+
+
+def test_resume_keeps_rest_held_when_closing_again():
+    """Ein nachgeholter Slot fragt modal; schliesst der Anwender dabei erneut,
+    duerfen die uebrigen Aufrufe nicht mehr laufen (Review ecb2854)."""
+    o = _Slots()
+    o.shutting_down = True
+    o.done(1)
+    o.done(2)
+    o._held_calls.insert(0, (lambda: setattr(o, 'shutting_down', True), ()))
+    o.resume_held_calls()
+    assert o.seen == []
+    assert len(o._held_calls) == 2
