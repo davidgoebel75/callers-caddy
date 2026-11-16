@@ -346,6 +346,13 @@ SETTINGS_META: dict[str, dict] = {
         "default": 4.0,
         "tooltip": "Schriftgrössen-Faktor für die erste (oberste) offene Notiz.",
     },
+    "notes/line_spacing_pct": {
+        "label": "Zeilenabstand",
+        "widget": "spinbox",
+        "min": 100, "max": 200, "step": 10, "suffix": " %",
+        "default": 100,
+        "tooltip": "Abstand der Zeilen in mehrzeiligen Notizen. 100 % ist die normale Zeilenhöhe der Schrift.",
+    },
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
