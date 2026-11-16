@@ -52,7 +52,7 @@ def test_stop_cancels_saves_last_result_and_skips_ui_slots(keep):
     # Song laeuft noch, wenn stop_for_shutdown cancel() setzt
     timer = threading.Timer(0.1, w.release.set)
     timer.start()
-    stop_for_shutdown([w])
+    stop_for_shutdown(lambda: [w] if w.isRunning() else [])
     timer.join()
     assert w.isFinished()
     assert saved == [1]      # laufender Song fertig und gespeichert, kein weiterer
@@ -62,7 +62,7 @@ def test_stop_cancels_saves_last_result_and_skips_ui_slots(keep):
 def test_stop_waits_for_worker_without_cancel(keep):
     w = keep(NoCancelWorker())
     w.start()
-    stop_for_shutdown([w])
+    stop_for_shutdown(lambda: [w] if w.isRunning() else [])
     assert w.isFinished()
 
 
@@ -80,3 +80,25 @@ def test_running_workers_lists_only_running(keep):
     finally:
         running.cancel()
         running.wait()
+
+
+def test_stop_also_stops_worker_started_during_confirm(keep):
+    """Review #172: Waehrend die Rueckfrage offen ist, kann ein Probelauf
+    einen Folge-Lauf starten. stop_for_shutdown sieht so lange nach, bis
+    nichts mehr laeuft."""
+    first, late = keep(SongWorker()), keep(SongWorker())
+    first.release.set()
+    late.release.set()
+    first.start()
+    first.finished.connect(lambda d, s: None)
+    all_workers = [first]
+
+    def running():
+        found = [w for w in all_workers if w.isRunning()]
+        if late not in all_workers:      # Folge-Lauf startet nach dem 1. Blick
+            late.start()
+            all_workers.append(late)
+        return found
+
+    stop_for_shutdown(running)
+    assert first.isFinished() and late.isFinished()

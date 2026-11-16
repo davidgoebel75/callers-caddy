@@ -5732,6 +5732,11 @@
     "en": "A bulk run is still in progress.\n\nCancel it and quit? The current song is finished first; songs already processed are kept.",
     "ja": "一括処理がまだ実行中です。\n\n中止して終了しますか？現在の曲は処理を完了し、処理済みの曲はそのまま保持されます。"
   },
+  "pot_bulk_closing": {
+    "de": "Beende … der aktuelle Song wird noch gespeichert.",
+    "en": "Quitting … the current song is still being saved.",
+    "ja": "終了しています… 現在の曲を保存中です。"
+  },
   "pot_bulk_close_title": {
     "de": "Massenlauf läuft",
     "en": "Bulk run in progress",
