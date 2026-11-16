@@ -5,6 +5,7 @@ Meta-Import/CSV-Match-, Ceder- und Krabbelkiste-Dialogen sowie Beautify.
 Zirkelfrei: keine Import-Zeit-Rueckbezuege auf main.py (Version lazy).
 """
 
+import functools
 import os
 import re
 import json
@@ -1538,6 +1539,20 @@ class _BeautifyProgressDialog(QDialog):
 
 
 # Attribute, in denen PotentialWidget seine Hintergrund-Worker haelt (intern#242)
+def _held_while_closing(slot):
+    """Probelauf-Slot (Ergebnis, Rueckfrage, Folge-Lauf) waehrend des Beendens
+    zurueckhalten (intern#242, Review #172): Ist die Beenden-Rueckfrage offen
+    oder das Beenden bestaetigt, merkt sich der Slot nur seinen Aufruf.
+    Bei "Nein" holt resume_held_calls() ihn nach, bei "Ja" verfaellt er."""
+    @functools.wraps(slot)
+    def wrapper(self, *args):
+        if self.shutting_down:
+            self._held_calls.append((functools.partial(slot, self), args))
+            return None
+        return slot(self, *args)
+    return wrapper
+
+
 _WORKER_ATTRS = ('_bulk_worker', '_bulk_delete_worker', '_timing_worker',
                  '_bf_worker', '_krabbel_worker', '_ceder_worker',
                  '_ceder_dl_worker')
@@ -1583,9 +1598,10 @@ class PotentialWidget(QWidget):
         self.db = db
         self.paths = paths          # fuer Lyrics-Ordner und config/
         self._settings = settings   # fuer den Ceder-Schalter
-        # Beenden laeuft (intern#242): Probelauf-Slots starten keinen Folge-Lauf
-        # mehr, auch wenn ihr finished erst nach der Rueckfrage ankommt
+        # Beenden-Rueckfrage offen oder Beenden bestaetigt (intern#242):
+        # Probelauf-Slots werden zurueckgehalten (_held_while_closing)
         self.shutting_down = False
+        self._held_calls = []   # (slot, args), siehe _held_while_closing
         # Worker-Attribute: neue auch in _WORKER_ATTRS eintragen (Beenden, intern#242)
         self._ceder_worker = None
         self._ceder_dl_worker = None
@@ -1606,6 +1622,14 @@ class PotentialWidget(QWidget):
         fragt nach und wartet auf sie)."""
         workers = (getattr(self, a, None) for a in _WORKER_ATTRS)
         return [w for w in workers if w is not None and w.isRunning()]
+
+    def resume_held_calls(self):
+        """Beenden abgelehnt: zurueckgehaltene Probelauf-Slots nachholen, in
+        der Reihenfolge ihres Eintreffens (intern#242, Review #172)."""
+        self.shutting_down = False
+        held, self._held_calls = self._held_calls, []
+        for call, args in held:
+            call(*args)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -2769,9 +2793,8 @@ class PotentialWidget(QWidget):
                                     _t('pot_cleanup_done', count=deleted))
             self.refresh()
 
+    @_held_while_closing
     def _on_bad_mp3_timing_done(self, check_type, seconds_per_song, candidates, music_dirs):
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         self._close_progress()
         self._timing_worker = None
         n = len(candidates)
@@ -3023,10 +3046,9 @@ class PotentialWidget(QWidget):
             lambda avg: self._on_timing_done(avg, jobs))
         self._timing_worker.start()
 
+    @_held_while_closing
     def _on_timing_done(self, seconds_per_song, jobs):
         """Zeitschaetzung fertig — User zeigen und bestaetigen lassen."""
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         self._close_progress()
         self._timing_worker = None
         total_sec = seconds_per_song * len(jobs)
@@ -3132,10 +3154,9 @@ class PotentialWidget(QWidget):
             lambda avg: self._on_beatsnap_timing_done(avg, jobs))
         self._timing_worker.start()
 
+    @_held_while_closing
     def _on_beatsnap_timing_done(self, seconds_per_song, jobs):
         """Zeitschaetzung fertig — User fragen ob Fortfahren."""
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         self._close_progress()
         self._timing_worker = None
         total_min = (seconds_per_song * len(jobs)) / 60.0
@@ -3269,10 +3290,9 @@ class PotentialWidget(QWidget):
             lambda avg: self._on_loop_optimize_timing_done(avg, jobs, margin))
         self._timing_worker.start()
 
+    @_held_while_closing
     def _on_loop_optimize_timing_done(self, seconds_per_song, jobs, margin):
         """Zeitschaetzung fertig — User fragen ob Fortfahren."""
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         self._close_progress()
         self._timing_worker = None
         total_min = (seconds_per_song * len(jobs)) / 60.0
@@ -3461,11 +3481,10 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_bpm_sample_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_bpm_sample_done(self, done, skipped):
         """Probelauf (erste 5) fertig — deren BPM ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         cancelled = bool(self._bulk_worker and self._bulk_worker.cancelled)
         self._close_progress()
         self._bulk_worker = None
@@ -3717,11 +3736,10 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_sstart_sample_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_sstart_sample_done(self, done, skipped, unsure):
         """Probelauf (erste 5) fertig — deren Start/Ende ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         cancelled = bool(self._bulk_worker
                          and getattr(self._bulk_worker, '_cancelled', False))
         self._close_progress()
@@ -4026,10 +4044,9 @@ class PotentialWidget(QWidget):
         except Exception:
             return None
 
+    @_held_while_closing
     def _on_syncpts_sample_done(self, done, skipped, skipped_names):
         """Probelauf (erste 5) fertig — deren Anker stehen bereits in der DB."""
-        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
-            return
         cancelled = bool(self._bulk_worker
                          and getattr(self._bulk_worker, '_cancelled', False))
         self._close_progress()

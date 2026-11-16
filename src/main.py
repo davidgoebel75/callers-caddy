@@ -8062,11 +8062,15 @@ class P29MainWindow(QMainWindow):
         running = pw.running_workers if pw is not None else lambda: []
         hint = None
         if running():
+            # Schon waehrend der Rueckfrage keine Probelauf-Meldungen oder
+            # Folge-Laeufe (Review #172); bei "Nein" werden sie nachgeholt
+            pw.shutting_down = True
             reply = QMessageBox.question(
                 self, _t("pot_bulk_close_title"), _t("pot_bulk_close_confirm"),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply != QMessageBox.Yes:
                 event.ignore()
+                QTimer.singleShot(0, pw.resume_held_calls)   # nach closeEvent
                 return
             self.hide()
             # Sichtbarer Hinweis statt stillem Warten: haengt ein Worker,

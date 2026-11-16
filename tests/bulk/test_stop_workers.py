@@ -106,7 +106,7 @@ def test_stop_also_stops_worker_started_during_confirm(keep):
     assert first.isFinished() and late.isFinished()
 
 
-@pytest.mark.parametrize('slot, args', [
+_PROBE_SLOTS = [
     ('_on_bpm_sample_done', (5, 0)),
     ('_on_sstart_sample_done', (5, 0, 0)),
     ('_on_syncpts_sample_done', (5, 0, [])),
@@ -114,11 +114,25 @@ def test_stop_also_stops_worker_started_during_confirm(keep):
     ('_on_beatsnap_timing_done', (1.0, [1])),
     ('_on_loop_optimize_timing_done', (1.0, [1], 0.1)),
     ('_on_bad_mp3_timing_done', ('bad_mp3', 1.0, [1], [])),
-])
-def test_probe_slots_start_no_follow_up_run_after_shutdown(slot, args):
-    """Spec-Review #172: Endet ein Probelauf kurz nach dem Ja, liegt sein
-    finished noch in der Queue, waehrend isRunning() schon False ist. Kommt
-    es nach der Rueckfrage an, darf es nichts mehr tun (keine Frage, kein
-    Folge-Lauf). Ein Owner ohne weitere Attribute wirft sonst sofort."""
-    owner = SimpleNamespace(shutting_down=True)
+]
+
+
+@pytest.mark.parametrize('slot, args', _PROBE_SLOTS)
+def test_probe_slots_are_held_while_closing(slot, args):
+    """Review #172 (Handtest David): Endet ein Probelauf, waehrend die
+    Beenden-Rueckfrage offen ist (oder kurz nach dem Ja), darf sein Slot
+    nichts tun - keine Meldung, keine Frage, kein Folge-Lauf. Der Aufruf
+    wird zurueckgehalten. Ein Owner ohne weitere Attribute wirft sonst."""
+    owner = SimpleNamespace(shutting_down=True, _held_calls=[])
     getattr(PotentialWidget, slot)(owner, *args)
+    assert len(owner._held_calls) == 1
+
+
+def test_resume_held_calls_runs_them_in_order():
+    """Bei "Nein" wird nachgeholt, was waehrend der Rueckfrage fertig wurde."""
+    seen = []
+    owner = SimpleNamespace(shutting_down=True, _held_calls=[
+        (lambda *a: seen.append(a), (1,)), (lambda *a: seen.append(a), (2, 3))])
+    PotentialWidget.resume_held_calls(owner)
+    assert seen == [(1,), (2, 3)]
+    assert owner.shutting_down is False and owner._held_calls == []
