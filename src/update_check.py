@@ -9,7 +9,8 @@ Ablauf / Design
 - Der Redirect `callerscaddy.de/download-area` zeigt auf einen oeffentlichen
   Google-Drive-Ordner. Der Redirect bleibt die EINZIGE fest verdrahtete Adresse —
   dahinter kann jederzeit ein anderer Ordner gehaengt werden.
-- Struktur im Ordner: pro Version ein Unterordner ("0.129", "0.130", ...), darin
+- Struktur im Ordner: pro Version ein Unterordner ("2.0.0", "2.0.1", ...; bis
+  0.162 zweistellig "0.129", "0.130"), darin
   drei ZIPs. NUR `Callers_Caddy_Update_<version>.zip` (schlankes Update, ohne
   DB/INI/User-Daten) darf geladen werden — NICHT die Vollinstallation
   (`Callers_Caddy_<version>.zip`) und NICHT die Code-ZIP.
@@ -67,15 +68,19 @@ _SNOOZE_VERSION_KEY = "update/snooze_version"  # verschobene Version
 
 # Drive-Objekt-IDs stehen als data-id="..." an den DOM-Elementen.
 _DATA_ID_RE = re.compile(r'data-id="([a-zA-Z0-9_-]{20,})"')
-# Versionsordner: aria-label="0.130 Shared folder". Die zugehoerige data-id
-# steht zuverlaessig davor (naechste data-id vor dem Label).
-_FOLDER_LABEL_RE = re.compile(r'aria-label="(\d+\.\d+) Shared folder"')
+# Versionsordner: aria-label="2.0.16 Shared folder" (bis 0.162: "0.130 ...").
+# Die zugehoerige data-id steht zuverlaessig davor (naechste data-id vor dem Label).
+# Achtung: Clients bis 0.162 kennen nur zwei Stellen und sehen 2.x-Ordner nicht.
+_FOLDER_LABEL_RE = re.compile(r'aria-label="(\d+(?:\.\d+){1,2}) Shared folder"')
 # Nur die schlanke Update-ZIP ist ein gueltiges Download-Ziel.
-_UPDATE_FILE_RE = re.compile(r"Callers_Caddy_Update_(\d+\.\d+)\.zip")
+_UPDATE_FILE_RE = re.compile(r"Callers_Caddy_Update_(\d+(?:\.\d+){1,2})\.zip")
 
 
 def _parse_version(text):
-    """'0.130' -> (0, 130). Gibt None zurueck, wenn kein Versions-String."""
+    """'2.0.16' -> (2, 0, 16), '0.130' -> (0, 130). None, wenn kein Versions-String.
+
+    Tupel vergleichen richtig ueber die Formatgrenze: (2, 0, 0) > (0, 162).
+    """
     if not text:
         return None
     try:
