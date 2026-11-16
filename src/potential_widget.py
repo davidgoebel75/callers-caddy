@@ -1583,6 +1583,9 @@ class PotentialWidget(QWidget):
         self.db = db
         self.paths = paths          # fuer Lyrics-Ordner und config/
         self._settings = settings   # fuer den Ceder-Schalter
+        # Beenden laeuft (intern#242): Probelauf-Slots starten keinen Folge-Lauf
+        # mehr, auch wenn ihr finished erst nach der Rueckfrage ankommt
+        self.shutting_down = False
         # Worker-Attribute: neue auch in _WORKER_ATTRS eintragen (Beenden, intern#242)
         self._ceder_worker = None
         self._ceder_dl_worker = None
@@ -2767,6 +2770,8 @@ class PotentialWidget(QWidget):
             self.refresh()
 
     def _on_bad_mp3_timing_done(self, check_type, seconds_per_song, candidates, music_dirs):
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         self._close_progress()
         self._timing_worker = None
         n = len(candidates)
@@ -3020,6 +3025,8 @@ class PotentialWidget(QWidget):
 
     def _on_timing_done(self, seconds_per_song, jobs):
         """Zeitschaetzung fertig — User zeigen und bestaetigen lassen."""
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         self._close_progress()
         self._timing_worker = None
         total_sec = seconds_per_song * len(jobs)
@@ -3127,6 +3134,8 @@ class PotentialWidget(QWidget):
 
     def _on_beatsnap_timing_done(self, seconds_per_song, jobs):
         """Zeitschaetzung fertig — User fragen ob Fortfahren."""
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         self._close_progress()
         self._timing_worker = None
         total_min = (seconds_per_song * len(jobs)) / 60.0
@@ -3262,6 +3271,8 @@ class PotentialWidget(QWidget):
 
     def _on_loop_optimize_timing_done(self, seconds_per_song, jobs, margin):
         """Zeitschaetzung fertig — User fragen ob Fortfahren."""
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         self._close_progress()
         self._timing_worker = None
         total_min = (seconds_per_song * len(jobs)) / 60.0
@@ -3453,6 +3464,8 @@ class PotentialWidget(QWidget):
     def _on_bpm_sample_done(self, done, skipped):
         """Probelauf (erste 5) fertig — deren BPM ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         cancelled = bool(self._bulk_worker and self._bulk_worker.cancelled)
         self._close_progress()
         self._bulk_worker = None
@@ -3707,6 +3720,8 @@ class PotentialWidget(QWidget):
     def _on_sstart_sample_done(self, done, skipped, unsure):
         """Probelauf (erste 5) fertig — deren Start/Ende ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         cancelled = bool(self._bulk_worker
                          and getattr(self._bulk_worker, '_cancelled', False))
         self._close_progress()
@@ -4013,6 +4028,8 @@ class PotentialWidget(QWidget):
 
     def _on_syncpts_sample_done(self, done, skipped, skipped_names):
         """Probelauf (erste 5) fertig — deren Anker stehen bereits in der DB."""
+        if self.shutting_down:   # intern#242: kein Folge-Lauf beim Beenden
+            return
         cancelled = bool(self._bulk_worker
                          and getattr(self._bulk_worker, '_cancelled', False))
         self._close_progress()

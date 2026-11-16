@@ -1,6 +1,8 @@
 """Beenden waehrend eines Massenlaufs (intern#242): Abbruch zwischen zwei
 Songs, Warten bis der Worker wirklich fertig ist."""
 import threading
+
+import pytest
 from types import SimpleNamespace
 
 from PySide6.QtCore import QThread, Signal
@@ -102,3 +104,21 @@ def test_stop_also_stops_worker_started_during_confirm(keep):
 
     stop_for_shutdown(running)
     assert first.isFinished() and late.isFinished()
+
+
+@pytest.mark.parametrize('slot, args', [
+    ('_on_bpm_sample_done', (5, 0)),
+    ('_on_sstart_sample_done', (5, 0, 0)),
+    ('_on_syncpts_sample_done', (5, 0, [])),
+    ('_on_timing_done', (1.0, [1])),
+    ('_on_beatsnap_timing_done', (1.0, [1])),
+    ('_on_loop_optimize_timing_done', (1.0, [1], 0.1)),
+    ('_on_bad_mp3_timing_done', ('bad_mp3', 1.0, [1], [])),
+])
+def test_probe_slots_start_no_follow_up_run_after_shutdown(slot, args):
+    """Spec-Review #172: Endet ein Probelauf kurz nach dem Ja, liegt sein
+    finished noch in der Queue, waehrend isRunning() schon False ist. Kommt
+    es nach der Rueckfrage an, darf es nichts mehr tun (keine Frage, kein
+    Folge-Lauf). Ein Owner ohne weitere Attribute wirft sonst sofort."""
+    owner = SimpleNamespace(shutting_down=True)
+    getattr(PotentialWidget, slot)(owner, *args)

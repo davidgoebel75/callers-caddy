@@ -8059,7 +8059,8 @@ class P29MainWindow(QMainWindow):
         # intern#242: laufende Massenlaeufe erst nach Rueckfrage abbrechen;
         # gewartet wird unten, bis der aktuelle Song fertig geschrieben ist
         pw = self.potential_widget
-        running = pw.running_workers if pw is not None else list
+        running = pw.running_workers if pw is not None else lambda: []
+        hint = None
         if running():
             reply = QMessageBox.question(
                 self, _t("pot_bulk_close_title"), _t("pot_bulk_close_confirm"),
@@ -8070,26 +8071,29 @@ class P29MainWindow(QMainWindow):
             self.hide()
             # Sichtbarer Hinweis statt stillem Warten: haengt ein Worker,
             # startet der Anwender die App nicht ein zweites Mal (Review #172)
-            self._closing_hint = QProgressDialog(
-                _t("pot_bulk_closing"), "", 0, 0)
-            self._closing_hint.setWindowTitle("Callers Caddy")
-            self._closing_hint.setCancelButton(None)
-            self._closing_hint.setMinimumDuration(0)
-            self._closing_hint.show()
-        # Update-Timer ZUERST stoppen — verhindert dass _update_all oder
-        # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
-        # die DB zugreifen (TIC-0026: Cannot operate on a closed database)
-        self.timer.stop()
-        # Layout speichern (vor engine.shutdown, das blockieren kann)
-        self._save_layout()
-        self._save_current_song()
-        self.rule_engine.close()
-        self.engine.shutdown()
-        # Liste neu holen: waehrend der Rueckfrage kann ein Probelauf einen
-        # Folge-Lauf gestartet haben (Review #172)
-        stop_for_shutdown(running)
-        if getattr(self, '_closing_hint', None) is not None:
-            self._closing_hint.close()   # sonst haelt es die App am Leben
+            hint = QProgressDialog(_t("pot_bulk_closing"), "", 0, 0)
+            hint.setWindowTitle("Callers Caddy")
+            hint.setCancelButton(None)
+            hint.setMinimumDuration(0)
+            hint.show()
+        if pw is not None:
+            pw.shutting_down = True
+        try:
+            # Update-Timer ZUERST stoppen — verhindert dass _update_all oder
+            # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
+            # die DB zugreifen (TIC-0026: Cannot operate on a closed database)
+            self.timer.stop()
+            # Layout speichern (vor engine.shutdown, das blockieren kann)
+            self._save_layout()
+            self._save_current_song()
+            self.rule_engine.close()
+            self.engine.shutdown()
+            # Liste neu holen: waehrend der Rueckfrage kann ein Probelauf
+            # einen Folge-Lauf gestartet haben (Review #172)
+            stop_for_shutdown(running)
+        finally:
+            if hint is not None:
+                hint.close()   # sonst haelt es die App am Leben
         self.db.close()
         event.accept()
 
