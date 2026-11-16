@@ -329,8 +329,13 @@ class _NoteRow(QWidget):
             return
         self._size_factor = factor
         self._apply_done_style()
-        # Layout neu berechnen — Label hat jetzt andere sizeHint-Hoehe
+        self.relayout_text()
+
+    def relayout_text(self):
+        """Layout neu berechnen — Label hat jetzt andere sizeHint-Hoehe
+        (Groessenfaktor oder Zeilenabstand geaendert)."""
         self._label.updateGeometry()
+        self._label.update()
         self.updateGeometry()
 
     def set_dragging(self, dragging: bool):
@@ -1195,16 +1200,13 @@ class NotesWidget(QWidget):
     def set_line_spacing(self, pct):
         """Zeilenabstand in % der echten Zeilenhoehe (aus INI, intern#246)."""
         try:
-            p = int(pct)
+            p = int(float(pct))   # INI liefert Strings, evtl. "110.0"
         except (TypeError, ValueError):
             p = 100
         _TightLabel.line_spacing_pct = max(100, min(200, p))
         for row in self._open_list.rows() + self._done_list.rows():
-            lbl = getattr(row, "_label", None)
-            if isinstance(lbl, _TightLabel):
-                lbl.updateGeometry()
-                lbl.update()
-                row.updateGeometry()
+            if hasattr(row, "relayout_text"):   # Trennlinien haben keinen Text
+                row.relayout_text()
 
     # ── Einfuegeposition (Oben/Mitte/Unten) ──────────────────────────────────
 

@@ -3089,7 +3089,7 @@ class P29MainWindow(QMainWindow):
         except (TypeError, ValueError):
             pass
         self.notes_widget.set_line_spacing(
-            self._settings.value("notes/line_spacing_pct", 100))   # intern#246
+            ini_keys.get(self._settings, "notes/line_spacing_pct"))   # intern#246
         # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
         # der UI aendert das nur fuer die laufende Session, nicht die INI.
         # Der Default wird in _write_ini_defaults() gesaet.

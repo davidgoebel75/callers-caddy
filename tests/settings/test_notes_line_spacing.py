@@ -26,8 +26,8 @@ def _reset_spacing():
     _TightLabel.line_spacing_pct = 100
 
 
-def _label(px):
-    lbl = _TightLabel("x")
+def _label(keep, px):
+    lbl = keep(_TightLabel("x"))
     f = QFont()
     f.setPixelSize(px)
     lbl.setFont(f)
@@ -35,32 +35,32 @@ def _label(px):
 
 
 @pytest.mark.parametrize("px", [14, 28, 56])
-def test_zeilen_ueberlappen_nicht(qapp, px):
-    lbl = _label(px)
+def test_zeilen_ueberlappen_nicht(keep, px):
+    lbl = _label(keep, px)
     fm = lbl.fontMetrics()
     assert lbl._tight_line_height() >= fm.ascent() + fm.descent()
 
 
-def test_zeilenabstand_vergroessert_die_zeile(qapp):
-    lbl = _label(28)
+def test_zeilenabstand_vergroessert_die_zeile(keep):
+    lbl = _label(keep, 28)
     normal = lbl._tight_line_height()
     _TightLabel.line_spacing_pct = 150
     assert lbl._tight_line_height() == round(normal * 1.5)
 
 
-@pytest.mark.parametrize("pct, expected", [(50, 100), (150, 150), (500, 200),
+@pytest.mark.parametrize("pct, expected", [(50, 100), (150, 150), (500, 200), ("110.0", 110),
                                            ("kaputt", 100)])
-def test_set_line_spacing_begrenzt(qapp, pct, expected):
-    NotesWidget(_FakeDB()).set_line_spacing(pct)
+def test_set_line_spacing_begrenzt(keep, pct, expected):
+    keep(NotesWidget(_FakeDB())).set_line_spacing(pct)
     assert _TightLabel.line_spacing_pct == expected
 
 
-def test_dialog_wert_wirkt_sofort(qapp, tmp_path):
-    win = QMainWindow()
+def test_dialog_wert_wirkt_sofort(keep, tmp_path):
+    win = keep(QMainWindow())
     win._settings = QSettings(str(tmp_path / "t.ini"), QSettings.IniFormat)
-    win.notes_widget = NotesWidget(_FakeDB())
-    dlg = SettingsDialog(None, win._settings, on_apply=lambda keys:
-                         main.P29MainWindow._on_settings_applied(win, keys))
+    win.notes_widget = keep(NotesWidget(_FakeDB()))
+    dlg = keep(SettingsDialog(None, win._settings, on_apply=lambda keys:
+                         main.P29MainWindow._on_settings_applied(win, keys)))
     dlg._populate_groups_deferred()
     row = next(r for r in dlg._rows if r.full_key == "notes/line_spacing_pct")
     row.widget.setValue(130)
