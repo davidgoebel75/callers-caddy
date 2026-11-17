@@ -24,6 +24,31 @@ _SELECT_CALL_TEXT_FIGURES_RANKED = (
 )
 
 
+# intern#247: Kartentext -> Callname der App fuer die Choreo-Engine (letzte Lesart
+# im Mapping). Nur Texte mit genau einem Call (ohne call_text_figures_extra).
+_SELECT_CHOREO_CALL_NAMES = (
+    "SELECT m.call_text, c.canonical_name FROM call_text_mappings m "
+    "JOIN calls c ON c.entity_id = m.entity_id "
+    "WHERE m.call_text NOT IN (SELECT call_text FROM call_text_figures_extra)"
+)
+
+
+def read_choreo_call_names(db_path: str) -> dict:
+    """{Kartentext: Callname} aus der DB unter db_path, eigene Verbindung nur
+    lesend (fuer Hintergrund-Threads, die die Haupt-Verbindung nicht teilen
+    duerfen). Leeres dict, wenn die DB nicht lesbar ist."""
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+    except sqlite3.Error:
+        return {}
+    try:
+        return dict(con.execute(_SELECT_CHOREO_CALL_NAMES).fetchall())
+    except sqlite3.Error:
+        return {}
+    finally:
+        con.close()
+
+
 def _text_max_to(rows) -> dict:
     """Verdichtet Zeilen aus _SELECT_CALL_TEXT_FIGURES_RANKED zu
     {call_text: Teaching-Order}.

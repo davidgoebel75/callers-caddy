@@ -54,6 +54,16 @@
         "reading_band":"#2563eb",
         "tutorial_box_bg":   "#ffffff",
         "tutorial_box_text": "#1a1a1a",
-        "alt_row_bg":        "#eef1f5"
+        "alt_row_bg":        "#eef1f5",
+        "squareflow_floor": "#f7f6f1",
+        "squareflow_grid":  "#e2dfd4",
+        "squareflow_grid_strong": "#c9c4b4",
+        "squareflow_body_stroke": "#2a2a2a",
+        "squareflow_couple1": "#d93a3a",
+        "squareflow_couple2": "#2a9a4a",
+        "squareflow_couple3": "#3a5fd9",
+        "squareflow_couple4": "#e3b81e",
+        "squareflow_band_good": "#1fa050",
+        "squareflow_band_bad": "#d63428"
     }
 }

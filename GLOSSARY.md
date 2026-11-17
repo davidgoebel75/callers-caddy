@@ -324,3 +324,9 @@ erscheint, typischerweise frisch importiert. "Auch ausgeblendete Sequenzen anzei
 holt sie zurueck, ohne Typ, Schwierigkeit oder Tags anzutasten.
 _EN_: Hidden Sequence
 _Avoid_: Neueste Sequenz, versteckte Sequenz
+
+**Square Flow**:
+Fenster, das die Sequenz aus dem Sequenz-Detail als tanzenden Square zeigt und
+pruefen kann, ob sie korrekt aufloest. Optional, nur nach Freigabe in den Einstellungen.
+_EN_: Square Flow
+_Avoid_: Mitlaufender Square, Square-Ansicht

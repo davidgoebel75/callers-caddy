@@ -29,6 +29,10 @@ class IniKey:
 CLOCK_SHOW_SECONDS = "clock/show_seconds"
 CLOCK_TWELVE_HOUR = "clock/twelve_hour"
 CLOCK_SHOW_DATE = "clock/show_date"
+# intern#247: Square Flow (Choreo-Engine)
+SQUARE_FLOW_ENABLED = "square_flow/enabled"
+SQUARE_FLOW_FRAME_RATE = "square_flow/frame_rate"
+SQUARE_FLOW_SAVING_MODE = "square_flow/saving_mode"
 
 
 def _k(key, typ, default, seed=False):
@@ -80,6 +84,10 @@ _ENTRIES = (
     _k(CLOCK_SHOW_SECONDS, bool, False, True),
     _k(CLOCK_TWELVE_HOUR, bool, False, True),
     _k(CLOCK_SHOW_DATE, bool, True, True),
+    # intern#247: Square Flow, standardmaessig aus (ohne Freigabe wird nichts geladen)
+    _k(SQUARE_FLOW_ENABLED, bool, False, True),
+    _k(SQUARE_FLOW_FRAME_RATE, int, 25, True),
+    _k(SQUARE_FLOW_SAVING_MODE, bool, False, True),
     # --- ohne Saat ---
     _k("lyrics/dynamic_enabled", bool, False),
     _k("lyrics/dynamic_mode", str, ""),

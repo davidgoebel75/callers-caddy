@@ -1015,7 +1015,7 @@ class P29MainWindow(QMainWindow):
         self.lyrics_widget.open_settings_at = \
             lambda key: self._show_settings_dialog(focus_key=key)
         self.sequence_view_widget.on_current_sequence_changed = \
-            self.lyrics_widget.refresh_dynamic_from_sequence
+            self._on_detail_sequence_changed
         # Sequenzliste geaendert → Gating des Dynamic-Buttons neu bewerten.
         self.sequence_view_widget.on_sequences_changed = \
             self.lyrics_widget.update_dynamic_button_state
@@ -1435,6 +1435,24 @@ class P29MainWindow(QMainWindow):
         self._add_view_menu_entry(self.dock_clock, _t("dock_clock"))
         perf_log("    Clock dock", _tclock)
 
+        # --- Dock: Square Flow (intern#247) — vor _restore_layout() wie alle
+        # Docks. Das Widget selbst ist leicht: Worker und Engine starten erst,
+        # wenn Square Flow freigegeben und sichtbar ist. Menueeintrag nur bei
+        # Freigabe (_apply_square_flow_enabled).
+        _tsf = perf_start()
+        from caddy.choreo.square_flow_widget import SquareFlowWidget
+        self.square_flow_widget = SquareFlowWidget(
+            self.skin_mgr, self._settings, db_path=self.db.db_path,
+            bpm_source=self.player.effective_bpm)
+        self.dock_square_flow = _make_dock(
+            self, _t("dock_square_flow"), self.square_flow_widget,
+            Qt.RightDockWidgetArea)
+        self.dock_square_flow.setObjectName("dock_square_flow")
+        self.dock_square_flow.hide()
+        self._square_flow_menu_action = None
+        self.sequence_view_widget.on_call_clicked = self._on_sequence_call_clicked
+        perf_log("    Square Flow dock", _tsf)
+
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
         self._wire_dock_context_menus()
         # #121: Floating-Geometrie-Handler auch ohne gespeichertes Layout
@@ -1444,6 +1462,9 @@ class P29MainWindow(QMainWindow):
 
         # Layout wiederherstellen
         self._restore_layout()
+        # intern#247: ohne Freigabe bleibt Square Flow versteckt, auch wenn das
+        # gespeicherte Layout ihn sichtbar hatte; Menueeintrag nur bei Freigabe.
+        self._apply_square_flow_enabled()
         # View-Menue-Haekchen nach dem Restore mit der tatsaechlichen
         # Sichtbarkeit abgleichen. restoreState() kann Docks sichtbar
         # herstellen (z. B. einen im Layout gespeicherten Loop Finder),
@@ -7290,6 +7311,11 @@ class P29MainWindow(QMainWindow):
                 # intern#235: Uhr-Optionen aus dem Einstellungsdialog
                 self.clock_widget.reload_settings()
 
+            elif key.startswith("square_flow/"):
+                # intern#247: Freigabe, Bildrate, Sparmodus
+                self.square_flow_widget.reload_settings()
+                self._apply_square_flow_enabled()
+
             elif key == "loop/crossfade_ms":
                 try:
                     self.engine.set_loop_crossfade_ms(int(val))
@@ -7709,6 +7735,7 @@ class P29MainWindow(QMainWindow):
             self._view_menu.insertAction(before, wa)
         self._view_magnets[dock] = magnet
         self._refresh_view_magnet(dock)
+        return wa
 
     def _toggle_dock_snap(self, dock):
         """Magnet-Klick: angedockt -> frei, frei -> wieder angedockt."""
@@ -7810,6 +7837,7 @@ class P29MainWindow(QMainWindow):
         # Versteckte Fenster
         self.dock_manager.hide()
         self.dock_clock.hide()  # intern#235: Standard versteckt
+        self.dock_square_flow.hide()  # intern#247: Standard versteckt
         self.dock_reports.setFloating(True)
         self.dock_reports.hide()
         self.dock_potential.setFloating(True)
@@ -7878,6 +7906,8 @@ class P29MainWindow(QMainWindow):
             self.break_widget.set_skin(self.skin_mgr)
             # Uhr-Dock (intern#235)
             self.clock_widget.set_skin(self.skin_mgr)
+            # Square Flow (intern#247)
+            self.square_flow_widget.set_skin(self.skin_mgr)
             # Stream Deck: Icons mit neuen Theme-Farben neu einfaerben
             if hasattr(self, 'stream_deck_widget'):
                 self.stream_deck_widget.apply_skin(self.skin_mgr)
@@ -8082,6 +8112,46 @@ class P29MainWindow(QMainWindow):
             "location": loc.name if loc else "—",
         }
 
+    # --- Square Flow (intern#247) -------------------------------------------
+
+    def _on_detail_sequence_changed(self):
+        """Sequenz-Detail zeigt eine andere Sequenz: Lyric-Feld spiegeln (BL-173)
+        und Square Flow nachziehen (rechnet nur bei Freigabe und Sichtbarkeit)."""
+        self.lyrics_widget.refresh_dynamic_from_sequence()
+        if getattr(self, "square_flow_widget", None) is not None:
+            self._push_sequence_to_square_flow()
+
+    def _on_sequence_call_clicked(self, index):
+        """Klick auf eine Zeile im Sequenz-Detail: Square Flow tanzt sie im
+        Tempo des Songs. Ohne Freigabe passiert nichts."""
+        sf = self.square_flow_widget
+        if not sf.enabled():
+            return
+        if not self.dock_square_flow.isVisible():
+            self.dock_square_flow.show()
+            self.dock_square_flow.raise_()
+        sf.play_card(index)
+
+    def _apply_square_flow_enabled(self):
+        """Menueeintrag und Sichtbarkeit von Square Flow an die Freigabe angleichen."""
+        on = self.square_flow_widget.enabled()
+        if on and self._square_flow_menu_action is None:
+            self._square_flow_menu_action = self._add_view_menu_entry(
+                self.dock_square_flow, _t("dock_square_flow"))
+        elif not on:
+            self.dock_square_flow.hide()
+            if self._square_flow_menu_action is not None:
+                self._view_menu.removeAction(self._square_flow_menu_action)
+                self._view_magnets.pop(self.dock_square_flow, None)
+                self._square_flow_menu_action = None
+        if on:
+            self._push_sequence_to_square_flow()
+
+    def _push_sequence_to_square_flow(self):
+        view = self.sequence_view_widget
+        self.square_flow_widget.set_sequence(view.current_calls(),
+                                             view.current_sequence_type())
+
     def closeEvent(self, event):
         # Update-Timer ZUERST stoppen — verhindert dass _update_all oder
         # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
@@ -8091,6 +8161,7 @@ class P29MainWindow(QMainWindow):
         self._save_layout()
         self._save_current_song()
         self.rule_engine.close()
+        self.square_flow_widget.shutdown()   # intern#247: Engine-Prozess beenden
         self.engine.shutdown()
         self.db.close()
         event.accept()

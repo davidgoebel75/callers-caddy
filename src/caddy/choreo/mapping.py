@@ -841,25 +841,14 @@ def _app_alt(orig, t, app):
     return [name]
 
 
-APP_MAPPING_SQL = (
-    "select m.call_text, c.canonical_name from call_text_mappings m "
-    "join calls c on c.entity_id = m.entity_id "
-    "where m.call_text not in (select call_text from call_text_figures_extra)")
-
-
-def load_app_mapping(con):
-    """Kartentext -> Callname der App; nur Texte mit genau einem Call (ohne figures_extra).
-    `con` = sqlite3-Verbindung auf die App-DB (nur lesend)."""
-    return {t: n for t, n in con.execute(APP_MAPPING_SQL)}
-
-
 # ---- Eine Sequenz vorbereiten ----
 def prepare(calls, seq_type, app=None):
     """Kartenzeilen einer Sequenz -> dict wie der Pruefstand-Export (ohne Heimplatz-Pruefung).
 
     calls     Call-Texte der Sequenz in Reihenfolge
     seq_type  sequences.type (z. B. "Singer (Corner progression)")
-    app       Kartentext -> Callname der App (load_app_mapping) oder None
+    app       Kartentext -> Callname der App (song_db_sequences.read_choreo_call_names)
+              oder None
     -> {"type", "n_start", "end", "orig", "src", "end_src", "lines", "zweit", "kreis_of"}
        src      je gesendeter Zeile der Index der Kartenzeile (None = aus der Startformation)
        end_src  Kartenzeile, aus der der Aufloese-Call stammt (None = ergaenzt bzw. keiner)

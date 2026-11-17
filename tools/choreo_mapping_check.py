@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from caddy.choreo import mapping  # noqa: E402
 from caddy.choreo import pruefband  # noqa: E402
 from caddy.choreo.engine import TamEngine  # noqa: E402
+from song_db_sequences import read_choreo_call_names  # noqa: E402
 
 FIELDS = ("n_start", "end", "orig", "lines", "lines_woertlich", "lines_ergaenzt")
 BAND_FIELDS = ("stufe1", "band", "resolved", "fail_pos", "pruefpunkt", "kriterium", "tam",
@@ -48,7 +49,7 @@ def main():
     n_golden = int(args[args.index("--n") + 1]) if "--n" in args else 300
     db, ref_path = args[0], args[1]
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-    app = mapping.load_app_mapping(con)
+    app = read_choreo_call_names(db)
     ref = json.load(open(ref_path, encoding="utf-8"))
     band_ref = None
     if "--band" in args:

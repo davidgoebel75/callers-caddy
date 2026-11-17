@@ -34,7 +34,8 @@ def find_engine():
     if getattr(sys, "frozen", False):
         cands.append(os.path.join(os.path.dirname(sys.executable), "choreo", EXE_NAME))
     cands.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", EXE_NAME))
-    return next((p for p in cands if p and os.path.isfile(p)), None)
+    found = next((p for p in cands if p and os.path.isfile(p)), None)
+    return os.path.abspath(found) if found else None
 
 
 def failed_response(request, error):
@@ -48,7 +49,7 @@ class TamEngine:
     """Ein tam_cli-Dauerprozess. Thread-sicher: Anfragen werden nacheinander bedient."""
 
     def __init__(self, path=None, timeout=30.0):
-        self._path = path or find_engine()
+        self._path = os.path.abspath(path) if path else find_engine()
         self._timeout = timeout
         self._proc = None
         self._q = None

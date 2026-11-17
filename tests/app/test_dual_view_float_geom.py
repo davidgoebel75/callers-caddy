@@ -389,7 +389,7 @@ def _fuer_reset(h, monkeypatch):
     for attr in ("dock_player", "dock_loop", "dock_data", "dock_list",
                  "dock_playlist", "dock_loop_finder", "dock_manager",
                  "dock_reports", "dock_potential", "dock_photo",
-                 "dock_clock"):
+                 "dock_clock", "dock_square_flow"):
         d = QDockWidget(attr, h)
         d.setObjectName(attr)
         d.setWidget(QWidget())

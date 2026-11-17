@@ -104,6 +104,10 @@ class SequenceViewWidget(QWidget):
         # intern#177: callback(call_texts) → Call-Mapping mit Fokus. Nur im Dock
         # gesetzt; der Beispiel-Betrachter des Call-Mappings bleibt ohne Eintrag.
         self.on_open_call_mapping = None
+        # intern#247: callback(index) -> Square Flow tanzt diese Kartenzeile.
+        # Nur im Dock gesetzt; None = Klick tut nichts (wie bisher).
+        self.on_call_clicked = None
+        self._seq_type = ""
         # BL-173: Callback, wenn sich die Sequenzliste aendert (fuer das Gating
         # des Dynamic-Lyrics-Buttons im Lyrics-Widget).
         self.on_sequences_changed = None
@@ -145,6 +149,8 @@ class SequenceViewWidget(QWidget):
         # intern#177: Rechtsklick auf einen Call-Text -> Call-Mapping
         self._text_edit.setContextMenuPolicy(Qt.CustomContextMenu)
         self._text_edit.customContextMenuRequested.connect(self._on_text_context_menu)
+        # intern#247: Linksklick auf eine Zeile -> Square Flow (on_call_clicked)
+        self._text_edit.viewport().installEventFilter(self)
         layout.addWidget(self._text_edit, 1)
 
         nav_layout = QHBoxLayout()
@@ -339,6 +345,7 @@ class SequenceViewWidget(QWidget):
         leer (nimmt dann kaum Platz weg)."""
         raw = self._db.get_sequence_raw(seq_id) or {}
         seq_type = (raw.get("seq_type") or "").strip()
+        self._seq_type = seq_type
         difficulty = (raw.get("difficulty") or "").strip()
         parts = []
         if seq_type:
@@ -433,9 +440,9 @@ class SequenceViewWidget(QWidget):
 
     # ---- Rechtsklick: Call-Mapping fuer einen Call-Text (intern#177) ----
 
-    def _call_text_at(self, pos):
-        """Call-Text der Zeile unter pos (Viewport-Koordinaten des Textfelds)
-        oder None. _make_html trennt die Calls mit <br>: die Zahl der
+    def _call_index_at(self, pos):
+        """Index in _calls der Zeile unter pos (Viewport-Koordinaten des
+        Textfelds) oder None. _make_html trennt die Calls mit <br>: die Zahl der
         Zeilenumbrueche vor der Cursor-Position ist der Index in _calls."""
         if not self._calls:
             return None
@@ -444,7 +451,32 @@ class SequenceViewWidget(QWidget):
         if not rect.top() <= pos.y() <= rect.bottom():
             return None     # unterhalb der letzten Zeile
         idx = self._text_edit.toPlainText()[:cursor.position()].count("\n")
-        return self._calls[idx][1] if idx < len(self._calls) else None
+        return idx if idx < len(self._calls) else None
+
+    def _call_text_at(self, pos):
+        """Call-Text der Zeile unter pos oder None (intern#177)."""
+        idx = self._call_index_at(pos)
+        return self._calls[idx][1] if idx is not None else None
+
+    def current_sequence_type(self) -> str:
+        """intern#247: Typ der gezeigten Sequenz (sequences.type), "" ohne."""
+        return self._seq_type if self._seq_ids else ""
+
+    def eventFilter(self, obj, event):
+        """intern#247: Linksklick (ohne Textauswahl) auf eine Zeile meldet ihren
+        Index an on_call_clicked. Das Ereignis laeuft weiter an Qt."""
+        if (self.on_call_clicked is not None
+                and obj is self._text_edit.viewport()
+                and event.type() == QEvent.MouseButtonRelease
+                and event.button() == Qt.LeftButton
+                and not self._text_edit.textCursor().hasSelection()):
+            idx = self._call_index_at(event.position().toPoint())
+            if idx is not None:
+                try:
+                    self.on_call_clicked(idx)
+                except Exception:
+                    pass
+        return super().eventFilter(obj, event)
 
     def _build_text_menu(self, pos):
         """Kontextmenue des Textfelds: der Eintrag zum Call-Mapping, darunter

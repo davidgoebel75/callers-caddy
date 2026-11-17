@@ -11037,5 +11037,135 @@
     "de": "Wir messen, wie sauber der Fade-Out auf deinem System läuft. Seit v0.91 ist der Fade-Out vektorisiert und sollte auch auf schwacher CPU glatt sein.",
     "en": "We measure how smoothly the fade-out runs on your system. Since v0.91 the fade-out is vectorized and should be smooth even on a weak CPU.",
     "ja": "お使いのシステムでフェードアウトがどれだけ滑らかに動作するかを測定します。v0.91 以降、フェードアウトはベクトル化されており、性能の低い CPU でも滑らかなはずです。"
+  },
+  "dock_square_flow": {
+    "de": "Square Flow",
+    "en": "Square Flow",
+    "ja": "Square Flow"
+  },
+  "setting_section_square_flow": {
+    "de": "Square Flow",
+    "en": "Square Flow",
+    "ja": "Square Flow"
+  },
+  "setting_label_square_flow_enabled": {
+    "de": "Square Flow einschalten",
+    "en": "Enable Square Flow",
+    "ja": "Square Flow を有効にする"
+  },
+  "setting_tip_square_flow_enabled": {
+    "de": "Zeigt die Sequenz aus dem Sequenz-Detail als tanzenden Square (Taminations-Engine). Ausgeschaltet wird nichts geladen.",
+    "en": "Shows the sequence from the sequence detail as a dancing square (Taminations engine). When off, nothing is loaded.",
+    "ja": "シーケンス詳細のシーケンスを踊るスクエアとして表示します（Taminations エンジン）。オフのときは何も読み込みません。"
+  },
+  "setting_label_square_flow_frame_rate": {
+    "de": "Bildrate",
+    "en": "Frame rate",
+    "ja": "フレームレート"
+  },
+  "setting_tip_square_flow_frame_rate": {
+    "de": "Bilder pro Sekunde beim Abspielen. Weniger Bilder entlasten schwache Rechner.",
+    "en": "Frames per second during playback. Fewer frames relieve slow computers.",
+    "ja": "再生中の 1 秒あたりのフレーム数。少ないほど性能の低い PC の負荷が下がります。"
+  },
+  "setting_label_square_flow_saving_mode": {
+    "de": "Sparmodus (nur Standbilder)",
+    "en": "Saving mode (still images only)",
+    "ja": "省電力モード（静止画のみ）"
+  },
+  "setting_tip_square_flow_saving_mode": {
+    "de": "Zeigt nur die Stellung nach jedem Call, ohne Animation.",
+    "en": "Shows only the position after each call, without animation.",
+    "ja": "アニメーションなしで、各コールの後の位置だけを表示します。"
+  },
+  "sf_disabled": {
+    "de": "Square Flow ist ausgeschaltet. Einschalten unter Einstellungen › Square Flow.",
+    "en": "Square Flow is turned off. Turn it on under Settings › Square Flow.",
+    "ja": "Square Flow はオフです。設定 › Square Flow でオンにできます。"
+  },
+  "sf_engine_missing": {
+    "de": "Die Choreo-Engine fehlt. Square Flow ist nicht verfügbar.",
+    "en": "The choreo engine is missing. Square Flow is not available.",
+    "ja": "コレオエンジンが見つかりません。Square Flow は使用できません。"
+  },
+  "sf_no_sequence": {
+    "de": "Keine Sequenz im Sequenz-Detail.",
+    "en": "No sequence in the sequence detail.",
+    "ja": "シーケンス詳細にシーケンスがありません。"
+  },
+  "sf_calculating": {
+    "de": "Sequenz wird berechnet …",
+    "en": "Calculating sequence …",
+    "ja": "シーケンスを計算中 …"
+  },
+  "sf_result_gruen": {
+    "de": "Löst korrekt auf",
+    "en": "Resolves correctly",
+    "ja": "正しくリゾルブします"
+  },
+  "sf_result_rot": {
+    "de": "Löst nicht korrekt auf",
+    "en": "Does not resolve correctly",
+    "ja": "正しくリゾルブしません"
+  },
+  "sf_result_strittig": {
+    "de": "Auflösung unsicher, bitte selbst prüfen",
+    "en": "Resolution uncertain, please check yourself",
+    "ja": "リゾルブが不確かです。ご自身で確認してください"
+  },
+  "sf_result_nur_band_gruen": {
+    "de": "Paare stimmen, Taminations ohne Aussage",
+    "en": "Pairs match, no verdict from Taminations",
+    "ja": "ペアは一致、Taminations の判定なし"
+  },
+  "sf_result_kein_band": {
+    "de": "Für diesen Sequenz-Typ gibt es keine Prüfung",
+    "en": "No check for this sequence type",
+    "ja": "このシーケンスタイプにはチェックがありません"
+  },
+  "sf_result_abbruch": {
+    "de": "Taminations versteht Zeile {line} nicht: {error}",
+    "en": "Taminations does not understand line {line}: {error}",
+    "ja": "Taminations は {line} 行目を理解できません: {error}"
+  },
+  "sf_beats_total": {
+    "de": "{beats} Beats",
+    "en": "{beats} beats",
+    "ja": "{beats} ビート"
+  },
+  "sf_btn_restart": {
+    "de": "Zum Anfang",
+    "en": "To the start",
+    "ja": "最初へ"
+  },
+  "sf_btn_prev": {
+    "de": "Vorheriger Call",
+    "en": "Previous call",
+    "ja": "前のコール"
+  },
+  "sf_btn_play": {
+    "de": "Abspielen",
+    "en": "Play",
+    "ja": "再生"
+  },
+  "sf_btn_pause": {
+    "de": "Anhalten",
+    "en": "Pause",
+    "ja": "一時停止"
+  },
+  "sf_btn_next": {
+    "de": "Nächster Call",
+    "en": "Next call",
+    "ja": "次のコール"
+  },
+  "sf_call_label": {
+    "de": "{n}/{total} · {call}",
+    "en": "{n}/{total} · {call}",
+    "ja": "{n}/{total} · {call}"
+  },
+  "sf_call_start": {
+    "de": "Startaufstellung",
+    "en": "Starting formation",
+    "ja": "開始フォーメーション"
   }
 }
