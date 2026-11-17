@@ -12,7 +12,7 @@ import math
 
 from PySide6.QtCore import Qt, QTimer, QElapsedTimer, QPointF, QRectF, Signal
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, QFont
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QToolButton,
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                                QSizePolicy)
 
 from caddy.choreo.timeline import Timeline
@@ -187,10 +187,11 @@ class SquareFlowWidget(QWidget):
         self._apply_label_colors()
 
     def _button(self, text, tip, slot):
-        b = QToolButton(self)
-        b.setText(text)
+        # Groesse wie die Vor/Zurueck-Knoepfe im Sequenz-Detail (44 x 40, 16 px)
+        b = QPushButton(text, self)
+        b.setFixedSize(44, 40)
+        b.setStyleSheet("font-size: 16px; padding: 0px;")
         b.setToolTip(tip)
-        b.setAutoRaise(True)
         b.clicked.connect(slot)
         return b
 
