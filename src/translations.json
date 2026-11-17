@@ -2810,6 +2810,11 @@
     "en": "First note factor",
     "ja": "最初のメモの係数"
   },
+  "setting_label_notes_line_spacing_pct": {
+    "de": "Zeilenabstand",
+    "en": "Line spacing",
+    "ja": "行間"
+  },
   "setting_label_notes_insert_position": {
     "de": "Neue Notizen einfügen",
     "en": "Insert new notes",
@@ -2884,6 +2889,11 @@
     "de": "Nach jedem Songende einen kurzen Bewertungs-Dialog anzeigen.",
     "en": "Show a short rating dialog after each song ends.",
     "ja": "各曲の終了後に短い評価ダイアログを表示します。"
+  },
+  "setting_tip_notes_line_spacing_pct": {
+    "de": "Abstand der Zeilen in mehrzeiligen Notizen. 100 % ist die normale Zeilenhöhe der Schrift, größere Werte lassen mehr Luft zwischen den Zeilen.",
+    "en": "Spacing between the lines of multi-line notes. 100 % is the font's normal line height; larger values leave more room between lines.",
+    "ja": "複数行のメモの行間です。100 % はフォントの標準の行の高さで、値を大きくすると行と行の間隔が広がります。"
   },
   "setting_tip_notes_first_note_factor": {
     "de": "Schriftgrößen-Faktor für die erste offene Notiz.",
@@ -7472,6 +7482,46 @@
     "de": "Break",
     "en": "Break",
     "ja": "Break"
+  },
+  "dock_clock": {
+    "de": "Uhr",
+    "en": "Clock",
+    "ja": "時計"
+  },
+  "clock_menu_seconds": {
+    "de": "Sekunden anzeigen",
+    "en": "Show seconds",
+    "ja": "秒を表示"
+  },
+  "clock_menu_12h": {
+    "de": "12-Stunden-Format (AM/PM)",
+    "en": "12-hour format (AM/PM)",
+    "ja": "12時間表示 (AM/PM)"
+  },
+  "clock_menu_date": {
+    "de": "Datum anzeigen",
+    "en": "Show date",
+    "ja": "日付を表示"
+  },
+  "setting_section_clock": {
+    "de": "Uhr",
+    "en": "Clock",
+    "ja": "時計"
+  },
+  "setting_label_clock_show_seconds": {
+    "de": "Sekunden anzeigen",
+    "en": "Show seconds",
+    "ja": "秒を表示"
+  },
+  "setting_label_clock_twelve_hour": {
+    "de": "12-Stunden-Format (AM/PM)",
+    "en": "12-hour format (AM/PM)",
+    "ja": "12時間表示 (AM/PM)"
+  },
+  "setting_label_clock_show_date": {
+    "de": "Datum anzeigen",
+    "en": "Show date",
+    "ja": "日付を表示"
   },
   "break_btn_tooltip": {
     "de": "Pausen-Uhr öffnen",

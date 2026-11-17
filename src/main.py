@@ -1422,6 +1422,20 @@ class P29MainWindow(QMainWindow):
         self._add_view_menu_entry(self.dock_pilot_square, _t("dock_pilot_square"))
         perf_log("    PilotSquare dock", _tsq)
 
+        # --- Dock: Uhr (Digitaluhr, intern#235) — vollwertig andockbar ---
+        # Vor _restore_layout(), damit Position/Groesse/Sichtbarkeit ueber
+        # windowState wiederhergestellt werden.
+        _tclock = perf_start()
+        from caddy.clock.clock_widget import ClockWidget
+        self.clock_widget = ClockWidget(self.skin_mgr, self._settings)
+        self.dock_clock = _make_dock(
+            self, _t("dock_clock"), self.clock_widget, Qt.RightDockWidgetArea
+        )
+        self.dock_clock.setObjectName("dock_clock")
+        self.dock_clock.hide()  # Default; restoreState() stellt echten Zustand her
+        self._add_view_menu_entry(self.dock_clock, _t("dock_clock"))
+        perf_log("    Clock dock", _tclock)
+
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
         self._wire_dock_context_menus()
         # #121: Floating-Geometrie-Handler auch ohne gespeichertes Layout
@@ -3075,6 +3089,8 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        self.notes_widget.set_line_spacing(
+            ini_keys.get(self._settings, "notes/line_spacing_pct"))   # intern#246
         # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
         # der UI aendert das nur fuer die laufende Session, nicht die INI.
         # Der Default wird in _write_ini_defaults() gesaet.
@@ -7271,6 +7287,10 @@ class P29MainWindow(QMainWindow):
                 except Exception:
                     pass
 
+            elif key.startswith("clock/"):
+                # intern#235: Uhr-Optionen aus dem Einstellungsdialog
+                self.clock_widget.reload_settings()
+
             elif key == "loop/crossfade_ms":
                 try:
                     self.engine.set_loop_crossfade_ms(int(val))
@@ -7342,6 +7362,11 @@ class P29MainWindow(QMainWindow):
                 # intern#198: set_first_note_factor() faengt ungueltige Werte selbst ab
                 if self.notes_widget is not None:
                     self.notes_widget.set_first_note_factor(val)
+
+            elif key == "notes/line_spacing_pct":
+                # intern#246: set_line_spacing() faengt ungueltige Werte selbst ab
+                if self.notes_widget is not None:
+                    self.notes_widget.set_line_spacing(val)
 
             elif key == "feedback/enabled":
                 pass  # wird beim naechsten Songende frisch aus INI gelesen
@@ -7785,6 +7810,7 @@ class P29MainWindow(QMainWindow):
         self.dock_lyrics.raise_()
         # Versteckte Fenster
         self.dock_manager.hide()
+        self.dock_clock.hide()  # intern#235: Standard versteckt
         self.dock_reports.setFloating(True)
         self.dock_reports.hide()
         self.dock_potential.setFloating(True)
@@ -7851,6 +7877,8 @@ class P29MainWindow(QMainWindow):
                 self.pilot_square_widget.apply_skin(self.skin_mgr)
             # Break-Pausen-Uhr (Dock + ggf. Overlay)
             self.break_widget.set_skin(self.skin_mgr)
+            # Uhr-Dock (intern#235)
+            self.clock_widget.set_skin(self.skin_mgr)
             # Stream Deck: Icons mit neuen Theme-Farben neu einfaerben
             if hasattr(self, 'stream_deck_widget'):
                 self.stream_deck_widget.apply_skin(self.skin_mgr)

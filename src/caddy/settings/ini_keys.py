@@ -25,6 +25,12 @@ class IniKey:
     seed: bool = False  # True = _write_ini_defaults() schreibt ihn beim Start
 
 
+# Schluessel, die mehrere Module brauchen (intern#235)
+CLOCK_SHOW_SECONDS = "clock/show_seconds"
+CLOCK_TWELVE_HOUR = "clock/twelve_hour"
+CLOCK_SHOW_DATE = "clock/show_date"
+
+
 def _k(key, typ, default, seed=False):
     return IniKey(key, typ, default, seed)
 
@@ -52,6 +58,8 @@ _ENTRIES = (
     _k("notes/insert_position", str, "top", True),
     # intern#198
     _k("notes/first_note_factor", float, 4.0, True),
+    # intern#246: Zeilenabstand der Notizen, 100 = echte Zeilenhoehe
+    _k("notes/line_spacing_pct", int, 100, True),
     # intern#127: Heads/Sides invertieren. Art leer = noch nicht gewaehlt
     _k("lyrics/dynamic_invert_enabled", bool, False, True),
     _k("lyrics/dynamic_invert_mode", str, "", True),
@@ -68,6 +76,10 @@ _ENTRIES = (
     _k("lyrics/reading_band_countdown_beats", int, 8, True),
     # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
     _k("sequences/show_hidden_on_start", bool, False, True),
+    # intern#235: Uhr-Dock, eigene Sektion [clock] (Rechtsklick + Dialog)
+    _k(CLOCK_SHOW_SECONDS, bool, False, True),
+    _k(CLOCK_TWELVE_HOUR, bool, False, True),
+    _k(CLOCK_SHOW_DATE, bool, True, True),
     # --- ohne Saat ---
     _k("lyrics/dynamic_enabled", bool, False),
     _k("lyrics/dynamic_mode", str, ""),
