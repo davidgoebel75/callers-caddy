@@ -83,9 +83,9 @@ def test_ohne_takte_rot_oder_abbruch_wie_bisher(make, res):
 
 def test_figuren_fenster(make):
     w = make(_result())
-    assert w.figure_window(5.0) == (-1, -1, None, None)        # Opener
-    assert w.figure_window(12.0) == (0, 0, 10.0, 26.0)
-    assert w.figure_window(30.0) == (-1, 0, None, None)        # zwischen den Figuren
-    assert w.figure_window(41.0) == (1, 1, 40.0, 56.0)
+    assert w.figure_window(5.0) == (-1, -1, None, None, False)        # Opener
+    assert w.figure_window(12.0) == (0, 0, 10.0, 26.0, False)
+    assert w.figure_window(30.0) == (-1, 0, None, None, False)        # zwischen den Figuren
+    assert w.figure_window(41.0) == (1, 1, 40.0, 56.0, False)
     w._revert_dynamic()
     assert w.figure_window(12.0) is None                       # Dynamic aus -> manuell

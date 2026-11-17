@@ -33,6 +33,7 @@ CLOCK_SHOW_DATE = "clock/show_date"
 SQUARE_FLOW_ENABLED = "square_flow/enabled"
 SQUARE_FLOW_FRAME_RATE = "square_flow/frame_rate"
 SQUARE_FLOW_SAVING_MODE = "square_flow/saving_mode"
+SQUARE_FLOW_LAG_BEATS = "square_flow/lag_beats"
 SQUARE_FLOW_ZOOM_PCT = "square_flow/zoom_pct"
 SQUARE_FLOW_CONTROLS_POS = "square_flow/controls_pos"
 
@@ -90,6 +91,7 @@ _ENTRIES = (
     _k(SQUARE_FLOW_ENABLED, bool, False, True),
     _k(SQUARE_FLOW_FRAME_RATE, int, 25, True),
     _k(SQUARE_FLOW_SAVING_MODE, bool, False, True),
+    _k(SQUARE_FLOW_LAG_BEATS, int, 2, True),
     # per Mausrad bzw. Rechtsklick im Dock gesetzt, nicht im Einstellungsdialog
     _k(SQUARE_FLOW_ZOOM_PCT, int, 100),
     _k(SQUARE_FLOW_CONTROLS_POS, str, "below"),

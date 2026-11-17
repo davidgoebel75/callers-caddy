@@ -8107,7 +8107,9 @@ class P29MainWindow(QMainWindow):
             # intern#247 Phase 2: Square Flow laeuft im Singing Call mit
             _sf = getattr(self, "square_flow_widget", None)
             if _sf is not None and _sf.enabled() and _sf.isVisible():
-                _sf.follow(self.lyrics_widget.figure_window(pos), pos)
+                # Phase 2b: um den Versatz (Process-/Execution-Time) spaeter
+                _lp = pos - _sf.lag_seconds(self.player._base_bpm)
+                _sf.follow(self.lyrics_widget.figure_window(_lp), _lp)
 
             # Play Timer fuer Rules (alle 10 Sekunden)
             import time as _t2

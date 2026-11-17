@@ -52,6 +52,7 @@ _SAAT_VORHER = {
     "square_flow/enabled": "false",
     "square_flow/frame_rate": "25",
     "square_flow/saving_mode": "false",
+    "square_flow/lag_beats": "2",
 }
 
 

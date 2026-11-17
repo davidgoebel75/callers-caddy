@@ -17,7 +17,7 @@ from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, Q
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QBoxLayout, QLabel, QPushButton, QMenu,
                                QSizePolicy)
 
-from caddy.choreo import figure_clock
+from caddy.choreo import figure_clock, square_chain
 from caddy.choreo.timeline import Timeline
 from caddy.settings import ini_keys
 from i18n import _t
@@ -185,6 +185,12 @@ class SquareFlowWidget(QWidget):
         self._following = False
         self._follow_region = None          # ("f", Teil) in einer Figur, ("o", letzter Teil) sonst
         self._follow_hold = None            # Eingriff des Nutzers: Region, bis zu deren Ende
+        # Phase 2b: Weitertanzen ueber die Figuren und Heads/Sides-Spiegeln (nur Anzeige)
+        self._chain = None                  # square_chain.PartnerChain, lebt ueber Sequenzen
+        self._end_perm = None               # wo jeder Taenzer am Figurenende steht (oder None)
+        self._rot_slots = None              # Platz je Startplatz beim Spiegeln
+        self._view = None                   # (rot, gezeigte Taenzer) waehrend des Mitlaufens
+        self._view_rot = False
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -212,6 +218,11 @@ class SquareFlowWidget(QWidget):
         self._btn_edit.clicked.connect(self.edit_requested.emit)
         self._btn_edit.setVisible(False)
         lay.addWidget(self._btn_edit, 0, Qt.AlignLeft)
+        # Phase 2b: Partner-Kette gerissen (Figur endete nicht zu Hause)
+        self._chain_note = QLabel(_t("sf_chain_reset"), self)
+        self._chain_note.setWordWrap(True)
+        self._chain_note.setVisible(False)
+        lay.addWidget(self._chain_note)
         # Buehne: Square (mit Call-Zeile) und Tasten; Lage der Tasten per Rechtsklick
         self._floor = _Floor(self._color, self)
         self._floor.zoom = self._zoom
@@ -262,6 +273,10 @@ class SquareFlowWidget(QWidget):
         self._enabled = bool(get(ini_keys.SQUARE_FLOW_ENABLED, bool))
         self._fps = max(5, min(30, int(get(ini_keys.SQUARE_FLOW_FRAME_RATE, int) or 25)))
         self._saving = bool(get(ini_keys.SQUARE_FLOW_SAVING_MODE, bool))
+        try:
+            self._lag_beats = max(0, min(8, int(get(ini_keys.SQUARE_FLOW_LAG_BEATS, int))))
+        except (TypeError, ValueError):
+            self._lag_beats = 2
         try:
             zoom = int(get(ini_keys.SQUARE_FLOW_ZOOM_PCT, int)) / 100.0
         except (TypeError, ValueError):
@@ -349,6 +364,7 @@ class SquareFlowWidget(QWidget):
         self._status.setStyleSheet(f"color: {text};")
         self._call_label.setStyleSheet(f"color: {dim};")
         self._hints.setStyleSheet(f"color: {dim};")
+        self._chain_note.setStyleSheet(f"color: {dim};")
 
     def set_skin(self, skin_mgr):
         self._skin_mgr = skin_mgr
@@ -434,6 +450,8 @@ class SquareFlowWidget(QWidget):
         ext = self._tl.extent()
         self._floor.ext = max(5.5, math.ceil(ext) + 1.0)
         self._floor.dancers = self._tl.dancers
+        self._view, self._view_rot = None, False
+        self._prepare_chain(result)
         self._floor.invalidate_background()
         self._show_result_status()
         self._seek(0.0)
@@ -539,7 +557,8 @@ class SquareFlowWidget(QWidget):
                 return                                # Sparmodus: nur bei Call-Wechsel zeichnen
             self._shown_line = i
             shown = self._tl.line_span(i)[1] if i >= 0 else 0.0
-        self._floor.pose = self._tl.pose_at(shown)
+        pose = self._tl.pose_at(shown)
+        self._floor.pose = square_chain.rotate_pose(pose) if self._view_rot else pose
         cb = self._check_beat()
         self._floor.bands = ((self._band_pairs(), self._result["urteil"] == "gruen")
                              if cb is not None and shown >= cb - 1e-6 else None)
@@ -584,18 +603,28 @@ class SquareFlowWidget(QWidget):
     def follow(self, window, pos):
         """Im Wiedergabe-Takt: Square Flow tanzt die Figur, die der Song gerade spielt.
 
-        window = LyricsWidget.figure_window(pos): None (Dynamic Lyrics aus -> manuell),
-        (-1, k, None, None) ausserhalb einer Figur -> Ausgangsstellung,
-        (k, k, t0, t1) Figur k -> Beat anteilig im Fenster t0..t1 (bei Abbruch im Song-Tempo
-        bis zur Abbruchzeile, danach bleibt der Square stehen).
+        window = LyricsWidget.figure_window(pos) (um den Versatz verschoben, siehe
+        lag_seconds): None (Dynamic Lyrics aus -> manuell),
+        (-1, k, None, None, False) ausserhalb einer Figur -> Ausgangsstellung,
+        (k, k, t0, t1, gespiegelt) Figur k -> Beat anteilig im Fenster t0..t1 (bei Abbruch im
+        Song-Tempo bis zur Abbruchzeile, danach bleibt der Square stehen).
+        Phase 2b: Die Paare tanzen ueber die Figuren weiter (Belegung aus square_chain), eine
+        gespiegelte Figur wird um 90 Grad gedreht gezeigt.
         Ein Eingriff (Knoepfe, Klick im Sequenz-Detail) haelt das Mitlaufen bis zum naechsten
         Figuren-SyncPoint an."""
         if window is None:
             self.follow_off()
             return
-        part, last, t0, t1 = window
+        part, last, t0, t1, inverted = window
         region = ("f", part) if part >= 0 else ("o", last)
         self._follow_region = region
+        ready = self._tl is not None and not self._tl.empty()
+        if ready and self._chain is not None:
+            if region == ("o", -1):
+                self._chain.reset()                  # vor der ersten Figur: neuer Durchgang
+            elif part >= 0:                          # auch waehrend eines Eingriffs festhalten
+                self._chain.record(part, self._end_perm,
+                                   self._rot_slots if inverted else None)
         if self._follow_hold is not None:
             if region == self._follow_hold or region[0] != "f":
                 return
@@ -604,8 +633,13 @@ class SquareFlowWidget(QWidget):
             self.pause()
             self._following = True
             self._shown_line = None
-        if self._tl is None or self._tl.empty():
+        if not ready:
             return                                   # Ergebnis kommt noch
+        rot = self._rot_slots if (part >= 0 and inverted) else None
+        ids, broken = (self._chain.ids_for(part if part >= 0 else last + 1)
+                       if self._chain is not None else (None, False))
+        self._apply_view(rot, ids)
+        self._chain_note.setVisible(broken)
         if part < 0:
             if self._active or self._beat > 0.0:     # nur einmal zeichnen
                 self._active = False
@@ -619,10 +653,54 @@ class SquareFlowWidget(QWidget):
         self._seek(beat)
 
     def follow_off(self):
-        """Song steht oder Dynamic Lyrics ist aus: Square Flow wieder manuell."""
+        """Song steht oder Dynamic Lyrics ist aus: Square Flow wieder manuell (Belegung und
+        Drehung zurueck auf die Sequenz, wie sie im Sequenz-Detail steht)."""
         self._following = False
         self._follow_hold = None
         self._follow_region = None
+        if self._view is not None:
+            self._view, self._view_rot = None, False
+            if self._tl is not None:
+                self._floor.dancers = self._tl.dancers
+                self._shown_line = None
+                self._seek(self._beat)
+            self._chain_note.setVisible(False)
+
+    def lag_seconds(self, bpm=None):
+        """Versatz im Singing Call in Song-Sekunden (Process- und Execution-Time)."""
+        try:
+            bpm = float(bpm) if bpm else self._bpm()
+        except (TypeError, ValueError):
+            bpm = self._bpm()
+        return self._lag_beats * 60.0 / bpm if bpm > 0 else 0.0
+
+    def _prepare_chain(self, result):
+        """Zum neuen Ergebnis: Endplaetze der Figur und Drehung fuers Spiegeln."""
+        tl = self._tl
+        start = tl.pose_at(0.0)
+        self._rot_slots = square_chain.rotation_slots(start)
+        self._end_perm = None
+        if result.get("stufe1") and result.get("with_end") and result.get("urteil") != "rot":
+            self._end_perm = square_chain.end_permutation(start, tl.pose_at(tl.total_beats))
+        if self._chain is None or self._chain.n != len(start):
+            self._chain = square_chain.PartnerChain(len(start))
+
+    def _apply_view(self, rot, ids):
+        """Gezeigte Belegung und Drehung setzen (nur bei Aenderung neu zeichnen)."""
+        n = len(self._tl.dancers)
+        if ids is None or len(ids) != n:
+            ids = square_chain.identity(n)
+        if rot is not None and len(rot) != n:
+            rot = None
+        shown = tuple(square_chain.shown_dancers(ids, rot))
+        view = (tuple(rot) if rot else None, shown)
+        if view == self._view:
+            return
+        self._view = view
+        self._view_rot = rot is not None
+        self._floor.dancers = [self._tl.dancers[j] for j in shown]
+        self._shown_line = None
+        self._seek(self._beat)
 
     def following(self):
         return self._following

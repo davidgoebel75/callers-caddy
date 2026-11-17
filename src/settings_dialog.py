@@ -520,6 +520,14 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "checkbox",
         "default": False,
     },
+    "square_flow/lag_beats": {
+        "label": "Versatz im Singing Call",
+        "widget": "spinbox",
+        "min": 0, "max": 8, "step": 1, "suffix": " Beats",
+        "default": 2,
+        "tooltip": "So viele Beats tanzt Square Flow im Singing Call hinter dem "
+                   "Lesebalken her: Zeit zum Ansagen, Hören und Verstehen des Calls.",
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",

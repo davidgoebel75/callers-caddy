@@ -2800,9 +2800,10 @@ class LyricsWidget(QWidget):
         """Figuren-Fenster zur Songzeit fuer Square Flow (intern#247).
 
         None:            Dynamic Lyrics aus -> Square Flow bleibt manuell.
-        (-1, k, None, None): ausserhalb einer Figur (Opener, Middle Break, Closer,
-                         Zwischenmusik); k = zuletzt begonnener Teil (-1 davor).
-        (k, k, t0, t1):  Teil k laeuft, Fenster t0..t1 (echte SyncPoint-Zeiten)."""
+        (-1, k, None, None, False): ausserhalb einer Figur (Opener, Middle Break,
+                         Closer, Zwischenmusik); k = zuletzt begonnener Teil (-1 davor).
+        (k, k, t0, t1, gespiegelt): Teil k laeuft, Fenster t0..t1 (echte SyncPoint-
+                         Zeiten); gespiegelt = Heads/Sides getauscht (intern#127)."""
         if not self._dynamic_enabled or not self._dyn_part_windows:
             return None
         k = -1
@@ -2810,10 +2811,27 @@ class LyricsWidget(QWidget):
             if w[0] <= pos:
                 k = i
         if k >= 0:
-            t0, t1 = self._dyn_part_windows[k][:2]
+            t0, t1, _frame, key = self._dyn_part_windows[k]
             if t1 is not None and pos < t1:
-                return (k, k, t0, t1)
-        return (-1, k, None, None)
+                return (k, k, t0, t1, self._part_inverted(k, key))
+        return (-1, k, None, None, False)
+
+    def _part_inverted(self, part: int, key) -> bool:
+        """Wird Teil `part` mit getauschten Heads/Sides gezeigt? Gleiche Regel wie beim
+        Text: eigener Block = feste Figur; gemeinsamer Block nur bei genau 4 Teilen."""
+        if not self._invert_active():
+            return False
+        try:
+            figs = self._dyn_block_figs[self._dyn_block_keys.index(key)]
+        except (ValueError, IndexError):
+            return False
+        if len(figs) == 1:
+            fig = figs[0]
+        elif len(self._dyn_part_starts) == 4 and part + 1 in figs:
+            fig = part + 1
+        else:
+            return False
+        return fig in heads_sides.inverted_figures(self._invert_mode)
 
     @staticmethod
     def _char_to_line_in(offsets: list, char_pos: int) -> int:

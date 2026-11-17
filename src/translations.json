@@ -11078,6 +11078,21 @@
     "en": "Shows only the position after each call, without animation.",
     "ja": "アニメーションなしで、各コールの後の位置だけを表示します。"
   },
+  "setting_label_square_flow_lag_beats": {
+    "de": "Versatz im Singing Call",
+    "en": "Delay in singing calls",
+    "ja": "シンギングコールでの遅れ"
+  },
+  "setting_tip_square_flow_lag_beats": {
+    "de": "So viele Beats tanzt Square Flow im Singing Call hinter dem Lesebalken her: Zeit zum Ansagen, Hören und Verstehen des Calls.",
+    "en": "Square Flow dances this many beats behind the reading band in singing calls: time to deliver, hear and understand the call.",
+    "ja": "シンギングコールで Square Flow がリーディングバーから遅れて踊る拍数です。コールを言い、聞き、理解するための時間です。"
+  },
+  "sf_chain_reset": {
+    "de": "Figur endete nicht zu Hause: ab hier wieder mit den eigenen Partnern.",
+    "en": "Figure did not end at home: continuing with original partners.",
+    "ja": "フィギュアがホームで終わりませんでした。ここから元のパートナーで続けます。"
+  },
   "sf_disabled": {
     "de": "Square Flow ist ausgeschaltet. Einschalten unter Einstellungen › Square Flow.",
     "en": "Square Flow is turned off. Turn it on under Settings › Square Flow.",

@@ -29,6 +29,50 @@ def _result():
     }
 
 
+def _singer_result():
+    """Volle Singing-Call-Figur: 8 Taenzer, endet zu Hause mit der Corner als Partnerin."""
+    from caddy.choreo import square_chain as sc
+    couple, square = [[-3.0, 1.0, 0.0], [-3.0, -1.0, 0.0]], []
+    for _c in range(4):
+        square += couple
+        couple = sc.rotate_pose(couple)
+    end = [square[2 * ((i // 2 + 1) % 4) + 1] if i % 2 else square[i] for i in range(8)]
+    r = _result()
+    r.update({"type": "Singer", "with_end": True, "card_spans": [(0.0, 4.0), (4.0, 8.0)]})
+    r["animation"] = {
+        "dancers": [{"n": str(i + 1), "couple": str(i // 2 + 1), "boy": i % 2 == 0}
+                    for i in range(8)],
+        "call_starts": [0.0, 4.0], "total_beats": 8.0,
+        "frames": [[0.0, square], [8.0, end]]}
+    return r
+
+
+def test_paare_tanzen_weiter_und_spiegeln(keep):
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
+    w._seq = (("Heads Square Thru 4", "Allemande Left"), "Singer")
+    w._token = 1
+    w._on_ready(1, _singer_result())
+    w.follow((-1, -1, None, None, False), 1.0)          # Opener: eigene Partner
+    assert [d["couple"] for d in w._floor.dancers][:2] == ["1", "1"]
+    w.follow((0, 0, 10.0, 18.0, False), 17.0)           # Figur 1 getanzt
+    w.follow((-1, 0, None, None, False), 19.0)          # danach: Frau 4 beim Mann 1
+    assert w._floor.dancers[1]["couple"] == "4" and w._floor.dancers[0]["couple"] == "1"
+    w.follow((1, 1, 30.0, 38.0, True), 30.0)            # Figur 2 gespiegelt (Sides)
+    assert w._view_rot
+    x, y, a = w._floor.pose[0]
+    assert (round(x, 3), round(y, 3), a) == (-1.0, -3.0, 90.0)   # Engine-Mann 1 auf Platz 2
+    assert w._floor.dancers[0]["couple"] == "2"
+    w.follow_off()
+    assert not w._view_rot and w._floor.dancers[1]["couple"] == "1"
+
+
+def test_versatz_in_sekunden(keep):
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True, lag_beats=4)))
+    assert w.lag_seconds(120) == 2.0
+    w0 = keep(SquareFlowWidget(settings=_Settings(enabled=True, lag_beats=0)))
+    assert w0.lag_seconds(120) == 0.0
+
+
 def _following_widget(keep):
     w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
     w._seq = (("Heads Square Thru 4", "Allemande Left"), "Static Set ➔ Resolve")
@@ -42,10 +86,10 @@ def _following_widget(keep):
 def test_mitlaufen_anteilig_im_figuren_fenster(keep):
     """Phase 2: Fenster 10..18 s, 8 Beats -> 14 s = Beat 4 = zweite Kartenzeile."""
     w, cards = _following_widget(keep)
-    w.follow((0, 0, 10.0, 18.0), 14.0)
+    w.follow((0, 0, 10.0, 18.0, False), 14.0)
     assert w.following() and w._beat == pytest.approx(4.0)
     assert cards[-1] == 1 and not w._timer.isActive()
-    w.follow((-1, 0, None, None), 20.0)                 # Middle Break: Ausgangsstellung
+    w.follow((-1, 0, None, None, False), 20.0)                 # Middle Break: Ausgangsstellung
     assert w._beat == 0.0 and cards[-1] == -1
     w.follow(None, 21.0)                                # Dynamic Lyrics aus: manuell
     assert not w.following()
@@ -53,14 +97,14 @@ def test_mitlaufen_anteilig_im_figuren_fenster(keep):
 
 def test_eingriff_haelt_bis_zur_naechsten_figur(keep):
     w, _cards = _following_widget(keep)
-    w.follow((0, 0, 10.0, 18.0), 12.0)
+    w.follow((0, 0, 10.0, 18.0, False), 12.0)
     w.next_call()                                       # Nutzer greift ein
     beat = w._beat
-    w.follow((0, 0, 10.0, 18.0), 17.0)
+    w.follow((0, 0, 10.0, 18.0, False), 17.0)
     assert not w.following() and w._beat == beat        # gleiche Figur: Nutzer bleibt dran
-    w.follow((-1, 0, None, None), 19.0)
+    w.follow((-1, 0, None, None, False), 19.0)
     assert not w.following()                            # auch im Middle Break
-    w.follow((1, 1, 30.0, 38.0), 32.0)                  # naechste Figur: Song uebernimmt
+    w.follow((1, 1, 30.0, 38.0, False), 32.0)                  # naechste Figur: Song uebernimmt
     assert w.following() and w._beat == pytest.approx(2.0)
 
 
@@ -68,9 +112,9 @@ def test_abbruch_tanzt_im_song_tempo_bis_zur_abbruchzeile(keep):
     w, _cards = _following_widget(keep)
     w._result["stufe1"] = False
     w._bpm_source = lambda: 120.0
-    w.follow((0, 0, 10.0, 40.0), 12.0)                  # 2 s bei 120 BPM = 4 Beats
+    w.follow((0, 0, 10.0, 40.0, False), 12.0)                  # 2 s bei 120 BPM = 4 Beats
     assert w._beat == pytest.approx(4.0)
-    w.follow((0, 0, 10.0, 40.0), 30.0)
+    w.follow((0, 0, 10.0, 40.0, False), 30.0)
     assert w._beat == pytest.approx(8.0)                # Animation endet: Square steht
 
 
