@@ -33,8 +33,11 @@ python tools/benchmark/compare.py results/vorher.json results/nachher.json
 Gegen die **eingecheckte Baseline** vergleichen (in `baselines/`, env-bereinigt):
 
 ```bash
-python tools/benchmark/compare.py baselines/baseline_v0.158.json results/<dein-lauf>.json
+python tools/benchmark/compare.py baselines/baseline_v0.162.json results/<dein-lauf>.json
 ```
+
+Aktuelle Baseline ist **v0.162** (Stand vor Release 2.0, Median aus 5 Läufen).
+`baseline_v0.158.json` bleibt als ältere Vergleichsbasis liegen.
 
 ### Parameter
 
