@@ -42,7 +42,7 @@
 - Rubber Band (urspruenglicher Anlass fuer die GPL) wird nicht mehr ausgeliefert; Time-Stretching/Pitch-Shifting sind eigener Code
 - PySide6 wird unter LGPL-3.0 genutzt, kompatibel
 - Quellcode oeffentlich, kostenlose Nutzung
-- **Fremdkomponenten:** `installer/licenses/THIRD_PARTY.txt` listet jede mitgelieferte Komponente mit Lizenzdatei; `build.py` legt `LICENSE` und `licenses/` neben die EXE. Neue Zeile in `installer/requirements.txt` → dort nachtragen (Test `tests/app/test_third_party_licenses.py` erinnert). Kommt eine Komponente ohne Python-Paket dazu (z. B. `tam_cli.exe`, GPLv3+), ebenfalls dort eintragen.
+- **Fremdkomponenten:** `installer/licenses/THIRD_PARTY.txt` listet jede mitgelieferte Komponente mit Lizenzdatei; `build.py` legt `LICENSE` und `licenses/` neben die EXE. Neue Zeile in `installer/requirements.txt` → dort nachtragen (Test `tests/app/test_third_party_licenses.py` erinnert). Kommt eine Komponente ohne Python-Paket dazu, ebenfalls dort eintragen.
 
 ## Distribution
 - PyInstaller oder cx_Freeze → standalone .exe / .app
