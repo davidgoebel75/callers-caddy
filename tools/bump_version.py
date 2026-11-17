@@ -41,7 +41,7 @@ UNRELEASED_RE = re.compile(r"^##\s*\(Unreleased[^\n]*\)[ \t]*$", re.M)
 RELEASED_RE = re.compile(r"^##\s+(\d+\.\d+(?:\.\d+)?)\b", re.M)
 # Prototyp-Nummern (bis 0.162) und das Schema ab 2.0.0.
 LEGACY_RE = re.compile(r"0\.(\d+)")
-SEMVER_RE = re.compile(r"([2-9]|[1-9]\d+)\.(\d+)\.(\d+)")
+SEMVER_RE = re.compile(r"([2-9]|[1-9]\d+)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
 FIRST_RELEASE = "2.0.0"
 PARTS = ("patch", "minor", "major")
 VERSION_RE = re.compile(r'^__version__\s*=\s*["\'][^"\']+["\']', re.M)
