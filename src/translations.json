@@ -11242,5 +11242,30 @@
     "de": "Nur mit Internetverbindung",
     "en": "Requires an internet connection",
     "ja": "インターネット接続が必要です"
+  },
+  "sf_ctx_controls_below": {
+    "de": "Tasten unter dem Square",
+    "en": "Buttons below the square",
+    "ja": "ボタンをスクエアの下に"
+  },
+  "sf_ctx_controls_above": {
+    "de": "Tasten über dem Square",
+    "en": "Buttons above the square",
+    "ja": "ボタンをスクエアの上に"
+  },
+  "sf_ctx_controls_left": {
+    "de": "Tasten links vom Square",
+    "en": "Buttons left of the square",
+    "ja": "ボタンをスクエアの左に"
+  },
+  "sf_ctx_controls_right": {
+    "de": "Tasten rechts vom Square",
+    "en": "Buttons right of the square",
+    "ja": "ボタンをスクエアの右に"
+  },
+  "sf_ctx_zoom_reset": {
+    "de": "Zoom zurücksetzen",
+    "en": "Reset zoom",
+    "ja": "ズームをリセット"
   }
 }

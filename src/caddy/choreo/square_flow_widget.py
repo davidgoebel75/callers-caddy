@@ -12,8 +12,9 @@ import html
 import math
 
 from PySide6.QtCore import Qt, QTimer, QElapsedTimer, QPointF, QRectF, Signal
-from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, QFont
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, QFont,
+                           QActionGroup)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QBoxLayout, QLabel, QPushButton, QMenu,
                                QSizePolicy)
 
 from caddy.choreo.timeline import Timeline
@@ -21,6 +22,9 @@ from caddy.settings import ini_keys
 from i18n import _t
 
 FALLBACK_BPM = 128.0
+ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.6, 2.5, 1.1
+_NOTCH = 120                                  # ein Raster-Schritt des Mausrads
+CONTROL_POSITIONS = ("below", "above", "left", "right")
 _DEFAULTS = {
     "squareflow_floor": "#1d2028", "squareflow_grid": "#2a2e38",
     "squareflow_grid_strong": "#3b404c", "squareflow_body_stroke": "#0b0d11",
@@ -40,6 +44,7 @@ class _Floor(QWidget):
         self.pose = []
         self.bands = None                  # (paare als Index-Tupel, gut: bool) oder None
         self.ext = 5.5
+        self.zoom = 1.0                    # Shift/Strg + Mausrad, ZOOM_MIN..ZOOM_MAX
         self._bg = None
         self._bg_key = None
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -49,9 +54,26 @@ class _Floor(QWidget):
         self._bg = None
         self.update()
 
+    on_wheel_zoom = None                   # callback(schritte), gesetzt vom SquareFlowWidget
+
+    def wheelEvent(self, event):
+        """Shift + Mausrad zoomt (wie gewuenscht), Strg + Mausrad ebenso (App-Standard,
+        BL-166). Shift kann das Rad je nach System auf die x-Achse legen: beide lesen."""
+        mods = event.modifiers()
+        if self.on_wheel_zoom and mods & (Qt.ShiftModifier | Qt.ControlModifier):
+            d = event.angleDelta()
+            self._accum = getattr(self, "_accum", 0) + (d.y() or d.x())
+            steps = int(self._accum / _NOTCH)
+            if steps:
+                self._accum -= steps * _NOTCH
+                self.on_wheel_zoom(steps)
+            event.accept()
+            return
+        super().wheelEvent(event)
+
     def _geometry(self):
         side = min(self.width(), self.height())
-        scale = side / (2 * self.ext)
+        scale = side / (2 * self.ext) * self.zoom
         return scale, self.width() / 2, self.height() / 2
 
     def _to_screen(self, x, y, scale, cx, cy):
@@ -59,24 +81,25 @@ class _Floor(QWidget):
         return QPointF(cx - y * scale, cy - x * scale)
 
     def _background(self):
-        key = (self.width(), self.height(), self.ext)
+        key = (self.width(), self.height(), self.ext, self.zoom)
         if self._bg is not None and self._bg_key == key:
             return self._bg
         pm = QPixmap(max(1, self.width()), max(1, self.height()))
         pm.fill(self._color("squareflow_floor"))
         p = QPainter(pm)
         scale, cx, cy = self._geometry()
-        n = int(math.floor(self.ext))
+        # Raster ueber die ganze Flaeche (auch herausgezoomt)
+        n = int(math.ceil(max(self.width(), self.height()) / 2 / scale))
         for i in range(-n, n + 1):
             strong = i == 0
             pen = QPen(self._color("squareflow_grid_strong" if strong else "squareflow_grid"))
             pen.setWidthF(max(1.0, scale * (0.04 if strong else 0.03)))
             p.setPen(pen)
-            a = self._to_screen(i, -self.ext, scale, cx, cy)
-            b = self._to_screen(i, self.ext, scale, cx, cy)
+            a = self._to_screen(i, -n, scale, cx, cy)
+            b = self._to_screen(i, n, scale, cx, cy)
             p.drawLine(a, b)
-            a = self._to_screen(-self.ext, i, scale, cx, cy)
-            b = self._to_screen(self.ext, i, scale, cx, cy)
+            a = self._to_screen(-n, i, scale, cx, cy)
+            b = self._to_screen(n, i, scale, cx, cy)
             p.drawLine(a, b)
         p.end()
         self._bg, self._bg_key = pm, key
@@ -184,23 +207,35 @@ class SquareFlowWidget(QWidget):
         self._btn_edit.clicked.connect(self.edit_requested.emit)
         self._btn_edit.setVisible(False)
         lay.addWidget(self._btn_edit, 0, Qt.AlignLeft)
+        # Buehne: Square (mit Call-Zeile) und Tasten; Lage der Tasten per Rechtsklick
         self._floor = _Floor(self._color, self)
-        lay.addWidget(self._floor, 1)
+        self._floor.zoom = self._zoom
+        self._floor.on_wheel_zoom = self.zoom_by
         self._call_label = QLabel(self)
         self._call_label.setTextFormat(Qt.PlainText)
         self._call_label.setAlignment(Qt.AlignCenter)
-        lay.addWidget(self._call_label)
-        row = QHBoxLayout()
-        row.setSpacing(4)
+        floor_box = QVBoxLayout()
+        floor_box.setSpacing(4)
+        floor_box.addWidget(self._floor, 1)
+        floor_box.addWidget(self._call_label)
         self._btn_restart = self._button("|◀", _t("sf_btn_restart"), self.restart)
         self._btn_prev = self._button("◀", _t("sf_btn_prev"), self.prev_call)
         self._btn_play = self._button("▶", _t("sf_btn_play"), self.toggle_play)
         self._btn_next = self._button("▶|", _t("sf_btn_next"), self.next_call)
-        row.addStretch(1)
+        self._controls = QWidget(self)
+        self._controls_lay = QBoxLayout(QBoxLayout.LeftToRight, self._controls)
+        self._controls_lay.setContentsMargins(0, 0, 0, 0)
+        self._controls_lay.setSpacing(4)
+        self._controls_lay.addStretch(1)
         for b in (self._btn_restart, self._btn_prev, self._btn_play, self._btn_next):
-            row.addWidget(b)
-        row.addStretch(1)
-        lay.addLayout(row)
+            self._controls_lay.addWidget(b)
+        self._controls_lay.addStretch(1)
+        self._stage = QBoxLayout(QBoxLayout.TopToBottom)
+        self._stage.setSpacing(4)
+        self._stage.addLayout(floor_box, 1)
+        self._stage.addWidget(self._controls)
+        lay.addLayout(self._stage, 1)
+        self._apply_controls_pos()
         self._apply_label_colors()
 
     def _button(self, text, tip, slot):
@@ -222,6 +257,67 @@ class SquareFlowWidget(QWidget):
         self._enabled = bool(get(ini_keys.SQUARE_FLOW_ENABLED, bool))
         self._fps = max(5, min(30, int(get(ini_keys.SQUARE_FLOW_FRAME_RATE, int) or 25)))
         self._saving = bool(get(ini_keys.SQUARE_FLOW_SAVING_MODE, bool))
+        try:
+            zoom = int(get(ini_keys.SQUARE_FLOW_ZOOM_PCT, int)) / 100.0
+        except (TypeError, ValueError):
+            zoom = 1.0
+        self._zoom = max(ZOOM_MIN, min(ZOOM_MAX, zoom))
+        pos = str(get(ini_keys.SQUARE_FLOW_CONTROLS_POS, str) or "below")
+        self._controls_pos = pos if pos in CONTROL_POSITIONS else "below"
+
+    def _store(self, key, value):
+        if self._settings is not None and hasattr(self._settings, "setValue"):
+            self._settings.setValue(key, value)
+
+    # --- Zoom und Lage der Tasten ----------------------------------------------
+
+    def zoom_by(self, steps):
+        """Zoomen in Mausrad-Schritten, begrenzt auf ZOOM_MIN..ZOOM_MAX."""
+        zoom = max(ZOOM_MIN, min(ZOOM_MAX, self._zoom * (ZOOM_STEP ** steps)))
+        if abs(zoom - self._zoom) < 1e-9:
+            return
+        self._zoom = zoom
+        self._floor.zoom = zoom
+        self._floor.invalidate_background()
+        self._store(ini_keys.SQUARE_FLOW_ZOOM_PCT, int(round(zoom * 100)))
+
+    def reset_zoom(self):
+        self._zoom = self._floor.zoom = 1.0
+        self._floor.invalidate_background()
+        self._store(ini_keys.SQUARE_FLOW_ZOOM_PCT, 100)
+
+    def set_controls_pos(self, pos):
+        if pos not in CONTROL_POSITIONS:
+            return
+        self._controls_pos = pos
+        self._apply_controls_pos()
+        self._store(ini_keys.SQUARE_FLOW_CONTROLS_POS, pos)
+
+    def _apply_controls_pos(self):
+        """Tasten unter, ueber, links oder rechts vom Square."""
+        stage_dir = {"below": QBoxLayout.TopToBottom, "above": QBoxLayout.BottomToTop,
+                     "left": QBoxLayout.RightToLeft, "right": QBoxLayout.LeftToRight}
+        self._stage.setDirection(stage_dir[self._controls_pos])
+        side = self._controls_pos in ("left", "right")
+        self._controls_lay.setDirection(QBoxLayout.TopToBottom if side
+                                        else QBoxLayout.LeftToRight)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        group = QActionGroup(menu)
+        for pos in CONTROL_POSITIONS:
+            act = menu.addAction(_t(f"sf_ctx_controls_{pos}"))
+            act.setCheckable(True)
+            act.setChecked(pos == self._controls_pos)
+            group.addAction(act)
+            act.triggered.connect(lambda _c=False, p=pos: self.set_controls_pos(p))
+        menu.addSeparator()
+        act = menu.addAction(_t("sf_ctx_zoom_reset"))
+        act.setEnabled(abs(self._zoom - 1.0) > 1e-9)
+        act.triggered.connect(self.reset_zoom)
+        menu.exec(event.globalPos())
+        menu.deleteLater()
+        event.accept()
 
     def reload_settings(self):
         was = self._enabled

@@ -132,3 +132,38 @@ def test_analyse_mit_engine_kartenzeilen():
         assert r["card_spans"][-1][1] == r["animation"]["total_beats"]
     finally:
         eng.close()
+
+
+class _RwSettings(_Settings):
+    def setValue(self, key, value):
+        self.vals[key] = value
+
+
+def test_zoom_begrenzt_und_gemerkt(keep):
+    from caddy.choreo import square_flow_widget as sfw
+    st = _RwSettings(enabled=True)
+    w = keep(SquareFlowWidget(settings=st))
+    w.zoom_by(50)
+    assert w._floor.zoom == sfw.ZOOM_MAX
+    assert st.vals["square_flow/zoom_pct"] == int(round(sfw.ZOOM_MAX * 100))
+    w.zoom_by(-80)
+    assert w._floor.zoom == sfw.ZOOM_MIN
+    w.reset_zoom()
+    assert w._floor.zoom == 1.0
+    w2 = keep(SquareFlowWidget(settings=_Settings(enabled=True, zoom_pct=999)))
+    assert w2._floor.zoom == sfw.ZOOM_MAX       # Wert aus der INI wird begrenzt
+
+
+def test_tasten_lage_waehlbar_und_gemerkt(keep):
+    from PySide6.QtWidgets import QBoxLayout
+    st = _RwSettings(enabled=True)
+    w = keep(SquareFlowWidget(settings=st))
+    assert w._stage.direction() == QBoxLayout.TopToBottom
+    w.set_controls_pos("left")
+    assert w._stage.direction() == QBoxLayout.RightToLeft
+    assert w._controls_lay.direction() == QBoxLayout.TopToBottom
+    assert st.vals["square_flow/controls_pos"] == "left"
+    w.set_controls_pos("quer")                  # unbekannt: bleibt
+    assert w._controls_pos == "left"
+    w2 = keep(SquareFlowWidget(settings=_Settings(enabled=True, controls_pos="above")))
+    assert w2._stage.direction() == QBoxLayout.BottomToTop
