@@ -17,3 +17,4 @@ Die harten Regeln (Versions-Bump-Doppelpack, Merge-Commit, Build nur nach Rueckf
 - **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
 - Nach dem Release steht `main` einen Commit vor `develop` (der Merge-Commit) — normal, nichts zu tun.
 - Bauen, Ordner und ZIP-Typen: `CLAUDE.md`, Abschnitt „Ordner und Entwicklungs-Workflow".
+- **Choreo-Engine (`tam_cli.exe`, intern#247):** `build.py` legt sie nach `choreo/` ins Paket. Sie kommt nicht aus Git, sondern vom Release-Asset `tam-cli-<version>` im Repo; geladen wird per `gh release download` (GitHub CLI angemeldet), geprueft per SHA-256 und zwischengespeichert unter `3_Build/engine-cache/`. Tag und Pruefsumme stehen in `installer/tam_engine.py`. Fuer die Entwicklung legt `python installer/tam_engine.py` die Exe nach `src/caddy/choreo/bin/`. ZIPs wachsen dadurch um ca. 5 MB.
