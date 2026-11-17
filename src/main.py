@@ -1458,6 +1458,8 @@ class P29MainWindow(QMainWindow):
             self.sequence_view_widget.set_flow_line)
         self.square_flow_widget.edit_requested.connect(
             self.sequence_view_widget.request_edit)
+        # Phase 2: Takte fuer den Lesebalken nach Beats (Arbeitsspeicher oder DB-Cache)
+        self.lyrics_widget.get_flow_result = self.square_flow_widget.result_for
         perf_log("    Square Flow dock", _tsf)
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
@@ -8102,6 +8104,10 @@ class P29MainWindow(QMainWindow):
             dur = self.engine.get_original_duration()
             if dur > 0:
                 self.lyrics_widget.update_scroll(pos, dur, self.player._base_bpm)
+            # intern#247 Phase 2: Square Flow laeuft im Singing Call mit
+            _sf = getattr(self, "square_flow_widget", None)
+            if _sf is not None and _sf.enabled() and _sf.isVisible():
+                _sf.follow(self.lyrics_widget.figure_window(pos), pos)
 
             # Play Timer fuer Rules (alle 10 Sekunden)
             import time as _t2
@@ -8111,6 +8117,8 @@ class P29MainWindow(QMainWindow):
             if (now - self._last_play_timer_fire) >= 10:
                 self._last_play_timer_fire = now
                 self.rule_engine.fire_trigger("play_timer")
+        elif getattr(self, "square_flow_widget", None) is not None:
+            self.square_flow_widget.follow_off()   # intern#247: Song steht -> manuell
 
         # Start-Countdown-Overlay
         _cd_pos = self.engine.get_position_seconds() if is_playing else 0.0
@@ -8162,6 +8170,9 @@ class P29MainWindow(QMainWindow):
             "warn": strong,
             "warn_text": "\n".join(lines) if strong else "",
         })
+        # Phase 2: Takte da -> Lesebalken nach Beats neu aufbauen (No-Op ohne Dynamic)
+        if tuple(calls) == tuple(view.current_calls() or ()):
+            self.lyrics_widget.refresh_dynamic_from_sequence()
 
     def _taminations_online(self):
         """True, solange Qt keine fehlende Verbindung meldet (ohne Backend: True)."""

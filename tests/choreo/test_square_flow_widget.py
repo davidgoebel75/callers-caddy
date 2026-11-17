@@ -29,6 +29,51 @@ def _result():
     }
 
 
+def _following_widget(keep):
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
+    w._seq = (("Heads Square Thru 4", "Allemande Left"), "Static Set ➔ Resolve")
+    w._token = 1
+    w._on_ready(1, _result())
+    cards = []
+    w.current_card_changed.connect(cards.append)
+    return w, cards
+
+
+def test_mitlaufen_anteilig_im_figuren_fenster(keep):
+    """Phase 2: Fenster 10..18 s, 8 Beats -> 14 s = Beat 4 = zweite Kartenzeile."""
+    w, cards = _following_widget(keep)
+    w.follow((0, 0, 10.0, 18.0), 14.0)
+    assert w.following() and w._beat == pytest.approx(4.0)
+    assert cards[-1] == 1 and not w._timer.isActive()
+    w.follow((-1, 0, None, None), 20.0)                 # Middle Break: Ausgangsstellung
+    assert w._beat == 0.0 and cards[-1] == -1
+    w.follow(None, 21.0)                                # Dynamic Lyrics aus: manuell
+    assert not w.following()
+
+
+def test_eingriff_haelt_bis_zur_naechsten_figur(keep):
+    w, _cards = _following_widget(keep)
+    w.follow((0, 0, 10.0, 18.0), 12.0)
+    w.next_call()                                       # Nutzer greift ein
+    beat = w._beat
+    w.follow((0, 0, 10.0, 18.0), 17.0)
+    assert not w.following() and w._beat == beat        # gleiche Figur: Nutzer bleibt dran
+    w.follow((-1, 0, None, None), 19.0)
+    assert not w.following()                            # auch im Middle Break
+    w.follow((1, 1, 30.0, 38.0), 32.0)                  # naechste Figur: Song uebernimmt
+    assert w.following() and w._beat == pytest.approx(2.0)
+
+
+def test_abbruch_tanzt_im_song_tempo_bis_zur_abbruchzeile(keep):
+    w, _cards = _following_widget(keep)
+    w._result["stufe1"] = False
+    w._bpm_source = lambda: 120.0
+    w.follow((0, 0, 10.0, 40.0), 12.0)                  # 2 s bei 120 BPM = 4 Beats
+    assert w._beat == pytest.approx(4.0)
+    w.follow((0, 0, 10.0, 40.0), 30.0)
+    assert w._beat == pytest.approx(8.0)                # Animation endet: Square steht
+
+
 def test_ausgeschaltet_kein_worker(keep):
     w = keep(SquareFlowWidget(settings=_Settings(enabled=False)))
     w.show()

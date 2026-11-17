@@ -17,6 +17,7 @@ from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, Q
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QBoxLayout, QLabel, QPushButton, QMenu,
                                QSizePolicy)
 
+from caddy.choreo import figure_clock
 from caddy.choreo.timeline import Timeline
 from caddy.settings import ini_keys
 from i18n import _t
@@ -180,6 +181,10 @@ class SquareFlowWidget(QWidget):
         self._emitted_card = -1
         self._active = False                # Wiedergabe/Navigation durch den Nutzer
         self._shown_line = None
+        # Mitlaufen im Singing Call (Phase 2): der Song gibt den Beat vor
+        self._following = False
+        self._follow_region = None          # ("f", Teil) in einer Figur, ("o", letzter Teil) sonst
+        self._follow_hold = None            # Eingriff des Nutzers: Region, bis zu deren Ende
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -528,7 +533,7 @@ class SquareFlowWidget(QWidget):
             return
         self._beat = max(0.0, min(beat, self._tl.total_beats))
         shown = self._beat
-        if self._saving and self._timer.isActive():
+        if self._saving and (self._timer.isActive() or self._following):
             i = self._tl.line_at(self._beat)
             if i == self._shown_line:
                 return                                # Sparmodus: nur bei Call-Wechsel zeichnen
@@ -574,7 +579,61 @@ class SquareFlowWidget(QWidget):
             bpm = 0.0
         return bpm if bpm > 0 else FALLBACK_BPM
 
+    # --- Mitlaufen im Singing Call (Phase 2) ------------------------------------
+
+    def follow(self, window, pos):
+        """Im Wiedergabe-Takt: Square Flow tanzt die Figur, die der Song gerade spielt.
+
+        window = LyricsWidget.figure_window(pos): None (Dynamic Lyrics aus -> manuell),
+        (-1, k, None, None) ausserhalb einer Figur -> Ausgangsstellung,
+        (k, k, t0, t1) Figur k -> Beat anteilig im Fenster t0..t1 (bei Abbruch im Song-Tempo
+        bis zur Abbruchzeile, danach bleibt der Square stehen).
+        Ein Eingriff (Knoepfe, Klick im Sequenz-Detail) haelt das Mitlaufen bis zum naechsten
+        Figuren-SyncPoint an."""
+        if window is None:
+            self.follow_off()
+            return
+        part, last, t0, t1 = window
+        region = ("f", part) if part >= 0 else ("o", last)
+        self._follow_region = region
+        if self._follow_hold is not None:
+            if region == self._follow_hold or region[0] != "f":
+                return
+            self._follow_hold = None
+        if not self._following:
+            self.pause()
+            self._following = True
+            self._shown_line = None
+        if self._tl is None or self._tl.empty():
+            return                                   # Ergebnis kommt noch
+        if part < 0:
+            if self._active or self._beat > 0.0:     # nur einmal zeichnen
+                self._active = False
+                self._seek(0.0)
+            return
+        if self._result.get("stufe1"):
+            beat = figure_clock.beat_in_window(pos, t0, t1, self._tl.total_beats)
+        else:
+            beat = figure_clock.beat_by_tempo(pos, t0, self._bpm())
+        self._active = True
+        self._seek(beat)
+
+    def follow_off(self):
+        """Song steht oder Dynamic Lyrics ist aus: Square Flow wieder manuell."""
+        self._following = False
+        self._follow_hold = None
+        self._follow_region = None
+
+    def following(self):
+        return self._following
+
+    def _user_takes_over(self):
+        if self._following:
+            self._following = False
+            self._follow_hold = self._follow_region
+
     def toggle_play(self):
+        self._user_takes_over()
         if self._timer.isActive():
             self.pause()
         else:
@@ -610,6 +669,7 @@ class SquareFlowWidget(QWidget):
         self._seek(beat)
 
     def restart(self):
+        self._user_takes_over()
         self.pause()
         self._active = False
         self._seek(0.0)
@@ -619,12 +679,14 @@ class SquareFlowWidget(QWidget):
         return sorted({sp[0] for sp in spans if sp})
 
     def prev_call(self):
+        self._user_takes_over()
         self.pause()
         self._active = True
         starts = [s for s in self._card_starts() if s < self._beat - 1e-6]
         self._seek(starts[-1] if starts else 0.0)
 
     def next_call(self):
+        self._user_takes_over()
         self.pause()
         self._active = True
         spans = (self._result.get("card_spans") or []) if self._result else []
@@ -639,6 +701,7 @@ class SquareFlowWidget(QWidget):
 
     def play_card(self, card):
         """Eine Kartenzeile im Song-Tempo tanzen (Klick im Sequenz-Detail)."""
+        self._user_takes_over()
         if self._result is None or self._tl is None or self._tl.empty():
             self._pending_card = card            # wird gespielt, sobald die Animation da ist
             return

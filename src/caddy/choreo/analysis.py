@@ -192,5 +192,7 @@ def analyse_sequence(run, calls, seq_type, app=None, frames=FRAME_STEP):
         "tam_calls": anim.get("tam_calls") or [],
         "card_beats": card_beats,
         "card_spans": spans,
+        # Beats der ganzen Animation (mit Aufloese-Call); Figuren-Uhr im Singing Call
+        "anim_total": an.get("total_beats") or None,
         "beats_total": round(sum(known), 1) if known else None,
     }
