@@ -8,6 +8,7 @@ Laden nur bei Freigabe: Ist Square Flow ausgeschaltet, startet weder Worker noch
 Gerechnet wird im Hintergrund (flow_worker), gezeichnet wird nur die Square-Flaeche; Raster
 und Beschriftung liegen als Bild im Zwischenspeicher. Tempo = Tempo des Songs (bpm_source).
 """
+import html
 import math
 
 from PySide6.QtCore import Qt, QTimer, QElapsedTimer, QPointF, QRectF, Signal
@@ -133,6 +134,8 @@ class SquareFlowWidget(QWidget):
     """Dock-Inhalt Square Flow. Zirkelfrei: kennt main.py nicht, bekommt alles per Aufruf."""
 
     current_card_changed = Signal(int)      # Kartenzeile, die gerade getanzt wird (-1 = keine)
+    result_ready = Signal(object, object)   # (Calls der Sequenz, Ergebnis oder None)
+    edit_requested = Signal()               # "Sequenz bearbeiten" geklickt
 
     def __init__(self, skin_mgr=None, settings=None, db_path=None, bpm_source=None, parent=None):
         super().__init__(parent)
@@ -149,6 +152,8 @@ class SquareFlowWidget(QWidget):
         self._beat = 0.0
         self._stop_at = None                # Ende einer einzeln gespielten Kartenzeile
         self._card = -1
+        self._emitted_card = -1
+        self._active = False                # Wiedergabe/Navigation durch den Nutzer
         self._shown_line = None
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
@@ -167,6 +172,16 @@ class SquareFlowWidget(QWidget):
         self._status.setWordWrap(True)
         self._status.setTextFormat(Qt.PlainText)
         lay.addWidget(self._status)
+        # Hinweise bei Warnung (intern#254): woran es liegen kann, Weg in den Editor
+        self._hints = QLabel(self)
+        self._hints.setWordWrap(True)
+        self._hints.setTextFormat(Qt.RichText)
+        self._hints.setVisible(False)
+        lay.addWidget(self._hints)
+        self._btn_edit = QPushButton(_t("sf_btn_edit"), self)
+        self._btn_edit.clicked.connect(self.edit_requested.emit)
+        self._btn_edit.setVisible(False)
+        lay.addWidget(self._btn_edit, 0, Qt.AlignLeft)
         self._floor = _Floor(self._color, self)
         lay.addWidget(self._floor, 1)
         self._call_label = QLabel(self)
@@ -230,6 +245,7 @@ class SquareFlowWidget(QWidget):
         dim = self._skin_mgr.color("text_dim", "#999999") if self._skin_mgr else "#999999"
         self._status.setStyleSheet(f"color: {text};")
         self._call_label.setStyleSheet(f"color: {dim};")
+        self._hints.setStyleSheet(f"color: {dim};")
 
     def set_skin(self, skin_mgr):
         self._skin_mgr = skin_mgr
@@ -241,8 +257,8 @@ class SquareFlowWidget(QWidget):
     # --- Sequenz -------------------------------------------------------------
 
     def set_sequence(self, calls, seq_type):
-        """Sequenz aus dem Sequenz-Detail. Gerechnet wird erst, wenn Square Flow freigegeben
-        und sichtbar ist."""
+        """Sequenz aus dem Sequenz-Detail. Gerechnet wird nur, wenn Square Flow freigegeben
+        ist (auch bei geschlossenem Dock: die Takte im Sequenz-Detail brauchen das Ergebnis)."""
         calls = [c for c in (calls or []) if c and str(c).strip()]
         seq = (tuple(calls), seq_type or "") if calls else None
         if seq == self._seq:
@@ -252,7 +268,10 @@ class SquareFlowWidget(QWidget):
         self._result, self._tl = None, None
         self._floor.pose, self._floor.bands = [], None
         self._floor.update()
+        self._active = False
         self._set_card(-1)
+        self._set_hints([], False)
+        self.result_ready.emit(seq[0] if seq else (), None)
         self._dirty = seq is not None
         if seq is None:
             self._show_message(_t("sf_no_sequence"))
@@ -270,7 +289,7 @@ class SquareFlowWidget(QWidget):
         if not self._enabled:
             self._show_message(_t("sf_disabled"))
             return
-        if not self._dirty or self._seq is None or not self.isVisible():
+        if not self._dirty or self._seq is None:
             return
         if self._worker is None:
             from caddy.choreo.flow_worker import SquareFlowWorker
@@ -309,6 +328,7 @@ class SquareFlowWidget(QWidget):
         self._floor.invalidate_background()
         self._show_result_status()
         self._seek(0.0)
+        self.result_ready.emit(self._seq[0], result)
 
     # --- Anzeige ----------------------------------------------------------------
 
@@ -332,6 +352,40 @@ class SquareFlowWidget(QWidget):
         self._status.setText(text)
         for b in (self._btn_restart, self._btn_prev, self._btn_play, self._btn_next):
             b.setEnabled(not self._tl.empty())
+        lines, strong = self.hint_lines(r, self._seq[0] if self._seq else ())
+        self._set_hints(lines, strong)
+
+    @staticmethod
+    def hint_lines(r, calls):
+        """Hinweise zum Ergebnis: (Textzeilen, Warnung ja/nein). Warnung = Abbruch, rot,
+        strittig; ergaenzte Bedeutungen allein sind ein Hinweis ohne Warnung."""
+        lines, strong = [], False
+        if not r["stufe1"]:
+            strong = True
+            fc = r.get("fail_card")
+            text = calls[fc] if fc is not None and fc < len(calls) else ""
+            lines.append(_t("sf_hint_abbruch").format(line=(fc + 1) if fc is not None else "?",
+                                                      text=text))
+        elif r.get("urteil") == "rot":
+            strong = True
+            lines.append(_t("sf_hint_rot").format(type=r.get("type") or ""))
+        elif r.get("urteil") == "strittig":
+            strong = True
+            lines.append(_t("sf_hint_strittig"))
+        meaning = [x for x in (r.get("read_as") or []) if x.get("meaning")]
+        for x in meaning[:6]:
+            lines.append(_t("sf_hint_read_as").format(line=x["card"] + 1, text=x["text"])
+                         + f" ({_t('sf_kind_' + x['kind'])})")
+        if meaning:
+            lines.append(_t("sf_hint_root"))
+        return lines, strong
+
+    def _set_hints(self, lines, strong):
+        self._hints.setText("<br>".join(html.escape(x) for x in lines))
+        self._hints.setVisible(bool(lines))
+        self._btn_edit.setVisible(bool(lines))
+        if strong:
+            self._status.setText("⚠ " + self._status.text())
 
     def _check_beat(self):
         """Ab hier zeigt der Square die Pruefbaender (Singer: Koerper-Ende, sonst Ende)."""
@@ -381,6 +435,10 @@ class SquareFlowWidget(QWidget):
         self._set_card(self._card_at(self._beat))
 
     def _set_card(self, card):
+        shown = card if self._active else -1
+        if shown != self._emitted_card:
+            self._emitted_card = shown
+            self.current_card_changed.emit(shown)
         if card == self._card:
             return
         self._card = card
@@ -396,7 +454,6 @@ class SquareFlowWidget(QWidget):
             if beats is not None:
                 label += f"   ·   {beats:g}"
             self._call_label.setText(label)
-        self.current_card_changed.emit(card)
 
     # --- Wiedergabe -------------------------------------------------------------
 
@@ -422,6 +479,7 @@ class SquareFlowWidget(QWidget):
         if self._beat >= self._tl.total_beats - 1e-6 and stop_at is None:
             self._beat = 0.0
         self._stop_at = stop_at
+        self._active = True
         self._shown_line = None
         self._clock.start()
         self._timer.start(self._interval())
@@ -446,6 +504,7 @@ class SquareFlowWidget(QWidget):
 
     def restart(self):
         self.pause()
+        self._active = False
         self._seek(0.0)
 
     def _card_starts(self):
@@ -454,14 +513,22 @@ class SquareFlowWidget(QWidget):
 
     def prev_call(self):
         self.pause()
+        self._active = True
         starts = [s for s in self._card_starts() if s < self._beat - 1e-6]
         self._seek(starts[-1] if starts else 0.0)
 
     def next_call(self):
         self.pause()
+        self._active = True
         spans = (self._result.get("card_spans") or []) if self._result else []
         ends = sorted({sp[1] for sp in spans if sp and sp[1] > self._beat + 1e-6})
         self._seek(ends[0] if ends else self._tl.total_beats)
+
+    def result_for(self, calls):
+        """Letztes Ergebnis, wenn es zu diesen Calls gehoert, sonst None."""
+        if self._result is not None and self._seq and tuple(calls) == self._seq[0]:
+            return self._result
+        return None
 
     def play_card(self, card):
         """Eine Kartenzeile im Song-Tempo tanzen (Klick im Sequenz-Detail)."""

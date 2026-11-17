@@ -3,6 +3,9 @@
 Ergebnis fuer Square Flow und Sequenz-Detail, je Kartenzeile aufbereitet. `run` ist
 engine.TamEngine.run (blockiert, nur im Hintergrund-Thread aufrufen).
 """
+import re
+from urllib.parse import quote
+
 from caddy.choreo import mapping, pruefband, timeline
 
 QT_FREE = True
@@ -22,6 +25,66 @@ def _card_spans(n_cards, src, end_src, call_starts, total, n_body):
         old = spans[card]
         spans[card] = (start, end) if old is None else (min(old[0], start), max(old[1], end))
     return spans
+
+
+# Lesart-Arten (mapping.alternatives "kinds"), bei denen Callers Caddy die Bedeutung
+# ergaenzt oder geraten hat (intern#254, Stufe 3). Die uebrigen passen nur die Schreibweise an.
+MEANING_KINDS = ("kontext", "kreis", "app", "mehrfach")
+
+
+def _plain(text):
+    t = (text or "").lower().replace("&", " and ")
+    t = re.sub(r"\([^)]*\)", " ", t)
+    return re.sub(r"[^a-z0-9/]+", " ", t).strip()
+
+
+def read_as(calls, lines, src, alt_used):
+    """Je getanzter Zeile, die anders gelesen wurde als sie auf der Karte steht:
+    {"card": Kartenzeile, "text": gesendeter Text, "kind": Lesart-Art, "meaning": bool}."""
+    out = []
+    for i, line in enumerate(lines):
+        if i >= len(alt_used) or i >= len(src) or src[i] is None or src[i] >= len(calls):
+            continue
+        if isinstance(line, dict):
+            u = alt_used[i] or 0
+            text = " | ".join(line["alts"][u])
+            kind = line["kinds"][u]
+        else:
+            text, kind = line, "roh"
+        card_text = calls[src[i]]
+        if kind == "roh" and _plain(text) == _plain(card_text):
+            continue
+        out.append({"card": src[i], "text": text, "kind": kind,
+                    "meaning": kind in MEANING_KINDS})
+    return out
+
+
+def resolved_calls(lines, alt_used=()):
+    """Einzel-Calls, wie Taminations sie getanzt hat: bei Alternativen die benutzte,
+    ohne Ergebnis (nach einem Abbruch) die erste."""
+    out = []
+    for i, line in enumerate(lines):
+        if isinstance(line, dict):
+            u = alt_used[i] if i < len(alt_used) and alt_used[i] is not None else 0
+            out += line["alts"][u]
+        else:
+            out.append(line)
+    return out
+
+
+TAMINATIONS_URL = "https://www.tamtwirlers.org/taminations/#/?main=SEQUENCER&formation=Squared%20Set&calls="
+
+
+def taminations_url(calls):
+    """Deep-Link in den Taminations-Sequencer (Startformation Squared Set)."""
+    return TAMINATIONS_URL + ";".join(quote(c, safe="") for c in calls)
+
+
+def prepared_calls(calls, seq_type, app=None):
+    """Einzel-Calls ohne Engine (erste Lesart je Zeile, mit Aufloese-Call)."""
+    prep = mapping.prepare(list(calls), seq_type, app)
+    lines, _zweit, _art = mapping.finish(prep)
+    return resolved_calls(lines) + ([prep["end"]] if prep["end"] else [])
 
 
 def analyse_sequence(run, calls, seq_type, app=None, frames=FRAME_STEP):
@@ -53,7 +116,11 @@ def analyse_sequence(run, calls, seq_type, app=None, frames=FRAME_STEP):
     if not res["stufe1"] and res["fail_pos"] is not None and res["fail_pos"] < len(prep["src"]):
         fail_card = prep["src"][res["fail_pos"]]
     known = [b for b in card_beats if b is not None]
+    alt_used = res["engine"].get("alt_used") or []
+    sent = resolved_calls(used, alt_used) + ([end] if with_end else [])
     return {
+        "read_as": read_as(calls, used, prep["src"], alt_used),
+        "sent": sent,
         "type": prep["type"],
         "lines": used,
         "src": prep["src"],

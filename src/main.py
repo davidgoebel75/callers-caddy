@@ -1450,7 +1450,14 @@ class P29MainWindow(QMainWindow):
         self.dock_square_flow.setObjectName("dock_square_flow")
         self.dock_square_flow.hide()
         self._square_flow_menu_action = None
+        self._net_info = None
         self.sequence_view_widget.on_call_clicked = self._on_sequence_call_clicked
+        self.sequence_view_widget.on_open_taminations = self._open_in_taminations
+        self.square_flow_widget.result_ready.connect(self._on_square_flow_result)
+        self.square_flow_widget.current_card_changed.connect(
+            self.sequence_view_widget.set_flow_line)
+        self.square_flow_widget.edit_requested.connect(
+            self.sequence_view_widget.request_edit)
         perf_log("    Square Flow dock", _tsf)
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
@@ -8132,9 +8139,70 @@ class P29MainWindow(QMainWindow):
             self.dock_square_flow.raise_()
         sf.play_card(index)
 
+    def _on_square_flow_result(self, calls, result):
+        """Ergebnis von Square Flow -> Takte, Abbruchzeile und Warnsymbol im
+        Sequenz-Detail (None = Sequenz gewechselt, Anzeige leeren)."""
+        view = self.sequence_view_widget
+        if result is None or result.get("error"):
+            view.set_flow_info(calls, None)
+            return
+        from caddy.choreo.square_flow_widget import SquareFlowWidget
+        lines, strong = SquareFlowWidget.hint_lines(result, calls)
+        view.set_flow_info(calls, {
+            "beats": result.get("card_beats") or [],
+            "total": result.get("beats_total"),
+            "singer": (result.get("type") or "").lower().startswith("singer"),
+            "fail_card": result.get("fail_card"),
+            "warn": strong,
+            "warn_text": "\n".join(lines) if strong else "",
+        })
+
+    def _taminations_online(self):
+        """True, solange Qt keine fehlende Verbindung meldet (ohne Backend: True)."""
+        try:
+            from PySide6.QtNetwork import QNetworkInformation
+            if self._net_info is None:
+                if QNetworkInformation.loadDefaultBackend():
+                    self._net_info = QNetworkInformation.instance()
+                    self._net_info.reachabilityChanged.connect(
+                        lambda _r: self._apply_taminations_button())
+                else:
+                    self._net_info = False
+            if not self._net_info:
+                return True
+            return (self._net_info.reachability()
+                    != QNetworkInformation.Reachability.Disconnected)
+        except Exception:
+            return True
+
+    def _apply_taminations_button(self):
+        on = self.square_flow_widget.enabled()
+        # Netzwerk-Backend erst laden, wenn Square Flow freigegeben ist
+        self.sequence_view_widget.set_taminations_enabled(
+            on, self._taminations_online() if on else True)
+
+    def _open_in_taminations(self):
+        """Gezeigte Sequenz im Taminations-Sequencer im Browser oeffnen (intern#247)."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        from caddy.choreo import analysis
+        view = self.sequence_view_widget
+        calls = view.current_calls()
+        if not calls:
+            return
+        res = self.square_flow_widget.result_for(calls)
+        sent = (res.get("sent") if res else None) or analysis.prepared_calls(
+            calls, view.current_sequence_type())
+        QDesktopServices.openUrl(QUrl.fromEncoded(
+            analysis.taminations_url(sent).encode("ascii")))
+
     def _apply_square_flow_enabled(self):
         """Menueeintrag und Sichtbarkeit von Square Flow an die Freigabe angleichen."""
         on = self.square_flow_widget.enabled()
+        self._apply_taminations_button()
+        if not on:
+            self.sequence_view_widget.set_flow_info((), None)
+            self.sequence_view_widget.set_flow_line(-1)
         if on and self._square_flow_menu_action is None:
             self._square_flow_menu_action = self._add_view_menu_entry(
                 self.dock_square_flow, _t("dock_square_flow"))

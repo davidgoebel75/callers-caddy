@@ -108,6 +108,12 @@ class SequenceViewWidget(QWidget):
         # Nur im Dock gesetzt; None = Klick tut nichts (wie bisher).
         self.on_call_clicked = None
         self._seq_type = ""
+        # intern#247: Ergebnis von Square Flow fuer die gezeigte Sequenz (Takte,
+        # Warnung) und die gerade getanzte Zeile; None/-1 = nichts anzeigen.
+        self._flow = None
+        self._flow_line = -1
+        self._html_font = 14
+        self.on_open_taminations = None   # callback() -> Browser mit Taminations
         # BL-173: Callback, wenn sich die Sequenzliste aendert (fuer das Gating
         # des Dynamic-Lyrics-Buttons im Lyrics-Widget).
         self.on_sequences_changed = None
@@ -204,7 +210,16 @@ class SequenceViewWidget(QWidget):
         nav_layout.addStretch()
         nav_layout.addWidget(self._lbl_pos)
         nav_layout.addStretch()
+        # intern#247: Sequenz in Taminations im Browser ansehen (nur mit Square Flow)
+        self._btn_tam = QPushButton(_t("seq_tam_open_btn"))
+        self._btn_tam.setFixedHeight(_NAV_H)
+        self._btn_tam.setToolTip(_t("seq_tam_open_tooltip"))
+        self._btn_tam.clicked.connect(
+            lambda: self.on_open_taminations() if self.on_open_taminations else None)
+        self._btn_tam.setVisible(False)
+
         nav_layout.addWidget(self._btn_edit)
+        nav_layout.addWidget(self._btn_tam)
         nav_layout.addWidget(self._btn_to_notes)
         nav_layout.addWidget(self._btn_delete)
         nav_layout.addWidget(self._btn_random)
@@ -277,21 +292,39 @@ class SequenceViewWidget(QWidget):
         # Optionaler Treffer-Highlight: nur gesetzt, wenn das Widget als
         # "Beispiel-Betrachter" (Call-Mapping -> Beispiel zeigen) genutzt wird.
         # Der normale Dock setzt das Attribut nie -> keine Verhaltensaenderung.
+        self._html_font = font_size
         hl = getattr(self, "_highlight_text", None)
+        # intern#247: Takte je Call (aus Square Flow) im grauen Etikett hinter
+        # dem Call, getanzte Zeile hinterlegt, Abbruchzeile rot.
+        flow = self._flow or {}
+        beats = flow.get("beats") or []
+        fail = flow.get("fail_card")
+        line_bg = (self._skin_mgr.color("selection_bg", "#0067c0")
+                   if self._skin_mgr else "#0067c0")
+        line_fg = (self._skin_mgr.color("selection_text", "#ffffff")
+                   if self._skin_mgr else "#ffffff")
         parts = []
         for i, (_pos, call_text, entity_id, _to, _canonical, program_label) in enumerate(self._calls):
-            if entity_id and program_label:
+            b = beats[i] if i < len(beats) else None
+            tag = " · ".join(x for x in ((program_label if entity_id else ""),
+                                         (f"{b:g}" if b is not None else "")) if x)
+            if tag:
                 badge = (f'&nbsp;<span style="font-size:{badge_size}px;color:#aaa;'
                          f'border:1px solid #666;padding:1px 3px;'
-                         f'border-radius:2px;">{program_label}</span>')
-            elif entity_id is None:
-                badge = '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
+                         f'border-radius:2px;">{tag}</span>')
             else:
                 badge = ""
+            if entity_id is None:
+                badge += '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
             sep = "<br>" if i < len(self._calls) - 1 else ""
             if hl and call_text == hl:
                 label = (f'<span style="background-color:#ffd54a;color:#212529;">'
                          f'{call_text}</span>')
+            elif i == self._flow_line:
+                label = (f'<span style="background-color:{line_bg};color:{line_fg};">'
+                         f'{call_text}</span>')
+            elif fail is not None and i == fail:
+                label = f'<span style="color:#ff6666;">{call_text}</span>'
             else:
                 label = call_text
             parts.append(f'<b>{label}</b>{badge}{sep}')
@@ -352,9 +385,61 @@ class SequenceViewWidget(QWidget):
             parts.append(f"{_t('header_type')}: {seq_type}")
         if difficulty:
             parts.append(f"{_t('header_difficulty')}: {difficulty}")
-        self._header_text = "   ·   ".join(parts)
-        self._lbl_header.setText(self._header_text)
+        self._header_base = "   ·   ".join(parts)
+        self._render_header()
+
+    def _render_header(self):
+        """Kopfzeile aus Typ/Schwierigkeit plus (intern#247) Summe der Takte und
+        Warnsymbol aus Square Flow."""
+        parts = [p for p in (getattr(self, "_header_base", ""),) if p]
+        flow = self._flow or {}
+        tip = ""
+        if flow.get("total") is not None:
+            total = flow["total"]
+            over = flow.get("singer") and total > 64
+            key = "seq_header_beats_over" if over else "seq_header_beats"
+            parts.append(_t(key).format(beats=f"{total:g}"))
+        text = "   ·   ".join(parts)
+        if flow.get("warn"):
+            text = "⚠ " + text
+            tip = flow.get("warn_text") or ""
+        self._header_text = text
+        self._lbl_header.setText(text)
+        self._lbl_header.setToolTip(tip)
         self._recalc_header_font()
+
+    # ---- Square Flow (intern#247) ----
+
+    def set_flow_info(self, calls, info):
+        """Ergebnis von Square Flow fuer die Sequenz mit diesen Calls. Gehoert es
+        nicht (mehr) zur gezeigten Sequenz, wird es verworfen. info = None loescht.
+        info: {"beats": [...], "total", "singer", "fail_card", "warn", "warn_text"}"""
+        if info is not None and tuple(calls) != tuple(self.current_calls()):
+            return
+        if info == self._flow:
+            return
+        self._flow = info
+        self._render_header()
+        self._recalc_font_size()
+
+    def set_flow_line(self, index):
+        """Zeile, die Square Flow gerade tanzt, hinterlegen (-1 = keine)."""
+        if index == self._flow_line:
+            return
+        self._flow_line = index
+        if self._calls:
+            self._text_edit.setHtml(self._make_html(self._html_font))
+
+    def set_taminations_enabled(self, visible, online=True):
+        """Knopf "In Taminations oeffnen": sichtbar mit Square Flow, aktiv nur online."""
+        self._btn_tam.setVisible(visible)
+        self._btn_tam.setEnabled(visible and online)
+        self._btn_tam.setToolTip(_t("seq_tam_open_tooltip") if online
+                                 else _t("seq_tam_offline_tooltip"))
+
+    def request_edit(self):
+        """Sequenz-Editor fuer die gezeigte Sequenz oeffnen (wie der Knopf)."""
+        self._on_edit()
 
     def _recalc_header_font(self):
         """BL-189: Passt die Schriftgroesse der Header-Zeile so an, dass der Text
@@ -385,6 +470,7 @@ class SequenceViewWidget(QWidget):
 
     def _update_content(self):
         if not self._seq_ids:
+            self._flow, self._flow_line = None, -1
             self._text_edit.clear()
             self._lbl_header.setText("")
             self._lbl_pos.setText("")
@@ -392,6 +478,8 @@ class SequenceViewWidget(QWidget):
             self._btn_next.setEnabled(False)
             return
         seq_id = self._seq_ids[self._current_idx]
+        # intern#247: Square-Flow-Ergebnis gehoert zur vorigen Sequenz
+        self._flow, self._flow_line = None, -1
         self._update_header(seq_id)
         self._lbl_pos.setText(f"{self._current_idx + 1} / {len(self._seq_ids)}")
         self._btn_prev.setEnabled(self._current_idx > 0)

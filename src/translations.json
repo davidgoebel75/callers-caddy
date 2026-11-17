@@ -11167,5 +11167,80 @@
     "de": "Startaufstellung",
     "en": "Starting formation",
     "ja": "開始フォーメーション"
+  },
+  "sf_btn_edit": {
+    "de": "Sequenz bearbeiten",
+    "en": "Edit sequence",
+    "ja": "シーケンスを編集"
+  },
+  "sf_hint_abbruch": {
+    "de": "Zeile {line} „{text}“: Taminations kennt diesen Call so nicht oder nicht aus dieser Formation. Schreibweise prüfen oder den Call ausschreiben.",
+    "en": "Line {line} “{text}”: Taminations does not know this call as written or not from this formation. Check the spelling or write the call out in full.",
+    "ja": "{line} 行目「{text}」: Taminations はこの書き方、またはこのフォーメーションからのこのコールを認識できません。綴りを確認するか、コールを省略せずに書いてください。"
+  },
+  "sf_hint_rot": {
+    "de": "Am Ende stehen die Paare nicht so, wie es der Sequenz-Typ „{type}“ erwartet. Stimmen Typ und Calls?",
+    "en": "At the end the couples are not where sequence type “{type}” expects them. Are type and calls correct?",
+    "ja": "最後にカップルがシーケンスタイプ「{type}」の想定どおりに並んでいません。タイプとコールは正しいですか？"
+  },
+  "sf_hint_strittig": {
+    "de": "Die Paare stehen richtig, aber die Auflösungsprüfung von Taminations widerspricht. Bitte von Hand prüfen.",
+    "en": "The couples are in place, but Taminations' resolution check disagrees. Please check by hand.",
+    "ja": "カップルの位置は正しいですが、Taminations のリゾルブ判定が一致しません。手動で確認してください。"
+  },
+  "sf_hint_read_as": {
+    "de": "Zeile {line} gelesen als „{text}“",
+    "en": "Line {line} read as “{text}”",
+    "ja": "{line} 行目を「{text}」と解釈"
+  },
+  "sf_kind_kreis": {
+    "de": "Designator aus der Zeile davor fortgeschrieben",
+    "en": "designator carried over from the line before",
+    "ja": "前の行の指定を引き継ぎ"
+  },
+  "sf_kind_kontext": {
+    "de": "Designator dazugedacht",
+    "en": "designator assumed",
+    "ja": "指定を補完"
+  },
+  "sf_kind_app": {
+    "de": "Callname aus dem Call-Mapping",
+    "en": "call name from the call mapping",
+    "ja": "コールマッピングのコール名"
+  },
+  "sf_kind_mehrfach": {
+    "de": "in Einzel-Calls zerlegt",
+    "en": "split into single calls",
+    "ja": "個別のコールに分割"
+  },
+  "sf_hint_root": {
+    "de": "Tipp: Schreib die Zeile so, wie Taminations sie gelesen hat. Dann ist sie eindeutig, und der Hinweis verschwindet.",
+    "en": "Tip: write the line the way Taminations read it. Then it is unambiguous and the hint disappears.",
+    "ja": "ヒント: Taminations が解釈したとおりに行を書き直すと、あいまいさがなくなり、この表示は消えます。"
+  },
+  "seq_header_beats": {
+    "de": "{beats} Beats",
+    "en": "{beats} beats",
+    "ja": "{beats} ビート"
+  },
+  "seq_header_beats_over": {
+    "de": "{beats} Beats (über 64)",
+    "en": "{beats} beats (over 64)",
+    "ja": "{beats} ビート（64 超過）"
+  },
+  "seq_tam_open_btn": {
+    "de": "Taminations",
+    "en": "Taminations",
+    "ja": "Taminations"
+  },
+  "seq_tam_open_tooltip": {
+    "de": "Sequenz im Browser in Taminations ansehen",
+    "en": "View the sequence in Taminations in the browser",
+    "ja": "ブラウザーの Taminations でシーケンスを表示"
+  },
+  "seq_tam_offline_tooltip": {
+    "de": "Nur mit Internetverbindung",
+    "en": "Requires an internet connection",
+    "ja": "インターネット接続が必要です"
   }
 }

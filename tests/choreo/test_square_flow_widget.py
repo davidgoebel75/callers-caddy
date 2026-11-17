@@ -37,27 +37,61 @@ def test_ausgeschaltet_kein_worker(keep):
     assert not w.enabled()
 
 
-def test_unsichtbar_rechnet_noch_nicht(keep):
+class _FakeWorker:
+    def __init__(self, *a, **k):
+        self.jobs = []
+        from PySide6.QtCore import QObject, Signal
+
+        class _S(QObject):
+            ready = Signal(int, object)
+        self._s = _S()
+        self.ready = self._s.ready
+
+    def request(self, token, calls, seq_type):
+        self.jobs.append((token, calls, seq_type))
+
+
+def test_freigegeben_rechnet_auch_bei_geschlossenem_dock(keep, monkeypatch):
+    """Die Takte im Sequenz-Detail brauchen das Ergebnis auch ohne sichtbares Dock."""
+    from caddy.choreo import flow_worker
+    monkeypatch.setattr(flow_worker, "SquareFlowWorker", _FakeWorker)
     w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
     w.set_sequence(["Heads Square Thru 4"], "Static Set ➔ Resolve")
     assert not w.isVisible()
-    assert w._worker is None and w._dirty
+    assert w._worker.jobs == [(1, ("Heads Square Thru 4",), "Static Set ➔ Resolve")]
 
 
 def test_ergebnis_zeigt_status_und_karte(keep):
     w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
     w._seq = (("Heads Square Thru 4", "Allemande Left"), "Static Set ➔ Resolve")
-    cards = []
+    cards, results = [], []
     w.current_card_changed.connect(cards.append)
+    w.result_ready.connect(lambda c, r: results.append((c, r)))
     w._token = 3
     w._on_ready(2, _result())                   # veraltet: ignoriert
-    assert w._result is None
+    assert w._result is None and results == []
     w._on_ready(3, _result())
     assert "8 Beats" in w._status.text()
-    assert cards[-1] == 0
-    w._seek(8.0)
+    assert results[-1][0] == ("Heads Square Thru 4", "Allemande Left")
+    assert cards == []                          # ohne Wiedergabe keine Markierung
+    w.next_call()
+    assert cards[-1] == 1 and w._floor.bands is None
+    w.next_call()                               # Ende = Pruefpunkt: Baender gruen
     assert w._floor.bands is not None and w._floor.bands[1] is True
-    assert cards[-1] == 1
+    w.restart()
+    assert cards[-1] == -1
+
+
+def test_hinweise_bei_abbruch_und_ergaenzung():
+    r = {"stufe1": False, "fail_card": 1, "urteil": None, "type": "",
+         "read_as": [{"card": 0, "text": "Heads Bend The Line", "kind": "kontext",
+                      "meaning": True},
+                     {"card": 2, "text": "Allemande Left", "kind": "roh", "meaning": False}]}
+    lines, strong = SquareFlowWidget.hint_lines(r, ("Bend The Line", "Boys Rnu", "L.A."))
+    assert strong
+    assert "Boys Rnu" in lines[0]
+    assert any("Heads Bend The Line" in x for x in lines)
+    assert not any("Allemande Left" in x for x in lines)
 
 
 def test_karte_spielen_haelt_am_ende(keep):
