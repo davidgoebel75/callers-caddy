@@ -15,7 +15,7 @@ NOT NULL ohne Standardwert, Funktion als Standardwert), wird der Test rot,
 lange bevor ein Caller das Update bekommt.
 
 Neues Release -> neues Abbild, vom Repo-Stamm aus:
-    python tests/db/test_schema.py 0.XX
+    python tests/db/test_schema.py 2.0.X
 """
 import contextlib
 import io

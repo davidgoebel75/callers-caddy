@@ -1,0 +1,322 @@
+{
+  "run": {
+    "timestamp": "2026-11-17T11:38:47",
+    "cc_version": "0.162",
+    "label": "baseline",
+    "repeat": 5
+  },
+  "env": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10"
+  },
+  "steps": [
+    {
+      "name": "startup_qapplication",
+      "ms": 29.1,
+      "ok": true
+    },
+    {
+      "name": "startup_import",
+      "ms": 658.5,
+      "ok": true
+    },
+    {
+      "name": "startup_window_init",
+      "ms": 615.0,
+      "ok": true
+    },
+    {
+      "name": "startup_show",
+      "ms": 169.3,
+      "ok": true
+    },
+    {
+      "name": "startup_total",
+      "ms": 1472.0,
+      "ok": true
+    },
+    {
+      "name": "startup_repair106_check",
+      "ms": 3.4,
+      "ok": true,
+      "meta": {
+        "songs": 534,
+        "datei_pruefungen": 0,
+        "datei_pruefungen_ms": 0.0,
+        "paare": 0
+      }
+    },
+    {
+      "name": "startup_repair106_total",
+      "ms": 3.5,
+      "ok": true,
+      "meta": {
+        "songs": 534,
+        "datei_pruefungen": 0,
+        "datei_pruefungen_ms": 0.0,
+        "paare": 0
+      }
+    },
+    {
+      "name": "search_patter",
+      "ms": 16.3,
+      "ok": true,
+      "meta": {
+        "query": "tu",
+        "treffer": 12,
+        "ziel": "Tu Es Foutu",
+        "gefunden": true,
+        "zeile_in_treffern": 11,
+        "n": 5,
+        "samples_ms": [
+          22.9,
+          14.8,
+          14.8,
+          16.6,
+          16.3
+        ]
+      }
+    },
+    {
+      "name": "search_singing",
+      "ms": 9.7,
+      "ok": true,
+      "meta": {
+        "query": "sound",
+        "treffer": 3,
+        "ziel": "Sounds Of Silence",
+        "gefunden": true,
+        "zeile_in_treffern": 2,
+        "n": 5,
+        "samples_ms": [
+          11.9,
+          7.2,
+          14.3,
+          7.3,
+          9.7
+        ]
+      }
+    },
+    {
+      "name": "song_select",
+      "ms": 220.6,
+      "ok": true,
+      "meta": {
+        "song": "Tu Es Foutu",
+        "geladen": true,
+        "n": 5,
+        "samples_ms": [
+          220.8,
+          216.2,
+          223.1,
+          220.6,
+          214.7
+        ]
+      }
+    },
+    {
+      "name": "song_play",
+      "ms": 25.5,
+      "ok": true,
+      "meta": {
+        "is_playing": true,
+        "n": 5,
+        "samples_ms": [
+          53.8,
+          17.5,
+          17.5,
+          25.5,
+          26.8
+        ]
+      }
+    },
+    {
+      "name": "song_stop",
+      "ms": 0.4,
+      "ok": true,
+      "meta": {
+        "is_playing": false,
+        "n": 5,
+        "samples_ms": [
+          0.4,
+          0.4,
+          0.5,
+          0.4,
+          0.4
+        ]
+      }
+    },
+    {
+      "name": "location_apply",
+      "ms": 124.0,
+      "ok": true,
+      "meta": {
+        "lokation": "A Test",
+        "hat_programme": true,
+        "n": 5,
+        "samples_ms": [
+          146.8,
+          103.3,
+          108.3,
+          124.0,
+          130.0
+        ]
+      }
+    },
+    {
+      "name": "sequences_build",
+      "ms": 28.5,
+      "ok": true,
+      "meta": {
+        "sequenzen": 776,
+        "n": 5,
+        "samples_ms": [
+          21.6,
+          22.8,
+          28.5,
+          37.3,
+          39.4
+        ]
+      }
+    },
+    {
+      "name": "sequences_filter",
+      "ms": 33.7,
+      "ok": true,
+      "meta": {
+        "contains": "Square Thru",
+        "treffer": 462,
+        "n": 5,
+        "samples_ms": [
+          34.6,
+          33.4,
+          33.7,
+          38.9,
+          33.7
+        ]
+      }
+    },
+    {
+      "name": "sequences_program_switch",
+      "ms": 25.5,
+      "ok": true,
+      "meta": {
+        "baender": [
+          30
+        ],
+        "von": [
+          30,
+          40
+        ],
+        "treffer": 469,
+        "n": 5,
+        "samples_ms": [
+          32.9,
+          18.8,
+          26.2,
+          17.4,
+          25.5
+        ]
+      }
+    },
+    {
+      "name": "sequences_limit_switch",
+      "ms": 19.5,
+      "ok": true,
+      "meta": {
+        "limit": "Rollaway",
+        "treffer": 0,
+        "n": 5,
+        "samples_ms": [
+          107.6,
+          17.6,
+          18.3,
+          19.5,
+          22.0
+        ]
+      }
+    },
+    {
+      "name": "song_select_singing",
+      "ms": 196.7,
+      "ok": true,
+      "meta": {
+        "song": "Sounds Of Silence",
+        "geladen": true,
+        "n": 5,
+        "samples_ms": [
+          231.9,
+          196.7,
+          196.4,
+          196.9,
+          192.0
+        ]
+      }
+    },
+    {
+      "name": "song_play_singing",
+      "ms": 18.4,
+      "ok": true,
+      "meta": {
+        "is_playing": true,
+        "n": 5,
+        "samples_ms": [
+          18.4,
+          18.1,
+          17.6,
+          24.0,
+          27.7
+        ]
+      }
+    },
+    {
+      "name": "song_stop_singing",
+      "ms": 0.4,
+      "ok": true,
+      "meta": {
+        "is_playing": false,
+        "n": 5,
+        "samples_ms": [
+          0.4,
+          0.4,
+          0.4,
+          0.4,
+          0.5
+        ]
+      }
+    },
+    {
+      "name": "lyrics_dynamic_on",
+      "ms": 25.4,
+      "ok": true,
+      "meta": {
+        "aktiviert": true,
+        "gating": null,
+        "n": 5,
+        "samples_ms": [
+          10.1,
+          25.0,
+          893.9,
+          25.4,
+          26.9
+        ]
+      }
+    },
+    {
+      "name": "lyrics_dynamic_off",
+      "ms": 25.9,
+      "ok": true,
+      "meta": {
+        "aktiviert": false,
+        "n": 5,
+        "samples_ms": [
+          27.9,
+          24.0,
+          30.2,
+          24.3,
+          25.9
+        ]
+      }
+    }
+  ]
+}
