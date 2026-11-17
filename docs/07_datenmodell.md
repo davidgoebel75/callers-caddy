@@ -61,4 +61,13 @@
 - teaching_order: Zugewiesene Nummer (aus Teaching-Order-Dateien)
 - Wird bei Remapping neu berechnet
 
+## Choreo-Ergebnis (sequence_choreo, intern#247)
+- sequence_id: Sequenz (Primaerschluessel, kein Fremdschluessel)
+- input_hash: Kartenzeilen, Typ, App-Callnamen dieser Zeilen, Mapping-Stand, Ergebnisform
+- engine_ver: Pruefsumme der Engine-Datei (tam_cli)
+- result_json: Urteil, Takte je Zeile, Summe, Abbruchzeile, Hinweise (ohne Animation)
+- Abgeleiteter Zwischenspeicher fuer Square Flow: passt Hash oder Engine nicht mehr, wird
+  neu gerechnet und ueberschrieben. Geschrieben aus dem Hintergrund-Thread ueber eine
+  eigene kurze Verbindung. Darf jederzeit geleert werden.
+
 Details: siehe docs/13_sequenzen.md
