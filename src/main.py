@@ -3136,6 +3136,12 @@ class P29MainWindow(QMainWindow):
         if not self.db.is_open():
             # intern#211: App wurde vor Ablauf des Timers geschlossen
             return
+        if self.engine.is_playing():
+            # Der Vorbau blockiert den GUI-Thread ~1 s (erster scipy-Import in
+            # _fill_optimal). Nie waehrend der Wiedergabe (Audio-Prioritaet,
+            # TIC-0025) — spaeter erneut versuchen. Vorstufe zu intern#46.
+            QTimer.singleShot(5000, self._preload_evening_planner)
+            return
         # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
         # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
         # ausloest.
