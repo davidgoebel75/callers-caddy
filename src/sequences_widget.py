@@ -546,6 +546,12 @@ class SequenceViewWidget(QWidget):
         idx = self._call_index_at(pos)
         return self._calls[idx][1] if idx is not None else None
 
+    def current_sequence_id(self):
+        """intern#247: ID der gezeigten Sequenz oder None."""
+        if not self._seq_ids or self._current_idx >= len(self._seq_ids):
+            return None
+        return self._seq_ids[self._current_idx]
+
     def current_sequence_type(self) -> str:
         """intern#247: Typ der gezeigten Sequenz (sequences.type), "" ohne."""
         return self._seq_type if self._seq_ids else ""

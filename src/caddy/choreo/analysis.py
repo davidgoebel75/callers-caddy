@@ -3,6 +3,8 @@
 Ergebnis fuer Square Flow und Sequenz-Detail, je Kartenzeile aufbereitet. `run` ist
 engine.TamEngine.run (blockiert, nur im Hintergrund-Thread aufrufen).
 """
+import hashlib
+import json
 import re
 from urllib.parse import quote
 
@@ -11,6 +13,54 @@ from caddy.choreo import mapping, pruefband, timeline
 QT_FREE = True
 
 FRAME_STEP = 0.25        # Beat-Abstand der Zwischenbilder fuer die Animation
+# Erhoehen, wenn sich Inhalt oder Form des Ergebnisses aendern: alte Eintraege in
+# sequence_choreo passen dann nicht mehr und werden neu gerechnet.
+CACHE_FORMAT = 1
+_MAPPING_FP = None
+
+
+def mapping_fingerprint():
+    """Stand von Mapping-Tabelle und Regeln (fuer den Cache-Schluessel)."""
+    global _MAPPING_FP
+    if _MAPPING_FP is None:
+        from caddy.choreo import call_table
+        h = hashlib.sha256()
+        try:
+            with open(call_table.CSV_PATH, "rb") as f:
+                h.update(f.read())
+        except OSError:
+            pass
+        h.update("|".join(sorted(mapping.RULES)).encode("utf-8"))
+        _MAPPING_FP = h.hexdigest()
+    return _MAPPING_FP
+
+
+def input_hash(calls, seq_type, app=None):
+    """Schluessel eines Ergebnisses: Kartenzeilen, Typ, App-Callnamen dieser Zeilen,
+    Mapping-Stand und Ergebnisform. Die Engine-Version steht getrennt (engine_ver)."""
+    app = app or {}
+    blob = json.dumps([CACHE_FORMAT, mapping_fingerprint(), seq_type or "", list(calls),
+                       {c: app[c] for c in calls if c in app}],
+                      ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def to_cache(result):
+    """Ergebnis ohne Animation als JSON (fuer sequence_choreo)."""
+    return json.dumps({k: v for k, v in result.items() if k != "animation"},
+                      ensure_ascii=False)
+
+
+def from_cache(text):
+    try:
+        res = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(res, dict):
+        return None
+    res["animation"] = None
+    res["cached"] = True
+    return res
 
 
 def _card_spans(n_cards, src, end_src, call_starts, total, n_body):

@@ -8218,7 +8218,8 @@ class P29MainWindow(QMainWindow):
     def _push_sequence_to_square_flow(self):
         view = self.sequence_view_widget
         self.square_flow_widget.set_sequence(view.current_calls(),
-                                             view.current_sequence_type())
+                                             view.current_sequence_type(),
+                                             seq_id=view.current_sequence_id())
 
     def closeEvent(self, event):
         # Update-Timer ZUERST stoppen — verhindert dass _update_all oder

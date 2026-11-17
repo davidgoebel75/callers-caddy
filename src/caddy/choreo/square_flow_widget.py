@@ -146,11 +146,13 @@ class SquareFlowWidget(QWidget):
         self._worker = None
         self._token = 0
         self._seq = None                    # (calls, seq_type)
+        self._seq_id = None                 # fuer den DB-Cache (sequence_choreo)
         self._dirty = False
         self._result = None
         self._tl = None
         self._beat = 0.0
         self._stop_at = None                # Ende einer einzeln gespielten Kartenzeile
+        self._pending_card = None           # Klick, bevor die Animation da war
         self._card = -1
         self._emitted_card = -1
         self._active = False                # Wiedergabe/Navigation durch den Nutzer
@@ -256,7 +258,7 @@ class SquareFlowWidget(QWidget):
 
     # --- Sequenz -------------------------------------------------------------
 
-    def set_sequence(self, calls, seq_type):
+    def set_sequence(self, calls, seq_type, seq_id=None):
         """Sequenz aus dem Sequenz-Detail. Gerechnet wird nur, wenn Square Flow freigegeben
         ist (auch bei geschlossenem Dock: die Takte im Sequenz-Detail brauchen das Ergebnis)."""
         calls = [c for c in (calls or []) if c and str(c).strip()]
@@ -264,11 +266,13 @@ class SquareFlowWidget(QWidget):
         if seq == self._seq:
             return
         self._seq = seq
+        self._seq_id = seq_id
         self.pause()
         self._result, self._tl = None, None
         self._floor.pose, self._floor.bands = [], None
         self._floor.update()
         self._active = False
+        self._pending_card = None
         self._set_card(-1)
         self._set_hints([], False)
         self.result_ready.emit(seq[0] if seq else (), None)
@@ -279,6 +283,8 @@ class SquareFlowWidget(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        if self._result is not None and not self._result.get("animation"):
+            self._dirty = True                   # Ergebnis aus der DB: Animation nachholen
         self._maybe_request()
 
     def hideEvent(self, event):
@@ -297,8 +303,10 @@ class SquareFlowWidget(QWidget):
             self._worker.ready.connect(self._on_ready)
         self._dirty = False
         self._token += 1
-        self._show_message(_t("sf_calculating"))
-        self._worker.request(self._token, *self._seq)
+        if self._result is None:
+            self._show_message(_t("sf_calculating"))
+        self._worker.request(self._token, *self._seq, seq_id=self._seq_id,
+                             need_animation=self.isVisible())
 
     def invalidate(self):
         """Call-Mapping geaendert: Zwischenspeicher verwerfen und neu rechnen."""
@@ -329,6 +337,9 @@ class SquareFlowWidget(QWidget):
         self._show_result_status()
         self._seek(0.0)
         self.result_ready.emit(self._seq[0], result)
+        if self._pending_card is not None and not self._tl.empty():
+            card, self._pending_card = self._pending_card, None
+            self.play_card(card)
 
     # --- Anzeige ----------------------------------------------------------------
 
@@ -532,7 +543,8 @@ class SquareFlowWidget(QWidget):
 
     def play_card(self, card):
         """Eine Kartenzeile im Song-Tempo tanzen (Klick im Sequenz-Detail)."""
-        if self._result is None:
+        if self._result is None or self._tl is None or self._tl.empty():
+            self._pending_card = card            # wird gespielt, sobald die Animation da ist
             return
         spans = self._result.get("card_spans") or []
         if not 0 <= card < len(spans) or spans[card] is None:

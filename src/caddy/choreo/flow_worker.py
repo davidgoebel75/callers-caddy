@@ -4,7 +4,14 @@ Ein Daemon-Thread nimmt Auftraege an (nur der neueste zaehlt), rechnet die Seque
 Engine durch und meldet das Ergebnis per Qt-Signal (queued in den UI-Thread). Der UI-Thread
 wartet nie auf die Engine (Audio-Prioritaet, TIC-0025). Engine und Thread starten erst mit
 dem ersten Auftrag.
+
+Zwischenspeicher in zwei Stufen:
+- im Arbeitsspeicher: komplette Ergebnisse (mit Animation) der letzten Sequenzen;
+- in der DB (sequence_choreo): Ergebnis ohne Animation. Ein Treffer wird sofort gemeldet
+  (Takte, Warnung), ohne die Engine zu starten. Wird die Animation gebraucht (Dock sichtbar),
+  rechnet der Worker danach trotzdem und meldet ein zweites Mal.
 """
+import hashlib
 import threading
 from collections import OrderedDict
 
@@ -28,6 +35,7 @@ class SquareFlowWorker(QObject):
         self._thread = None
         self._stop = False
         self._app = None
+        self._engine_fp = None
         self._cache = OrderedDict()
 
     def engine(self):
@@ -38,10 +46,10 @@ class SquareFlowWorker(QObject):
     def available(self):
         return self.engine().available()
 
-    def request(self, token, calls, seq_type):
+    def request(self, token, calls, seq_type, seq_id=None, need_animation=True):
         """Auftrag einreihen; ein noch wartender Auftrag wird ersetzt."""
         with self._cond:
-            self._job = (token, tuple(calls), seq_type or "")
+            self._job = (token, tuple(calls), seq_type or "", seq_id, need_animation)
             if self._thread is None:
                 self._thread = threading.Thread(target=self._loop, daemon=True,
                                                 name="square-flow-worker")
@@ -69,6 +77,24 @@ class SquareFlowWorker(QObject):
             self._app = read_choreo_call_names(self._db_path) if self._db_path else {}
         return self._app
 
+    def _engine_fingerprint(self):
+        """Stand der Engine-Datei (ohne den Prozess zu starten)."""
+        if self._engine_fp is None:
+            path = self.engine().path
+            h = hashlib.sha256()
+            try:
+                with open(path, "rb") as f:
+                    for block in iter(lambda: f.read(1 << 20), b""):
+                        h.update(block)
+                self._engine_fp = h.hexdigest()[:16]
+            except (OSError, TypeError):
+                self._engine_fp = ""
+        return self._engine_fp
+
+    def _emit(self, token, result):
+        if not self._stop:
+            self.ready.emit(token, result)
+
     def _loop(self):
         while True:
             with self._cond:
@@ -76,24 +102,43 @@ class SquareFlowWorker(QObject):
                     self._cond.wait()
                 if self._stop:
                     return
-                token, calls, seq_type = self._job
+                token, calls, seq_type, seq_id, need_anim = self._job
                 self._job = None
-            key = (calls, seq_type)
-            result = self._cache.get(key)
-            if result is None:
-                try:
-                    eng = self.engine()
-                    if not eng.available():
-                        result = {"error": "engine_missing"}
-                    else:
-                        result = analysis.analyse_sequence(eng.run, calls, seq_type,
-                                                           self._load_app())
-                        self._cache[key] = result
-                        while len(self._cache) > _CACHE_SIZE:
-                            self._cache.popitem(last=False)
-                except Exception as exc:          # Feature darf die App nie mitreissen
-                    result = {"error": f"{type(exc).__name__}: {exc}"}
-            else:
-                self._cache.move_to_end(key)
-            if not self._stop:
-                self.ready.emit(token, result)
+            try:
+                self._run_job(token, calls, seq_type, seq_id, need_anim)
+            except Exception as exc:             # Feature darf die App nie mitreissen
+                self._emit(token, {"error": f"{type(exc).__name__}: {exc}"})
+
+    def _run_job(self, token, calls, seq_type, seq_id, need_anim):
+        key = (calls, seq_type)
+        result = self._cache.get(key)
+        if result is not None:
+            self._cache.move_to_end(key)
+            self._emit(token, result)
+            return
+        eng = self.engine()
+        if not eng.available():
+            self._emit(token, {"error": "engine_missing"})
+            return
+        app = self._load_app()
+        ihash = analysis.input_hash(calls, seq_type, app)
+        efp = self._engine_fingerprint()
+        db = self._db_path if (self._db_path and seq_id is not None) else None
+        if db:
+            from song_db_sequences import read_choreo_cache
+            row = read_choreo_cache(db, seq_id)
+            if row and row[0] == ihash and row[1] == efp:
+                cached = analysis.from_cache(row[2])
+                if cached is not None:
+                    self._emit(token, cached)
+                    if not need_anim:
+                        return
+        result = analysis.analyse_sequence(eng.run, calls, seq_type, app)
+        self._cache[key] = result
+        while len(self._cache) > _CACHE_SIZE:
+            self._cache.popitem(last=False)
+        self._emit(token, result)
+        if db:
+            from song_db_sequences import write_choreo_cache
+            write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result))
+

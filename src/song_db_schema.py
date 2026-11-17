@@ -324,6 +324,20 @@ CREATE TABLE IF NOT EXISTS song_properties (
 """
 
 
+# intern#247: Ergebnis der Choreo-Engine je Sequenz (Square Flow): Urteil,
+# Takte je Zeile, Hinweise (ohne Animation). Abgeleitet und jederzeit
+# verwerfbar: passt input_hash (Zeilen, Typ, Mapping-Stand, App-Callnamen)
+# oder engine_ver nicht mehr, wird neu gerechnet und ueberschrieben.
+_CREATE_SEQUENCE_CHOREO_TABLE = """
+CREATE TABLE IF NOT EXISTS sequence_choreo (
+    sequence_id  INTEGER PRIMARY KEY,
+    input_hash   TEXT NOT NULL DEFAULT '',
+    engine_ver   TEXT NOT NULL DEFAULT '',
+    result_json  TEXT NOT NULL DEFAULT ''
+);
+"""
+
+
 # MS50-Umbau: kleiner Key/Value-Speicher fuer Referenzdaten-Version u.ae.
 _CREATE_APP_META_TABLE = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -347,6 +361,7 @@ _TABLE_SCHEMAS = (
     _CREATE_SEQUENCE_CALLS_TABLE, _CREATE_POTENTIAL_IGNORED_TABLE,
     _CREATE_NOTES_TABLE, _CREATE_DANCE_PROGRAMS_TABLE,
     _CREATE_LOCATION_PROGRAMS_TABLE, _CREATE_APP_META_TABLE,
+    _CREATE_SEQUENCE_CHOREO_TABLE,
 )
 
 
@@ -446,6 +461,7 @@ class SchemaMixin:
         self._conn.execute(_CREATE_DANCE_PROGRAMS_TABLE)
         self._conn.execute(_CREATE_LOCATION_PROGRAMS_TABLE)
         self._conn.execute(_CREATE_APP_META_TABLE)
+        self._conn.execute(_CREATE_SEQUENCE_CHOREO_TABLE)
         self._create_band_cache_triggers()
         self._conn.commit()
         self._insert_default_dance_programs()

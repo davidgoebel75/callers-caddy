@@ -47,8 +47,8 @@ class _FakeWorker:
         self._s = _S()
         self.ready = self._s.ready
 
-    def request(self, token, calls, seq_type):
-        self.jobs.append((token, calls, seq_type))
+    def request(self, token, calls, seq_type, seq_id=None, need_animation=True):
+        self.jobs.append((token, calls, seq_type, seq_id, need_animation))
 
 
 def test_freigegeben_rechnet_auch_bei_geschlossenem_dock(keep, monkeypatch):
@@ -56,9 +56,9 @@ def test_freigegeben_rechnet_auch_bei_geschlossenem_dock(keep, monkeypatch):
     from caddy.choreo import flow_worker
     monkeypatch.setattr(flow_worker, "SquareFlowWorker", _FakeWorker)
     w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
-    w.set_sequence(["Heads Square Thru 4"], "Static Set ➔ Resolve")
+    w.set_sequence(["Heads Square Thru 4"], "Static Set ➔ Resolve", seq_id=7)
     assert not w.isVisible()
-    assert w._worker.jobs == [(1, ("Heads Square Thru 4",), "Static Set ➔ Resolve")]
+    assert w._worker.jobs == [(1, ("Heads Square Thru 4",), "Static Set ➔ Resolve", 7, False)]
 
 
 def test_ergebnis_zeigt_status_und_karte(keep):

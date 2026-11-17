@@ -49,6 +49,45 @@ def read_choreo_call_names(db_path: str) -> dict:
         con.close()
 
 
+def read_choreo_cache(db_path: str, sequence_id: int):
+    """intern#247: (input_hash, engine_ver, result_json) aus sequence_choreo oder
+    None. Eigene, nur lesende Verbindung (Hintergrund-Thread)."""
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+    except sqlite3.Error:
+        return None
+    try:
+        return con.execute(
+            "SELECT input_hash, engine_ver, result_json FROM sequence_choreo "
+            "WHERE sequence_id = ?", (sequence_id,)).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        con.close()
+
+
+def write_choreo_cache(db_path: str, sequence_id: int, input_hash: str,
+                       engine_ver: str, result_json: str) -> bool:
+    """intern#247: Ergebnis je Sequenz ablegen (ersetzt den alten Eintrag).
+    Eigene kurze Verbindung aus dem Hintergrund-Thread; gelingt das Schreiben
+    nicht (DB gesperrt), bleibt es beim naechsten Mal ungespeichert."""
+    try:
+        con = sqlite3.connect(db_path, timeout=2)
+    except sqlite3.Error:
+        return False
+    try:
+        with con:
+            con.execute(
+                "INSERT OR REPLACE INTO sequence_choreo "
+                "(sequence_id, input_hash, engine_ver, result_json) VALUES (?, ?, ?, ?)",
+                (sequence_id, input_hash, engine_ver, result_json))
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        con.close()
+
+
 def _text_max_to(rows) -> dict:
     """Verdichtet Zeilen aus _SELECT_CALL_TEXT_FIGURES_RANKED zu
     {call_text: Teaching-Order}.
