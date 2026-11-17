@@ -6387,10 +6387,13 @@ class P29MainWindow(QMainWindow):
         )
 
     def _show_about(self):
-        QMessageBox.about(
-            self, _t("about_title"),
-            _t("about_text", version=_VERSION)
-        )
+        import html
+        import update_check
+        text = _t("about_text", version=_VERSION)
+        note = update_check.custom_source_note(getattr(self, "_settings", None))
+        if note:
+            text += f"<p><i>{html.escape(note)}</i></p>"
+        QMessageBox.about(self, _t("about_title"), text)
 
     def _open_diagnose_center(self):
         """Oeffnet das Diagnose-Center (Strang 3)."""

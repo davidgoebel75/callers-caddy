@@ -65,6 +65,29 @@ _SNOOZE_DAYS = 7
 # INI-Schluessel (in der callers_caddy.ini des Hauptfensters).
 _SNOOZE_UNTIL_KEY = "update/snooze_until"      # ISO-Datum, bis wann still
 _SNOOZE_VERSION_KEY = "update/snooze_version"  # verschobene Version
+# Optional: andere Update-Quelle (Test-Ordner, spaeter evtl. Beta). Leer oder
+# fehlend -> UPDATE_URL. Kein UI, nur per Hand in der INI. Die Update-ZIP
+# enthaelt keine INI, der Eintrag uebersteht also Updates -- deshalb zeigen
+# Update-Dialoge und "Ueber" eine abweichende Quelle sichtbar an.
+_URL_KEY = "update/url"
+
+
+def configured_url(settings):
+    """Update-Quelle aus der INI, sonst UPDATE_URL. Nur http(s) wird akzeptiert."""
+    if settings is None:
+        return UPDATE_URL
+    raw = str(settings.value(_URL_KEY, "") or "").strip()
+    if raw.lower().startswith(("https://", "http://")):
+        return raw
+    return UPDATE_URL
+
+
+def custom_source_note(settings):
+    """Hinweistext, wenn die INI eine andere Update-Quelle setzt, sonst ""."""
+    url = configured_url(settings)
+    if url == UPDATE_URL:
+        return ""
+    return _t("update_custom_source", url=url)
 
 # Drive-Objekt-IDs stehen als data-id="..." an den DOM-Elementen.
 _DATA_ID_RE = re.compile(r'data-id="([a-zA-Z0-9_-]{20,})"')
@@ -147,7 +170,7 @@ def _find_update_zip(folder_html):
     return m.group(1), fid
 
 
-def find_latest_update(current_version):
+def find_latest_update(current_version, url=None):
     """Ermittelt zweistufig, ob ein hoeheres Update mit echter Update-ZIP vorliegt.
 
     Stufe 1: Nur der Elternordner wird geladen. Gibt es keinen Versionsordner
@@ -161,7 +184,8 @@ def find_latest_update(current_version):
     current = _parse_version(current_version)
     if not current:
         return None
-    folders = _list_version_folders(_fetch(UPDATE_URL))
+    # Zur Laufzeit aufloesen: tools/update_check_probe.py setzt UPDATE_URL um.
+    folders = _list_version_folders(_fetch(url or UPDATE_URL))
     # Stufe 1: nur Ordner mit hoeherer Nummer sind ueberhaupt interessant.
     candidates = [f for f in folders if f[0] > current]
     if not candidates:
@@ -218,6 +242,8 @@ class UpdateChecker(QObject):
             return
         self._running = True
         self._manual = manual
+        # Quelle im Main-Thread lesen (QSettings), der Thread bekommt nur den String.
+        self._url = configured_url(self._settings)
         # intern#134: Daemon-Thread statt QThread. Ein QThread, der beim
         # Beenden noch im Netz-Timeout haengt, wird mit dem Hauptfenster
         # zerstoert -> Qt Fatal "QThread: Destroyed while thread is still
@@ -228,7 +254,7 @@ class UpdateChecker(QObject):
     def _run_check(self):
         """Netzwerk-Abfrage im Daemon-Thread (Main-Thread bleibt frei)."""
         try:
-            result = find_latest_update(self._current_version)
+            result = find_latest_update(self._current_version, self._url)
         except Exception:
             version, url, ok = "", "", False
         else:
@@ -291,18 +317,22 @@ class UpdateChecker(QObject):
             else:
                 self._show_check_failed()
 
+    def _with_note(self, text):
+        note = custom_source_note(self._settings)
+        return f"{text}\n\n{note}" if note else text
+
     def _show_up_to_date(self):
         QMessageBox.information(
             self._window,
             _t("update_none_title"),
-            _t("update_none_text", current=self._current_version),
+            self._with_note(_t("update_none_text", current=self._current_version)),
         )
 
     def _show_check_failed(self):
         QMessageBox.warning(
             self._window,
             _t("update_error_title"),
-            _t("update_error_text"),
+            self._with_note(_t("update_error_text")),
         )
 
     def _show_update_dialog(self, latest_version, download_url):
@@ -311,6 +341,9 @@ class UpdateChecker(QObject):
         box.setWindowTitle(_t("update_available_title"))
         box.setText(_t("update_available_text", version=latest_version,
                        current=self._current_version))
+        note = custom_source_note(self._settings)
+        if note:
+            box.setInformativeText(note)
         snooze_cb = QCheckBox(_t("update_snooze_checkbox"))
         box.setCheckBox(snooze_cb)
         download_btn = box.addButton(
