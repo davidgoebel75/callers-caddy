@@ -27,7 +27,8 @@ def test_eintrag_wird_genutzt(settings):
     assert TEST_URL in update_check.custom_source_note(settings)
 
 
-@pytest.mark.parametrize("value", ["", "   ", "callerscaddy.de/test", "file:///C:/x"])
+@pytest.mark.parametrize("value", ["", "   ", "callerscaddy.de/test", "file:///C:/x",
+                                   "http://drive.google.com/drive/folders/X"])
 def test_ungueltiger_eintrag_faellt_auf_standard(settings, value):
     settings.setValue("update/url", value)
     assert update_check.configured_url(settings) == update_check.UPDATE_URL

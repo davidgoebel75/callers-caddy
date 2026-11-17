@@ -47,6 +47,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QMessageBox
 
 from i18n import _t
+from caddy.settings import ini_keys
 
 # Stabile Adresse — Redirect auf den jeweils aktuellen Download-Ordner.
 UPDATE_URL = "https://callerscaddy.de/download-area"
@@ -73,11 +74,11 @@ _URL_KEY = "update/url"
 
 
 def configured_url(settings):
-    """Update-Quelle aus der INI, sonst UPDATE_URL. Nur http(s) wird akzeptiert."""
+    """Update-Quelle aus der INI, sonst UPDATE_URL. Nur https wird akzeptiert."""
     if settings is None:
         return UPDATE_URL
-    raw = str(settings.value(_URL_KEY, "") or "").strip()
-    if raw.lower().startswith(("https://", "http://")):
+    raw = str(ini_keys.get(settings, _URL_KEY) or "").strip()
+    if raw.lower().startswith("https://"):
         return raw
     return UPDATE_URL
 
