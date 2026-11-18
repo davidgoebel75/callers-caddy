@@ -2945,12 +2945,14 @@ class PotentialWidget(QWidget):
             self._krabbel_worker.cancel()
         self._close_progress()
 
+    @_held_while_closing
     def _krabbel_on_failed(self, msg):
         self._close_progress()
         self._krabbel_worker = None
         QMessageBox.warning(self, _t('krabbel_btn_search'),
                             _t('krabbel_error', msg=msg))
 
+    @_held_while_closing
     def _krabbel_on_results(self, results):
         self._close_progress()
         self._krabbel_worker = None
@@ -3919,11 +3921,13 @@ class PotentialWidget(QWidget):
         self._ceder_worker.failed.connect(self._ceder_on_failed)
         self._ceder_worker.start()
 
+    @_held_while_closing
     def _ceder_on_failed(self, msg):
         self._close_progress()
         QMessageBox.warning(self, _t('pot_lyrics_fill'),
                             _t('ceder_error').format(msg=msg))
 
+    @_held_while_closing
     def _ceder_on_results(self, cands, info):
         self._close_progress()
         song = getattr(self, "_ceder_song", None)
@@ -3948,6 +3952,7 @@ class PotentialWidget(QWidget):
         self._ceder_dl_worker.failed.connect(self._ceder_on_failed)
         self._ceder_dl_worker.start()
 
+    @_held_while_closing
     def _ceder_on_downloaded(self, html_text, record_id):
         self._close_progress()
         song = getattr(self, "_ceder_song", None)

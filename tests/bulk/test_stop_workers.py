@@ -121,6 +121,12 @@ _PROBE_SLOTS = [
     ('_on_syncpts_bulk_done', (5, 0, [])),
     ('_on_bulk_done', (5, 0)),
     ('_beautify_step_done', (5, 0)),
+    # Krabbelkiste/Ceder: "Keine Treffer" bzw. Treffer-Dialog beim Beenden
+    ('_krabbel_on_results', ([],)),
+    ('_krabbel_on_failed', ('x',)),
+    ('_ceder_on_results', ([], {})),
+    ('_ceder_on_downloaded', ('<html/>', 1)),
+    ('_ceder_on_failed', ('x',)),
 ]
 
 
