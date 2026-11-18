@@ -67,6 +67,13 @@ def test_progress_reported_in_order():
     assert got == [(1, 3, "A"), (2, 3, "B"), (3, 3, "C")]
 
 
+def test_every_exception_counts_as_skip():
+    def step(c, j):
+        raise RuntimeError("kaputt")
+    res, _ = _run(JOBS, step)
+    assert res == BulkResult(done=0, skipped=3, cancelled=False)
+
+
 def test_rollback_failure_does_not_stop_run():
     class Dead(FakeConn):
         def rollback(self):
