@@ -12,6 +12,8 @@ Prueft:
   3. Keine Nutzerdaten im Update-ZIP (DB, INI, music, lyrics, playlists, notes, Logs)
   4. Skins in Voll- und Update-ZIP == src/skins auf main (Git)
   5. __version__ im Code-ZIP == <neu>
+  6. LICENSE und licenses/THIRD_PARTY.txt in Voll- und Update-ZIP, keine
+     ASIO-DLL von PortAudio (intern#248)
 Exit-Code 0 = OK, 1 = bitte pruefen.
 """
 import os
@@ -111,6 +113,18 @@ def check_version(new):
         bad(f"Code-ZIP: __version__ != {new}")
 
 
+def check_licenses(new):
+    print("== 6. Lizenzen in Voll- und Update-ZIP, keine ASIO-DLL")
+    for k in ("Voll", "Update"):
+        names = set(zipfile.ZipFile(zips(new)[k]).namelist())
+        for f in ("Callers_Caddy/LICENSE", "Callers_Caddy/licenses/THIRD_PARTY.txt"):
+            if f not in names:
+                bad(f"{k}: {f} fehlt")
+        for n in names:
+            if "asio" in n.lower() and n.lower().endswith(".dll"):
+                bad(f"{k}: ASIO-DLL im ZIP: {n}")
+
+
 def main():
     if len(sys.argv) != 3:
         print(__doc__)
@@ -122,6 +136,7 @@ def main():
     check_no_user_data(names)
     check_skins(new)
     check_version(new)
+    check_licenses(new)
     print("\nERGEBNIS:", "OK" if ok else "BITTE PRUEFEN")
     sys.exit(0 if ok else 1)
 

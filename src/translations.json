@@ -3961,9 +3961,9 @@
     "ja": "Callers Caddy について"
   },
   "about_text": {
-    "de": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy ist unter der GNU General Public License (GPL) veröffentlicht.</p><p>Hergestellt von David Goebel.</p>",
-    "en": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy is released under the GNU General Public License (GPL).</p><p>Created by David Goebel.</p>",
-    "ja": "<h3>Callers Caddy</h3><p>バージョン {version}</p><p>Callers Caddy は GNU General Public License (GPL) の下で公開されています。</p><p>制作: David Goebel。</p>"
+    "de": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy ist freie Software unter der GNU General Public License, Version 2 oder (nach Ihrer Wahl) jeder späteren Version.</p><p>Die Lizenztexte von Callers Caddy und der mitgelieferten Komponenten liegen im Programmordner: <code>LICENSE</code> und Ordner <code>licenses</code>.</p><p>Hergestellt von David Goebel.</p>",
+    "en": "<h3>Callers Caddy</h3><p>Version {version}</p><p>Callers Caddy is free software, released under the GNU General Public License, version 2 or (at your option) any later version.</p><p>The license texts of Callers Caddy and of the bundled components are in the program folder: <code>LICENSE</code> and the <code>licenses</code> folder.</p><p>Created by David Goebel.</p>",
+    "ja": "<h3>Callers Caddy</h3><p>バージョン {version}</p><p>Callers Caddy はフリーソフトウェアです。GNU General Public License バージョン 2、または（任意で）それ以降のバージョンの下で公開されています。</p><p>Callers Caddy および同梱コンポーネントのライセンス文書は、プログラムフォルダー内の <code>LICENSE</code> と <code>licenses</code> フォルダーにあります。</p><p>制作: David Goebel。</p>"
   },
   "db_info_title": {
     "de": "Datenbank-Info",
