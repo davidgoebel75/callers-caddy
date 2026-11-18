@@ -263,14 +263,45 @@ def test_pilot_farben_am_taenzer_und_umschaltbar(keep):
     st = _RwSettings(enabled=True)
     w = keep(SquareFlowWidget(settings=st))
     assert w._use_pilot is True                     # Standard an
-    w.set_pilot_colors({(1, True): "#e74c3c", (2, False): None})
-    assert w._floor.pilot == {(1, True): "#e74c3c"}  # ohne Farbe -> nicht drin
+    w.set_pilot_data({(1, True): {"color": "#e74c3c", "name": ""}, (2, False): {"color": None, "name": ""}})
+    assert w._floor.pilot == {(1, True): {"color": "#e74c3c", "name": ""}}  # leer -> nicht drin
     w.set_use_pilot_colors(False)
     assert w._floor.pilot == {}
     assert st.vals["square_flow/pilot_colors"] is False
     w.set_use_pilot_colors(True)
-    assert w._floor.pilot == {(1, True): "#e74c3c"}
-    w.set_pilot_colors({})
+    assert w._floor.pilot == {(1, True): {"color": "#e74c3c", "name": ""}}
+    w.set_pilot_data({})
     assert w._floor.pilot == {}
     w2 = keep(SquareFlowWidget(settings=_Settings(enabled=True, pilot_colors=False)))
     assert w2._use_pilot is False
+
+
+def test_doppelklick_meldet_taenzer(keep):
+    """Doppelklick auf einen Taenzer fordert die Bearbeitung im Pilot Square an (#249)."""
+    from PySide6.QtCore import QPointF
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
+    got = []
+    w.dancer_edit_requested.connect(lambda c, b: got.append((c, b)))
+    d = {"n": "3", "couple": "2", "boy": False}
+    w._floor._hits = [(QPointF(50, 50), 10.0, d)]
+    assert w._floor.dancer_at(QPointF(90, 90)) is None
+    assert w._floor.dancer_at(QPointF(55, 52)) is d
+    w._on_dancer_double_click(d)
+    assert got == [(2, False)]
+
+
+def test_abbruch_mit_fehlertext_wird_getanzt_engine_fehler_nicht(keep):
+    """Ein Abbruch traegt den Fehlertext der Engine, ist aber ein Ergebnis (intern#247)."""
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
+    w._seq = (("Heads Square Thru 4", "Foo"), "Static Set ➔ Resolve")
+    results = []
+    w.result_ready.connect(lambda c, r: results.append(r))
+    w._token = 1
+    r = _result()
+    r.update({"stufe1": False, "urteil": None, "fail_card": 1,
+              "error": "Call Foo not found"})
+    w._on_ready(1, r)
+    assert w._result is r and results[-1] is r
+    w._on_ready(1, {"error": "engine_missing"})
+    assert results[-1] == {"error": "engine_missing"}    # Sequenz-Detail erfaehrt es
+    assert w._result is r                                 # letzte Animation bleibt

@@ -1460,10 +1460,14 @@ class P29MainWindow(QMainWindow):
             self.sequence_view_widget.request_edit)
         # Phase 2: Takte fuer den Lesebalken nach Beats (Arbeitsspeicher oder DB-Cache)
         self.lyrics_widget.get_flow_result = self.square_flow_widget.result_for
-        # Phase 3 (intern#249): Farben aus dem Pilot Square, sofort bei jeder Aenderung
-        self.pilot_square_widget.dancer_colors_changed.connect(
-            self.square_flow_widget.set_pilot_colors)
-        self.square_flow_widget.set_pilot_colors(self.pilot_square_widget.dancer_colors())
+        # Phase 3 (intern#249): Farben + Namen aus dem Pilot Square (einzige Ablage),
+        # Doppelklick auf einen Taenzer bearbeitet das Pilot-Square-Feld
+        self.pilot_square_widget.dancers_changed.connect(
+            self.square_flow_widget.set_pilot_data)
+        self.square_flow_widget.set_pilot_data(self.pilot_square_widget.dancer_data())
+        self.square_flow_widget.dancer_edit_requested.connect(
+            lambda couple, boy: self.pilot_square_widget.edit_dancer(
+                couple, boy, self.square_flow_widget))
         perf_log("    Square Flow dock", _tsf)
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
@@ -8166,8 +8170,17 @@ class P29MainWindow(QMainWindow):
         """Ergebnis von Square Flow -> Takte, Abbruchzeile und Warnsymbol im
         Sequenz-Detail (None = Sequenz gewechselt, Anzeige leeren)."""
         view = self.sequence_view_widget
-        if result is None or result.get("error"):
+        if result is None:
             view.set_flow_info(calls, None)
+            return
+        if "stufe1" not in result:
+            # Engine fehlt oder ist abgestuerzt (ein Abbruch traegt auch "error", aber
+            # mit Analyse-Ergebnis und landet unten)
+            err = result.get("error") or ""
+            view.set_flow_info(calls, {
+                "warn": True,
+                "warn_text": _t("sf_engine_missing") if err == "engine_missing"
+                else _t("seq_flow_warn_engine").format(error=err)})
             return
         from caddy.choreo.square_flow_widget import SquareFlowWidget
         lines, strong = SquareFlowWidget.hint_lines(result, calls)

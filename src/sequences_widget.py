@@ -217,8 +217,17 @@ class SequenceViewWidget(QWidget):
         self._btn_tam.clicked.connect(
             lambda: self.on_open_taminations() if self.on_open_taminations else None)
         self._btn_tam.setVisible(False)
+        # intern#247: Warnung aus Square Flow (Abbruch, rot, strittig, Engine-Fehler);
+        # Klick zeigt Ursache und Verbesserungsvorschlag
+        self._btn_flow_warn = QPushButton("⚠")
+        self._btn_flow_warn.setFixedHeight(_NAV_H)
+        self._btn_flow_warn.setToolTip(_t("seq_flow_warn_tooltip"))
+        self._btn_flow_warn.clicked.connect(self._show_flow_warning)
+        self._btn_flow_warn.setVisible(False)
+        self._tam_allowed = False
 
         nav_layout.addWidget(self._btn_edit)
+        nav_layout.addWidget(self._btn_flow_warn)
         nav_layout.addWidget(self._btn_tam)
         nav_layout.addWidget(self._btn_to_notes)
         nav_layout.addWidget(self._btn_delete)
@@ -400,9 +409,7 @@ class SequenceViewWidget(QWidget):
             key = "seq_header_beats_over" if over else "seq_header_beats"
             parts.append(_t(key).format(beats=f"{total:g}"))
         text = "   ·   ".join(parts)
-        if flow.get("warn"):
-            text = "⚠ " + text
-            tip = flow.get("warn_text") or ""
+        self._apply_flow_warn_button()
         self._header_text = text
         self._lbl_header.setText(text)
         self._lbl_header.setToolTip(tip)
@@ -430,8 +437,24 @@ class SequenceViewWidget(QWidget):
         if self._calls:
             self._text_edit.setHtml(self._make_html(self._html_font))
 
+    def _apply_flow_warn_button(self):
+        """Warn-Knopf vor "Taminations": nur mit Square Flow und bei einer Warnung."""
+        flow = self._flow or {}
+        show = bool(self._tam_allowed and flow.get("warn"))
+        self._btn_flow_warn.setVisible(show)
+        if show:
+            warn = self._skin_mgr.color("warning", "#ef4444") if self._skin_mgr else "#ef4444"
+            self._btn_flow_warn.setStyleSheet(f"color: {warn}; font-weight: bold;")
+
+    def _show_flow_warning(self):
+        text = (self._flow or {}).get("warn_text") or ""
+        if text:
+            QMessageBox.information(self, _t("seq_flow_warn_title"), text)
+
     def set_taminations_enabled(self, visible, online=True):
         """Knopf "In Taminations oeffnen": sichtbar mit Square Flow, aktiv nur online."""
+        self._tam_allowed = bool(visible)
+        self._apply_flow_warn_button()
         self._btn_tam.setVisible(visible)
         self._btn_tam.setEnabled(visible and online)
         self._btn_tam.setToolTip(_t("seq_tam_open_tooltip") if online

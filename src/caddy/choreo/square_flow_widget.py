@@ -32,6 +32,7 @@ _DEFAULTS = {
     "squareflow_couple1": "#d93a3a", "squareflow_couple2": "#2a9a4a",
     "squareflow_couple3": "#3a5fd9", "squareflow_couple4": "#e3b81e",
     "squareflow_band_good": "#1fa050", "squareflow_band_bad": "#d63428",
+    "squareflow_name": "#8c8c8c",
 }
 
 
@@ -44,7 +45,8 @@ class _Floor(QWidget):
         self.dancers = []
         self.pose = []
         self.bands = None                  # (paare als Index-Tupel, gut: bool) oder None
-        self.pilot = {}                    # Pilot-Square-Farben {(Couple, Mann?): hex} (intern#249)
+        self.pilot = {}                    # Pilot-Square-Daten, Form siehe pilot_colors
+        self._hits = []                    # (Mittelpunkt, Radius, Taenzer) der letzten Zeichnung
         self.ext = 5.5
         self.zoom = 1.0                    # Shift/Strg + Mausrad, ZOOM_MIN..ZOOM_MAX
         self._bg = None
@@ -57,6 +59,24 @@ class _Floor(QWidget):
         self.update()
 
     on_wheel_zoom = None                   # callback(schritte), gesetzt vom SquareFlowWidget
+    on_dancer_double_click = None          # callback(taenzer-dict), gesetzt vom SquareFlowWidget
+
+    def dancer_at(self, pos):
+        """Taenzer unter pos (Bildschirmkoordinaten der letzten Zeichnung) oder None."""
+        best, dist = None, None
+        for pt, radius, d in self._hits:
+            dd = math.hypot(pt.x() - pos.x(), pt.y() - pos.y())
+            if dd <= radius and (dist is None or dd < dist):
+                best, dist = d, dd
+        return best
+
+    def mouseDoubleClickEvent(self, event):
+        d = self.dancer_at(event.position())
+        if d is not None and self.on_dancer_double_click:
+            self.on_dancer_double_click(d)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
     def wheelEvent(self, event):
         """Shift + Mausrad zoomt (wie gewuenscht), Strg + Mausrad ebenso (App-Standard,
@@ -131,7 +151,16 @@ class _Floor(QWidget):
         font.setBold(True)
         p.setFont(font)
         stroke = QPen(self._color("squareflow_body_stroke"), max(1.0, scale * 0.05))
+        name_font = QFont(font)
+        name_font.setBold(False)
+        name_font.setPixelSize(max(8, int(size * 0.3)))
+        names = []
+        self._hits = []
         for d, pt, (_x, _y, deg) in zip(self.dancers, pts, self.pose):
+            self._hits.append((pt, size * 0.75, d))
+            name = pilot_colors.name_for(self.pilot, d)
+            if name:
+                names.append((pt, name))
             fill = pilot_colors.fill_for(self.pilot, d)
             c = QColor(fill) if fill else self._color(f"squareflow_couple{d.get('couple')}")
             p.save()
@@ -153,6 +182,15 @@ class _Floor(QWidget):
             p.setPen(QColor(pilot_colors.text_on(fill) if fill else "#141414"))
             p.drawText(QRectF(pt.x() - size / 2, pt.y() - size / 2, size, size),
                        Qt.AlignCenter, str(d.get("couple")))
+        if names:                          # Namen zuletzt, damit kein Taenzer sie verdeckt
+            p.setFont(name_font)
+            p.setPen(self._color("squareflow_name"))
+            fm = p.fontMetrics()
+            w = max(size * 2.6, scale * 1.6)
+            for pt, name in names:
+                text = fm.elidedText(name, Qt.ElideRight, int(w))
+                p.drawText(QRectF(pt.x() - w / 2, pt.y() + size * 0.55, w, fm.height() + 2),
+                           Qt.AlignHCenter | Qt.AlignTop, text)
         p.end()
 
 
@@ -160,6 +198,7 @@ class SquareFlowWidget(QWidget):
     """Dock-Inhalt Square Flow. Zirkelfrei: kennt main.py nicht, bekommt alles per Aufruf."""
 
     current_card_changed = Signal(int)      # Kartenzeile, die gerade getanzt wird (-1 = keine)
+    dancer_edit_requested = Signal(int, bool)  # Doppelklick: (Couple, Mann?) bearbeiten (#249)
     result_ready = Signal(object, object)   # (Calls der Sequenz, Ergebnis oder None)
     edit_requested = Signal()               # "Sequenz bearbeiten" geklickt
 
@@ -230,6 +269,7 @@ class SquareFlowWidget(QWidget):
         self._floor = _Floor(self._color, self)
         self._floor.zoom = self._zoom
         self._floor.on_wheel_zoom = self.zoom_by
+        self._floor.on_dancer_double_click = self._on_dancer_double_click
         self._call_label = QLabel(self)
         self._call_label.setTextFormat(Qt.PlainText)
         self._call_label.setAlignment(Qt.AlignCenter)
@@ -328,10 +368,16 @@ class SquareFlowWidget(QWidget):
 
     # --- Pilot-Square-Farben (Phase 3, intern#249) -------------------------------
 
-    def set_pilot_colors(self, colors):
-        """Farben je Taenzer aus dem Pilot Square, {(Couple, Mann?): hex}; leer = Standard."""
-        self._pilot = pilot_colors.clean(colors)
+    def set_pilot_data(self, data):
+        """Farbe + Name je Taenzer aus dem Pilot Square (Form siehe pilot_colors); leer =
+        Standard. Square Flow speichert nichts davon, es zeigt nur an."""
+        self._pilot = pilot_colors.clean(data)
         self._apply_pilot()
+
+    def _on_dancer_double_click(self, dancer):
+        k = pilot_colors.key(dancer.get("couple"), dancer.get("boy"))
+        if k is not None:
+            self.dancer_edit_requested.emit(k[0], k[1])
 
     def set_use_pilot_colors(self, on):
         self._use_pilot = bool(on)
@@ -466,9 +512,13 @@ class SquareFlowWidget(QWidget):
     def _on_ready(self, token, result):
         if token != self._token:
             return                                   # veraltet: andere Sequenz gewaehlt
-        if result.get("error"):
-            key = "sf_engine_missing" if result["error"] == "engine_missing" else None
-            self._show_message(_t(key) if key else result["error"])
+        if "stufe1" not in result:
+            # Engine fehlt oder ist abgestuerzt. Ein Abbruch traegt auch "error", hat aber
+            # ein Analyse-Ergebnis und wird bis zur Abbruchzeile getanzt.
+            key = "sf_engine_missing" if result.get("error") == "engine_missing" else None
+            self._show_message(_t(key) if key else (result.get("error") or ""))
+            if self._seq:
+                self.result_ready.emit(self._seq[0], result)
             return
         self._result = result
         self._tl = Timeline(result.get("animation"))

@@ -11288,9 +11288,39 @@
     "en": "Reset zoom",
     "ja": "ズームをリセット"
   },
+  "seq_flow_warn_tooltip": {
+    "de": "Taminations kann diese Sequenz nicht sauber tanzen. Klick zeigt Ursache und Vorschlag.",
+    "en": "Taminations cannot dance this sequence cleanly. Click for the cause and a suggestion.",
+    "ja": "Taminations はこのシーケンスを正しく踊れません。クリックで原因と改善案を表示します。"
+  },
+  "seq_flow_warn_title": {
+    "de": "Square Flow: Hinweis zur Sequenz",
+    "en": "Square Flow: note on this sequence",
+    "ja": "Square Flow：シーケンスについての注意"
+  },
+  "seq_flow_warn_engine": {
+    "de": "Die Choreo-Engine konnte diese Sequenz nicht verarbeiten ({error}). Bitte Callers Caddy neu starten; bleibt der Fehler, die Sequenz an den Support melden.",
+    "en": "The choreo engine could not process this sequence ({error}). Please restart Callers Caddy; if the error persists, report the sequence to support.",
+    "ja": "コレオエンジンはこのシーケンスを処理できませんでした（{error}）。Callers Caddy を再起動してください。続く場合はサポートにシーケンスを報告してください。"
+  },
   "sf_ctx_pilot_colors": {
-    "de": "Pilot-Square-Farben verwenden",
-    "en": "Use Pilot Square colors",
-    "ja": "パイロットスクエアの色を使う"
+    "de": "Farben und Namen aus dem Pilot Square anzeigen",
+    "en": "Show Pilot Square colors and names",
+    "ja": "パイロットスクエアの色と名前を表示"
+  },
+  "square.dancer_name": {
+    "de": "Name",
+    "en": "Name",
+    "ja": "名前"
+  },
+  "square.dancer_color": {
+    "de": "Farbe",
+    "en": "Color",
+    "ja": "色"
+  },
+  "square.color_none_short": {
+    "de": "Ohne Farbe",
+    "en": "No color",
+    "ja": "色なし"
   }
 }
