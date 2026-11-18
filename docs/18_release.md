@@ -30,6 +30,8 @@ Der Download-Bereich ist live: was dort liegt, sehen alle Nutzer beim naechsten 
 3. `python tools/update_check_probe.py <link> --as 0.162 2.0.0 2.0.1 --download`. Das Skript laesst die aktuelle Erkennung und die eingefrorene aus 0.162 gegen den Ordner laufen und fragt die erzeugten Links an.
 4. Danach den Test-Ordner loeschen.
 
+**In der echten App:** In der `callers_caddy.ini` der Installation unter `[update]` den Eintrag `url=<link>` setzen. Die App prueft dann diesen Ordner statt des Download-Bereichs. Update-Dialoge und „Ueber“ zeigen die abweichende Quelle an, damit der Eintrag nicht vergessen wird. Er uebersteht Updates, weil die Update-ZIP keine INI enthaelt: nach dem Test wieder loeschen. Leer, fehlend oder ohne `https://` gilt der Standard. Installationen bis 0.162 kennen den Eintrag nicht, fuer sie bleibt nur das Skript.
+
 Erwartung (Stand 2.0.0-Umstieg, getestet 2026-11-16): 0.162 meldet „2.0“, 2.0.0 meldet „2.0.1“ und uebergeht die Bruecke, 2.0.1 meldet nichts; beide Links liefern die ZIP direkt.
 
 Ausserdem vor dem ersten Release mit neuem Nummernschema oder neuem Qt: das Update-ZIP ueber eine frisch entpackte Vorversion entpacken und starten. Uebrig gebliebene Dateien der Vorversion (z. B. alte Qt-Plugins) bleiben dabei liegen und duerfen den Start nicht stoeren.
