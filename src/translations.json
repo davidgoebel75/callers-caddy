@@ -5742,6 +5742,21 @@
     "en": "No audio file found ({count} songs).",
     "ja": "オーディオファイルが見つかりません（{count} 曲）。"
   },
+  "pot_bulk_close_confirm": {
+    "de": "Ein Massenlauf läuft noch.\n\nAbbrechen und beenden? Der aktuelle Song wird noch fertig bearbeitet, bereits bearbeitete Songs bleiben erhalten.",
+    "en": "A bulk run is still in progress.\n\nCancel it and quit? The current song is finished first; songs already processed are kept.",
+    "ja": "一括処理がまだ実行中です。\n\n中止して終了しますか？現在の曲は処理を完了し、処理済みの曲はそのまま保持されます。"
+  },
+  "pot_bulk_closing": {
+    "de": "Beende … der aktuelle Song wird noch gespeichert.",
+    "en": "Quitting … the current song is still being saved.",
+    "ja": "終了しています… 現在の曲を保存中です。"
+  },
+  "pot_bulk_close_title": {
+    "de": "Massenlauf läuft",
+    "en": "Bulk run in progress",
+    "ja": "一括処理を実行中"
+  },
   "pot_bulk_cancelled": {
     "de": "Abgebrochen – {open} Songs nicht bearbeitet. Bereits bearbeitete bleiben erhalten.",
     "en": "Cancelled – {open} songs not processed. Songs already processed are kept.",
