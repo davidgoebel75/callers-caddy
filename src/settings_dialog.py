@@ -195,7 +195,7 @@ SETTINGS_META: dict[str, dict] = {
     "audio/alert_sound_path": {
         "label": "Hinweis-Sound (Timer-Überzug)",
         "widget": "file",
-        "file_filter": "Audio (*.mp3 *.wav *.flac *.ogg *.m4a);;Alle Dateien (*.*)",
+        "file_filter": "filter_audio_files",   # i18n-Key, wie im Oeffnen-Dialog (intern#252)
         "default": "",
         "tooltip": "Audiodatei, die beim Timer-Überzug statt des Pieps abgespielt wird. Leer = bisheriger Doppel-Piep.",
     },
@@ -822,7 +822,8 @@ class _SettingRow:
         # BL-137: Datei-Picker wenn widget=file, sonst Ordner-Picker
         if self._widget_type == "file":
             start_dir = os.path.dirname(current) if current and os.path.isfile(current) else ""
-            file_filter = self._meta.get("file_filter", "Alle Dateien (*.*)")
+            # _t: i18n-Key oder fester Filtertext (unbekannte Keys bleiben)
+            file_filter = _t(self._meta.get("file_filter", "Alle Dateien (*.*)"))
             chosen, _ = QFileDialog.getOpenFileName(
                 None, f"Datei wählen — {self.key}", start_dir, file_filter,
             )

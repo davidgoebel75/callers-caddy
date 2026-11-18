@@ -4341,9 +4341,9 @@
     "ja": "パス {slot} を選択"
   },
   "filter_audio_files": {
-    "de": "Audio-Dateien (*.mp3 *.wav *.flac *.ogg *.aiff);;MP3 (*.mp3);;WAV (*.wav);;FLAC (*.flac);;Alle Dateien (*.*)",
-    "en": "Audio files (*.mp3 *.wav *.flac *.ogg *.aiff);;MP3 (*.mp3);;WAV (*.wav);;FLAC (*.flac);;All files (*.*)",
-    "ja": "オーディオファイル (*.mp3 *.wav *.flac *.ogg *.aiff);;MP3 (*.mp3);;WAV (*.wav);;FLAC (*.flac);;すべてのファイル (*.*)"
+    "de": "Audio-Dateien (*.mp3 *.wav *.flac *.ogg *.aiff *.aif);;MP3 (*.mp3);;WAV (*.wav);;FLAC (*.flac);;Alle Dateien (*.*)",
+    "en": "Audio files (*.mp3 *.wav *.flac *.ogg *.aiff *.aif);;MP3 (*.mp3);;WAV (*.wav);;FLAC (*.flac);;All files (*.*)",
+    "ja": "オーディオファイル (*.mp3 *.wav *.flac *.ogg *.aiff *.aif);;MP3 (*.mp3);;WAV (*.wav);;FLAC (*.flac);;すべてのファイル (*.*)"
   },
   "file_already_assigned": {
     "de": "Die Datei '{filename}' ist bereits Song #{id} '{title}' zugeordnet.\n\nSoll eine Kopie der Datei erstellt und diesem Song zugewiesen werden?",
