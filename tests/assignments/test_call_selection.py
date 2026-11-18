@@ -52,7 +52,10 @@ def test_programm_mit_ausnahmen(ex, erwartet):
 
 
 def test_ohne_programm_und_liste_leer():
-    assert resolve_calls(DB) == []
+    class Spy(FakeDb):
+        def get_calls_for_program(self, program):
+            raise AssertionError(f"ohne Programm abgefragt: {program!r}")
+    assert resolve_calls(Spy()) == []
     assert resolve_calls(DB, program="Unbekannt") == []
 
 
@@ -71,6 +74,15 @@ ALL = ["A", "B", "C", "D"]
 ])
 def test_kuerzester_shortcode(label, sel, erwartet):
     assert build_shortcode_params(label, ALL, sel) == erwartet
+
+
+@pytest.mark.parametrize("n_sel, erwartet", [
+    (2, {"calls": "A, B"}),                       # 2 von 5: Minderheit
+    (3, {"program": "MS", "except": "D, E"}),     # 3 von 5: Mehrheit
+])
+def test_kuerzester_shortcode_grenze_ungerade(n_sel, erwartet):
+    five = ["A", "B", "C", "D", "E"]
+    assert build_shortcode_params("MS", five, five[:n_sel]) == erwartet
 
 
 def test_kuerzester_shortcode_leeres_programm():

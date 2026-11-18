@@ -78,7 +78,35 @@ def test_from_dict_fehlende_felder():
     assert (r.id, r.name, r.active, r.trigger) == ("", "", True, "")
     assert r.conditions == [] and r.actions == []
     assert r.source == "system" and r.button_number == 0
-    assert Rule.from_dict({"button_number": "4"}).button_number == 4
+    assert r.once_per_song is False
+    assert (r.button_icon, r.button_tooltip) == ("", "")
+    r = Rule.from_dict({"button_number": "4", "conditions": [[{}]],
+                        "actions": [{}]})
+    assert r.button_number == 4 and r.source == "user"
+    assert r.conditions == [[ConditionDef("", {})]]
+    assert r.actions == [ActionDef("", {})]
+
+
+def test_standardwerte_der_datenklassen():
+    assert ConditionDef("c").params == {} and ActionDef("a").params == {}
+    r = Rule("r", "R", True, "t", [], [])
+    assert (r.source, r.once_per_song, r.button_number,
+            r.button_icon, r.button_tooltip) == ("user", False, 0, "", "")
+
+
+def test_registry():
+    from rule_engine import RuleRegistry
+    reg = RuleRegistry()
+    reg.add_condition("c", "C")
+    reg.add_condition("c2", "C2", {"x": {"type": "int"}})
+    reg.add_action("a", "A")
+    reg.add_action("a2", "A2", {"y": {}}, group="Audio")
+    assert reg.conditions["c"].params_schema == {}
+    assert reg.conditions["c2"].params_schema == {"x": {"type": "int"}}
+    assert (reg.actions["a"].params_schema, reg.actions["a"].group) == ({}, "")
+    assert (reg.actions["a2"].params_schema, reg.actions["a2"].group) == (
+        {"y": {}}, "Audio")
+    assert reg.conditions["c"].display_name == "C"
 
 
 # --- Laden / Speichern -------------------------------------------------------
@@ -99,6 +127,20 @@ def test_speichern_und_laden(tmp_path, engine):
     assert data["version"] == 1
 
 
+def test_datei_bleibt_lesbar(tmp_path, engine):
+    engine.add_user_rule(Rule("u1", "Ändern", True, "t", [], []))
+    raw = (tmp_path / "rules" / "rules_user.json").read_text(encoding="utf-8")
+    assert "Ändern" in raw                    # kein Ä
+
+
+def test_neue_id_aus_millisekunden(engine, monkeypatch):
+    import rule_engine
+    monkeypatch.setattr(rule_engine.time, "time", lambda: 1700000000.1234)
+    r = _rule("")
+    engine.add_user_rule(r)
+    assert r.id == "usr_1700000000123"
+
+
 def test_laden_ohne_dateien(tmp_path, engine):
     engine.load()
     assert engine.get_merged_rules() == []
@@ -116,11 +158,11 @@ def test_laden_system_vor_user(tmp_path, engine):
 def test_laden_registriert_fehlende_trigger(tmp_path, engine):
     engine.registry.add_trigger("song_loaded", "Song Loaded")
     _write(tmp_path / "rules" / "rules_user.json",
-           [_rule("u1", trigger="key_f9"), _rule("u2", trigger="my_custom"),
+           [_rule("u1", trigger="key_ab"), _rule("u2", trigger="my_custom"),
             _rule("u3", trigger="song_loaded")])
     engine.load()
     t = engine.registry.triggers
-    assert t["key_f9"].display_name == "Key F9"
+    assert t["key_ab"].display_name == "Key AB"
     assert t["my_custom"].display_name == "My Custom"
     assert t["song_loaded"].display_name == "Song Loaded"   # unveraendert
 
@@ -189,9 +231,13 @@ def test_override_speichern(tmp_path):
     try:
         heard = []
         eng.add_rules_changed_listener(lambda: heard.append(1))
+        eng.get_system_rules()[0].button_icon = "i.svg"   # Kopie der Liste,
+        eng.get_system_rules()[0].button_tooltip = "T"    # gleiche Objekte
         eng.toggle_system_rule("s1", False)
         assert st.values["rules/sys_s1_active"] is False
         assert st.values["rules/sys_s1_button_number"] == 0
+        assert st.values["rules/sys_s1_button_icon"] == "i.svg"
+        assert st.values["rules/sys_s1_button_tooltip"] == "T"
         assert st.synced and heard == [1]
     finally:
         eng.close()
@@ -232,6 +278,22 @@ def test_erstbestueckung_einmalig(tmp_path):
         assert eng.get_system_rules()[0].button_number == 0
     finally:
         eng.close()
+
+
+@pytest.mark.parametrize("rid, nummer, icon", [
+    ("sys_key_f5_play", 1, "play.svg"),
+    ("sys_key_f6_pause", 2, "pause.svg"),
+    ("sys_key_f7_stop", 3, "stop.svg"),
+    ("sys_key_f8_fade_out", 4, "fade-out.svg"),
+    ("sys_key_space_toggle", 5, "play-pause.svg"),
+])
+def test_erstbestueckung_belegung(tmp_path, rid, nummer, icon):
+    _write(tmp_path / "rules" / "rules_system.json", [_rule(rid)])
+    eng = RuleEngine(str(tmp_path), FakeSettings())
+    eng.load()
+    eng.close()
+    r = eng.get_system_rules()[0]
+    assert (r.button_number, r.button_icon) == (nummer, icon)
 
 
 def test_erstbestueckung_setzt_flag_auch_ohne_treffer(tmp_path):
@@ -356,6 +418,13 @@ def test_deck_entfernen_rueckt_nach(deck_engine, wunsch):
     assert st.values["rules/sys_s2_button_number"] == 3     # System persistiert
 
 
+def test_deck_icon_leer(deck_engine):
+    eng, _ = deck_engine
+    eng.set_stream_deck_params("u1", 2, None, "Tipp")
+    u1 = eng._find_rule("u1")
+    assert (u1.button_icon, u1.button_tooltip) == ("", "Tipp")
+
+
 def test_deck_unbekannte_regel(deck_engine):
     eng, _ = deck_engine
     eng.set_stream_deck_params("nix", 1, "", "")
@@ -428,6 +497,15 @@ def test_manuell_tut_nichts(engine, kw, rid):
     engine.add_user_rule(_rule("u1", **kw))
     engine.execute_rule_manual(rid)
     assert log == []
+
+
+def test_manuell_bekommt_kontext(engine):
+    log = _wired(engine, {"v": 5})
+    r = _rule("u1")
+    r.conditions = [[ConditionDef("param", {"want": 5})]]
+    engine.add_user_rule(r)
+    engine.execute_rule_manual("u1")
+    assert log == [("a", {})]
 
 
 def test_manuell_ohne_context_provider(engine):
@@ -505,6 +583,76 @@ def test_resume_ohne_suspend_ignoriert(engine):
     assert not engine.is_suspended
 
 
+def test_resume_unbekannter_grund(engine):
+    engine.suspend("a")
+    engine.resume("b")                  # Grund unbekannt: nur Zaehler sinkt
+    assert not engine.is_suspended
+
+
+@pytest.mark.parametrize("gruende, bypass, feuert", [
+    (["x"], (), False),
+    ([""], ("",), False),               # ohne Grund nie umgehbar
+    (["music"], ("music",), True),
+    (["music", "x"], ("music",), False),
+    (["music", "x"], ("music", "x"), True),
+    (["music", "music"], ("music",), True),
+])
+def test_suspend_bypass(engine, gruende, bypass, feuert):
+    log = _wired(engine)
+    engine.add_user_rule(_rule("u1"))
+    for g in gruende:
+        engine.suspend(g)
+    engine.fire_trigger("t", bypass_suspend=bypass)
+    assert bool(log) is feuert
+
+
+def test_resume_gibt_grund_frei(engine):
+    log = _wired(engine)
+    engine.add_user_rule(_rule("u1"))
+    engine.suspend("music")
+    engine.resume("music")
+    engine.suspend()                    # ohne Grund: blockiert alles
+    engine.fire_trigger("t", bypass_suspend=("music",))
+    assert log == []
+
+
+def test_alle_passenden_regeln_feuern(engine):
+    log = _wired(engine)
+    engine.add_user_rule(_rule("aus", active=False, actions=("b",)))
+    engine.add_user_rule(_rule("anders", trigger="t2", actions=("b",)))
+    engine.add_user_rule(_rule("einmal", once_per_song=True, actions=("b",)))
+    engine.add_user_rule(_rule("ok1", actions=("a",)))
+    engine.add_user_rule(_rule("ok2", actions=("a",)))
+    engine.fire_trigger("t")            # einmal + ok1 + ok2
+    engine.fire_trigger("t")            # ok1 + ok2
+    assert [t for t, _ in log] == ["b", "a", "a", "a", "a"]
+
+
+def test_fire_schleifenschutz(engine):
+    log = _wired(engine)
+    engine.register_action("a", lambda p: (log.append("a"),
+                                           engine.fire_trigger("t")))
+    engine.add_user_rule(_rule("u1"))
+    engine.fire_trigger("t")
+    assert log == ["a"]
+    assert engine._firing is False
+
+
+def test_play_timer_ohne_log_spam(tmp_path, engine):
+    _wired(engine)
+    engine.fire_trigger("play_timer")
+    with engine.suspended("x"):
+        engine.fire_trigger("play_timer")
+    engine._log("MARK", "-")
+    text = (tmp_path / "logs" / "rules.log").read_text(encoding="utf-8")
+    assert "play_timer" not in text
+    engine.fire_trigger("t")
+    with engine.suspended("x"):
+        engine.fire_trigger("t2")
+    text = (tmp_path / "logs" / "rules.log").read_text(encoding="utf-8")
+    assert "NO_MATCH" in text and "'t2' geschluckt" in text
+
+
 def test_once_per_song_reset(engine):
     log = _wired(engine)
     engine.add_user_rule(_rule("u1", once_per_song=True))
@@ -550,12 +698,19 @@ def test_log_rotation(tmp_path, monkeypatch):
     assert lines[1:] == ["zeile 47", "zeile 48", "zeile 49"]
 
 
-def test_log_klein_bleibt(tmp_path):
+def test_log_genau_an_grenze_bleibt(tmp_path, monkeypatch):
+    monkeypatch.setattr(RuleEngine, "_LOG_MAX_BYTES", 4)
     logs = tmp_path / "logs"
     logs.mkdir()
-    (logs / "rules.log").write_text("x\n", encoding="utf-8")
+    (logs / "rules.log").write_bytes(b"abc\n")          # genau 4 Bytes
     RuleEngine(str(tmp_path))._rotate_log()
-    assert (logs / "rules.log").read_text(encoding="utf-8") == "x\n"
+    assert (logs / "rules.log").read_bytes() == b"abc\n"
+
+
+def test_log_in_vorhandenen_ordner(tmp_path, engine):
+    (tmp_path / "logs").mkdir()
+    engine._log("TEST", "da")
+    assert "da" in (tmp_path / "logs" / "rules.log").read_text(encoding="utf-8")
 
 
 def test_log_schreibt_und_close(tmp_path, engine):

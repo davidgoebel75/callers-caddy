@@ -64,6 +64,10 @@ def test_song_shortcode(mode, text):
     assert song_shortcode_text("Joe", mode) == text
 
 
+def test_song_shortcode_ohne_mode_ist_positional():
+    assert song_shortcode_text("Joe") == '[load_song "Joe"]'
+
+
 def test_song_shortcode_mit_mode_wird_benannt_gelesen():
     sc, = parse_shortcodes(song_shortcode_text("Joe", "P"))
     assert sc.params == {"title": "Joe", "mode": "P"}

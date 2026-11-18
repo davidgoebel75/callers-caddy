@@ -52,7 +52,7 @@ def fake_song(monkeypatch):
     return use
 
 
-@pytest.mark.parametrize("intro", [16, 40])
+@pytest.mark.parametrize("intro", [8, 16, 40])     # 8 = kuerzestes Intro
 def test_findet_body_anfang(fake_song, intro):
     mono, bt = fake_song(intro)
     r = sbd.detect_singing_body("x.mp3", bpm_hint=BPM, calib_offset=0)
@@ -66,10 +66,37 @@ def test_findet_body_anfang(fake_song, intro):
     assert r["ambiguous"] is False and r["disagree"] < sbd.AMBIGUITY_THRESHOLD
 
 
+@pytest.mark.parametrize("intro, confidence", [
+    (16, 35.87164683782743), (40, 36.52181486698596)])
+def test_kennwerte_unveraendert(fake_song, intro, confidence):
+    """Charakterisierung: faengt stille Aenderungen an Gewichten und Features.
+
+    Wer das Verfahren bewusst aendert (tools/-Experimente, Ohr-Marken), traegt
+    hier die neuen Werte ein."""
+    fake_song(intro)
+    r = sbd.detect_singing_body("x.mp3", bpm_hint=BPM, calib_offset=0)
+    assert r["confidence"] == pytest.approx(confidence, rel=1e-6)
+    assert r["disagree"] == 2
+
+
+def test_abschnitts_aehnlichkeit():
+    rng = np.random.default_rng(0)
+    brk, fig = rng.standard_normal((2, sbd.SECTION_BEATS, 3))
+    secs = [brk, fig, fig, brk, fig, fig, brk]            # Break/Figur-Muster
+    rows = sbd._norm_rows(np.vstack([np.zeros((5, 3))] + secs))
+    coh, con = sbd._section_scores(rows, 5)
+    sim = lambda a, b: float(np.mean(np.sum(a * b, axis=1)))
+    r = rows[5:].reshape(7, sbd.SECTION_BEATS, 3)
+    same, cross = sim(r[0], r[3]), sim(r[0], r[1])
+    assert con == pytest.approx(same - cross)              # intra - inter
+    n_same = 3 + 6                                        # Break-, Figur-Paare
+    assert coh == pytest.approx((n_same * same + 12 * cross) / 21)
+
+
 def test_kalibrier_offset_default(fake_song):
     fake_song(16)
     r = sbd.detect_singing_body("x.mp3", bpm_hint=BPM)
-    assert r["start_beat"] == 16 + sbd.DEFAULT_CALIB_OFFSET
+    assert r["start_beat"] == 18                  # +2 Beats
 
 
 def test_kalibrier_offset_bleibt_im_song(fake_song):
