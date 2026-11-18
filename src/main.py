@@ -3137,6 +3137,12 @@ class P29MainWindow(QMainWindow):
         if not self.db.is_open():
             # intern#211: App wurde vor Ablauf des Timers geschlossen
             return
+        if self.engine.is_playing():
+            # Der Vorbau blockiert den GUI-Thread ~1 s (erster scipy-Import in
+            # _fill_optimal). Nie waehrend der Wiedergabe (Audio-Prioritaet,
+            # TIC-0025) — spaeter erneut versuchen. Vorstufe zu intern#46.
+            QTimer.singleShot(5000, self._preload_evening_planner)
+            return
         # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
         # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
         # ausloest.
@@ -6388,10 +6394,13 @@ class P29MainWindow(QMainWindow):
         )
 
     def _show_about(self):
-        QMessageBox.about(
-            self, _t("about_title"),
-            _t("about_text", version=_VERSION)
-        )
+        import html
+        import update_check
+        text = _t("about_text", version=_VERSION)
+        note = update_check.custom_source_note(getattr(self, "_settings", None))
+        if note:
+            text += f"<p><i>{html.escape(note)}</i></p>"
+        QMessageBox.about(self, _t("about_title"), text)
 
     def _open_diagnose_center(self):
         """Oeffnet das Diagnose-Center (Strang 3)."""

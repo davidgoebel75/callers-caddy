@@ -1448,7 +1448,8 @@ class RulesWidget(QWidget):
                 browse = QPushButton("…")
                 browse.setFixedWidth(28)
                 browse.setEnabled(not readonly)
-                file_filter = schema.get("file_filter", "Alle Dateien (*.*)")
+                # _t: i18n-Key oder fester Filtertext (unbekannte Keys bleiben)
+                file_filter = _t(schema.get("file_filter", "Alle Dateien (*.*)"))
                 def _pick(checked=False, _w=w, _filter=file_filter, _name=param_name):
                     import os as _os
                     start_dir = _os.path.dirname(_w.text()) if _w.text() and _os.path.isfile(_w.text()) else ""

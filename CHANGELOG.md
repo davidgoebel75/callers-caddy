@@ -1,14 +1,17 @@
 # Callers Caddy — Changelog
 
-Versionierung: `0.XX` = Prototyp-Phase (XX = Prototyp-Nummer).
-Ab offiziellem Launch wird auf `2.0` umgestellt.
-Die Versionen 1.xx bleiben für die alte Version offen
+Versionierung ab dem Launch: `Major.Minor.Patch`, z. B. `2.0.16`.
+Major nur bei großen Umbauten, Minor bei großen neuen Funktionen, Patch bei kleinen Funktionen und Fehlerbehebungen.
+`0.XX` war die Prototyp-Phase (bis 0.162). Die Versionen 1.xx gehören zur alten Version.
 
 ---
 
 ## (Unreleased — seit 0.162)
 
 ### Verbesserungen
+- **Lizenztexte liegen jetzt dem Programm bei.** Neben der EXE stehen die Datei `LICENSE` (GNU General Public License, Version 2) und der Ordner `licenses` mit den Lizenzen aller mitgelieferten Komponenten wie Qt, numpy oder PortAudio. Der Dialog „Über Callers Caddy“ nennt die Lizenz jetzt genau – GPL Version 2 oder später – und verweist auf diese Dateien.
+- **Neue Versionsnummern ab 2.0.0.** Mit dem offiziellen Start zählt Callers Caddy dreistellig: Die erste Zahl ändert sich nur bei großen Umbauten, die zweite bei großen neuen Funktionen, die dritte bei kleinen Verbesserungen und Fehlerbehebungen. Die Update-Prüfung kennt das neue Format. Auch ältere Versionen bis 0.162 melden den Umstieg: Sie zeigen ihn als „Version 2.0“ an.
+- **Update-Quelle per INI umstellbar (für Tests).** Steht in der `callers_caddy.ini` unter `[update]` ein Eintrag `url=…`, sucht die Update-Prüfung dort statt im Download-Bereich. Eine abweichende Quelle zeigen die Update-Meldungen und „Über“ an. Ohne Eintrag ändert sich nichts.
 - **Neues Dock „Uhr“: aktuelle Uhrzeit groß im Blick.** Über das Ansicht-Menü einblenden; das Dock lässt sich wie die anderen andocken oder frei schweben lassen, die Ziffern wachsen mit der Größe des Docks. Standard ist 24 h ohne Sekunden mit Wochentag und Datum darunter. Per Rechtsklick auf die Uhr lassen sich Sekunden, 12-Stunden-Format (AM/PM) und das Datum ein- und ausschalten; die Wahl bleibt über den Neustart erhalten. Dieselben Schalter stehen auch in den Einstellungen im Abschnitt „Uhr“.
 - **Neue Regel-Aktion „Set System Volume“: Windows-Lautstärke beim Start gerade ziehen.** Ist die Lautstärke am Rechner aus irgendeinem Grund heruntergedreht, merkt man das sonst erst am Abend, wenn die Musik zu leise ist. Die neue Aktion (Gruppe Audio) setzt die Windows-Lautstärke des Ausgabegeräts auf einen festen Wert, zum Beispiel mit dem Trigger „App Started“ auf 80 %. Sie wirkt auf das unten rechts in der Statusleiste gewählte Gerät, bei „System-Standard“ auf das Windows-Standardgerät. Mit „at_least“ (Standard) hebt sie nur an, wenn es leiser ist, eine bewusst höher gestellte Lautstärke bleibt also stehen. Mit „exact“ setzt sie genau den Wert. Eine Stummschaltung hebt sie immer auf.
 - **„App Started“ feuert erst, wenn der Start wirklich fertig ist.** Bisher lösten Regeln mit diesem Trigger nach festen zwei Sekunden aus, also noch vor dem Vorschlag der Lokation. Jetzt kommen sie danach, auch nach der Bestätigung im Lokations-Dialog. Bedingungen wie „Location Selected“ sehen damit schon die bestätigte Lokation. Bestehende Regeln mit „App Started“ laufen dadurch etwas später an.
@@ -16,6 +19,7 @@ Die Versionen 1.xx bleiben für die alte Version offen
 
 ### Bugfixes
 - **Beenden während eines Massenlaufs fragt nach und endet sauber.** Wurde Callers Caddy geschlossen, während im Potential ein Massenlauf lief (z. B. „Ohne BPM → Alle ermitteln“), lief der Lauf im Hintergrund weiter und das Programm endete unsauber. Jetzt fragt Callers Caddy erst nach. Bei „Ja“ verschwindet das Fenster, ein kleiner Hinweis „Beende …“ zeigt, dass noch gearbeitet wird, der aktuelle Song wird noch fertig bearbeitet und gespeichert, dann beendet sich das Programm normal. Bereits bearbeitete Songs bleiben erhalten. Bei „Nein“ bleibt das Fenster offen und der Lauf geht weiter.
+- **Dateiauswahl für Sounds bietet keine M4A-Dateien mehr an.** Beim Hinweis-Sound (Einstellungen) und bei der Regel-Aktion „Play Sound“ ließen sich M4A-Dateien auswählen, die Callers Caddy gar nicht abspielen kann. Die Auswahl zeigt jetzt genau die unterstützten Formate (MP3, WAV, FLAC, OGG, AIFF) und erscheint in der eingestellten Sprache.
 - **Notizen: Zeilen überlappen sich nicht mehr, Zeilenabstand einstellbar.** Bei mehrzeiligen Notizen ragten Unterlängen (g, j, p, y) und Akzente auf Großbuchstaben (Ä, Ž, É) in die Nachbarzeile, bei großem Zoom so stark, dass Notizen aus der Distanz kaum lesbar waren. Die Zeilen nutzen jetzt die volle Zeilenhöhe der Schrift; Notizen werden dadurch etwas höher. Wer mehr Luft möchte, stellt unter Einstellungen → Notizen den Zeilenabstand auf bis zu 200 %.
 - **Stabilere Fenster beim Andocken und Tabben.** Callers Caddy läuft jetzt auf Qt 6.12. Ältere Qt-Versionen konnten abstürzen, wenn Fenster zwischen bestehenden Tab-Gruppen umgehängt wurden, etwa beim Zurücksetzen des Layouts. Die neue Version enthält dafür mehrere Korrekturen von Qt.
 - **Pausen-Uhr: Schließen über das X bricht die laufende Pause ab.** Bisher lief der Countdown nach dem Wegklicken unsichtbar weiter, und Minuten später lösten noch Regeln mit „Break Finished“ aus. Jetzt gilt das X als Abbruch, wie der Knopf „Reset“: Die Uhr steht wieder auf voller Dauer, „Break Finished“ feuert nicht. Eine angehaltene oder abgelaufene Uhr bleibt, wie sie ist. Laufende Wartemusik spielt wie bei „Reset“ bis zu ihrem Ende weiter. Nur Ausblenden, etwa über das Ansicht-Menü, lässt die Pause weiterlaufen.

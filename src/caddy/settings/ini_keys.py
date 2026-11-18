@@ -94,6 +94,8 @@ _ENTRIES = (
     _k("paths/import_dir", str, "neu"),
     _k("paths/lyrics_dir", str, "lyrics"),
     _k("paths/playlist_dir", str, "playlists"),
+    # Andere Update-Quelle (nur https), leer = UPDATE_URL; ohne UI
+    _k("update/url", str, ""),
 )
 
 KEYS = {e.key: e for e in _ENTRIES}
