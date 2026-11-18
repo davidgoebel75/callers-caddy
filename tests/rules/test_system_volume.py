@@ -87,14 +87,29 @@ def test_aktion_registriert(tmp_path):
     assert a.params_schema["mode"]["default"] == "at_least"
 
 
-def _start_win(detect):
+def _start_win(detect, broken=None):
     import main
 
     fired = []
     win = types.SimpleNamespace(
         _auto_detect_location_on_startup=detect,
-        rule_engine=types.SimpleNamespace(fire_trigger=fired.append))
+        rule_engine=types.SimpleNamespace(fire_trigger=fired.append,
+                                          broken_user_rules_path=broken))
     return main, win, fired
+
+
+def test_start_meldet_beiseitegelegte_regeldatei(monkeypatch):
+    """intern#257: Meldung vor der Lokations-Erkennung, mit dem Pfad."""
+    ablauf = []
+    main, win, fired = _start_win(lambda: ablauf.append("lokation"),
+                                  broken="C:/x/rules_user.json.broken-1")
+    monkeypatch.setattr(main.QMessageBox, "warning",
+                        lambda parent, title, text: ablauf.append(text))
+
+    main.P29MainWindow._finish_startup(win)
+
+    assert ablauf[1:] == ["lokation"]
+    assert "C:/x/rules_user.json.broken-1" in ablauf[0]
 
 
 def test_app_started_kommt_nach_der_lokations_erkennung():

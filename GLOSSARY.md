@@ -324,3 +324,20 @@ erscheint, typischerweise frisch importiert. "Auch ausgeblendete Sequenzen anzei
 holt sie zurueck, ohne Typ, Schwierigkeit oder Tags anzutasten.
 _EN_: Hidden Sequence
 _Avoid_: Neueste Sequenz, versteckte Sequenz
+
+### Regeln
+
+**Regel**:
+Automatik nach dem Muster Ausloeser, Bedingung, Aktion, die bei einem Ereignis im
+Programm selbst etwas ausfuehrt, etwa beim Song-Start oder per Stream-Deck-Taste.
+_EN_: Rule
+
+**System-Regel**:
+Regel, die mit dem Programm ausgeliefert wird. Der Caller kann sie nur ein- und
+ausschalten und einer Taste zuordnen, nicht aendern oder loeschen.
+_EN_: System Rule
+
+**Eigene Regel**:
+Regel, die der Caller selbst anlegt, aendert, loescht oder importiert.
+_EN_: User Rule
+_Avoid_: User-Regel, Benutzerregel
