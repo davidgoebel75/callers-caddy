@@ -1,37 +1,57 @@
-"""Pilot-Square-Farben in Square Flow (Phase 3, intern#249).
+"""Pilot-Square-Daten in Square Flow (Phase 3, intern#249).
 
-Qt-frei. Der Pilot Square liefert je Taenzer (Couple 1-4, Mann/Frau) eine Farbe oder
-nichts. Die Engine fuehrt jeden Taenzer mit "couple" und "boy" ueber alle Calls und
-Figuren mit, die Farbe haengt also am Taenzer, nicht am Platz. Wer keine Pilot-Farbe hat,
-behaelt die Standard-Paarfarbe; Form (Mann/Frau) und Nummer bleiben als Bezug.
+Qt-frei. Der Pilot Square haelt je Taenzer (Couple 1-4, Mann/Frau) Farbe und Name; er ist
+die EINZIGE Ablage, Square Flow zeigt nur an. Die Engine fuehrt jeden Taenzer mit "couple"
+und "boy" ueber alle Calls und Figuren mit, die Daten haengen also am Taenzer, nicht am
+Platz. Ohne Pilot-Farbe bleibt die Standard-Paarfarbe; Form (Mann/Frau) und Nummer bleiben
+als Bezug.
+
+Datenform: {(Couple, Mann?): {"color": "#rrggbb" oder None, "name": str}}
 """
 
 QT_FREE = True
 
 
 def key(couple, boy):
-    """Schluessel einer Pilot-Farbe: (Couple-Nummer, Mann?)."""
+    """Schluessel eines Taenzers: (Couple-Nummer, Mann?)."""
     try:
         return int(couple), bool(boy)
     except (TypeError, ValueError):
         return None
 
 
-def clean(colors):
-    """Nur gesetzte Farben mit gueltigem Schluessel behalten."""
+def one_line(text):
+    """Name aus dem Pilot-Square-Feld einzeilig (Zeilen mit Leerzeichen verbunden)."""
+    return " ".join(part.strip() for part in str(text or "").splitlines() if part.strip())
+
+
+def clean(data):
+    """Nur Taenzer mit Farbe oder Name und gueltigem Schluessel behalten."""
     out = {}
-    for (couple, boy), color in (colors or {}).items():
+    for (couple, boy), entry in (data or {}).items():
         k = key(couple, boy)
-        if k is not None and color:
-            out[k] = str(color)
+        entry = entry or {}
+        color = entry.get("color") or None
+        name = one_line(entry.get("name"))
+        if k is not None and (color or name):
+            out[k] = {"color": str(color) if color else None, "name": name}
     return out
 
 
-def fill_for(colors, dancer):
+def _entry(data, dancer):
+    if not data or not dancer:
+        return {}
+    return data.get(key(dancer.get("couple"), dancer.get("boy"))) or {}
+
+
+def fill_for(data, dancer):
     """Pilot-Farbe fuer einen Engine-Taenzer (dict mit couple/boy), None = Standardfarbe."""
-    if not colors or not dancer:
-        return None
-    return colors.get(key(dancer.get("couple"), dancer.get("boy")))
+    return _entry(data, dancer).get("color")
+
+
+def name_for(data, dancer):
+    """Pilot-Name fuer einen Engine-Taenzer, "" = keiner."""
+    return _entry(data, dancer).get("name") or ""
 
 
 def text_on(hex_color):

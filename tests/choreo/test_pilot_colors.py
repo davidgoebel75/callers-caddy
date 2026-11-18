@@ -1,16 +1,23 @@
-"""Pilot-Square-Farben in Square Flow (intern#249), Qt-freie Zuordnung."""
+"""Pilot-Square-Daten in Square Flow (intern#249), Qt-freie Zuordnung."""
 from caddy.choreo import pilot_colors as pc
 
 
-def test_farbe_haengt_am_taenzer_nicht_am_platz():
-    colors = pc.clean({(1, True): "#e74c3c", (3, False): "#3498db", (2, True): None})
-    assert colors == {(1, True): "#e74c3c", (3, False): "#3498db"}
+def test_daten_haengen_am_taenzer_nicht_am_platz():
+    data = pc.clean({(1, True): {"color": "#e74c3c", "name": "Anna\nB."},
+                     (3, False): {"color": "#3498db", "name": ""},
+                     (2, True): {"color": None, "name": "  "},
+                     (4, False): {"color": None, "name": "Eva"}})
+    assert data == {(1, True): {"color": "#e74c3c", "name": "Anna B."},
+                    (3, False): {"color": "#3498db", "name": ""},
+                    (4, False): {"color": None, "name": "Eva"}}
     # Engine liefert couple als Text
-    assert pc.fill_for(colors, {"couple": "1", "boy": True}) == "#e74c3c"
-    assert pc.fill_for(colors, {"couple": "1", "boy": False}) is None   # Partnerin ohne Farbe
-    assert pc.fill_for(colors, {"couple": "3", "boy": False}) == "#3498db"
+    assert pc.fill_for(data, {"couple": "1", "boy": True}) == "#e74c3c"
+    assert pc.name_for(data, {"couple": "1", "boy": True}) == "Anna B."
+    assert pc.fill_for(data, {"couple": "1", "boy": False}) is None   # Partnerin leer
+    assert pc.fill_for(data, {"couple": "4", "boy": False}) is None   # Name ohne Farbe
+    assert pc.name_for(data, {"couple": "4", "boy": False}) == "Eva"
     assert pc.fill_for({}, {"couple": "1", "boy": True}) is None
-    assert pc.fill_for(colors, {"couple": "x", "boy": True}) is None
+    assert pc.name_for(data, {"couple": "x", "boy": True}) == ""
 
 
 def test_nummer_lesbar():

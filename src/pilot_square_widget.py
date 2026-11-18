@@ -355,8 +355,8 @@ class _CoupleCell(QWidget):
 class PilotSquareWidget(QWidget):
     """Pilot-Square-Widget: 8 Personenfelder als Square + Farb-Palette."""
 
-    # Farben je Taenzer {(Couple, Mann?): "#rrggbb"} nach jeder Aenderung (intern#249)
-    dancer_colors_changed = Signal(object)
+    # Farbe + Name je Taenzer nach jeder Aenderung (intern#249), Form siehe dancer_data()
+    dancers_changed = Signal(object)
 
     # Orientierung + Box-Reihenfolge je Paar (nach realer Blickrichtung).
     _LAYOUT = {
@@ -389,6 +389,8 @@ class PilotSquareWidget(QWidget):
 
         for num, (orient, order) in self._LAYOUT.items():
             self._couples[num] = _CoupleCell(num, orient, order, self._select_box)
+            for box in self._couples[num].person_boxes():
+                box.textChanged.connect(self._emit_colors)
         grid.addWidget(self._couples[3], 0, 1)  # oben
         grid.addWidget(self._couples[4], 1, 0)  # links
         grid.addWidget(self._couples[2], 1, 2)  # rechts
@@ -464,18 +466,48 @@ class PilotSquareWidget(QWidget):
         self._selected_box.set_fill(color)
         self._emit_colors()
 
-    def dancer_colors(self) -> dict:
-        """Gesetzte Farben je Taenzer: {(Couple 1-4, Mann?): "#rrggbb"}."""
+    def _box(self, couple: int, boy: bool) -> Optional[_PersonBox]:
+        cell = self._couples.get(couple)
+        if cell is None:
+            return None
+        return cell.man if boy else cell.woman
+
+    def dancer_data(self) -> dict:
+        """Farbe + Name je Taenzer mit Inhalt:
+        {(Couple 1-4, Mann?): {"color": "#rrggbb" oder None, "name": str}}.
+        Der Pilot Square ist die einzige Ablage; Square Flow zeigt nur an (intern#249)."""
         out = {}
-        for num, cell in self._couples.items():
-            if cell.man._fill:
-                out[(num, True)] = cell.man._fill
-            if cell.woman._fill:
-                out[(num, False)] = cell.woman._fill
+        for num in self._couples:
+            for boy in (True, False):
+                box = self._box(num, boy)
+                name = box.toPlainText().strip()
+                if box._fill or name:
+                    out[(num, boy)] = {"color": box._fill, "name": name}
         return out
 
     def _emit_colors(self):
-        self.dancer_colors_changed.emit(self.dancer_colors())
+        self.dancers_changed.emit(self.dancer_data())
+
+    def edit_dancer(self, couple: int, boy: bool, parent=None) -> bool:
+        """Modales Fenster fuer Name + Farbe eines Taenzers (Doppelklick in Square Flow).
+        Schreibt direkt in das Pilot-Square-Feld; True bei OK."""
+        box = self._box(int(couple), bool(boy))
+        if box is None:
+            return False
+        from pilot_dancer_dialog import PilotDancerDialog
+        who = _t("square.man_placeholder") if boy else _t("square.woman_placeholder")
+        title = _t("square.couple_label").format(n=int(couple)) + " · " + who
+        dlg = PilotDancerDialog(title, " ".join(box.toPlainText().split()), box._fill,
+                                _PALETTE_COLORS, self._colors, parent or self)
+        if dlg.exec() != PilotDancerDialog.Accepted:
+            return False
+        name = dlg.result_name()
+        if name != box.toPlainText().strip():
+            box.setPlainText(name)          # meldet per textChanged
+        if dlg.result_color() != box._fill:
+            box.set_fill(dlg.result_color())
+            self._emit_colors()
+        return True
 
     # ── Leeren ──
     def _all_boxes(self) -> list[_PersonBox]:
