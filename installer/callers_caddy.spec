@@ -100,6 +100,9 @@ app_analysis = Analysis(
         # Wird zur Laufzeit ueber os.path.dirname(__file__) neben song_db.py
         # gesucht -> im Bundle == _internal/, also Ziel ".".
         (str(SRC_DIR / "reference_calls.json"), "."),
+        # Lizenzen (intern#248): build.py legt beides neben die EXE
+        (str(PROJECT_ROOT / "LICENSE"), "."),
+        (str(INSTALLER_DIR / "licenses"), "licenses"),
     ],
     hiddenimports=[
         "numpy",
@@ -168,6 +171,11 @@ cd_analysis = Analysis(
     noarchive=False,
     cipher=block_cipher,
 )
+
+# ASIO-Variante von PortAudio nicht ausliefern (intern#248): Die App laedt
+# libportaudio64bit.dll; die -asio-Variante enthaelt Code aus dem Steinberg-ASIO-SDK.
+for _a in (app_analysis, migration_analysis, cd_analysis):
+    _a.binaries = [b for b in _a.binaries if "-asio" not in b[0].lower()]
 
 # ---------- MERGE: Gemeinsame Bibliotheken ----------
 # Dedupliziert alle gemeinsamen Abhaengigkeiten (Python, PySide6, Qt, etc.)

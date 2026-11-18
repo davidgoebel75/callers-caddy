@@ -22,6 +22,17 @@ VOR_DER_PAUSE = 2      # war vor der Pause geladen
 VON_HAND = 3           # vom Caller waehrend der Wartemusik gestartet
 
 
+class _Sitzung:
+    """Fake der aktuellen Sitzung: kein QObject (Windows-Crash-Falle), nur song/set_song."""
+
+    def __init__(self, song=None, **kw):
+        self.song = song
+        self.__dict__.update(kw)
+
+    def set_song(self, song):
+        self.song = song
+
+
 class _Rules:
     def __init__(self):
         self.gesperrt = {"break_music"}
@@ -49,11 +60,11 @@ class _Fenster:
         self._break_music_suppress_feedback = True
         self._suppress_play_log = True
         self._was_playing = True
-        self._current_song = SimpleNamespace(id=PAUSEN_SONG)
+        self.session = _Sitzung(SimpleNamespace(id=PAUSEN_SONG))
         self.rule_engine = _Rules()
         self.gestoppt = []
         self.engine = SimpleNamespace(stop=lambda: self.gestoppt.append(
-            self._current_song.id))
+            self.session.song.id))
         self.pausen_uhr_beendet = []
         self.break_widget = SimpleNamespace(
             set_music_stopped=lambda: None,
@@ -64,7 +75,7 @@ class _Fenster:
         song_id, self._pre_break_song_id = self._pre_break_song_id, None
         if song_id:
             self.nachgeladen.append(song_id)
-            self._current_song = SimpleNamespace(id=song_id)
+            self.session.set_song(SimpleNamespace(id=song_id))
 
 
 @pytest.fixture
@@ -78,7 +89,7 @@ def _pausenende(fenster):
 
 
 def test_manuelles_play_beendet_die_pause(fenster):
-    fenster._current_song = SimpleNamespace(id=VON_HAND)
+    fenster.session.set_song(SimpleNamespace(id=VON_HAND))
     fenster._end_break_on_manual_play()
     # Historie und Rules gelten sofort wieder fuer den neuen Song
     assert not fenster._suppress_play_log
@@ -87,7 +98,7 @@ def test_manuelles_play_beendet_die_pause(fenster):
     # nichts gestoppt, nichts nachgeladen, Pausen-Uhr zurueckgesetzt
     assert fenster.gestoppt == []
     assert fenster.nachgeladen == []
-    assert fenster._current_song.id == VON_HAND
+    assert fenster.session.song.id == VON_HAND
     assert fenster.pausen_uhr_beendet == [True]
     # break_finished feuert nicht (abgebrochen, nicht abgelaufen)
     QCoreApplication.processEvents()
@@ -99,7 +110,7 @@ def test_manuelles_play_ohne_wartemusik_beendet_die_pause(fenster):
     fenster._break_music_song_id = None
     fenster._pre_break_song_id = None
     fenster._suppress_play_log = False
-    fenster._current_song = SimpleNamespace(id=VON_HAND)
+    fenster.session.set_song(SimpleNamespace(id=VON_HAND))
     fenster._end_break_on_manual_play()
     assert fenster.pausen_uhr_beendet == [True]
     assert fenster.gestoppt == [] and fenster.nachgeladen == []
@@ -112,7 +123,7 @@ def test_vorhoeren_beendet_die_pause_nicht(fenster, audition, suppress):
     fenster._break_music_active = False
     fenster._in_audition = audition
     fenster._suppress_play_log = suppress
-    fenster._current_song = SimpleNamespace(id=VON_HAND)
+    fenster.session.set_song(SimpleNamespace(id=VON_HAND))
     fenster._end_break_on_manual_play()
     assert fenster.pausen_uhr_beendet == []
 
@@ -134,15 +145,14 @@ def test_play_der_wartemusik_selbst_aendert_nichts(fenster):
     assert fenster.pausen_uhr_beendet == []
 
 
-def test_pausen_uhr_end_break_setzt_zurueck_ohne_finished(qapp):
-    from break_photo_widget import BreakWidget
-    w = BreakWidget()
+def test_pausen_uhr_end_break_setzt_zurueck_ohne_finished(keep):
+    from caddy.breaks.break_clock import BreakState
+    from caddy.breaks.break_widget import BreakWidget
+    w = keep(BreakWidget())
     fertig = []
     w.on_break_finished = lambda: fertig.append(1)
     assert not w.end_break()                 # laeuft nicht -> nichts zu tun
     w.start_break(120)
-    w._remaining = 37.0
     assert w.end_break()
-    assert not w._running and not w._finished
-    assert w._remaining == w._total == 120.0
+    assert w.state == BreakState(total=120, remaining=120)
     assert fertig == []

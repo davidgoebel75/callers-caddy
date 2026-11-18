@@ -97,6 +97,11 @@ Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
 _EN_: Song Catalog
 _Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
 
+**Empfehlungs-Score**:
+Qualitaet des Songs mal Tage seit zuletzt gespielt; nie gespielte Songs zaehlen ab
+dem Erstaufnahme-Datum. Je hoeher, desto eher kommt der Song wieder dran.
+_EN_: Recommendation score
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.
@@ -148,16 +153,33 @@ _EN_: Search Window
 Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
 
+**Uhr**:
+Dock mit der aktuellen Uhrzeit als Digitaluhr. Nicht verwechseln mit der
+Pausen-Uhr, die rueckwaerts zaehlt.
+_EN_: Clock
+
 **Wartemusik**:
 Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
 als gespielt und schaltet die Playlist nicht weiter.
 _EN_: Break Music
+
+**Abgebrochene Pause**:
+Pause, die vor Ablauf der Pausen-Uhr endet. Anders als eine abgelaufene Pause
+loest sie kein "Break Finished" aus.
+_EN_: Cancelled Break
 
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
 Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
 _EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
+
+**Massenlauf**:
+Eine Pruefung oder Reparatur im Potential-Dock, die viele Songs nacheinander
+bearbeitet (z. B. BPM ermitteln, Loops suchen). Ab einer gewissen Menge erst ein
+Probelauf mit wenigen Songs zur Zeitschaetzung; abbrechen laesst Bearbeitetes stehen.
+_EN_: Bulk Run
+_Avoid_: Batch-Lauf, Bulk-Job
 
 ### Figuren und Programme
 
@@ -211,6 +233,12 @@ Figur mit dem Platzhalter "(Anything)", in den eine beliebige andere Figur einge
 wird, z. B. "(Anything) & Roll". Gibt es ab Plus.
 _EN_: (Anything) Figure
 _Avoid_: (Anything)-Vorlage, Vorlage
+
+**(Named Dancers)-Figur**:
+Figur mit dem Platzhalter "(Named Dancers)", fuer den der Caller eine beliebige Gruppe
+von Taenzern nennt, z. B. "Heads Circulate" oder "Boys Cross". Eine Figur, die eine
+Gruppe fest im Namen traegt, z. B. "All Eight Circulate", ist eine eigene Figur.
+_EN_: (Named Dancers) Figure
 
 ### Sequenzen
 

@@ -74,3 +74,18 @@ def test_call_program_label():
     assert label([dosado, peel], {30, 40}, labels) == "Plus 2026"  # mehrere Figuren
     assert label([[None]], {30}, labels) == ""                 # Figur ohne Band
     assert label([], {30}, labels) == ""
+
+
+# ---- parse_ids (INI-Wert 'sequences/dance_programs') ----------------------------
+
+def test_parse_ids_empty_and_none():
+    assert ps.parse_ids("") == []
+    assert ps.parse_ids(None) == []
+
+
+def test_parse_ids_keeps_order_and_ignores_blanks():
+    assert ps.parse_ids(" 3, 1 ,2") == [3, 1, 2]
+
+
+def test_parse_ids_skips_garbage():
+    assert ps.parse_ids("1,x,,3") == [1, 3]

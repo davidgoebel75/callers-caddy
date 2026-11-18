@@ -5,7 +5,6 @@ Autofill/Planner) samt Tabellen-Helfern und PlaylistEntry.
 Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
-import re
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -20,6 +19,8 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QBrush, QPalette
 
+from caddy.songs import playlist_file
+from caddy.songs.playlist_file import PlaylistLine
 from song_db import SongDatabase, Song
 from path_manager import PathManager
 from i18n import _t
@@ -27,9 +28,10 @@ from perf import perf_start, perf_log
 from stats_widget import add_song_rating_actions
 from songdata_widget import SongFilterBar
 import song_types
+from caddy.songs import recommendation
 from song_types import PlayMode
 from ui_helpers import (
-    _make_icon, _reco_score, _style_date_cell, _WrapButtonBar,
+    _make_icon, _style_date_cell, _WrapButtonBar,
     _SVG_AUTOFILL, calc_auto_loop, show_loop_count_dialog,
 )
 
@@ -541,10 +543,10 @@ class PlaylistWidget(QWidget):
         self.refresh_display()
         self._notify_changed()
 
-    def remove_song(self, song_id: int):
-        """Entfernt alle Eintraege eines Songs (z. B. nach dem Loeschen, intern#212)."""
+    def remove_songs(self, song_ids):
+        """Entfernt alle Eintraege dieser Songs (nach dem Loeschen, intern#212/#214)."""
         self.remove_rows([i for i, e in enumerate(self._playlist)
-                          if e.song is not None and e.song.id == song_id])
+                          if e.song is not None and e.song.id in song_ids])
 
     # ---- Block-Operationen (Mehrfachauswahl) — Datenmodell-Kern -----------
     # PlaylistWidget besitzt _playlist; sowohl die eigene Ansicht als auch der
@@ -618,6 +620,16 @@ class PlaylistWidget(QWidget):
 
     def get_current_index(self) -> int:
         return self._current_index
+
+    def anchor_to_song(self, song_id) -> int:
+        """Setzt den aktuellen Eintrag auf den ersten noch ungespielten Eintrag
+        dieses Songs und gibt dessen Index zurueck; -1 (Index unveraendert),
+        wenn der Song nicht ungespielt in der Playlist steht."""
+        for idx, entry in enumerate(self._playlist):
+            if entry.song.id == song_id and not entry.played:
+                self._current_index = idx
+                return idx
+        return -1
 
     def set_playing_song(self, song_id):
         """Setzt den aktuell spielenden Song und aktualisiert das Highlight.
@@ -797,13 +809,10 @@ class PlaylistWidget(QWidget):
         if not filepath:
             return
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                for entry in self._playlist:
-                    # BL-164: Cut nur anhaengen wenn gesetzt -> altes Format bleibt
-                    # fuer Eintraege ohne Cut unveraendert (Rueckwaertskompatibilitaet)
-                    cut = getattr(entry, 'loop_cut_beats', 0)
-                    tok = f"{entry.loop_count}:{cut}" if cut > 0 else f"{entry.loop_count}"
-                    f.write(f"{entry.play_mode} {tok} {entry.song.title}\n")
+            playlist_file.write(filepath, [
+                PlaylistLine(entry.play_mode, entry.loop_count,
+                             getattr(entry, 'loop_cut_beats', 0), entry.song.title)
+                for entry in self._playlist])
             print(f"[Playlist] Gespeichert: {filepath} ({len(self._playlist)} Songs)")
         except Exception as e:
             QMessageBox.warning(self, _t("error"), _t("save_failed", error=e))
@@ -817,11 +826,7 @@ class PlaylistWidget(QWidget):
         if not filepath:
             return
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-        except UnicodeDecodeError:
-            with open(filepath, "r", encoding="cp1252") as f:
-                lines = f.readlines()
+            lines = playlist_file.read(filepath)
         except Exception as e:
             QMessageBox.warning(self, _t("error"), _t("load_failed", error=e))
             return
@@ -829,35 +834,14 @@ class PlaylistWidget(QWidget):
         self._playlist.clear()
         self._current_index = -1
         not_found = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(" ", 2)
-            if len(parts) < 2:
-                continue
-            play_mode = parts[0].upper()
-            if play_mode not in ('P', 'S'):
-                play_mode = 'P'
-            # Format: "MODE LOOPCOUNT FILENAME" oder "MODE FILENAME" (alt).
-            # LOOPCOUNT ist "N" oder "N:CUT" (BL-164 Feinjustierung).
-            loop_count = 0
-            loop_cut = 0
-            if len(parts) == 3 and re.fullmatch(r"\d+(:\d+)?", parts[1]):
-                cnt = parts[1].split(":")
-                loop_count = int(cnt[0])
-                loop_cut = int(cnt[1]) if len(cnt) > 1 else 0
-                filename = parts[2]
-            elif len(parts) == 3:
-                filename = parts[1] + " " + parts[2]
-            else:
-                filename = parts[1]
+        for item in lines:
+            filename = item.name
             # Suche: erst Titel (V1 + neu), dann Dateiname (V2-Uebergangsformat)
             song = self.db.get_by_title(filename) or self.db.get_by_filename(filename)
             if song:
                 self._playlist.append(PlaylistEntry(
-                    song=song, play_mode=play_mode, loop_count=loop_count,
-                    loop_cut_beats=loop_cut))
+                    song=song, play_mode=item.play_mode, loop_count=item.loop_count,
+                    loop_cut_beats=item.loop_cut))
             else:
                 not_found.append(filename)
 
@@ -1208,7 +1192,8 @@ class PlaylistManagerWidget(QWidget):
                     cell_text = self._format_date(self._start_date.isoformat())
                     inherited = True
             elif role == "score":
-                cell_text = str(_reco_score(song, self._last_played_map, self._start_date))
+                cell_text = str(recommendation.song_score(
+                    song, self._last_played_map, date.today(), self._start_date))
                 tooltip = _t("tooltip_score_col")
             else:
                 lp_str = self._last_played_map.get(song.id, "")

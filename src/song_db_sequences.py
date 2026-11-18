@@ -1594,6 +1594,58 @@ class SequencesMixin:
             "VALUES ('auto_mappings_backfilled', '1')")
         self._conn.commit()
 
+    def _remap_group_prefix_once(self):
+        """Startup-Heilung (einmalig, per Flag in app_meta) fuer intern#89.
+
+        Bis dahin belegte eine Figur mit Gruppe im Namen den Schluessel des
+        blanken Calls ("All Eight Circulate" fing "Circulate"), und "All 8
+        Spin The Top" landete auf "Spin the Top". Zuordnungen mit genau einer
+        Figur, die auf diesen alten Volltreffer zeigen, bekommen den neuen --
+        auch 'manual', denn dann hat der Caller nur den falschen gruenen
+        Vorschlag bestaetigt. Danach ergaenzt der Abgleich die Texte, die erst
+        jetzt ein Volltreffer sind, und die Einstufung wird neu gerechnet.
+        """
+        if self._conn.execute(
+                "SELECT 1 FROM app_meta WHERE key='group_prefix_remapped'").fetchone():
+            return
+        try:
+            toc = self.get_teaching_order_calls()
+            if toc:
+                from sequence_mapper import CallMatcher, normalize_call_text
+                matcher = CallMatcher(toc)
+                # Spiegelt CallMatcher._exact vor intern#89: normalisiert
+                # (Gruppe vorn ab, kein canon_key), erster in Teaching-Order gewinnt
+                old = {}
+                for eid, name, *_ in toc:
+                    old.setdefault(normalize_call_text(name), eid)
+                rows = []
+                for text, eid in self._conn.execute(
+                        "SELECT call_text, entity_id FROM call_text_mappings m "
+                        "WHERE NOT EXISTS (SELECT 1 FROM call_text_figures_extra x "
+                        "WHERE x.call_text = m.call_text)"):
+                    new = matcher.exact_entity(text)
+                    if new and new != eid and eid == old.get(normalize_call_text(text)):
+                        rows.append((new, text))
+                self._conn.executemany(
+                    "UPDATE call_text_mappings SET entity_id = ?, mapped_by = 'auto' "
+                    "WHERE call_text = ?", rows)
+                self.backfill_auto_mappings()   # committet, das UPDATE mit
+                # Immer neu rechnen: scheitert es nach dem Commit, holt der
+                # naechste Start es nach (dann ohne umzuhaengende Zeilen)
+                self.recompute_sequence_max_to()
+                if rows:
+                    print(f"[SongDB] intern#89: {len(rows)} Zuordnungen umgehaengt")
+        except Exception as e:
+            # Darf den Start nie verhindern — Flag NICHT setzen, damit es beim
+            # naechsten Start erneut versucht wird.
+            print(f"[SongDB] Gruppen-Heilung (intern#89) uebersprungen: {e}")
+            self._conn.rollback()
+            return
+        self._conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) "
+            "VALUES ('group_prefix_remapped', '1')")
+        self._conn.commit()
+
     def _recompute_max_to_once(self):
         """Startup-Heilung (einmalig, per Flag in app_meta): rechnet
         max_teaching_order mit der neuen Band-Regel nach.

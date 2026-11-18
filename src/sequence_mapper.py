@@ -25,6 +25,15 @@ _ROLE_PREFIX_RE = re.compile(
     r'all\s+8|all\s+eight|all|ends?|leaders?|trailers?)\s+',
     re.IGNORECASE
 )
+# Platzhalter der (Named Dancers)-Figuren: steht fuer eine beliebige Gruppe
+# (intern#89), z. B. "(Named Dancers) Circulate" fuer "Heads Circulate".
+_NAMED_DANCERS_RE = re.compile(r'^\(named dancers\)\s+', re.IGNORECASE)
+
+
+def _group_key(text: str) -> str:
+    """Schluessel fuer Figuren mit Gruppe im Namen (intern#89): canon_key
+    nach Abschneiden der Endung ("(again)", "1/2"), Gruppe bleibt stehen."""
+    return canon_key(_SUFFIX_RE.sub('', text.strip()))
 _SUFFIX_RE = re.compile(
     r'(\s*\([^)]*\)|\s+\d+/\d+|\s+\d+|\s+again)\s*$',
     re.IGNORECASE
@@ -75,7 +84,7 @@ class CallMatcher:
     Score und eine entity_id.
 
     Stufen:
-        1. Exakter Vergleich nach Normalisierung          → score 1.0
+        1. Exakter Vergleich (woertlich, sonst normalisiert) → score 1.0
         2. Bidirektionaler Token-Overlap (Jaccard-aehnl.) → score bis 0.92
         3. difflib.SequenceMatcher als Fallback            → score bis 0.85
 
@@ -91,7 +100,7 @@ class CallMatcher:
     # < UNCERTAIN → keine Vorauswahl, rote Markierung
 
     def __init__(self, canonicals: list):
-        self._exact: dict[str, str] = {}          # norm_text → entity_id
+        self._exact: dict[str, str] = {}          # canon_key(norm_text) → entity_id
         self._data:  list[tuple]    = []           # [(eid, norm_can, frozenset_tokens)]
         # Invertierter Index Wort → [Indizes in self._data]. Damit muss suggest()
         # einen Text nur noch gegen Calls pruefen, die MINDESTENS EIN Wort teilen —
@@ -110,11 +119,18 @@ class CallMatcher:
         # teaching_order, sonst wandert die entity_id der (Anything)-Figur
         # zwischen Laeufen.
         self._by_canonical: dict[str, tuple] = {}
+        # Nur Figuren mit Gruppe im Namen: canon_key(Name) → entity_id.
+        # Volltreffer-Stufe VOR self._exact: ein Call-Text, der eine solche
+        # Figur woertlich nennt ("All 8 Spin The Top", "Centers In"), trifft
+        # genau diese Figur (intern#89).
+        self._exact_with_group: dict[str, str] = {}
 
         for eid, cname, *rest in canonicals:
             teaching_order = rest[0] if rest else None
             key = canon_key(cname)
             if key:
+                if _ROLE_PREFIX_RE.match(cname):
+                    self._exact_with_group.setdefault(_group_key(cname), eid)
                 prev = self._by_canonical.get(key)
                 if prev is None or (
                         teaching_order is not None and
@@ -124,8 +140,22 @@ class CallMatcher:
             norm = normalize_call_text(cname)
             if not norm:
                 continue
-            if norm not in self._exact:
-                self._exact[norm] = eid
+            # intern#89: Traegt die Figur eine Gruppe fest im Namen ("All Eight
+            # Circulate"), belegt sie NICHT den Schluessel ohne Gruppe
+            # ("circulate") -- den haelt die (Named Dancers)-Figur, deren
+            # Platzhalter fuer eine beliebige Gruppe steht. Fuer die unscharfe
+            # Suche zaehlt dann der volle Name.
+            if _NAMED_DANCERS_RE.match(cname):
+                self._exact.setdefault(canon_key(
+                    normalize_call_text(_NAMED_DANCERS_RE.sub('', cname))), eid)
+            elif _ROLE_PREFIX_RE.match(cname):
+                # Ein Call-Text verliert seine Gruppe immer, kann diesen
+                # Schluessel also nie treffen -- er dient nur der Suche.
+                norm = _SUFFIX_RE.sub('', cname).strip().lower()
+            # canon_key: '&' == 'and', 'Eight' == '8' ("Right & Left Thru")
+            key = canon_key(norm)
+            if key not in self._exact:
+                self._exact[key] = eid
                 idx = len(self._data)
                 toks = frozenset(norm.split())
                 self._data.append((eid, norm, toks))
@@ -142,8 +172,9 @@ class CallMatcher:
             return (0.0, None)
 
         # Stufe 1: exakter Vergleich
-        if norm_raw in self._exact:
-            return (1.0, self._exact[norm_raw])
+        eid = self.exact_entity(raw_text)
+        if eid is not None:
+            return (1.0, eid)
 
         raw_tokens = frozenset(norm_raw.split())
         best_score = 0.0
@@ -194,11 +225,25 @@ class CallMatcher:
         Fuer Massen-Auto-Mapping (Startup-Backfill, Bulk-Import, Remapping) —
         ohne den teuren Fuzzy-Loop, damit Tausende Texte in Millisekunden
         laufen. Entspricht suggest()>=0.999, aber als O(1)-Dict-Lookup.
+
+        Erst der woertliche Figurenname (canon_key, Endung wie "(again)" oder
+        "1/2" ab) einer Figur mit Gruppe im Namen, dann der Text ohne Gruppe
+        vorn (intern#89).
         """
+        # Gruppen vorn einzeln abschneiden: "Heads Centers In" -> "Centers In"
+        t = raw_text.strip()
+        for _ in range(4):
+            eid = self._exact_with_group.get(_group_key(t))
+            if eid is not None:
+                return eid
+            new = _ROLE_PREFIX_RE.sub('', t, count=1)
+            if new == t:
+                break
+            t = new
         norm = normalize_call_text(raw_text)
         if not norm:
             return None
-        return self._exact.get(norm)
+        return self._exact.get(canon_key(norm))
 
     def exact_by_canonical(self, name: str) -> Optional[str]:
         """entity_id fuer einen ROHEN kanonischen Namen (canon_key-Vergleich:

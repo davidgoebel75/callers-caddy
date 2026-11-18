@@ -25,7 +25,7 @@ Lokation-Schema (generalisiert aus Club):
 Abspielhistorie (Drei-Schichten-Architektur):
   Schicht 1 — play_history: Unveraenderliches Protokoll (nur INSERTs)
   Schicht 2 — song_location_stats: Materialisierter Cache (last_played, play_count)
-  Schicht 3 — On-the-Fly: julianday('now') - julianday(last_played) fuer Empfehlungen
+  Schicht 3 — On-the-Fly: Kalendertage seit last_played (Ortszeit) fuer Empfehlungen
 
 Design-Entscheidungen:
   - Nur Dateiname gespeichert, KEINE absoluten Pfade (portabel)
@@ -448,6 +448,7 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
         self._normalize_call_text_figures()
         self._conn.commit()
         self._backfill_auto_mappings_once()  # heilt ungemappte Massenimporte (einmalig)
+        self._remap_group_prefix_once()  # intern#89: Gruppe vorn im Call-Text (einmalig)
         self._recompute_max_to_once()  # intern#95: Band-Regel geaendert (einmalig)
         print(f"[SongDB] Datenbank geoeffnet: {db_path}")
 
@@ -988,6 +989,18 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
               f"(Historie {'mit' if delete_history else 'behalten'})")
         return deleted
 
+    def open_worker_connection(self):
+        """Neue Verbindung fuer einen Hintergrund-Worker (intern#139).
+
+        Eigene Verbindung, weil SQLite-Verbindungen threadgebunden sind und die
+        Haupt-Verbindung nicht mitbenutzt werden darf. Liest nur self.db_path,
+        ist also aus dem Worker-Thread aufrufbar. Gleiche PRAGMAs wie die
+        Haupt-Verbindung. Der Aufrufer schliesst sie."""
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA busy_timeout=30000;")
+        conn.execute("PRAGMA foreign_keys=ON;")
+        return conn
+
     def bulk_delete_songs(self, song_ids: list, delete_history: bool = False) -> int:
         """Main-Thread-Variante (kleine Mengen). Delegiert an
         bulk_delete_on_connection mit der eigenen Connection."""
@@ -1491,7 +1504,8 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             SELECT s.id, s.title, s.label, s.err, s.quality,
                    s.is_pattern, s.is_singing,
                    COALESCE(
-                       CAST(julianday('now') - julianday(sls.last_played) AS INTEGER),
+                       CAST(julianday(date('now', 'localtime'))
+                            - julianday(date(sls.last_played)) AS INTEGER),
                        ?
                    ) AS days_since,
                    GROUP_CONCAT(g.name, ',') AS genres
