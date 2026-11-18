@@ -60,6 +60,11 @@
     "en": "The update check could not be completed.\nPlease check your internet connection and try again.",
     "ja": "アップデートを確認できませんでした。\nインターネット接続を確認して、もう一度お試しください。"
   },
+  "update_custom_source": {
+    "de": "Update-Quelle laut INI (update/url): {url}",
+    "en": "Update source from INI (update/url): {url}",
+    "ja": "INI で指定された更新元 (update/url): {url}"
+  },
   "no_file_loaded": {
     "de": "Keine Datei geladen",
     "en": "No file loaded",

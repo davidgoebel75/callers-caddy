@@ -44,6 +44,7 @@ _EXCLUDED_SECTIONS = {
     "custom-filter",
     "shortcuts",   # seit P37 ins Rules-System migriert, wird nicht mehr gelesen
     "crash",       # interner Merker: zuletzt gemeldetes Fehlerprotokoll
+    "update",      # Snooze-Merker + update/url (bewusst ohne UI)
 }
 
 # Jede Sektion deren Name dieses Suffix hat wird ebenfalls ausgeblendet
