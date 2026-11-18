@@ -339,5 +339,5 @@ _EN_: System Rule
 
 **Eigene Regel**:
 Regel, die der Caller selbst anlegt, aendert, loescht oder importiert.
-_EN_: User Rule
+_EN_: Custom Rule
 _Avoid_: User-Regel, Benutzerregel

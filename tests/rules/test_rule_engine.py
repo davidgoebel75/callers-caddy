@@ -196,6 +196,36 @@ def test_kaputte_datei_ueberlebt_naechstes_speichern(tmp_path, engine):
     assert kaputt in reste
 
 
+def _gesperrt(*a, **kw):
+    raise PermissionError("gesperrt")
+
+
+def test_sichern_per_kopie_wenn_umbenennen_scheitert(tmp_path, engine,
+                                                     monkeypatch):
+    p = tmp_path / "rules" / "rules_user.json"
+    p.parent.mkdir()
+    p.write_text("kaputt", encoding="utf-8")
+    monkeypatch.setattr("rule_engine.os.replace", _gesperrt)
+    engine.load()
+    assert open(engine.broken_user_rules_path, encoding="utf-8").read() == "kaputt"
+
+
+def test_speichern_gesperrt_wenn_sichern_scheitert(tmp_path, engine,
+                                                   monkeypatch):
+    p = tmp_path / "rules" / "rules_user.json"
+    p.parent.mkdir()
+    p.write_text("kaputt", encoding="utf-8")
+    monkeypatch.setattr("rule_engine.os.replace", _gesperrt)
+    monkeypatch.setattr("rule_engine.shutil.copy2", _gesperrt)
+    engine.load()
+    monkeypatch.undo()
+    engine.add_user_rule(_rule("neu"))
+    assert p.read_text(encoding="utf-8") == "kaputt"
+    assert engine.broken_user_rules_path is None
+    assert "nicht gespeichert" in (tmp_path / "logs" / "rules.log").read_text(
+        encoding="utf-8")
+
+
 def test_abgebrochenes_speichern_laesst_datei_heil(tmp_path, engine, monkeypatch):
     p = tmp_path / "rules" / "rules_user.json"
     _write(p, [_rule("u1")])

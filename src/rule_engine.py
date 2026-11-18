@@ -7,6 +7,7 @@ First Match Wins, System- und User-Rules getrennt, Loop-Schutz, Logging.
 
 import json
 import os
+import shutil
 import time
 from dataclasses import dataclass, field
 
@@ -173,6 +174,8 @@ class RuleEngine:
         self._rules_user: list[Rule] = []
         # Gesetzt, wenn load() eine unlesbare rules_user.json beiseitegelegt hat
         self.broken_user_rules_path: str | None = None
+        # True, wenn eine unlesbare rules_user.json nicht gesichert werden konnte
+        self._user_rules_write_locked = False
 
         self.registry = RuleRegistry()
 
@@ -246,7 +249,7 @@ class RuleEngine:
         self._apply_system_overrides()
         self._seed_streamdeck_defaults()
 
-        # User-Rules: eine unlesbare Datei wird beiseitegelegt, damit das
+        # Eigene Regeln: eine unlesbare Datei wird beiseitegelegt, damit das
         # naechste Speichern sie nicht mit der leeren Liste ueberschreibt
         # (intern#257). Den Hinweis an den Caller zeigt main.py.
         usr_path = os.path.join(self._rules_dir, "rules_user.json")
@@ -256,12 +259,17 @@ class RuleEngine:
             broken = usr_path + time.strftime(".broken-%Y%m%d-%H%M%S")
             try:
                 os.replace(usr_path, broken)
+            except OSError:
+                try:   # gesperrt: Lesen klappt oft noch
+                    shutil.copy2(usr_path, broken)
+                except OSError as e:
+                    # Ohne Sicherung darf nichts die Datei ueberschreiben
+                    self._user_rules_write_locked = True
+                    self._log("ERROR", f"Sichern von {usr_path}: {e}")
+                    broken = None
+            if broken:
                 self.broken_user_rules_path = broken
                 self._log("ERROR", f"Unlesbare Datei gesichert als {broken}")
-            except OSError as e:
-                # ponytail: gesperrte Datei bleibt liegen; das naechste
-                # Speichern ueberschreibt sie. Schreibsperre, falls das vorkommt.
-                self._log("ERROR", f"Sichern von {usr_path}: {e}")
 
         # Dynamische Trigger registrieren (Tasten, die der User selbst erstellt hat)
         self._register_missing_triggers()
@@ -271,6 +279,10 @@ class RuleEngine:
 
     def save_user_rules(self):
         """Speichert User-Rules in JSON."""
+        if self._user_rules_write_locked:
+            self._log("ERROR", "Eigene Regeln nicht gespeichert: unlesbare "
+                               "rules_user.json liess sich nicht sichern")
+            return
         os.makedirs(self._rules_dir, exist_ok=True)
         usr_path = os.path.join(self._rules_dir, "rules_user.json")
         data = {
