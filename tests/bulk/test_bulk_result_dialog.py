@@ -15,6 +15,7 @@ from potential_widget import PotentialWidget
 
 class _Stub:
     """Nur die Methoden des Abschlusses, ohne Widget-Aufbau."""
+    shutting_down = False
     _on_bpm_sample_done = PotentialWidget._on_bpm_sample_done
     _on_bpm_bulk_done = PotentialWidget._on_bpm_bulk_done
     _finalize_bpm = PotentialWidget._finalize_bpm

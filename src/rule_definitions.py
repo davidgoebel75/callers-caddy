@@ -296,7 +296,7 @@ def register_v1_definitions(engine: RuleEngine):
     # BL-137: Sound abspielen — mischt eine Audiodatei in den laufenden Stream
     reg.add_action("play_sound", "Play Sound",
                    {"path":   {"type": "file",
-                               "file_filter": "Audio (*.mp3 *.wav *.flac *.ogg *.m4a);;All Files (*.*)"},
+                               "file_filter": "filter_audio_files"},   # i18n-Key (intern#252)
                     "volume": {"type": "float", "default": 1.0,
                                "min": 0.0, "max": 2.0, "step": 0.05}},
                    group="Info & Warnings")

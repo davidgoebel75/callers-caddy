@@ -3,9 +3,50 @@
 Die Schleife selbst steht in bulk_run.py (ohne Qt). Hier nur, was QThread und
 Signal braucht (daher kein QT_FREE).
 """
-from PySide6.QtCore import QThread, Signal
+import warnings
+
+from PySide6.QtCore import QCoreApplication, QThread, Signal
 
 from caddy.bulk.bulk_run import BulkCounts, run_bulk
+
+# Signale, die nur die Oberflaeche bedienen oder Folge-Laeufe starten. Beim
+# Beenden getrennt; Ergebnis-Signale wie loop_found (Auto-Loop speichert im
+# Hauptthread) bleiben verbunden.
+_UI_SIGNALS = ('progress', 'finished', 'error', 'finished_ok', 'failed')
+
+
+def stop_for_shutdown(running_workers):
+    """Bricht laufende Worker beim Beenden ab und wartet ohne Zeitlimit auf ihr
+    Ende (intern#242). running_workers() liefert die gerade laufenden Worker;
+    es wird so lange nachgesehen, bis nichts mehr laeuft, denn waehrend der
+    Rueckfrage kann ein Probelauf noch einen Folge-Lauf gestartet haben
+    (Review PR #172). cancel() greift zwischen zwei Songs, der laufende Song
+    wird noch fertig bearbeitet. Worker ohne cancel() (Loeschen, Ceder) laufen
+    zu Ende. UI-Signale werden getrennt, damit kein Slot einen Folge-Lauf
+    startet oder nach db.close() die DB anfasst; beim Warten laufen Events
+    weiter, damit loop_found den letzten Loop noch speichert."""
+    while workers := running_workers():
+        _stop(workers)
+
+
+def _stop(workers):
+    for w in workers:
+        for name in _UI_SIGNALS:
+            sig = getattr(w, name, None)
+            if sig is None:
+                continue
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')   # nichts verbunden
+                try:
+                    sig.disconnect()
+                except (RuntimeError, TypeError, SystemError):
+                    pass
+        if hasattr(w, 'cancel'):
+            w.cancel()
+    for w in workers:
+        while not w.wait(20):
+            QCoreApplication.processEvents()
+    QCoreApplication.processEvents()   # letztes loop_found nach Thread-Ende
 
 
 class BulkWorker(QThread):

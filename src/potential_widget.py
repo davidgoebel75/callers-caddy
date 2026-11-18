@@ -5,6 +5,7 @@ Meta-Import/CSV-Match-, Ceder- und Krabbelkiste-Dialogen sowie Beautify.
 Zirkelfrei: keine Import-Zeit-Rueckbezuege auf main.py (Version lazy).
 """
 
+import functools
 import os
 import re
 import json
@@ -1537,6 +1538,26 @@ class _BeautifyProgressDialog(QDialog):
         self._render()
 
 
+def _held_while_closing(slot):
+    """Lauf-Ende-Slot (Ergebnis, Rueckfrage, Folge-Lauf) waehrend des Beendens
+    zurueckhalten (intern#242, Review #172): Ist die Beenden-Rueckfrage offen
+    oder das Beenden bestaetigt, merkt sich der Slot nur seinen Aufruf.
+    Bei "Nein" holt resume_held_calls() ihn nach, bei "Ja" verfaellt er."""
+    @functools.wraps(slot)
+    def wrapper(self, *args):
+        if self.shutting_down:
+            self._held_calls.append((functools.partial(slot, self), args))
+            return None
+        return slot(self, *args)
+    return wrapper
+
+
+# Attribute, in denen PotentialWidget seine Hintergrund-Worker haelt (intern#242)
+_WORKER_ATTRS = ('_bulk_worker', '_bulk_delete_worker', '_timing_worker',
+                 '_bf_worker', '_krabbel_worker', '_ceder_worker',
+                 '_ceder_dl_worker')
+
+
 class PotentialWidget(QWidget):
     """Datenqualitaets-Dashboard: Zeigt Optimierungspotential in der Songdatenbank."""
 
@@ -1577,6 +1598,11 @@ class PotentialWidget(QWidget):
         self.db = db
         self.paths = paths          # fuer Lyrics-Ordner und config/
         self._settings = settings   # fuer den Ceder-Schalter
+        # Beenden-Rueckfrage offen oder Beenden bestaetigt (intern#242):
+        # Probelauf-Slots werden zurueckgehalten (_held_while_closing)
+        self.shutting_down = False
+        self._held_calls = []   # (slot, args), siehe _held_while_closing
+        # Worker-Attribute: neue auch in _WORKER_ATTRS eintragen (Beenden, intern#242)
         self._ceder_worker = None
         self._ceder_dl_worker = None
         self._krabbel_worker = None
@@ -1590,6 +1616,22 @@ class PotentialWidget(QWidget):
         self._no_mp3_cached_count = None   # None = noch nicht geprueft (Lazy)
         self._bad_mp3_cached_count = None  # None = noch nicht geprueft (Lazy)
         self._build_ui()
+
+    def running_workers(self):
+        """Alle Hintergrund-Worker, die gerade laufen (intern#242: Beenden
+        fragt nach und wartet auf sie)."""
+        workers = (getattr(self, a, None) for a in _WORKER_ATTRS)
+        return [w for w in workers if w is not None and w.isRunning()]
+
+    def resume_held_calls(self):
+        """Beenden abgelehnt: zurueckgehaltene Probelauf-Slots nachholen, in
+        der Reihenfolge ihres Eintreffens (intern#242, Review #172)."""
+        self.shutting_down = False
+        while self._held_calls and not self.shutting_down:
+            # einzeln entnehmen: ein nachgeholter Slot kann modal fragen, und
+            # wird dabei erneut beendet, bleibt der Rest zurueckgehalten
+            call, args = self._held_calls.pop(0)
+            call(*args)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -2420,6 +2462,7 @@ class PotentialWidget(QWidget):
         self._bulk_delete_worker.error.connect(self._on_bulk_delete_error)
         self._bulk_delete_worker.start()
 
+    @_held_while_closing
     def _on_bulk_delete_finished(self, deleted):
         self._bulk_delete_worker = None
         # Hauptfenster raeumt Playlist/Player/Song Data auf und frischt
@@ -2753,6 +2796,7 @@ class PotentialWidget(QWidget):
                                     _t('pot_cleanup_done', count=deleted))
             self.refresh()
 
+    @_held_while_closing
     def _on_bad_mp3_timing_done(self, check_type, seconds_per_song, candidates, music_dirs):
         self._close_progress()
         self._timing_worker = None
@@ -2901,12 +2945,14 @@ class PotentialWidget(QWidget):
             self._krabbel_worker.cancel()
         self._close_progress()
 
+    @_held_while_closing
     def _krabbel_on_failed(self, msg):
         self._close_progress()
         self._krabbel_worker = None
         QMessageBox.warning(self, _t('krabbel_btn_search'),
                             _t('krabbel_error', msg=msg))
 
+    @_held_while_closing
     def _krabbel_on_results(self, results):
         self._close_progress()
         self._krabbel_worker = None
@@ -3005,6 +3051,7 @@ class PotentialWidget(QWidget):
             lambda avg: self._on_timing_done(avg, jobs))
         self._timing_worker.start()
 
+    @_held_while_closing
     def _on_timing_done(self, seconds_per_song, jobs):
         """Zeitschaetzung fertig — User zeigen und bestaetigen lassen."""
         self._close_progress()
@@ -3112,6 +3159,7 @@ class PotentialWidget(QWidget):
             lambda avg: self._on_beatsnap_timing_done(avg, jobs))
         self._timing_worker.start()
 
+    @_held_while_closing
     def _on_beatsnap_timing_done(self, seconds_per_song, jobs):
         """Zeitschaetzung fertig — User fragen ob Fortfahren."""
         self._close_progress()
@@ -3247,6 +3295,7 @@ class PotentialWidget(QWidget):
             lambda avg: self._on_loop_optimize_timing_done(avg, jobs, margin))
         self._timing_worker.start()
 
+    @_held_while_closing
     def _on_loop_optimize_timing_done(self, seconds_per_song, jobs, margin):
         """Zeitschaetzung fertig — User fragen ob Fortfahren."""
         self._close_progress()
@@ -3437,6 +3486,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_bpm_sample_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_bpm_sample_done(self, done, skipped):
         """Probelauf (erste 5) fertig — deren BPM ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
@@ -3473,6 +3523,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_bpm_bulk_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_bpm_bulk_done(self, done, skipped):
         self._close_progress()
         self._bulk_worker = None
@@ -3691,6 +3742,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_sstart_sample_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_sstart_sample_done(self, done, skipped, unsure):
         """Probelauf (erste 5) fertig — deren Start/Ende ist bereits geschrieben.
         Dauer fuer den Rest schaetzen und nachfragen; die 5 zaehlen mit."""
@@ -3731,6 +3783,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_sstart_bulk_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_sstart_bulk_done(self, done, skipped, unsure):
         self._close_progress()
         self._bulk_worker = None
@@ -3868,11 +3921,13 @@ class PotentialWidget(QWidget):
         self._ceder_worker.failed.connect(self._ceder_on_failed)
         self._ceder_worker.start()
 
+    @_held_while_closing
     def _ceder_on_failed(self, msg):
         self._close_progress()
         QMessageBox.warning(self, _t('pot_lyrics_fill'),
                             _t('ceder_error').format(msg=msg))
 
+    @_held_while_closing
     def _ceder_on_results(self, cands, info):
         self._close_progress()
         song = getattr(self, "_ceder_song", None)
@@ -3897,6 +3952,7 @@ class PotentialWidget(QWidget):
         self._ceder_dl_worker.failed.connect(self._ceder_on_failed)
         self._ceder_dl_worker.start()
 
+    @_held_while_closing
     def _ceder_on_downloaded(self, html_text, record_id):
         self._close_progress()
         song = getattr(self, "_ceder_song", None)
@@ -3998,6 +4054,7 @@ class PotentialWidget(QWidget):
         except Exception:
             return None
 
+    @_held_while_closing
     def _on_syncpts_sample_done(self, done, skipped, skipped_names):
         """Probelauf (erste 5) fertig — deren Anker stehen bereits in der DB."""
         cancelled = bool(self._bulk_worker
@@ -4037,6 +4094,7 @@ class PotentialWidget(QWidget):
         self._bulk_worker.finished.connect(self._on_syncpts_bulk_done)
         self._bulk_worker.start()
 
+    @_held_while_closing
     def _on_syncpts_bulk_done(self, done, skipped, skipped_names):
         self._close_progress()
         self._bulk_worker = None
@@ -4550,6 +4608,7 @@ class PotentialWidget(QWidget):
             self._bulk_worker.cancel()
         self._close_progress()
 
+    @_held_while_closing
     def _on_bulk_done(self, done, skipped):
         jobs_total = len(getattr(self._bulk_worker, '_jobs', ()))
         self._close_progress()
@@ -4654,6 +4713,7 @@ class PotentialWidget(QWidget):
                 a[0] if len(a) > 0 else 0, a[1] if len(a) > 1 else 0))
         worker.start()
 
+    @_held_while_closing
     def _beautify_step_done(self, done, skipped):
         self._bf_worker = None
         spec = self._bf_queue[self._bf_index]
