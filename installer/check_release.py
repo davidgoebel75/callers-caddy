@@ -1,7 +1,7 @@
 """Nach-Build-Pruefung fuer Callers Caddy — neuer Release gegen Vorgaenger.
 
 Aufruf (nach build.py, auf main):
-    python check_release.py <alt> <neu>        z. B.  python check_release.py 0.158 0.159
+    python check_release.py <alt> <neu>        z. B.  python check_release.py 2.0.15 2.0.16
 
 Release-Ordner wie in build.py: Umgebungsvariable CC_RELEASE_DIR,
 Fallback <Ordner ueber dem Repo>/4_Release.

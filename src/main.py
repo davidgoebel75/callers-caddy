@@ -3088,6 +3088,8 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        self.notes_widget.set_line_spacing(
+            ini_keys.get(self._settings, "notes/line_spacing_pct"))   # intern#246
         # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
         # der UI aendert das nur fuer die laufende Session, nicht die INI.
         # Der Default wird in _write_ini_defaults() gesaet.
@@ -3133,6 +3135,12 @@ class P29MainWindow(QMainWindow):
             return
         if not self.db.is_open():
             # intern#211: App wurde vor Ablauf des Timers geschlossen
+            return
+        if self.engine.is_playing():
+            # Der Vorbau blockiert den GUI-Thread ~1 s (erster scipy-Import in
+            # _fill_optimal). Nie waehrend der Wiedergabe (Audio-Prioritaet,
+            # TIC-0025) — spaeter erneut versuchen. Vorstufe zu intern#46.
+            QTimer.singleShot(5000, self._preload_evening_planner)
             return
         # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
         # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
@@ -7359,6 +7367,11 @@ class P29MainWindow(QMainWindow):
                 # intern#198: set_first_note_factor() faengt ungueltige Werte selbst ab
                 if self.notes_widget is not None:
                     self.notes_widget.set_first_note_factor(val)
+
+            elif key == "notes/line_spacing_pct":
+                # intern#246: set_line_spacing() faengt ungueltige Werte selbst ab
+                if self.notes_widget is not None:
+                    self.notes_widget.set_line_spacing(val)
 
             elif key == "feedback/enabled":
                 pass  # wird beim naechsten Songende frisch aus INI gelesen

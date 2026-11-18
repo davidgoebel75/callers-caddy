@@ -28,11 +28,15 @@ from zoom_wheel import install_ctrl_wheel_zoom
 # ── Tight-Label ───────────────────────────────────────────────────────────────
 
 class _TightLabel(QLabel):
-    """QLabel das Text per QTextLayout selbst rendert — Zeilenabstand ist
-    exakt ``ascent+descent`` (ohne Leading, ohne lineSpacing-Aufschlag).
-    QLabel-Standardrendering nutzt intern immer ``fm.lineSpacing()`` und liesse
-    sich ueber sizeHint nicht enger stellen.
+    """QLabel das Text selbst rendert — Zeilenvorschub ist ``ascent+descent``
+    (ohne Leading) mal ``line_spacing_pct`` (intern#246). QLabel-Standard-
+    rendering nutzt intern immer ``fm.lineSpacing()`` und liesse sich nicht
+    einstellen.
     """
+
+    # ponytail: Klassenwert, weil nur die Notizen dieses Label benutzen;
+    # gesetzt ueber NotesWidget.set_line_spacing (notes/line_spacing_pct)
+    line_spacing_pct = 100
 
     def __init__(self, text: str = "", parent=None):
         super().__init__(text, parent)
@@ -43,14 +47,12 @@ class _TightLabel(QLabel):
         self.update()
 
     def _tight_line_height(self) -> int:
-        # Zeilenhoehe aggressiv auf ~80% der Font-Hoehe ziehen.
-        # Verwendet fontMetrics() (reflektiert Stylesheet-Groesse zuverlaessig)
-        # und zieht Leading + einen Teil des ueberfluessigen Ascent/Descent ab.
+        # Echte Zeilenhoehe der Schrift als 100 %: weniger liesse Unterlaengen
+        # und Akzente in die Nachbarzeile ragen (intern#246, frueher 90 % px).
+        # fontMetrics() reflektiert die Stylesheet-Groesse zuverlaessig.
         fm = self.fontMetrics()
-        f = self.font()
-        px = f.pixelSize() if f.pixelSize() > 0 else fm.height()
-        # 90% der Font-Pixelgroesse ~ kompakter Zeilenvorschub mit etwas Luft
-        return max(1, int(round(px * 0.9)))
+        return max(1, round((fm.ascent() + fm.descent())
+                            * self.line_spacing_pct / 100))
 
     def _wrap_lines(self, width: int) -> list[str]:
         """Bricht Text manuell auf Wort-Ebene um — volle Kontrolle ueber Zeilen."""
@@ -327,8 +329,13 @@ class _NoteRow(QWidget):
             return
         self._size_factor = factor
         self._apply_done_style()
-        # Layout neu berechnen — Label hat jetzt andere sizeHint-Hoehe
+        self.relayout_text()
+
+    def relayout_text(self):
+        """Layout neu berechnen — Label hat jetzt andere sizeHint-Hoehe
+        (Groessenfaktor oder Zeilenabstand geaendert)."""
         self._label.updateGeometry()
+        self._label.update()
         self.updateGeometry()
 
     def set_dragging(self, dragging: bool):
@@ -1189,6 +1196,17 @@ class NotesWidget(QWidget):
             f = self._FIRST_FACTOR_DEFAULT
         self._first_note_factor = max(1.0, min(10.0, f))
         self._refresh_first_highlight()
+
+    def set_line_spacing(self, pct):
+        """Zeilenabstand in % der echten Zeilenhoehe (aus INI, intern#246)."""
+        try:
+            p = int(float(pct))   # INI liefert Strings, evtl. "110.0"
+        except (TypeError, ValueError):
+            p = 100
+        _TightLabel.line_spacing_pct = max(100, min(200, p))
+        for row in self._open_list.rows() + self._done_list.rows():
+            if hasattr(row, "relayout_text"):   # Trennlinien haben keinen Text
+                row.relayout_text()
 
     # ── Einfuegeposition (Oben/Mitte/Unten) ──────────────────────────────────
 
