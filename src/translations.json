@@ -11287,5 +11287,10 @@
     "de": "Zoom zurücksetzen",
     "en": "Reset zoom",
     "ja": "ズームをリセット"
+  },
+  "sf_ctx_pilot_colors": {
+    "de": "Pilot-Square-Farben verwenden",
+    "en": "Use Pilot Square colors",
+    "ja": "パイロットスクエアの色を使う"
   }
 }

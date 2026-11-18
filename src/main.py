@@ -1460,6 +1460,10 @@ class P29MainWindow(QMainWindow):
             self.sequence_view_widget.request_edit)
         # Phase 2: Takte fuer den Lesebalken nach Beats (Arbeitsspeicher oder DB-Cache)
         self.lyrics_widget.get_flow_result = self.square_flow_widget.result_for
+        # Phase 3 (intern#249): Farben aus dem Pilot Square, sofort bei jeder Aenderung
+        self.pilot_square_widget.dancer_colors_changed.connect(
+            self.square_flow_widget.set_pilot_colors)
+        self.square_flow_widget.set_pilot_colors(self.pilot_square_widget.dancer_colors())
         perf_log("    Square Flow dock", _tsf)
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten

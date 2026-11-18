@@ -256,3 +256,21 @@ def test_tasten_lage_waehlbar_und_gemerkt(keep):
     assert w._controls_pos == "left"
     w2 = keep(SquareFlowWidget(settings=_Settings(enabled=True, controls_pos="above")))
     assert w2._stage.direction() == QBoxLayout.BottomToTop
+
+
+def test_pilot_farben_am_taenzer_und_umschaltbar(keep):
+    """Phase 3 (intern#249): Pilot-Farbe je Taenzer, ohne Farbe Standard, Umschalter gemerkt."""
+    st = _RwSettings(enabled=True)
+    w = keep(SquareFlowWidget(settings=st))
+    assert w._use_pilot is True                     # Standard an
+    w.set_pilot_colors({(1, True): "#e74c3c", (2, False): None})
+    assert w._floor.pilot == {(1, True): "#e74c3c"}  # ohne Farbe -> nicht drin
+    w.set_use_pilot_colors(False)
+    assert w._floor.pilot == {}
+    assert st.vals["square_flow/pilot_colors"] is False
+    w.set_use_pilot_colors(True)
+    assert w._floor.pilot == {(1, True): "#e74c3c"}
+    w.set_pilot_colors({})
+    assert w._floor.pilot == {}
+    w2 = keep(SquareFlowWidget(settings=_Settings(enabled=True, pilot_colors=False)))
+    assert w2._use_pilot is False

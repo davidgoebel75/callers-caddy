@@ -17,7 +17,7 @@ from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, Q
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QBoxLayout, QLabel, QPushButton, QMenu,
                                QSizePolicy)
 
-from caddy.choreo import figure_clock, square_chain
+from caddy.choreo import figure_clock, pilot_colors, square_chain
 from caddy.choreo.timeline import Timeline
 from caddy.settings import ini_keys
 from i18n import _t
@@ -44,6 +44,7 @@ class _Floor(QWidget):
         self.dancers = []
         self.pose = []
         self.bands = None                  # (paare als Index-Tupel, gut: bool) oder None
+        self.pilot = {}                    # Pilot-Square-Farben {(Couple, Mann?): hex} (intern#249)
         self.ext = 5.5
         self.zoom = 1.0                    # Shift/Strg + Mausrad, ZOOM_MIN..ZOOM_MAX
         self._bg = None
@@ -131,7 +132,8 @@ class _Floor(QWidget):
         p.setFont(font)
         stroke = QPen(self._color("squareflow_body_stroke"), max(1.0, scale * 0.05))
         for d, pt, (_x, _y, deg) in zip(self.dancers, pts, self.pose):
-            c = self._color(f"squareflow_couple{d.get('couple')}")
+            fill = pilot_colors.fill_for(self.pilot, d)
+            c = QColor(fill) if fill else self._color(f"squareflow_couple{d.get('couple')}")
             p.save()
             p.translate(pt)
             p.rotate(-deg)                 # Winkel 0 = Blick nach oben, Qt dreht im Uhrzeigersinn
@@ -148,7 +150,7 @@ class _Floor(QWidget):
             else:
                 p.drawEllipse(r)
             p.restore()
-            p.setPen(QColor("#141414"))
+            p.setPen(QColor(pilot_colors.text_on(fill) if fill else "#141414"))
             p.drawText(QRectF(pt.x() - size / 2, pt.y() - size / 2, size, size),
                        Qt.AlignCenter, str(d.get("couple")))
         p.end()
@@ -191,6 +193,7 @@ class SquareFlowWidget(QWidget):
         self._rot_slots = None              # Platz je Startplatz beim Spiegeln
         self._view = None                   # (rot, gezeigte Taenzer) waehrend des Mitlaufens
         self._view_rot = False
+        self._pilot = {}                    # Phase 3: letzte Farben aus dem Pilot Square
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -284,6 +287,7 @@ class SquareFlowWidget(QWidget):
         self._zoom = max(ZOOM_MIN, min(ZOOM_MAX, zoom))
         pos = str(get(ini_keys.SQUARE_FLOW_CONTROLS_POS, str) or "below")
         self._controls_pos = pos if pos in CONTROL_POSITIONS else "below"
+        self._use_pilot = bool(get(ini_keys.SQUARE_FLOW_PILOT_COLORS, bool))
 
     def _store(self, key, value):
         if self._settings is not None and hasattr(self._settings, "setValue"):
@@ -322,8 +326,29 @@ class SquareFlowWidget(QWidget):
         self._controls_lay.setDirection(QBoxLayout.TopToBottom if side
                                         else QBoxLayout.LeftToRight)
 
+    # --- Pilot-Square-Farben (Phase 3, intern#249) -------------------------------
+
+    def set_pilot_colors(self, colors):
+        """Farben je Taenzer aus dem Pilot Square, {(Couple, Mann?): hex}; leer = Standard."""
+        self._pilot = pilot_colors.clean(colors)
+        self._apply_pilot()
+
+    def set_use_pilot_colors(self, on):
+        self._use_pilot = bool(on)
+        self._store(ini_keys.SQUARE_FLOW_PILOT_COLORS, self._use_pilot)
+        self._apply_pilot()
+
+    def _apply_pilot(self):
+        self._floor.pilot = self._pilot if self._use_pilot else {}
+        self._floor.update()
+
     def contextMenuEvent(self, event):
         menu = QMenu(self)
+        act = menu.addAction(_t("sf_ctx_pilot_colors"))
+        act.setCheckable(True)
+        act.setChecked(self._use_pilot)
+        act.triggered.connect(self.set_use_pilot_colors)
+        menu.addSeparator()
         group = QActionGroup(menu)
         for pos in CONTROL_POSITIONS:
             act = menu.addAction(_t(f"sf_ctx_controls_{pos}"))

@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import (
     QColor, QTextOption, QFont, QTextDocument, QPalette,
     QPainter, QTextCursor, QTextBlockFormat)
@@ -355,6 +355,9 @@ class _CoupleCell(QWidget):
 class PilotSquareWidget(QWidget):
     """Pilot-Square-Widget: 8 Personenfelder als Square + Farb-Palette."""
 
+    # Farben je Taenzer {(Couple, Mann?): "#rrggbb"} nach jeder Aenderung (intern#249)
+    dancer_colors_changed = Signal(object)
+
     # Orientierung + Box-Reihenfolge je Paar (nach realer Blickrichtung).
     _LAYOUT = {
         1: ("h", ["man", "woman"]),    # unten, Blick hoch:   Mann links,  Frau rechts
@@ -459,6 +462,20 @@ class PilotSquareWidget(QWidget):
         if self._selected_box is None:
             return
         self._selected_box.set_fill(color)
+        self._emit_colors()
+
+    def dancer_colors(self) -> dict:
+        """Gesetzte Farben je Taenzer: {(Couple 1-4, Mann?): "#rrggbb"}."""
+        out = {}
+        for num, cell in self._couples.items():
+            if cell.man._fill:
+                out[(num, True)] = cell.man._fill
+            if cell.woman._fill:
+                out[(num, False)] = cell.woman._fill
+        return out
+
+    def _emit_colors(self):
+        self.dancer_colors_changed.emit(self.dancer_colors())
 
     # ── Leeren ──
     def _all_boxes(self) -> list[_PersonBox]:
@@ -491,6 +508,7 @@ class PilotSquareWidget(QWidget):
             return
         for b in boxes:
             b.clear_colors()
+        self._emit_colors()
 
     def _on_clear(self):
         boxes = self._all_boxes()
@@ -499,6 +517,7 @@ class PilotSquareWidget(QWidget):
             return
         for b in boxes:
             b.clear_content()
+        self._emit_colors()
 
     def _on_close_clicked(self):
         if self._on_close:

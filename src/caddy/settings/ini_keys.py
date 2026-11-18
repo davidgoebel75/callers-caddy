@@ -36,6 +36,7 @@ SQUARE_FLOW_SAVING_MODE = "square_flow/saving_mode"
 SQUARE_FLOW_LAG_BEATS = "square_flow/lag_beats"
 SQUARE_FLOW_ZOOM_PCT = "square_flow/zoom_pct"
 SQUARE_FLOW_CONTROLS_POS = "square_flow/controls_pos"
+SQUARE_FLOW_PILOT_COLORS = "square_flow/pilot_colors"
 
 
 def _k(key, typ, default, seed=False):
@@ -95,6 +96,7 @@ _ENTRIES = (
     # per Mausrad bzw. Rechtsklick im Dock gesetzt, nicht im Einstellungsdialog
     _k(SQUARE_FLOW_ZOOM_PCT, int, 100),
     _k(SQUARE_FLOW_CONTROLS_POS, str, "below"),
+    _k(SQUARE_FLOW_PILOT_COLORS, bool, True),
     # --- ohne Saat ---
     _k("lyrics/dynamic_enabled", bool, False),
     _k("lyrics/dynamic_mode", str, ""),
