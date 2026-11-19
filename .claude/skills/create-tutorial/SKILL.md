@@ -11,8 +11,11 @@ Fragen an den Nutzer **einzeln** stellen, nie als Fragenblock.
 
 ## Nachschlagen statt raten
 
-- **Bedienung** (`point`, `click`, `double_click`, `context_menu`, `open_menu`, `type_text`, `keys`, `hide_dock`): Klasse `Stage` in `tools/tutorial_video/make_video.py`, je Methode der Docstring.
-- **Schritt-Felder** (`say`, `point`, `do`, `hold`, `zoom`) und `SETUP`, `LAYOUT`, `SKIN`: Docstring von `scenarios/player/scenario.py`.
+Das Werkzeug waechst mit jedem Dreh; was es kann, steht nur im Code von `tools/tutorial_video/make_video.py`. Vor Schritt 4 dort lesen:
+
+- **Bedienung**: jede oeffentliche Methode der Klasse `Stage` samt Docstring. Nur diese Methoden stehen einem Schritt in `do` zur Verfuegung.
+- **Szenario-Konstanten** (Ausgangslage, Layout, Farbtheme, INI-Werte, Musik ...): jedes `getattr(scenario, ...)` samt Kommentar daneben.
+- **Schritt-Felder**: die Schluessel, die `show()` aus einem Schritt liest; erklaert im Docstring von `scenarios/player/scenario.py`.
 - **Vorbilder**: `scenarios/player/` (Song laden, abspielen), `scenarios/clock/` (Menue, Kontextmenue, Widget nicht registriert).
 
 ## 1. Basis
@@ -38,9 +41,9 @@ Legwork im Code, bevor Schritte vorgeschlagen werden:
 - **Elemente**: Attribute der Widget-Klasse, die QWidgets sind (`self.btn_play = QPushButton(...)`). Pfad = `<id>.<attr>[.<attr>]`, wie in `src/tutorial_definitions.py`. Tabellenzeilen per `(pfad, zeile)`.
 - **Fakten und Worte**: die bestehende Tour zum Widget in `src/tutorial_definitions.py` mit ihren Texten (`tutorial.<id>.*` in `src/translations.json`), die Beschriftungen und Tooltips der Elemente, der Abschnitt in `CHANGELOG.md`, wenn das Feature neu ist.
 - **Menues**: Uebersetzungsschluessel der Eintraege (`_t("...")` in `addAction`/`QAction` des Widgets, Menueleiste in `src/main.py`) fuer `context_menu` und `open_menu`.
-- **Ausgangslage**: INI-Optionen, die das Video umschaltet; `SETUP` setzt sie vorher auf einen festen Stand. Private Namen, die `SETUP` dabei benutzt, im Docstring nennen (Muster: `scenarios/clock/`).
+- **Ausgangslage**: was das Video umschaltet, steht vorher auf einem festen Stand. INI-Werte per Szenario-Konstante, wenn das Werkzeug eine dafuer hat; Zustand eines laufenden Widgets per `SETUP`. Private Namen, die `SETUP` dabei benutzt, im Docstring nennen (Muster: `scenarios/clock/`).
 - **Begriffe**: jedes Nomen der Sprechtexte steht in `GLOSSARY.md` als gewaehlter Begriff, de und `_EN_`.
-- **Songs**: nur YRR-Songs (Open Source). Gebrauchte Songs im Docstring nennen.
+- **Songs**: YRR-Songs (Open Source). Braucht das Video einen anderen Song, kommt dessen Musik nicht ins Video (Szenario-Konstante dafuer im Werkzeug). Gebrauchte Songs im Docstring nennen.
 
 **Fertig**, wenn jeder Kandidat-Schritt einen im Code gefundenen Elementpfad oder Menueschluessel hat und jede Bedienung eine `Stage`-Methode ist. Was sich nur mit App-Aenderung zeigen liesse, kommt als Befund in den Bericht, nicht ins Szenario.
 
