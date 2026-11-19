@@ -729,8 +729,15 @@ def stage(name, app_dir, lang):
                 if box is not None:   # Ansicht-Menue: Zeile mit Checkbox
                     spot_local = box.mapTo(popup, box.rect().center())
                 s1 = popup.mapToGlobal(spot_local)
-                # Erst den Zoom laufen lassen, dann zum Eintrag gleiten.
-                on_item = glide(QCursor.pos(), s1, delay=int(ZOOM_SECONDS * 1000) + 200)
+                # Erst den Zoom laufen lassen, dann zum Eintrag gleiten: zuerst
+                # senkrecht ins Menue, dann hin. Schraeg ueber die Menueleiste
+                # wuerde der Zeiger einen Nachbartitel streifen, und Qt klappt
+                # dann dessen Menue auf.
+                s0 = QCursor.pos()
+                inside = QPoint(s0.x(), max(s0.y(), g.top() + 12))
+                on_item = glide(s0, inside, delay=int(ZOOM_SECONDS * 1000) + 200,
+                                steps=8)
+                on_item = glide(inside, s1, delay=on_item)
                 QTimer.singleShot(on_item, lambda: popup.setActiveAction(act))
 
                 def press_item():
