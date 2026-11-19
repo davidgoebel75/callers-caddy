@@ -214,6 +214,7 @@ class SquareFlowWidget(QWidget):
         self._seq_id = None                 # fuer den DB-Cache (sequence_choreo)
         self._dirty = False
         self._result = None
+        self._reported = None               # zuletzt per result_ready gemeldetes Ergebnis
         self._tl = None
         self._beat = 0.0
         self._stop_at = None                # Ende einer einzeln gespielten Kartenzeile
@@ -452,8 +453,13 @@ class SquareFlowWidget(QWidget):
         calls = [c for c in (calls or []) if c and str(c).strip()]
         seq = (tuple(calls), seq_type or "") if calls else None
         if seq == self._seq:
+            # Dieselbe Sequenz erneut geoeffnet: das Sequenz-Detail hat Beats und
+            # Warnung dabei verworfen, also das Ergebnis noch einmal melden.
+            if seq is not None and self._reported is not None:
+                self.result_ready.emit(seq[0], self._reported)
             return
         self._seq = seq
+        self._reported = None
         self._seq_id = seq_id
         self.pause()
         self._result, self._tl = None, None
@@ -518,6 +524,7 @@ class SquareFlowWidget(QWidget):
             key = "sf_engine_missing" if result.get("error") == "engine_missing" else None
             self._show_message(_t(key) if key else (result.get("error") or ""))
             if self._seq:
+                self._reported = result
                 self.result_ready.emit(self._seq[0], result)
             return
         self._result = result
@@ -530,6 +537,7 @@ class SquareFlowWidget(QWidget):
         self._floor.invalidate_background()
         self._show_result_status()
         self._seek(0.0)
+        self._reported = result
         self.result_ready.emit(self._seq[0], result)
         if self._pending_card is not None and not self._tl.empty():
             card, self._pending_card = self._pending_card, None

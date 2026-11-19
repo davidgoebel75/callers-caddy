@@ -171,6 +171,34 @@ def test_ergebnis_zeigt_status_und_karte(keep):
     assert cards[-1] == -1
 
 
+def test_dieselbe_sequenz_erneut_meldet_ergebnis_wieder(keep, monkeypatch):
+    """Erneutes Oeffnen derselben Sequenz: das Sequenz-Detail verwirft Beats und
+    Warnung, also muss das Ergebnis noch einmal kommen (ohne neue Rechnung)."""
+    from caddy.choreo import flow_worker
+    monkeypatch.setattr(flow_worker, "SquareFlowWorker", _FakeWorker)
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
+    calls, kind = ["Heads Square Thru 4", "Allemande Left"], "Static Set ➔ Resolve"
+    results = []
+    w.result_ready.connect(lambda c, r: results.append((c, r)))
+    w.set_sequence(calls, kind)
+    w._on_ready(w._token, _result())
+    results.clear()
+    w.set_sequence(calls, kind)
+    assert len(results) == 1 and results[0][1]["beats_total"] == 8.0
+    assert len(w._worker.jobs) == 1                 # nicht neu gerechnet
+    # Engine-Fehler (ohne Analyse) wird ebenfalls erneut gemeldet
+    w.set_sequence(["Swing Thru"], kind)
+    w._on_ready(w._token, {"error": "engine_missing"})
+    results.clear()
+    w.set_sequence(["Swing Thru"], kind)
+    assert results == [(("Swing Thru",), {"error": "engine_missing"})]
+    # Noch ohne Ergebnis: nichts melden
+    w.set_sequence(["Dosado"], kind)
+    results.clear()
+    w.set_sequence(["Dosado"], kind)
+    assert results == []
+
+
 def test_hinweise_bei_abbruch_und_ergaenzung():
     r = {"stufe1": False, "fail_card": 1, "urteil": None, "type": "",
          "read_as": [{"card": 0, "text": "Heads Bend The Line", "kind": "kontext",
