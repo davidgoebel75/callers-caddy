@@ -378,7 +378,10 @@ def stage(name, app_dir, lang):
             music[-1][3].append(outdata.tobytes())
             music[-1][4] = now
 
-    audio_engine.AudioEngine._callback = tapped_callback
+    # MUSIC = False im Szenario: Musik nicht ins Video (z. B. Song mit
+    # Urheberrecht); die App spielt sie trotzdem, Ton nur aus den Lautsprechern.
+    if getattr(scenario, "MUSIC", True):
+        audio_engine.AudioEngine._callback = tapped_callback
 
     # marks: (Wanduhr, Schritt-Index), zoom: (Wanduhr, [x, y, breite])
     state = {"ffmpeg": None, "marks": [], "zoom": [], "size": None}
