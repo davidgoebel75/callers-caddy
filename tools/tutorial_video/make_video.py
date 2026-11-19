@@ -341,6 +341,10 @@ def stage(name, app_dir, lang):
 
     settings = QSettings(str(app_dir / "callers_caddy.ini"), QSettings.IniFormat)
     settings.setValue("display/language", lang)
+    # Fehlerprotokolle von frueher (z. B. ein abgebrochener Dreh) als gemeldet
+    # markieren, sonst legt sich beim Start der Hinweis darauf ueber die App.
+    # Vergleich wie in src/crash_handler.py: Dateiname crash_<Zeitstempel>.log.
+    settings.setValue("crash/last_notified", time.strftime("crash_%Y%m%d_%H%M%S_999999.log"))
     # Szenario-eigene Werte (SETTINGS) nach den festen: z. B. eine Funktion
     # ausschalten, die das Video dann in den Einstellungen einschaltet.
     for key, value in {**RECORDING_SETTINGS, **getattr(scenario, "SETTINGS", {})}.items():
