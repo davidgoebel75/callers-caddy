@@ -48,6 +48,9 @@ DEFAULT_LANG = "en"
 # (die INI wird nach dem Lauf zurueckgespielt).
 RECORDING_SETTINGS = {
     "feedback/enabled": False,   # Feedback-Dialog nach Songende (BL-119)
+    # Start-Countdown vor dem Liedstart; ein Szenario dazu schaltet ihn per
+    # SETTINGS = {"display/countdown_enabled": True} wieder ein.
+    "display/countdown_enabled": False,
 }
 SIZE = (1920, 1080)   # Fensterinhalt = Videobild; per --size aenderbar
 FPS = 15
