@@ -341,7 +341,9 @@ def stage(name, app_dir, lang):
 
     settings = QSettings(str(app_dir / "callers_caddy.ini"), QSettings.IniFormat)
     settings.setValue("display/language", lang)
-    for key, value in RECORDING_SETTINGS.items():
+    # Szenario-eigene Werte (SETTINGS) nach den festen: z. B. eine Funktion
+    # ausschalten, die das Video dann in den Einstellungen einschaltet.
+    for key, value in {**RECORDING_SETTINGS, **getattr(scenario, "SETTINGS", {})}.items():
         settings.setValue(key, value)
     skin = getattr(scenario, "SKIN", None)
     if skin:
@@ -462,9 +464,12 @@ def stage(name, app_dir, lang):
                 raise LookupError(f"Element nicht sichtbar: {path}")
             return w
 
-        def _spot(self, path, row=None):
-            """(Widget fuer Maus-Ereignisse, Punkt darin)."""
+        def _spot(self, path, row=None, at=None):
+            """(Widget fuer Maus-Ereignisse, Punkt darin). at = fester Punkt im
+            Element (QPoint), z. B. ein Taenzer auf einer Zeichenflaeche."""
             w = self.widget(path)
+            if at is not None:
+                return w, at
             if row is None:
                 return w, w.rect().center()
             return w.viewport(), w.visualRect(w.model().index(row, 0)).center()
@@ -507,20 +512,125 @@ def stage(name, app_dir, lang):
             QTimer.singleShot(150, guarded(lambda: QTest.mouseRelease(
                 w, Qt.LeftButton, Qt.NoModifier, p)))
 
-        def double_click(self, path, row=None):
+        def double_click(self, path, row=None, at=None):
             # Echte Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py
-            w, p = self._spot(path, row)
+            w, p = self._spot(path, row, at)
             spot = w.mapToGlobal(p)
             QCursor.setPos(spot)
             self._mark(spot)   # zwei Ringe kurz nacheinander = Doppelklick
+
+            def events():
+                QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
+                QApplication.sendEvent(w, QMouseEvent(
+                    QEvent.MouseButtonDblClick, QPointF(p), QPointF(spot),
+                    Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
+                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
+
             QTimer.singleShot(220, guarded(lambda: self._mark(spot)))
-            QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
-            QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
-            QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
-            QApplication.sendEvent(w, QMouseEvent(
-                QEvent.MouseButtonDblClick, QPointF(p), QPointF(w.mapToGlobal(p)),
-                Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
-            QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
+            # Per Timer: oeffnet der Doppelklick einen modalen Dialog, blockiert
+            # dessen exec() sonst den Ablauf, und der naechste Schritt kaeme nie.
+            QTimer.singleShot(0, guarded(events))
+
+        def _zoom_global(self, rect):
+            """Bild auf ein Rechteck in Bildschirmkoordinaten zoomen (QRect)."""
+            origin = self.win.mapToGlobal(QPoint(0, 0))
+            scale = self.win.devicePixelRatioF()
+            full_w, full_h = state["size"]
+            state["zoom"].append((time.monotonic(), fit_rect(
+                (rect.left() - origin.x()) * scale, (rect.top() - origin.y()) * scale,
+                rect.width() * scale, rect.height() * scale, full_w, full_h)))
+
+        def _wait_for(self, find, then, what, timeout_ms=8000):
+            """Ruft then(ergebnis) auf, sobald find() etwas liefert (alle 100 ms)."""
+            deadline = time.monotonic() + timeout_ms / 1000
+
+            def poll():
+                found = find()
+                if found is not None:
+                    then(found)
+                elif time.monotonic() > deadline:
+                    raise LookupError(f"Nicht erschienen: {what}")
+                else:
+                    QTimer.singleShot(100, guarded(poll))
+
+            QTimer.singleShot(100, guarded(poll))
+
+        def _glide_click(self, w, local, after=None):
+            """Zeiger gleitet zu local in w, klickt dort, dann after()."""
+            spot = w.mapToGlobal(local)
+            arrived = glide(QCursor.pos(), spot)
+
+            def press():
+                self._mark(spot)
+                QTest.mouseClick(w, Qt.LeftButton, Qt.NoModifier, local)
+                if after:
+                    after()
+
+            QTimer.singleShot(arrived + 300, guarded(press))
+
+        def close_dialog(self, accept=True, zoom_back=True):
+            """Klickt im offenen modalen Dialog OK (accept) bzw. Abbrechen.
+            zoom_back: danach wieder das ganze Bild."""
+            from PySide6.QtWidgets import QDialogButtonBox, QMessageBox
+            want = (QDialogButtonBox.AcceptRole, QDialogButtonBox.YesRole) if accept else (
+                QDialogButtonBox.RejectRole, QDialogButtonBox.NoRole)
+
+            def button_of(dlg):
+                if isinstance(dlg, QMessageBox):
+                    pairs = [(b, dlg.buttonRole(b)) for b in dlg.buttons()]
+                else:
+                    pairs = [(b, box.buttonRole(b))
+                             for box in dlg.findChildren(QDialogButtonBox)
+                             for b in box.buttons()]
+                hit = [b for b, role in pairs if role in want]
+                # Nur ein Knopf (Hinweis-Fenster): der schliesst in jedem Fall.
+                return hit[0] if hit else (pairs[0][0] if len(pairs) == 1 else None)
+
+            def press(dlg):
+                btn = button_of(dlg)
+                if btn is None:
+                    raise LookupError(f"Kein {'OK' if accept else 'Abbrechen'} im Dialog")
+                done = (lambda: state["zoom"].append(
+                    (time.monotonic(), self.zoom_rect(None, 1)))) if zoom_back else None
+                self._glide_click(btn, btn.rect().center(), done)
+
+            self._wait_for(QApplication.activeModalWidget, press, "Dialog")
+
+        def show_dialog(self):
+            """Zoomt auf den gerade offenen modalen Dialog (wartet, bis er da ist)."""
+            self._wait_for(QApplication.activeModalWidget,
+                           lambda dlg: self._zoom_global(dlg.frameGeometry()), "Dialog")
+
+        def setting(self, key):
+            """Allgemeine Einstellungen ueber das Menue oeffnen, zur Zeile key
+            springen (z. B. "square_flow/enabled"), ihr Feld anklicken (Checkbox:
+            umschalten) und mit OK schliessen. Danach wieder ganzes Bild."""
+            # Benutzt vom Einstellungsdialog (src/settings_dialog.py) das
+            # oeffentliche focus_row() und die Zeilenliste _rows.
+            self.open_menu("menu_design", "menu_general_settings")
+
+            def settings_dialog():
+                dlg = QApplication.activeModalWidget()
+                rows = getattr(dlg, "_rows", None)
+                # Der Dialog baut seine Zeilen erst im naechsten Takt auf.
+                return dlg if rows and hasattr(dlg, "focus_row") else None
+
+            def in_dialog(dlg):
+                if not dlg.focus_row(key):
+                    raise LookupError(f"Einstellung nicht im Dialog: {key}")
+                self._zoom_global(dlg.frameGeometry())
+                row = next(r for r in dlg._rows if r.full_key == key)
+
+                def pick():
+                    w = row.widget
+                    self._glide_click(w, w.rect().center(),
+                                      lambda: QTimer.singleShot(1200, guarded(self.close_dialog)))
+
+                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 600, guarded(pick))
+
+            self._wait_for(settings_dialog, in_dialog, "Einstellungen")
 
         def context_menu(self, path, item):
             """Rechtsklick auf das Element, dann im echten Kontextmenue der App auf
