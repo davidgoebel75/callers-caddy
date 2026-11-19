@@ -380,9 +380,17 @@ def stage(name, app_dir, lang):
         end = time.monotonic()
         proc = state["ffmpeg"]
         if proc:
-            proc.stdin.write(b"q")
-            proc.stdin.flush()
-            proc.wait(timeout=30)
+            try:
+                proc.stdin.write(b"q")
+                proc.stdin.flush()
+                proc.wait(timeout=30)
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                # ffmpeg laeuft nicht mehr (oder haengt): nicht daran haengen
+                # bleiben, sonst friert die App ein, statt sich zu beenden.
+                proc.kill()
+                ok = False
+        if not ok:
+            os._exit(1)
         if ok:
             import numpy as np
             import soundfile
@@ -779,6 +787,15 @@ def stage(name, app_dir, lang):
         win.raise_()
         win.activateWindow()
         QApplication.processEvents()
+        frame = win.frameGeometry()
+        if not avail.contains(frame):
+            # Sonst liegt die Menueleiste ausserhalb des Bildschirms, und ffmpeg
+            # kann den Bereich nicht aufnehmen.
+            print(f"[Video] Fenster {frame.width()}x{frame.height()} (Videogroesse "
+                  f"{SIZE[0]}x{SIZE[1]} plus Titelleiste) passt nicht auf den "
+                  f"Bildschirm ({avail.width()}x{avail.height()} frei). Kleinere "
+                  f"--size waehlen, z. B. 1600x900.", file=sys.stderr)
+            finish(False)
 
         area = win.geometry()   # Fensterinhalt ohne Titelleiste
         scale = win.devicePixelRatioF()
@@ -794,6 +811,14 @@ def stage(name, app_dir, lang):
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
              "-pix_fmt", "yuv420p", str(work / "raw.mp4")],
             stdin=subprocess.PIPE)
+
+        def check_recording():
+            if state["ffmpeg"].poll() is not None:
+                print("[Video] ffmpeg hat die Aufnahme nicht gestartet (siehe "
+                      "Meldung darueber), Abbruch.", file=sys.stderr)
+                finish(False)
+
+        QTimer.singleShot(1500, check_recording)
 
         def show(i):
             if i >= len(steps):
