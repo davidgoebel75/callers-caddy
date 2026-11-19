@@ -4,14 +4,16 @@ Aufruf aus dem Projektstamm:
     python tools/tutorial_video/make_video.py player
     python tools/tutorial_video/make_video.py player --app-dir ../2_Test
 
-Ein Szenario (scenarios/<name>.py) ist eine Liste von Schritten: Sprechtext,
+Jedes Tutorial hat einen eigenen Ordner, benannt nach dem englischen
+Begriff: scenarios/<name>/scenario.py (Drehbuch, im Git), Ergebnis in
+out/<name>/<name>_<sprache>.mp4 und .srt (lokal). Ein Szenario ist eine Liste von Schritten: Sprechtext,
 Element zum Zeigen, Bedienung. Ablauf: Edge-TTS spricht die Texte -> die App
 startet und wird im Takt der Tonlaengen bedient -> ffmpeg filmt das Fenster,
 die Musik der App wird mitgeschnitten -> Stimme, Musik und Untertitel kommen
-dazu. Ergebnis: out/<name>.mp4 und .srt.
+dazu. Ergebnis: out/<name>/<name>_<sprache>.mp4 und .srt.
 
 Braucht: pip install edge-tts imageio-ffmpeg, dazu einen Bildschirm, auf den
-das Fenster in Videogroesse (SIZE) samt Titelleiste passt. Die Sprechtexte
+das Fenster in Videogroesse (SIZE, per --size) samt Titelleiste passt. Die Sprechtexte
 gehen an den Vorlese-Dienst von Microsoft. Die App darf nicht schon laufen, Maus und
 Bildschirmbereich gehoeren waehrend der Aufnahme dem Skript. INI und DB werden
 gesichert und danach zurueckgespielt. Ausnahme: Ohne eigenes LAYOUT im Szenario
@@ -34,20 +36,55 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parents[1] / "src"
 OUT = HERE / "out"
-VOICE = "de-DE-SeraphinaMultilingualNeural"   # spricht englische Begriffe englisch
-SIZE = (1920, 1080)   # Fensterinhalt = Videobild
+# Stimme je Sprache der Oberflaeche; Standard Englisch (erreicht alle).
+VOICES = {
+    "en": "en-US-ChristopherNeural",
+    "de": "de-DE-SeraphinaMultilingualNeural",   # spricht englische Begriffe englisch
+    "ja": "ja-JP-NanamiNeural",
+}
+DEFAULT_LANG = "en"
+# Vor jedem Dreh fest gesetzt, egal wie die Testumgebung gerade steht
+# (die INI wird nach dem Lauf zurueckgespielt).
+RECORDING_SETTINGS = {
+    "feedback/enabled": False,   # Feedback-Dialog nach Songende (BL-119)
+}
+SIZE = (1920, 1080)   # Fensterinhalt = Videobild; per --size aenderbar
 FPS = 15
 SETTLE_MS = 4000      # App-Start abwarten (Docks, Sequenzen, Start-Hinweise)
 LEAD = 1.0            # Sekunden Stille vor dem ersten Satz
 GAP = 0.7             # Sekunden Pause nach einem Schritt (Schritt-Feld "hold")
 CLICK_MARK_MS = 800   # Dauer der Klick-Markierung
 CLICK_MARK_COLOR = "#ffd54a"
+MENU_OPEN_MS = 900    # Rechtsklick -> Zeiger faehrt zum Eintrag
+MENU_SHOW_MS = 1400   # Eintrag hervorgehoben, dann Klick
 ZOOM_SECONDS = 0.8    # Dauer der Zoom-Fahrt
 MUSIC_VOLUME = 0.4  # Musik der App im Video, unter der Stimme zusaetzlich leiser
 
 
+def say_text(step, lang):
+    """Sprechtext eines Schritts: str fuer alle Sprachen oder {"en": ..., "de": ...}."""
+    say = step["say"]
+    if isinstance(say, dict):
+        if lang not in say:
+            sys.exit(f"[Video] Kein Sprechtext fuer Sprache '{lang}': {say}")
+        return say[lang]
+    return say
+
+
+def ask_language():
+    """Fragt vor der Aufnahme nach der Sprache der Oberflaeche (Enter = Englisch)."""
+    names = {"en": "English", "de": "Deutsch", "ja": "日本語"}
+    options = "  ".join(f"[{k}] {v}" for k, v in names.items())
+    while True:
+        answer = input(f"Sprache der Oberflaeche? {options}  (Enter = {DEFAULT_LANG}): ")
+        answer = answer.strip().lower() or DEFAULT_LANG
+        if answer in VOICES:
+            return answer
+        print(f"  Bitte eine von: {', '.join(VOICES)}")
+
+
 def load_scenario(name):
-    spec = importlib.util.spec_from_file_location(name, HERE / "scenarios" / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, HERE / "scenarios" / name / "scenario.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -90,19 +127,21 @@ def ffmpeg(*args, **kw):
                            *map(str, args)], check=True, **kw)
 
 
-def speak_all(steps):
+def speak_all(steps, lang):
     """Spricht jeden Text in eine WAV-Datei, liefert [(wav, dauer)]."""
     import edge_tts
     clip_dir = OUT / "clips"
     clip_dir.mkdir(parents=True, exist_ok=True)
     clips = []
+    voice = VOICES[lang]
     for step in steps:
+        text = say_text(step, lang)
         # Dateiname aus Stimme und Text: ein unveraenderter Satz wird nicht neu geholt.
-        digest = hashlib.sha1(f"{VOICE}|{step['say']}".encode("utf-8")).hexdigest()[:16]
+        digest = hashlib.sha1(f"{voice}|{text}".encode("utf-8")).hexdigest()[:16]
         wav = clip_dir / f"{digest}.wav"
         if not wav.exists():
             mp3 = wav.with_suffix(".mp3")
-            edge_tts.Communicate(step["say"], VOICE).save_sync(str(mp3))
+            edge_tts.Communicate(text, voice).save_sync(str(mp3))
             ffmpeg("-i", mp3, "-ar", "24000", "-ac", "1", wav)
             mp3.unlink()
         with wave.open(str(wav)) as w:
@@ -165,7 +204,7 @@ def audio_filter(music_starts):
     return ";".join(parts)
 
 
-def finish_video(name, steps, clips, work):
+def finish_video(name, steps, clips, work, lang):
     """Setzt aus Aufnahme, Clips und Musik-Mitschnitt das fertige Video zusammen."""
     raw = work / "raw.mp4"
     log = json.loads((work / "marks.json").read_text())
@@ -176,11 +215,11 @@ def finish_video(name, steps, clips, work):
         # her, weil ffmpeg beim Start unbestimmt lange braucht.
         return max(0.0, total - (log["end"] - wall))
 
-    timeline = [(video_time(t), clips[i][0], clips[i][1], steps[i]["say"])
+    timeline = [(video_time(t), clips[i][0], clips[i][1], say_text(steps[i], lang))
                 for t, i in log["marks"]]
     voice = work / "voice.wav"
-    srt = OUT / f"{name}.srt"
-    mp4 = OUT / f"{name}.mp4"
+    srt = OUT / name / f"{name}_{lang}.srt"
+    mp4 = OUT / name / f"{name}_{lang}.mp4"
     build_voice_track(timeline, total, voice)
     write_srt(timeline, srt)
 
@@ -206,13 +245,13 @@ def finish_video(name, steps, clips, work):
     print(f"[Video] fertig: {mp4}")
 
 
-def produce(name, app_dir):
+def produce(name, app_dir, lang):
     """Elternprozess: sprechen, App-Lauf als Kindprozess, aufraeumen, schneiden."""
-    work = OUT / f"{name}.work"
+    work = OUT / name / f"{name}_{lang}.work"
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     steps = load_scenario(name).STEPS
-    clips = speak_all(steps)
+    clips = speak_all(steps, lang)
     (work / "durations.json").write_text(json.dumps([d for _w, d in clips]))
 
     # ponytail: sichert nur INI und Standard-DB im App-Ordner; liegt die DB
@@ -223,7 +262,9 @@ def produce(name, app_dir):
         shutil.copy2(f, work / f.name)
     try:
         code = subprocess.run([sys.executable, __file__, name, "--stage",
-                               "--app-dir", str(app_dir)]).returncode
+                               "--app-dir", str(app_dir),
+                               "--lang", lang,
+                               "--size", f"{SIZE[0]}x{SIZE[1]}"]).returncode
     finally:
         for f in keep:
             shutil.copy2(work / f.name, f)
@@ -240,16 +281,16 @@ def produce(name, app_dir):
             target.sync()
     if code != 0:
         sys.exit(f"[Video] App-Lauf gescheitert (Code {code}), kein Video erzeugt")
-    finish_video(name, steps, clips, work)
+    finish_video(name, steps, clips, work, lang)
 
 
 # ---------------------------------------------------------------------------
 # Kindprozess: App starten und bedienen
 # ---------------------------------------------------------------------------
 
-def stage(name, app_dir):
+def stage(name, app_dir, lang):
     """Startet die App, spielt das Szenario ab, filmt mit. Kehrt nicht zurueck."""
-    work = OUT / f"{name}.work"
+    work = OUT / name / f"{name}_{lang}.work"
     scenario = load_scenario(name)
     steps = scenario.STEPS
     durations = json.loads((work / "durations.json").read_text())
@@ -258,11 +299,14 @@ def stage(name, app_dir):
 
     from PySide6.QtCore import (QEvent, QPoint, QPointF, QSettings, QTimer,
                                 QVariantAnimation, Qt)
-    from PySide6.QtGui import QColor, QCursor, QMouseEvent, QPainter, QPen
+    from PySide6.QtGui import (QColor, QContextMenuEvent, QCursor, QMouseEvent,
+                               QPainter, QPen)
     from PySide6.QtTest import QTest
     from PySide6.QtWidgets import QApplication, QDockWidget, QWidget
     settings = QSettings(str(app_dir / "callers_caddy.ini"), QSettings.IniFormat)
-    settings.setValue("display/language", "de")
+    settings.setValue("display/language", lang)
+    for key, value in RECORDING_SETTINGS.items():
+        settings.setValue(key, value)
     skin = getattr(scenario, "SKIN", None)
     if skin:
         if not (app_dir / "skins" / skin).is_dir():
@@ -445,6 +489,124 @@ def stage(name, app_dir):
                 Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
             QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
 
+        def context_menu(self, path, item):
+            """Rechtsklick auf das Element, dann im echten Kontextmenue der App auf
+            den Eintrag zeigen und klicken. item = Uebersetzungsschluessel
+            (z. B. "clock_menu_seconds"), passt so in jeder Sprache."""
+            from i18n import _t
+            label = _t(item)
+            w, p = self._spot(path)
+            spot = w.mapToGlobal(p)
+            QCursor.setPos(spot)
+            self._mark(spot)
+
+            def pick():
+                menu = QApplication.activePopupWidget()
+                act = next((a for a in menu.actions() if a.text() == label), None) if menu else None
+                if act is None:
+                    if menu:
+                        menu.close()
+                    raise LookupError(f"Menueeintrag nicht gefunden: {label}")
+                local = menu.actionGeometry(act).center()
+                start, target = QCursor.pos(), menu.mapToGlobal(local)
+                for n in range(1, 21):
+                    QTimer.singleShot(n * 25, lambda n=n: QCursor.setPos(
+                        start + (target - start) * (n / 20)))
+                QTimer.singleShot(560, lambda: menu.setActiveAction(act))
+
+                def press():
+                    self._mark(target)
+                    QTest.mouseClick(menu, Qt.LeftButton, Qt.NoModifier, local)
+
+                QTimer.singleShot(MENU_SHOW_MS, guarded(press))
+
+            # Menue erst zeigen lassen; exec() laeuft in eigener Ereignisschleife,
+            # die Timer laufen darin weiter.
+            QTimer.singleShot(MENU_OPEN_MS, guarded(pick))
+            QTimer.singleShot(150, guarded(lambda: QApplication.sendEvent(
+                w, QContextMenuEvent(QContextMenuEvent.Mouse, p, spot))))
+
+        def open_menu(self, menu, item, click=True):
+            """Menue der Menueleiste oeffnen, ins Bild zoomen, auf einen Eintrag
+            zeigen und (click=True) anklicken. menu/item = Uebersetzungsschluessel,
+            z. B. open_menu("menu_view", "dock_clock")."""
+            from i18n import _t
+            from PySide6.QtWidgets import QCheckBox, QWidgetAction
+            bar = self.win.menuBar()
+            title, label = _t(menu), _t(item)
+            plain = lambda t: (t or "").replace("&", "")
+            top = next((a for a in bar.actions() if plain(a.text()) == title), None)
+            if top is None or top.menu() is None:
+                raise LookupError(f"Menue nicht gefunden: {title}")
+            local = bar.actionGeometry(top).center()
+            start, target = QCursor.pos(), bar.mapToGlobal(local)
+            for n in range(1, 21):
+                QTimer.singleShot(n * 25, lambda n=n: QCursor.setPos(
+                    start + (target - start) * (n / 20)))
+
+            def press_title():
+                self._mark(target)
+                QTest.mouseClick(bar, Qt.LeftButton, Qt.NoModifier, local)
+                QTimer.singleShot(MENU_OPEN_MS, guarded(show_item))
+
+            def show_item():
+                popup = top.menu()
+                act = next((a for a in popup.actions()
+                            if plain(a.data() if isinstance(a.data(), str) else a.text()) == label),
+                           None)
+                if act is None:
+                    popup.close()
+                    raise LookupError(f"Menueeintrag nicht gefunden: {label}")
+                # Zoom auf Menuetitel + aufgeklapptes Menue (Fensterkoordinaten).
+                origin = self.win.mapToGlobal(QPoint(0, 0))
+                g = popup.geometry()
+                x0 = min(g.left(), target.x() - 30) - origin.x()
+                y0 = bar.mapToGlobal(QPoint(0, 0)).y() - origin.y()
+                x1, y1 = g.right() - origin.x(), g.bottom() - origin.y()
+                scale = self.win.devicePixelRatioF()
+                full_w, full_h = state["size"]
+                state["zoom"].append((time.monotonic(), fit_rect(
+                    x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale,
+                    full_w, full_h)))
+                rect = popup.actionGeometry(act)
+                spot_local = rect.center()
+                box = (act.defaultWidget().findChild(QCheckBox)
+                       if isinstance(act, QWidgetAction) and act.defaultWidget() else None)
+                if box is not None:   # Ansicht-Menue: Zeile mit Checkbox
+                    spot_local = box.mapTo(popup, box.rect().center())
+                s0, s1 = QCursor.pos(), popup.mapToGlobal(spot_local)
+                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 200, lambda: [
+                    QTimer.singleShot(n * 25, lambda n=n: QCursor.setPos(
+                        s0 + (s1 - s0) * (n / 20))) for n in range(1, 21)])
+                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 750,
+                                  lambda: popup.setActiveAction(act))
+
+                def press_item():
+                    if click:
+                        self._mark(s1)
+                        if box is not None:
+                            QTest.mouseClick(box, Qt.LeftButton, Qt.NoModifier,
+                                             box.rect().center())
+                        else:
+                            QTest.mouseClick(popup, Qt.LeftButton, Qt.NoModifier,
+                                             spot_local)
+                    QTimer.singleShot(700, lambda: popup.isVisible() and popup.close())
+
+                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + MENU_SHOW_MS,
+                                  guarded(press_item))
+
+            QTimer.singleShot(560, guarded(press_title))
+
+        def type_text(self, path, text):
+            """In ein Eingabefeld klicken und Text Zeichen fuer Zeichen tippen
+            (alle 0,12 s), z. B. type_text("song_list._filter_bar.edit_search", "YRR")."""
+            self.click(path)
+            w = self.widget(path)
+            w.setFocus()
+            for n, ch in enumerate(text):
+                QTimer.singleShot(400 + n * 120, guarded(
+                    lambda ch=ch: QTest.keyClicks(w, ch)))
+
         def keys(self, path, key, count=1):
             """Tastendruecke im Abstand von 0,3 s, z. B. keys(..., "Up", 4)."""
             w = self.widget(path)
@@ -564,15 +726,21 @@ def demo():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("name", help="Szenario aus scenarios/, z. B. player, oder 'selftest'")
+    ap.add_argument("name", help="Tutorial-Ordner aus scenarios/, z. B. clock, oder 'selftest'")
     ap.add_argument("--app-dir", default=str(SRC), type=Path,
                     help="Ordner mit DB und INI (Standard: src/)")
+    ap.add_argument("--lang", choices=sorted(VOICES),
+                    help="Sprache der Oberflaeche und Stimme; ohne Angabe wird gefragt")
+    ap.add_argument("--size", default=f"{SIZE[0]}x{SIZE[1]}",
+                    help="Videogroesse BxH, z. B. 1600x900 fuer Bildschirme mit "
+                         "1920x1080 (das Fenster samt Titelleiste muss draufpassen)")
     ap.add_argument("--stage", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
+    SIZE = tuple(int(v) for v in args.size.lower().split("x"))
     app_directory = Path(args.app_dir).resolve()
     if args.name == "selftest":
         demo()
     elif args.stage:
-        stage(args.name, app_directory)
+        stage(args.name, app_directory, args.lang)
     else:
-        produce(args.name, app_directory)
+        produce(args.name, app_directory, args.lang or ask_language())
