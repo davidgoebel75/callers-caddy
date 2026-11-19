@@ -24,7 +24,12 @@ def SETUP(a):
     win = a.win
     win.tutorial_engine.register_widget(CLOCK, win.clock_widget)
     clock = win.clock_widget
-    # Ausgangslage: nur Stunden und Minuten
+    # Ausgangslage: nur Stunden und Minuten.
+    # Achtung, private Namen aus src/caddy/clock/clock_widget.py:
+    # ClockWidget._set_option(attr, key, value), die Attribute _show_seconds,
+    # _show_date, _twelve_hour und die INI-Schluessel _KEY_SECONDS, _KEY_DATE,
+    # _KEY_12H. Werden sie dort umbenannt, bricht dieses Szenario (selftest
+    # merkt es nicht, erst der Dreh).
     clock._set_option("_show_seconds", _key("_KEY_SECONDS"), False)
     clock._set_option("_show_date", _key("_KEY_DATE"), False)
     clock._set_option("_twelve_hour", _key("_KEY_12H"), False)

@@ -36,11 +36,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parents[1] / "src"
 OUT = HERE / "out"
-# Stimme je Sprache der Oberflaeche; Standard Englisch (erreicht alle).
-VOICES = {
-    "en": "en-US-ChristopherNeural",
-    "de": "de-DE-SeraphinaMultilingualNeural",   # spricht englische Begriffe englisch
-    "ja": "ja-JP-NanamiNeural",
+# Sprache der Oberflaeche -> (Name in der Abfrage, Stimme); Standard Englisch
+# (erreicht alle). Angeboten wird nur, wofuer das Szenario Texte hat.
+LANGUAGES = {
+    "en": ("English", "en-US-ChristopherNeural"),
+    "de": ("Deutsch", "de-DE-SeraphinaMultilingualNeural"),   # spricht englische Begriffe englisch
+    "ja": ("日本語", "ja-JP-NanamiNeural"),
 }
 DEFAULT_LANG = "en"
 # Vor jedem Dreh fest gesetzt, egal wie die Testumgebung gerade steht
@@ -59,6 +60,8 @@ MENU_OPEN_MS = 900    # Rechtsklick -> Zeiger faehrt zum Eintrag
 MENU_SHOW_MS = 1400   # Eintrag hervorgehoben, dann Klick
 ZOOM_SECONDS = 0.8    # Dauer der Zoom-Fahrt
 MUSIC_VOLUME = 0.4  # Musik der App im Video, unter der Stimme zusaetzlich leiser
+GLIDE_STEPS = 20      # Zeigerfahrt: Zwischenschritte ...
+GLIDE_STEP_MS = 25    # ... und ihr Abstand
 
 
 def say_text(step, lang):
@@ -71,20 +74,44 @@ def say_text(step, lang):
     return say
 
 
-def ask_language():
-    """Fragt vor der Aufnahme nach der Sprache der Oberflaeche (Enter = Englisch)."""
-    names = {"en": "English", "de": "Deutsch", "ja": "日本語"}
-    options = "  ".join(f"[{k}] {v}" for k, v in names.items())
+def scenario_languages(steps):
+    """Sprachen, fuer die jeder Schritt einen Sprechtext hat (str gilt fuer alle)."""
+    return [lang for lang in LANGUAGES
+            if all(not isinstance(s["say"], dict) or lang in s["say"] for s in steps)]
+
+
+def ask_language(available):
+    """Fragt vor der Aufnahme nach der Sprache der Oberflaeche (Enter = Standard)."""
+    default = DEFAULT_LANG if DEFAULT_LANG in available else available[0]
+    options = "  ".join(f"[{k}] {LANGUAGES[k][0]}" for k in available)
     while True:
-        answer = input(f"Sprache der Oberflaeche? {options}  (Enter = {DEFAULT_LANG}): ")
-        answer = answer.strip().lower() or DEFAULT_LANG
-        if answer in VOICES:
+        answer = input(f"Sprache der Oberflaeche? {options}  (Enter = {default}): ")
+        answer = answer.strip().lower() or default
+        if answer in available:
             return answer
-        print(f"  Bitte eine von: {', '.join(VOICES)}")
+        print(f"  Bitte eine von: {', '.join(available)}")
+
+
+def plain(text):
+    """Menuetext ohne Kuerzel-Markierung: "&Ansicht" -> "Ansicht"."""
+    return (text or "").replace("&", "")
+
+
+def parse_size(text):
+    """argparse-Typ fuer --size: "1600x900" -> (1600, 900)."""
+    m = re.fullmatch(r"(\d+)x(\d+)", text.strip().lower())
+    if not m or int(m[1]) == 0 or int(m[2]) == 0:
+        raise argparse.ArgumentTypeError(
+            f"'{text}' ist keine Videogroesse, erwartet BxH, z. B. 1600x900")
+    return int(m[1]), int(m[2])
+
+
+def scenario_file(name):
+    return HERE / "scenarios" / name / "scenario.py"
 
 
 def load_scenario(name):
-    spec = importlib.util.spec_from_file_location(name, HERE / "scenarios" / name / "scenario.py")
+    spec = importlib.util.spec_from_file_location(name, scenario_file(name))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -133,7 +160,7 @@ def speak_all(steps, lang):
     clip_dir = OUT / "clips"
     clip_dir.mkdir(parents=True, exist_ok=True)
     clips = []
-    voice = VOICES[lang]
+    voice = LANGUAGES[lang][1]
     for step in steps:
         text = say_text(step, lang)
         # Dateiname aus Stimme und Text: ein unveraenderter Satz wird nicht neu geholt.
@@ -303,6 +330,15 @@ def stage(name, app_dir, lang):
                                QPainter, QPen)
     from PySide6.QtTest import QTest
     from PySide6.QtWidgets import QApplication, QDockWidget, QWidget
+
+    def glide(start, target, delay=0, steps=GLIDE_STEPS, step_ms=GLIDE_STEP_MS):
+        """Mauszeiger gleitet ab delay (ms) von start nach target. Liefert den
+        Zeitpunkt (ms ab jetzt), zu dem er angekommen ist."""
+        for n in range(1, steps + 1):
+            QTimer.singleShot(delay + n * step_ms, lambda n=n: QCursor.setPos(
+                start + (target - start) * (n / steps)))
+        return delay + steps * step_ms + 60
+
     settings = QSettings(str(app_dir / "callers_caddy.ini"), QSettings.IniFormat)
     settings.setValue("display/language", lang)
     for key, value in RECORDING_SETTINGS.items():
@@ -443,10 +479,7 @@ def stage(name, app_dir, lang):
             self._frame = _HighlightFrame([self.widget(path)], self.win.skin_mgr,
                                           owner=self.win)
             w, p = self._spot(path, row)
-            start, target = QCursor.pos(), w.mapToGlobal(p)
-            for n in range(1, 31):
-                QTimer.singleShot(n * 20, lambda n=n: QCursor.setPos(
-                    start + (target - start) * (n / 30)))
+            glide(QCursor.pos(), w.mapToGlobal(p), steps=30, step_ms=20)
 
         def hide_dock(self, name):
             """Schliesst ein Dock, z. B. hide_dock("dock_notes")."""
@@ -502,17 +535,16 @@ def stage(name, app_dir, lang):
 
             def pick():
                 menu = QApplication.activePopupWidget()
-                act = next((a for a in menu.actions() if a.text() == label), None) if menu else None
+                act = (next((a for a in menu.actions() if plain(a.text()) == label), None)
+                       if menu else None)
                 if act is None:
                     if menu:
                         menu.close()
                     raise LookupError(f"Menueeintrag nicht gefunden: {label}")
                 local = menu.actionGeometry(act).center()
-                start, target = QCursor.pos(), menu.mapToGlobal(local)
-                for n in range(1, 21):
-                    QTimer.singleShot(n * 25, lambda n=n: QCursor.setPos(
-                        start + (target - start) * (n / 20)))
-                QTimer.singleShot(560, lambda: menu.setActiveAction(act))
+                target = menu.mapToGlobal(local)
+                arrived = glide(QCursor.pos(), target)
+                QTimer.singleShot(arrived, lambda: menu.setActiveAction(act))
 
                 def press():
                     self._mark(target)
@@ -534,15 +566,12 @@ def stage(name, app_dir, lang):
             from PySide6.QtWidgets import QCheckBox, QWidgetAction
             bar = self.win.menuBar()
             title, label = _t(menu), _t(item)
-            plain = lambda t: (t or "").replace("&", "")
             top = next((a for a in bar.actions() if plain(a.text()) == title), None)
             if top is None or top.menu() is None:
                 raise LookupError(f"Menue nicht gefunden: {title}")
             local = bar.actionGeometry(top).center()
-            start, target = QCursor.pos(), bar.mapToGlobal(local)
-            for n in range(1, 21):
-                QTimer.singleShot(n * 25, lambda n=n: QCursor.setPos(
-                    start + (target - start) * (n / 20)))
+            target = bar.mapToGlobal(local)
+            arrived = glide(QCursor.pos(), target)
 
             def press_title():
                 self._mark(target)
@@ -574,12 +603,10 @@ def stage(name, app_dir, lang):
                        if isinstance(act, QWidgetAction) and act.defaultWidget() else None)
                 if box is not None:   # Ansicht-Menue: Zeile mit Checkbox
                     spot_local = box.mapTo(popup, box.rect().center())
-                s0, s1 = QCursor.pos(), popup.mapToGlobal(spot_local)
-                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 200, lambda: [
-                    QTimer.singleShot(n * 25, lambda n=n: QCursor.setPos(
-                        s0 + (s1 - s0) * (n / 20))) for n in range(1, 21)])
-                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 750,
-                                  lambda: popup.setActiveAction(act))
+                s1 = popup.mapToGlobal(spot_local)
+                # Erst den Zoom laufen lassen, dann zum Eintrag gleiten.
+                on_item = glide(QCursor.pos(), s1, delay=int(ZOOM_SECONDS * 1000) + 200)
+                QTimer.singleShot(on_item, lambda: popup.setActiveAction(act))
 
                 def press_item():
                     if click:
@@ -595,7 +622,7 @@ def stage(name, app_dir, lang):
                 QTimer.singleShot(int(ZOOM_SECONDS * 1000) + MENU_SHOW_MS,
                                   guarded(press_item))
 
-            QTimer.singleShot(560, guarded(press_title))
+            QTimer.singleShot(arrived, guarded(press_title))
 
         def type_text(self, path, text):
             """In ein Eingabefeld klicken und Text Zeichen fuer Zeichen tippen
@@ -713,6 +740,24 @@ def demo():
     assert fit_rect(0, 0, 400, 500, 1920, 1080, pad=20) == [0, 0, 960]
     assert fit_rect(1800, 1000, 100, 60, 1920, 1080, pad=10) == [1778, 990, 142]
     assert fit_rect(0, 0, 1920, 1080, 1920, 1080) == [0, 0, 1920]
+    # --size: nur BxH mit Zahlen > 0.
+    assert parse_size("1600x900") == (1600, 900) and parse_size(" 800X600 ") == (800, 600)
+    for bad in ("1600", "1600x900x1", "abc", "0x900", "1600x"):
+        try:
+            parse_size(bad)
+        except argparse.ArgumentTypeError:
+            continue
+        raise AssertionError(f"--size {bad} haette abgelehnt werden muessen")
+    # Sprachen: dict-Texte begrenzen die Auswahl, str gilt fuer alle.
+    steps = [dict(say={"en": "Hi", "de": "Hallo"}), dict(say="Callers Caddy")]
+    assert scenario_languages(steps) == ["en", "de"]
+    assert say_text(steps[0], "de") == "Hallo" and say_text(steps[1], "ja") == "Callers Caddy"
+    assert plain("&Ansicht") == "Ansicht"
+    # Jedes Szenario laesst sich aus scenarios/<name>/scenario.py laden.
+    for folder in sorted((HERE / "scenarios").iterdir()):
+        if scenario_file(folder.name).exists():
+            module = load_scenario(folder.name)
+            assert module.STEPS and scenario_languages(module.STEPS), folder.name
     # Der Filter muss von ffmpeg angenommen werden (Stimme + zwei Musik-Stuecke).
     # Hinein und wieder heraus zoomen: ffmpeg muss auch diesen Filter annehmen.
     zoom = zoom_filter([(0.5, [0, 0, 160]), (2.0, [0, 0, 320])], 320, 180)
@@ -729,18 +774,29 @@ if __name__ == "__main__":
     ap.add_argument("name", help="Tutorial-Ordner aus scenarios/, z. B. clock, oder 'selftest'")
     ap.add_argument("--app-dir", default=str(SRC), type=Path,
                     help="Ordner mit DB und INI (Standard: src/)")
-    ap.add_argument("--lang", choices=sorted(VOICES),
+    ap.add_argument("--lang", choices=sorted(LANGUAGES),
                     help="Sprache der Oberflaeche und Stimme; ohne Angabe wird gefragt")
-    ap.add_argument("--size", default=f"{SIZE[0]}x{SIZE[1]}",
+    ap.add_argument("--size", default=SIZE, type=parse_size,
                     help="Videogroesse BxH, z. B. 1600x900 fuer Bildschirme mit "
                          "1920x1080 (das Fenster samt Titelleiste muss draufpassen)")
     ap.add_argument("--stage", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
-    SIZE = tuple(int(v) for v in args.size.lower().split("x"))
+    SIZE = args.size
     app_directory = Path(args.app_dir).resolve()
     if args.name == "selftest":
         demo()
     elif args.stage:
         stage(args.name, app_directory, args.lang)
     else:
-        produce(args.name, app_directory, args.lang or ask_language())
+        # Erst das Szenario pruefen, dann fragen: ein Tippfehler faellt sofort auf.
+        if not scenario_file(args.name).exists():
+            known = sorted(f.name for f in (HERE / "scenarios").iterdir()
+                           if scenario_file(f.name).exists())
+            ap.error(f"Szenario '{args.name}' nicht gefunden, vorhanden: {', '.join(known)}")
+        available = scenario_languages(load_scenario(args.name).STEPS)
+        if not available:
+            ap.error(f"Szenario '{args.name}': keine Sprache hat in jedem Schritt einen Text")
+        if args.lang and args.lang not in available:
+            ap.error(f"Szenario '{args.name}' hat keine Texte fuer '{args.lang}', "
+                     f"vorhanden: {', '.join(available)}")
+        produce(args.name, app_directory, args.lang or ask_language(available))
