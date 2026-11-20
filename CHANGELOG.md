@@ -6,6 +6,11 @@ Major nur bei großen Umbauten, Minor bei großen neuen Funktionen, Patch bei kl
 
 ---
 
+## (Unreleased — seit 2.0.0)
+
+### Verbesserungen
+- **Einheitlicher Name „Heutiges Tempo“.** Der Tooltip am Tempo-Regler für alle Songs sprach noch von „Session-Tempo“. Er heißt jetzt wie die Beschriftung daneben „Heutiges Tempo“ (englisch „Today's Tempo“).
+
 ## 2.0.0 — Offizieller Start: neue Versionsnummern, Uhr-Dock & sauberes Beenden (2026-11-18)
 
 ### Verbesserungen
