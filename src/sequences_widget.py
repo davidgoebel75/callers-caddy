@@ -402,7 +402,6 @@ class SequenceViewWidget(QWidget):
         Warnsymbol aus Square Flow."""
         parts = [p for p in (getattr(self, "_header_base", ""),) if p]
         flow = self._flow or {}
-        tip = ""
         if flow.get("total") is not None:
             total = flow["total"]
             over = flow.get("singer") and total > 64
@@ -412,7 +411,6 @@ class SequenceViewWidget(QWidget):
         self._apply_flow_warn_button()
         self._header_text = text
         self._lbl_header.setText(text)
-        self._lbl_header.setToolTip(tip)
         self._recalc_header_font()
 
     # ---- Square Flow (intern#247) ----

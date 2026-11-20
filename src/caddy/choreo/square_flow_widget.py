@@ -17,7 +17,7 @@ from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, Q
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QBoxLayout, QLabel, QPushButton, QMenu,
                                QSizePolicy)
 
-from caddy.choreo import figure_clock, pilot_colors, square_chain
+from caddy.choreo import figure_clock, flow_info, pilot_colors, square_chain
 from caddy.choreo.timeline import Timeline
 from caddy.settings import ini_keys
 from i18n import _t
@@ -390,6 +390,9 @@ class SquareFlowWidget(QWidget):
         self._floor.update()
 
     def contextMenuEvent(self, event):
+        # Bewusst ohne super(): QWidget.contextMenuEvent ignoriert das Ereignis, es
+        # liefe dann bis zum Hauptfenster weiter, und dessen Dock-Menue ginge
+        # zusaetzlich auf. event.accept() unten beendet die Weitergabe.
         menu = QMenu(self)
         act = menu.addAction(_t("sf_ctx_pilot_colors"))
         act.setCheckable(True)
@@ -518,11 +521,10 @@ class SquareFlowWidget(QWidget):
     def _on_ready(self, token, result):
         if token != self._token:
             return                                   # veraltet: andere Sequenz gewaehlt
-        if "stufe1" not in result:
-            # Engine fehlt oder ist abgestuerzt. Ein Abbruch traegt auch "error", hat aber
-            # ein Analyse-Ergebnis und wird bis zur Abbruchzeile getanzt.
-            key = "sf_engine_missing" if result.get("error") == "engine_missing" else None
-            self._show_message(_t(key) if key else (result.get("error") or ""))
+        if flow_info.engine_failed(result):
+            # Ein Abbruch hat ein Analyse-Ergebnis und wird bis zur Abbruchzeile getanzt.
+            self._show_message(_t("sf_engine_missing") if flow_info.engine_missing(result)
+                               else (result.get("error") or ""))
             if self._seq:
                 self._reported = result
                 self.result_ready.emit(self._seq[0], result)
@@ -565,33 +567,8 @@ class SquareFlowWidget(QWidget):
         self._status.setText(text)
         for b in (self._btn_restart, self._btn_prev, self._btn_play, self._btn_next):
             b.setEnabled(not self._tl.empty())
-        lines, strong = self.hint_lines(r, self._seq[0] if self._seq else ())
+        lines, strong = flow_info.hint_lines(r, self._seq[0] if self._seq else ())
         self._set_hints(lines, strong)
-
-    @staticmethod
-    def hint_lines(r, calls):
-        """Hinweise zum Ergebnis: (Textzeilen, Warnung ja/nein). Warnung = Abbruch, rot,
-        strittig; ergaenzte Bedeutungen allein sind ein Hinweis ohne Warnung."""
-        lines, strong = [], False
-        if not r["stufe1"]:
-            strong = True
-            fc = r.get("fail_card")
-            text = calls[fc] if fc is not None and fc < len(calls) else ""
-            lines.append(_t("sf_hint_abbruch").format(line=(fc + 1) if fc is not None else "?",
-                                                      text=text))
-        elif r.get("urteil") == "rot":
-            strong = True
-            lines.append(_t("sf_hint_rot").format(type=r.get("type") or ""))
-        elif r.get("urteil") == "strittig":
-            strong = True
-            lines.append(_t("sf_hint_strittig"))
-        meaning = [x for x in (r.get("read_as") or []) if x.get("meaning")]
-        for x in meaning[:6]:
-            lines.append(_t("sf_hint_read_as").format(line=x["card"] + 1, text=x["text"])
-                         + f" ({_t('sf_kind_' + x['kind'])})")
-        if meaning:
-            lines.append(_t("sf_hint_root"))
-        return lines, strong
 
     def _set_hints(self, lines, strong):
         self._hints.setText("<br>".join(html.escape(x) for x in lines))

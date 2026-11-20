@@ -3,7 +3,7 @@ from pilot_square_widget import PilotSquareWidget
 
 
 def test_daten_signal_und_bearbeiten(keep, monkeypatch):
-    import pilot_dancer_dialog as pdd
+    from caddy.choreo import pilot_dancer_dialog as pdd
     w = keep(PilotSquareWidget())
     got = []
     w.dancers_changed.connect(got.append)

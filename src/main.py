@@ -8176,29 +8176,11 @@ class P29MainWindow(QMainWindow):
     def _on_square_flow_result(self, calls, result):
         """Ergebnis von Square Flow -> Takte, Abbruchzeile und Warnsymbol im
         Sequenz-Detail (None = Sequenz gewechselt, Anzeige leeren)."""
+        from caddy.choreo import flow_info
         view = self.sequence_view_widget
-        if result is None:
-            view.set_flow_info(calls, None)
+        view.set_flow_info(calls, flow_info.detail_info(calls, result))
+        if result is None or flow_info.engine_failed(result):
             return
-        if "stufe1" not in result:
-            # Engine fehlt oder ist abgestuerzt (ein Abbruch traegt auch "error", aber
-            # mit Analyse-Ergebnis und landet unten)
-            err = result.get("error") or ""
-            view.set_flow_info(calls, {
-                "warn": True,
-                "warn_text": _t("sf_engine_missing") if err == "engine_missing"
-                else _t("seq_flow_warn_engine").format(error=err)})
-            return
-        from caddy.choreo.square_flow_widget import SquareFlowWidget
-        lines, strong = SquareFlowWidget.hint_lines(result, calls)
-        view.set_flow_info(calls, {
-            "beats": result.get("card_beats") or [],
-            "total": result.get("beats_total"),
-            "singer": (result.get("type") or "").lower().startswith("singer"),
-            "fail_card": result.get("fail_card"),
-            "warn": strong,
-            "warn_text": "\n".join(lines) if strong else "",
-        })
         # Phase 2: Takte da -> Lesebalken nach Beats neu aufbauen (No-Op ohne Dynamic)
         if tuple(calls) == tuple(view.current_calls() or ()):
             self.lyrics_widget.refresh_dynamic_from_sequence()

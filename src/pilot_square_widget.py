@@ -218,6 +218,10 @@ class _PersonBox(QPlainTextEdit):
         super().showEvent(event)
         self._refit()
 
+    def fill(self) -> Optional[str]:
+        """Eigene Farbe des Taenzers oder None."""
+        return self._fill
+
     def set_fill(self, color: Optional[str]):
         self._fill = color
         self._apply_style()
@@ -481,8 +485,8 @@ class PilotSquareWidget(QWidget):
             for boy in (True, False):
                 box = self._box(num, boy)
                 name = box.toPlainText().strip()
-                if box._fill or name:
-                    out[(num, boy)] = {"color": box._fill, "name": name}
+                if box.fill() or name:
+                    out[(num, boy)] = {"color": box.fill(), "name": name}
         return out
 
     def _emit_colors(self):
@@ -494,17 +498,17 @@ class PilotSquareWidget(QWidget):
         box = self._box(int(couple), bool(boy))
         if box is None:
             return False
-        from pilot_dancer_dialog import PilotDancerDialog
+        from caddy.choreo.pilot_dancer_dialog import PilotDancerDialog
         who = _t("square.man_placeholder") if boy else _t("square.woman_placeholder")
         title = _t("square.couple_label").format(n=int(couple)) + " · " + who
-        dlg = PilotDancerDialog(title, " ".join(box.toPlainText().split()), box._fill,
+        dlg = PilotDancerDialog(title, " ".join(box.toPlainText().split()), box.fill(),
                                 _PALETTE_COLORS, self._colors, parent or self)
         if dlg.exec() != PilotDancerDialog.Accepted:
             return False
         name = dlg.result_name()
         if name != box.toPlainText().strip():
             box.setPlainText(name)          # meldet per textChanged
-        if dlg.result_color() != box._fill:
+        if dlg.result_color() != box.fill():
             box.set_fill(dlg.result_color())
             self._emit_colors()
         return True
@@ -536,7 +540,7 @@ class PilotSquareWidget(QWidget):
 
     def _on_clear_colors(self):
         boxes = self._all_boxes()
-        if not self._confirm_clear(any(b._fill for b in boxes), "clear_colors"):
+        if not self._confirm_clear(any(b.fill() for b in boxes), "clear_colors"):
             return
         for b in boxes:
             b.clear_colors()
@@ -545,7 +549,7 @@ class PilotSquareWidget(QWidget):
     def _on_clear(self):
         boxes = self._all_boxes()
         if not self._confirm_clear(
-                any(b.toPlainText().strip() or b._fill for b in boxes), "clear"):
+                any(b.toPlainText().strip() or b.fill() for b in boxes), "clear"):
             return
         for b in boxes:
             b.clear_content()

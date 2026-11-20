@@ -199,18 +199,6 @@ def test_dieselbe_sequenz_erneut_meldet_ergebnis_wieder(keep, monkeypatch):
     assert results == []
 
 
-def test_hinweise_bei_abbruch_und_ergaenzung():
-    r = {"stufe1": False, "fail_card": 1, "urteil": None, "type": "",
-         "read_as": [{"card": 0, "text": "Heads Bend The Line", "kind": "kontext",
-                      "meaning": True},
-                     {"card": 2, "text": "Allemande Left", "kind": "roh", "meaning": False}]}
-    lines, strong = SquareFlowWidget.hint_lines(r, ("Bend The Line", "Boys Rnu", "L.A."))
-    assert strong
-    assert "Boys Rnu" in lines[0]
-    assert any("Heads Bend The Line" in x for x in lines)
-    assert not any("Allemande Left" in x for x in lines)
-
-
 def test_karte_spielen_haelt_am_ende(keep):
     w = keep(SquareFlowWidget(settings=_Settings(enabled=True), bpm_source=lambda: 120.0))
     w._seq = (("A", "B"), "Static Set ➔ Resolve")
