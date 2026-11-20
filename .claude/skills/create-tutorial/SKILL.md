@@ -72,5 +72,9 @@ python tools/tutorial_video/make_video.py <name> --drehbuch
 
 - Pfad des Szenarios, Zahl der Schritte, geschaetzte Laenge.
 - Befunde aus Schritt 4 (nicht registriertes Widget, fehlende Elemente).
-- Der Drehbefehl zum Selbststarten, weil die Aufnahme Maus und Bildschirm belegt:
-  `python tools/tutorial_video/make_video.py <name> --app-dir <Testordner>` (`--size 1600x900` bei Bildschirmen mit 1920x1080).
+- Die Befehle zum Selbststarten, weil Stellprobe und Aufnahme Maus und Bildschirm belegen (`--size 1600x900` bei Bildschirmen mit 1920x1080):
+  1. **Stellprobe**, Layout einrichten; Fenster schliessen speichert `scenarios/<name>/layout.ini`:
+     `python tools/tutorial_video/make_video.py <name> --stellprobe --app-dir <Testordner>`
+  2. **Dreh**, zeigt Drehbuch und Layout und fragt nach der Freigabe:
+     `python tools/tutorial_video/make_video.py <name> --app-dir <Testordner>`
+- Die `layout.ini` aus der Stellprobe gehoert mit ins Git, neben `scenario.py`.

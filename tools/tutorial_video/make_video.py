@@ -4,6 +4,12 @@ Aufruf aus dem Projektstamm:
     python tools/tutorial_video/make_video.py player
     python tools/tutorial_video/make_video.py player --app-dir ../2_Test
     python tools/tutorial_video/make_video.py player --drehbuch   # nur Tabelle
+    python tools/tutorial_video/make_video.py player --stellprobe # Layout einrichten
+
+Vor jedem Dreh zeigt das Werkzeug Drehbuch und Layout und fragt nach der
+Freigabe (--freigegeben ueberspringt die Frage). Das Layout kommt aus der
+Stellprobe (scenarios/<name>/layout.ini), sonst aus LAYOUT im Szenario, sonst
+gilt das Arbeitslayout des App-Ordners.
 
 Jedes Tutorial hat einen eigenen Ordner, benannt nach dem englischen
 Begriff: scenarios/<name>/scenario.py (Drehbuch, im Git), Ergebnis in
@@ -17,7 +23,7 @@ Braucht: pip install edge-tts imageio-ffmpeg, dazu einen Bildschirm, auf den
 das Fenster in Videogroesse (SIZE, per --size) samt Titelleiste passt. Die Sprechtexte
 gehen an den Vorlese-Dienst von Microsoft. Die App darf nicht schon laufen, Maus und
 Bildschirmbereich gehoeren waehrend der Aufnahme dem Skript. INI und DB werden
-gesichert und danach zurueckgespielt. Ausnahme: Ohne eigenes LAYOUT im Szenario
+gesichert und danach zurueckgespielt. Ausnahme: Ohne eigenes Layout im Szenario
 bleibt gespeichert, was dessen SETUP am Arbeitslayout aendert (Dock schliessen).
 """
 import argparse
@@ -94,6 +100,47 @@ def ask_language(available):
         if answer in available:
             return answer
         print(f"  Bitte eine von: {', '.join(available)}")
+
+
+def scenario_layout(name):
+    """Layout aus der Stellprobe: scenarios/<name>/layout.ini (im Git)."""
+    return HERE / "scenarios" / name / "layout.ini"
+
+
+def layout_source(name, scenario):
+    """Welches Layout der Dreh nimmt: ("stellprobe", Pfad), ("skins", Name)
+    fuer LAYOUT im Szenario oder ("arbeitslayout", None)."""
+    if scenario_layout(name).exists():
+        return "stellprobe", scenario_layout(name)
+    if getattr(scenario, "LAYOUT", None):
+        return "skins", scenario.LAYOUT
+    return "arbeitslayout", None
+
+
+def describe_layout(name, scenario, app_dir):
+    kind, where = layout_source(name, scenario)
+    if kind == "stellprobe":
+        stamp = time.strftime("%d.%m.%Y %H:%M", time.localtime(where.stat().st_mtime))
+        return f"Layout aus der Stellprobe: {where.relative_to(HERE)} (vom {stamp})"
+    if kind == "skins":
+        return f"Layout aus LAYOUT im Szenario: skins/{where}.ini im App-Ordner"
+    return (f"KEIN eigenes Layout: es gilt das Arbeitslayout von {app_dir}. "
+            f"Vorher einrichten mit: make_video.py {name} --stellprobe")
+
+
+def confirm_release(name, lang, app_dir):
+    """Vor dem Dreh Drehbuch und Layout zeigen und die Freigabe abfragen."""
+    scenario = load_scenario(name)
+    print(screenplay(scenario.STEPS, [lang]))
+    print()
+    print(describe_layout(name, scenario, app_dir))
+    try:
+        answer = input("Drehbuch und Layout freigegeben? [j/N] ")
+    except EOFError:   # ohne Konsole: nur mit --freigegeben
+        answer = ""
+    if answer.strip().lower() not in ("j", "ja", "y", "yes"):
+        sys.exit("[Video] Nicht freigegeben, kein Dreh. Drehbuch: --drehbuch, "
+                 "Layout: --stellprobe")
 
 
 def plain(text):
@@ -340,7 +387,33 @@ def produce(name, app_dir, lang):
     steps = load_scenario(name).STEPS
     clips = speak_all(steps, lang)
     (work / "durations.json").write_text(json.dumps([d for _w, d in clips]))
+    code = run_stage(name, app_dir, lang, work)
+    if code != 0:
+        sys.exit(f"[Video] App-Lauf gescheitert (Code {code}), kein Video erzeugt")
+    finish_video(name, steps, clips, work, lang)
 
+
+def stellprobe(name, app_dir, lang):
+    """Elternprozess der Stellprobe: App ohne Aufnahme starten; beim Schliessen
+    speichert sie ihr Layout nach scenarios/<name>/layout.ini."""
+    work = OUT / name / f"{name}_{lang}.stellprobe"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    target = scenario_layout(name)
+    before = target.stat().st_mtime if target.exists() else None
+    print("[Stellprobe] Die App startet in Videogroesse. Docks und Widgets so "
+          "einrichten, wie sie im Video stehen sollen (auch die, die das Video "
+          "erst einblendet). Dann das Fenster schliessen.")
+    run_stage(name, app_dir, lang, work, "--stellprobe")
+    if target.exists() and target.stat().st_mtime != before:
+        print(f"[Stellprobe] Layout gespeichert: {target.relative_to(HERE)}. "
+              "Der naechste Dreh nimmt es.")
+    else:
+        sys.exit("[Stellprobe] Kein Layout gespeichert.")
+
+
+def run_stage(name, app_dir, lang, work, *extra):
+    """App-Lauf als Kindprozess; INI und DB davor sichern, danach zurueckspielen."""
     # ponytail: sichert nur INI und Standard-DB im App-Ordner; liegt die DB
     # woanders, eigenen Demo-Ordner per --app-dir nehmen.
     ini = app_dir / "callers_caddy.ini"
@@ -356,7 +429,7 @@ def produce(name, app_dir, lang):
         code = subprocess.run([sys.executable, __file__, name, "--stage",
                                "--app-dir", str(app_dir),
                                "--lang", lang,
-                               "--size", f"{SIZE[0]}x{SIZE[1]}"]).returncode
+                               "--size", f"{SIZE[0]}x{SIZE[1]}", *extra]).returncode
     finally:
         for f in keep:
             shutil.copy2(work / f.name, f)
@@ -373,26 +446,26 @@ def produce(name, app_dir, lang):
             for key in source.allKeys():
                 target.setValue(key, source.value(key))
             target.sync()
-    if code != 0:
-        sys.exit(f"[Video] App-Lauf gescheitert (Code {code}), kein Video erzeugt")
-    finish_video(name, steps, clips, work, lang)
+    return code
 
 
 # ---------------------------------------------------------------------------
 # Kindprozess: App starten und bedienen
 # ---------------------------------------------------------------------------
 
-def stage(name, app_dir, lang):
-    """Startet die App, spielt das Szenario ab, filmt mit. Kehrt nicht zurueck."""
+def stage(name, app_dir, lang, probe=False):
+    """Startet die App, spielt das Szenario ab, filmt mit. Kehrt nicht zurueck.
+    probe: Stellprobe, ohne SETUP, Aufnahme und Schritte; beim Schliessen des
+    Fensters wird das Layout nach scenarios/<name>/layout.ini gespeichert."""
     work = OUT / name / f"{name}_{lang}.work"
     scenario = load_scenario(name)
     steps = scenario.STEPS
-    durations = json.loads((work / "durations.json").read_text())
+    durations = None if probe else json.loads((work / "durations.json").read_text())
     os.chdir(app_dir)   # Dev-Modus: app_dir = CWD, vor dem Import von main
     sys.path.insert(0, str(SRC))
 
-    from PySide6.QtCore import (QEvent, QPoint, QPointF, QSettings, QTimer,
-                                QVariantAnimation, Qt)
+    from PySide6.QtCore import (QEvent, QObject, QPoint, QPointF, QSettings,
+                                QTimer, QVariantAnimation, Qt)
     from PySide6.QtGui import (QColor, QContextMenuEvent, QCursor, QMouseEvent,
                                QPainter, QPen)
     from PySide6.QtTest import QTest
@@ -862,15 +935,18 @@ def stage(name, app_dir, lang):
         win = next(w for w in QApplication.topLevelWidgets()
                    if isinstance(w, main.P29MainWindow))
         win.tutorial_engine.complete_all()   # raeumt ein offenes Tour-Angebot weg
-        layout = getattr(scenario, "LAYOUT", None)
-        if layout:
-            path = os.path.join(win.skin_mgr.skins_dir, f"{layout}.ini")
-            if not win._apply_layout_file(path):
-                raise LookupError(f"Layout nicht ladbar: {path}")
+        kind, where = layout_source(name, scenario)
+        layout = None
+        if kind == "stellprobe":
+            layout = str(where)
+        elif kind == "skins":
+            layout = os.path.join(win.skin_mgr.skins_dir, f"{where}.ini")
+        if layout and not win._apply_layout_file(layout):
+            raise LookupError(f"Layout nicht ladbar: {layout}")
         actor = Stage(win)
-        if hasattr(scenario, "SETUP"):
+        if hasattr(scenario, "SETUP") and not probe:
             scenario.SETUP(actor)   # Vorbereitung vor der Aufnahme
-        if not layout:
+        if not layout and not probe:
             # Arbeitslayout: was SETUP daran aendert, bleibt gespeichert. Vor
             # dem Umstellen auf Aufnahmegroesse, die Fenstergroesse bleibt also.
             keep = QSettings(str(work / "layout_keep.ini"), QSettings.IniFormat)
@@ -894,6 +970,27 @@ def stage(name, app_dir, lang):
                   f"Bildschirm ({avail.width()}x{avail.height()} frei). Kleinere "
                   f"--size waehlen, z. B. 1600x900.", file=sys.stderr)
             finish(False)
+
+        if probe:
+            # Beim Schliessen das Layout speichern und sofort beenden: die App
+            # selbst speichert dann nichts mehr (INI wird ohnehin zurueckgespielt).
+            class SaveOnClose(QObject):
+                def eventFilter(self, obj, event):
+                    if obj is win and event.type() == QEvent.Close:
+                        target = scenario_layout(name)
+                        out = QSettings(str(target), QSettings.IniFormat)
+                        out.clear()
+                        win._write_layout_state(out)
+                        win._save_float_geoms(out)
+                        out.sync()
+                        print(f"[Stellprobe] Layout geschrieben: {target}")
+                        sys.stdout.flush()
+                        os._exit(0)
+                    return False
+
+            state["probe_filter"] = SaveOnClose(win)
+            win.installEventFilter(state["probe_filter"])
+            return
 
         area = win.geometry()   # Fensterinhalt ohne Titelleiste
         scale = win.devicePixelRatioF()
@@ -1024,6 +1121,19 @@ def demo():
     assert table[2] == ('| 1 | A \\| B | C | x Zeile 2; Zoom: ganzes Fenster '
                         '| a.click("x.btn", 2) (stehen 3 s) |'), table[2]
     assert table[3] == "| 2 | Ende | Ende | - | - |"
+    # Layout: Stellprobe vor LAYOUT vor Arbeitslayout.
+    import types
+    probe_name = "_selftest_layout"
+    probe_file = scenario_layout(probe_name)
+    with_layout = types.SimpleNamespace(LAYOUT="demo")
+    assert layout_source(probe_name, types.SimpleNamespace()) == ("arbeitslayout", None)
+    assert layout_source(probe_name, with_layout) == ("skins", "demo")
+    probe_file.parent.mkdir(parents=True)
+    try:
+        probe_file.write_text("[General]\n")
+        assert layout_source(probe_name, with_layout) == ("stellprobe", probe_file)
+    finally:
+        shutil.rmtree(probe_file.parent)
     # Jedes Szenario laesst sich aus scenarios/<name>/scenario.py laden.
     for folder in sorted((HERE / "scenarios").iterdir()):
         if scenario_file(folder.name).exists():
@@ -1054,6 +1164,12 @@ if __name__ == "__main__":
     ap.add_argument("--drehbuch", action="store_true",
                     help="Nur das Drehbuch als Markdown-Tabelle ausgeben, ohne App "
                          "und ohne Vorlese-Dienst (mit --lang nur diese Sprache)")
+    ap.add_argument("--stellprobe", action="store_true",
+                    help="App ohne Aufnahme in Videogroesse starten, Layout einrichten; "
+                         "beim Schliessen wird es als scenarios/<name>/layout.ini "
+                         "gespeichert und vom Dreh verwendet")
+    ap.add_argument("--freigegeben", action="store_true",
+                    help="Drehbuch und Layout sind abgenommen: keine Rueckfrage vor dem Dreh")
     ap.add_argument("--stage", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     SIZE = args.size
@@ -1061,7 +1177,7 @@ if __name__ == "__main__":
     if args.name == "selftest":
         demo()
     elif args.stage:
-        stage(args.name, app_directory, args.lang)
+        stage(args.name, app_directory, args.lang, probe=args.stellprobe)
     else:
         # Erst das Szenario pruefen, dann fragen: ein Tippfehler faellt sofort auf.
         if not scenario_file(args.name).exists():
@@ -1078,4 +1194,10 @@ if __name__ == "__main__":
             print(screenplay(load_scenario(args.name).STEPS,
                              [args.lang] if args.lang else available))
             sys.exit(0)
-        produce(args.name, app_directory, args.lang or ask_language(available))
+        lang = args.lang or ask_language(available)
+        if args.stellprobe:
+            stellprobe(args.name, app_directory, lang)
+            sys.exit(0)
+        if not args.freigegeben:
+            confirm_release(args.name, lang, app_directory)
+        produce(args.name, app_directory, lang)
