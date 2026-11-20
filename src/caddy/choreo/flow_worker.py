@@ -10,6 +10,11 @@ Zwischenspeicher in zwei Stufen:
 - in der DB (sequence_choreo): Ergebnis ohne Animation. Ein Treffer wird sofort gemeldet
   (Takte, Warnung), ohne die Engine zu starten. Wird die Animation gebraucht (Dock sichtbar),
   rechnet der Worker danach trotzdem und meldet ein zweites Mal.
+
+Die Zuordnungen Call-Text -> Callname liest der Worker vor jedem Lauf frisch aus der DB
+(eine Abfrage, im Hintergrund-Thread). Sie gehen in den Schluessel beider Stufen ein:
+Aendert sich das Call-Mapping irgendwo, passen alte Ergebnisse nicht mehr und werden neu
+gerechnet, ohne dass jede Schreibstelle Bescheid geben muss (Review #192, Punkt 7).
 """
 import hashlib
 import threading
@@ -34,7 +39,6 @@ class SquareFlowWorker(QObject):
         self._job = None
         self._thread = None
         self._stop = False
-        self._app = None
         self._engine_fp = None
         self._cache = OrderedDict()
 
@@ -60,7 +64,6 @@ class SquareFlowWorker(QObject):
         """Call-Mapping oder Tabelle geaendert: Zwischenspeicher verwerfen."""
         with self._cond:
             self._cache.clear()
-            self._app = None
 
     def shutdown(self):
         with self._cond:
@@ -72,10 +75,11 @@ class SquareFlowWorker(QObject):
     # --- Thread -------------------------------------------------------------
 
     def _load_app(self):
-        if self._app is None:
-            from song_db_sequences import read_choreo_call_names
-            self._app = read_choreo_call_names(self._db_path) if self._db_path else {}
-        return self._app
+        """Aktuelle Zuordnungen Call-Text -> Callname (bei jedem Lauf neu gelesen)."""
+        if not self._db_path:
+            return {}
+        from song_db_sequences import read_choreo_call_names
+        return read_choreo_call_names(self._db_path)
 
     def _engine_fingerprint(self):
         """Stand der Engine-Datei (ohne den Prozess zu starten)."""
@@ -110,7 +114,9 @@ class SquareFlowWorker(QObject):
                 self._emit(token, {"error": f"{type(exc).__name__}: {exc}"})
 
     def _run_job(self, token, calls, seq_type, seq_id, need_anim):
-        key = (calls, seq_type)
+        app = self._load_app()
+        ihash = analysis.input_hash(calls, seq_type, app)
+        key = ihash                          # Zeilen, Typ und Call-Mapping
         result = self._cache.get(key)
         if result is not None:
             self._cache.move_to_end(key)
@@ -120,8 +126,6 @@ class SquareFlowWorker(QObject):
         if not eng.available():
             self._emit(token, {"error": "engine_missing"})
             return
-        app = self._load_app()
-        ihash = analysis.input_hash(calls, seq_type, app)
         efp = self._engine_fingerprint()
         db = self._db_path if (self._db_path and seq_id is not None) else None
         if db:

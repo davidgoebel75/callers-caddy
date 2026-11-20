@@ -86,3 +86,47 @@ def test_treffer_ohne_engine_start(tmp_path, keep, qapp):
     spin3()
     w3.shutdown()
     assert got3 and not got3[0].get("cached")
+
+
+class _FakeEngine:
+    path = None
+
+    def available(self):
+        return True
+
+    def run(self, *_a, **_k):
+        raise AssertionError("analyse_sequence ist im Test ersetzt")
+
+    def close(self):
+        pass
+
+
+def test_geaendertes_call_mapping_rechnet_neu(tmp_path, keep, qapp, monkeypatch):
+    """Review #192, Punkt 7: Der Worker liest das Call-Mapping bei jedem Lauf neu.
+    Eine Zuordnung, die nach dem ersten Lauf dazukommt, fuehrt zu einer neuen
+    Berechnung, ohne dass jemand invalidate() aufruft."""
+    db_path = _db(tmp_path, keep)
+    runs = []
+
+    def _fake_analyse(_run, calls, seq_type, app):
+        runs.append(dict(app))
+        return {"stufe1": True, "urteil": "gruen", "card_beats": [], "animation": None}
+
+    monkeypatch.setattr(analysis, "analyse_sequence", _fake_analyse)
+    w = SquareFlowWorker(db_path, engine=_FakeEngine())
+    got, _ = _wait(qapp, w, 0)
+    w.request(1, ("Boys Rnu",), TYPE)
+    _spin(qapp, got, 1, 10)
+    w.request(2, ("Boys Rnu",), TYPE)                       # gleich: aus dem Speicher
+    _spin(qapp, got, 2, 10)
+    assert len(runs) == 1
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        db = keep(SongDatabase(db_path))
+    eid = db._conn.execute("SELECT entity_id FROM calls WHERE canonical_name = 'Run'"
+                           ).fetchone()[0]
+    db.set_call_text_mapping("Boys Rnu", eid, mapped_by="manual")
+    w.request(3, ("Boys Rnu",), TYPE)
+    _spin(qapp, got, 3, 10)
+    w.shutdown()
+    assert len(runs) == 2 and runs[1].get("Boys Rnu") == "Run"
