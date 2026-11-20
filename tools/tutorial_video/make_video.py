@@ -381,6 +381,18 @@ def stage(name, app_dir, lang):
     # faengt die Klicks ab. Der manuelle Weg ueber das Menue bleibt.
     update_check.UpdateChecker.start = lambda self, *args, **kwargs: None
 
+    # Alle Touren gleich beim Einlesen als abgeschlossen markieren (mit der
+    # App-eigenen complete_all), damit kein Tour-Angebot im Video auftaucht;
+    # die INI wird danach ohnehin zurueckgespielt.
+    import tutorial_engine
+    original_set_tutorials = tutorial_engine.TutorialEngine.set_tutorials
+
+    def set_tutorials_completed(self, tutorials):
+        original_set_tutorials(self, tutorials)
+        self.complete_all()
+
+    tutorial_engine.TutorialEngine.set_tutorials = set_tutorials_completed
+
     # Musik der App mitschneiden: genau das, was an die Soundkarte geht, also
     # mit Tempo, Tonhoehe und Fade Out. Ein Abschnitt je Wiedergabe.
     music = []   # [startzeit, rate, kanaele, [bloecke]]
@@ -411,7 +423,12 @@ def stage(name, app_dir, lang):
         sys.stdout.flush()
         sys.stderr.flush()
         import ctypes
-        kernel32 = ctypes.windll.kernel32
+        from ctypes import wintypes
+        # Eigene Instanz: ctypes.windll.kernel32 teilt sich die App, und
+        # src/perf.py setzt dort GetCurrentProcess.restype um.
+        kernel32 = ctypes.WinDLL("kernel32")
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
         kernel32.TerminateProcess(kernel32.GetCurrentProcess(), code)
         os._exit(code)   # nur falls TerminateProcess wider Erwarten zurueckkehrt
 
