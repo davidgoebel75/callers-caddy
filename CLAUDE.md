@@ -34,7 +34,7 @@ Ab dem Launch gilt **Major.Minor.Patch**, z. B. `2.0.16`. Die Prototyp-Nummern `
 - **Auf `main` wird nie direkt committet.** Aenderungen kommen dort nur ueber den Release-PR an.
 - **Release-PR `develop` → `main` mergen mit „Create a merge commit"** — NIE „Squash and merge", NIE „Rebase and merge". Sonst verliert Git die Verbindung zwischen `develop` und `main`, und der naechste Release-PR bringt alte Commits doppelt plus Konflikte.
 - **Versions-Bump NIE erst auf `main`:** Dann fehlt er auf `develop`, und der naechste Release-PR kollidiert in `CHANGELOG.md`.
-- **Vollstaendiger Release-Ablauf** (7 Schritte inkl. Build-Pruefung, Schema-Abbild, Tag): `docs/18_release.md` — vor jedem Release lesen.
+- **Vollstaendiger Release-Ablauf** (inkl. Build-Pruefung, Schema-Abbild, Tag, Website): `docs/18_release.md` — vor jedem Release lesen.
 
 ## Versions-Bump — PFLICHT-DOPPELPACK
 
@@ -103,7 +103,7 @@ Begriff und den Varianten, die bewusst vermieden werden (`_Avoid_`).
 | Dokument | Inhalt | Lesen wenn … |
 |---|---|---|
 | `CODING_STANDARDS.md` | Pruefbare Regeln fuer Code | Vor jedem Schreiben oder Aendern von Code, im Code-Review |
-| `docs/18_release.md` | Release-Ablauf in 7 Schritten, Bauen, ZIP-Typen | Release vorbereiten, bauen |
+| `docs/18_release.md` | Release-Ablauf, Bauen, ZIP-Typen | Release vorbereiten, bauen |
 | `docs/19_audio_prioritaet.md` | Herleitung der Audio-Regel, Diagnose-Werkzeuge | Audio-Aussetzer, Main-Thread-Performance |
 | `docs/12_erfahrungen.md` | Entwicklungsrichtlinien, Refactoring-Regeln, Fallstricke aus allen Prototypen | Refactoring, Architekturentscheidungen, unklares Verhalten, neue UI-Komponenten |
 | `docs/07_datenmodell.md` | DB-Schema, Tabellenstruktur, Migrations-Historie | DB-Aenderungen, neue Felder, Abfragen |
