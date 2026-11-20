@@ -286,8 +286,13 @@ def produce(name, app_dir, lang):
 
     # ponytail: sichert nur INI und Standard-DB im App-Ordner; liegt die DB
     # woanders, eigenen Demo-Ordner per --app-dir nehmen.
-    keep = [f for f in (app_dir / "callers_caddy.ini", app_dir / "callers_caddy.db")
-            if f.exists()]
+    ini = app_dir / "callers_caddy.ini"
+    files = (ini, app_dir / "callers_caddy.db")
+    keep = [f for f in files if f.exists()]
+    # Gab es sie vorher nicht (frischer --app-dir), danach wieder loeschen,
+    # sonst bleiben Dreh-Werte (crash/last_notified, Countdown aus, SETTINGS)
+    # dauerhaft stehen.
+    fresh = [f for f in files if not f.exists()]
     for f in keep:
         shutil.copy2(f, work / f.name)
     try:
@@ -298,10 +303,12 @@ def produce(name, app_dir, lang):
     finally:
         for f in keep:
             shutil.copy2(work / f.name, f)
+        for f in fresh:
+            f.unlink(missing_ok=True)
         for leftover in ("callers_caddy.db-wal", "callers_caddy.db-shm"):
             (app_dir / leftover).unlink(missing_ok=True)
         kept_layout = work / "layout_keep.ini"
-        if kept_layout.exists():
+        if kept_layout.exists() and ini not in fresh:
             # Das Arbeitslayout nach SETUP in die zurueckgespielte INI uebernehmen.
             from PySide6.QtCore import QSettings
             source = QSettings(str(kept_layout), QSettings.IniFormat)
@@ -531,7 +538,13 @@ def stage(name, app_dir, lang):
                 w, Qt.LeftButton, Qt.NoModifier, p)))
 
         def double_click(self, path, row=None, at=None):
-            # Echte Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py
+            """Doppelklick, asynchron: die Ereignisse kommen erst im naechsten
+            Takt an. Ein Schritt, der das Ergebnis braucht, gehoert also in den
+            naechsten STEPS-Eintrag, nicht direkt dahinter in dasselbe do."""
+            # Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py, nur
+            # das letzte Release vor dem DblClick: oeffnet der einen modalen
+            # Dialog, bliebe ein spaeteres Release in dessen exec() haengen und
+            # kaeme nach close_dialog() verwaist auf dem Element an.
             w, p = self._spot(path, row, at)
             spot = w.mapToGlobal(p)
             QCursor.setPos(spot)
@@ -541,10 +554,10 @@ def stage(name, app_dir, lang):
                 QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
                 QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
                 QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
                 QApplication.sendEvent(w, QMouseEvent(
                     QEvent.MouseButtonDblClick, QPointF(p), QPointF(spot),
                     Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
-                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
 
             QTimer.singleShot(220, guarded(lambda: self._mark(spot)))
             # Per Timer: oeffnet der Doppelklick einen modalen Dialog, blockiert
@@ -623,8 +636,9 @@ def stage(name, app_dir, lang):
 
         def setting(self, key):
             """Allgemeine Einstellungen ueber das Menue oeffnen, zur Zeile key
-            springen (z. B. "square_flow/enabled"), ihr Feld anklicken (Checkbox:
-            umschalten) und mit OK schliessen. Danach wieder ganzes Bild."""
+            springen (z. B. "square_flow/enabled"), ihre Checkbox umschalten und
+            mit OK schliessen. Danach wieder ganzes Bild. Nur fuer Checkbox-
+            Zeilen: eine Combobox oeffnete ein Popup, das den OK-Klick schluckt."""
             # Benutzt vom Einstellungsdialog (src/settings_dialog.py) das
             # oeffentliche focus_row() und die Zeilenliste _rows.
             self.open_menu("menu_design", "menu_general_settings")
@@ -640,6 +654,10 @@ def stage(name, app_dir, lang):
                     raise LookupError(f"Einstellung nicht im Dialog: {key}")
                 self._zoom_global(dlg.frameGeometry())
                 row = next(r for r in dlg._rows if r.full_key == key)
+                from PySide6.QtWidgets import QCheckBox
+                if not isinstance(row.widget, QCheckBox):
+                    raise LookupError(f"setting() kann nur Checkboxen, {key} ist "
+                                      f"{type(row.widget).__name__}")
 
                 def pick():
                     w = row.widget
@@ -829,11 +847,28 @@ def stage(name, app_dir, lang):
              "-pix_fmt", "yuv420p", str(work / "raw.mp4")],
             stdin=subprocess.PIPE)
 
+        raw = work / "raw.mp4"
+        # ffmpeg puffert, und ein ruhiges Bild ergibt kaum Daten: erst nach
+        # STALL_S Sekunden ohne Wachstum von raw.mp4 gilt die Aufnahme als tot.
+        STALL_S = 20
+        grown = {"size": 0, "at": time.monotonic()}
+
         def check_recording():
+            """Alle 2 s: laeuft ffmpeg noch, und waechst raw.mp4? Sonst gleich
+            abbrechen statt erst am Ende in finish()."""
             if state["ffmpeg"].poll() is not None:
-                print("[Video] ffmpeg hat die Aufnahme nicht gestartet (siehe "
-                      "Meldung darueber), Abbruch.", file=sys.stderr)
+                print("[Video] ffmpeg hat die Aufnahme beendet (siehe Meldung "
+                      "darueber), Abbruch.", file=sys.stderr)
                 finish(False)
+            now = time.monotonic()
+            size = raw.stat().st_size if raw.exists() else 0
+            if size > grown["size"]:
+                grown.update(size=size, at=now)
+            elif now - grown["at"] > STALL_S:
+                print(f"[Video] ffmpeg laeuft, schreibt aber seit {STALL_S} s "
+                      f"nichts nach {raw.name}, Abbruch.", file=sys.stderr)
+                finish(False)
+            QTimer.singleShot(2000, check_recording)
 
         QTimer.singleShot(1500, check_recording)
 
