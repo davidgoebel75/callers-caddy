@@ -134,6 +134,10 @@ def confirm_release(name, lang, app_dir):
     print(screenplay(scenario.STEPS, [lang]))
     print()
     print(describe_layout(name, scenario, app_dir))
+    picture = scenario_layout(name).with_suffix(".png")
+    if layout_source(name, scenario)[0] == "stellprobe" and picture.exists():
+        print(f"Bild des Layouts geoeffnet: {picture.relative_to(HERE)}")
+        os.startfile(picture)   # Windows-Bildanzeige
     try:
         answer = input("Drehbuch und Layout freigegeben? [j/N] ")
     except EOFError:   # ohne Konsole: nur mit --freigegeben
@@ -406,8 +410,9 @@ def stellprobe(name, app_dir, lang):
           "erst einblendet). Dann das Fenster schliessen.")
     run_stage(name, app_dir, lang, work, "--stellprobe")
     if target.exists() and target.stat().st_mtime != before:
-        print(f"[Stellprobe] Layout gespeichert: {target.relative_to(HERE)}. "
-              "Der naechste Dreh nimmt es.")
+        print(f"[Stellprobe] Layout gespeichert: {target.relative_to(HERE)} "
+              f"und {target.with_suffix('.png').name}. Der naechste Dreh nimmt es "
+              "und zeigt das Bild vor der Freigabe.")
     else:
         sys.exit("[Stellprobe] Kein Layout gespeichert.")
 
@@ -983,6 +988,8 @@ def stage(name, app_dir, lang, probe=False):
                         win._write_layout_state(out)
                         win._save_float_geoms(out)
                         out.sync()
+                        # Bild dazu, fuer die Freigabe vor dem Dreh (und im PR)
+                        win.grab().save(str(target.with_suffix(".png")))
                         print(f"[Stellprobe] Layout geschrieben: {target}")
                         sys.stdout.flush()
                         os._exit(0)
