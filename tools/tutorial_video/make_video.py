@@ -403,6 +403,18 @@ def stage(name, app_dir, lang):
     # marks: (Wanduhr, Schritt-Index), zoom: (Wanduhr, [x, y, breite])
     state = {"ffmpeg": None, "marks": [], "zoom": [], "size": None}
 
+    def hard_exit(code):
+        """Prozess sofort beenden: kein closeEvent, die App speichert nichts.
+        TerminateProcess statt os._exit: os._exit raeumt beim Beenden noch die
+        geladenen DLLs ab (Qt, PortAudio), und dabei stuerzte der Prozess nach
+        vollstaendigem Dreh mit 0xC0000005 ab, der Exit-Code war dann verloren."""
+        sys.stdout.flush()
+        sys.stderr.flush()
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.TerminateProcess(kernel32.GetCurrentProcess(), code)
+        os._exit(code)   # nur falls TerminateProcess wider Erwarten zurueckkehrt
+
     def finish(ok):
         end = time.monotonic()
         proc = state["ffmpeg"]
@@ -416,9 +428,8 @@ def stage(name, app_dir, lang):
                 # bleiben, sonst friert die App ein, statt sich zu beenden.
                 proc.kill()
                 ok = False
-        # Hart beenden: kein closeEvent, die App speichert nichts mehr.
         if not ok:
-            os._exit(1)
+            hard_exit(1)
         import numpy as np
         import soundfile
         files = []
@@ -430,7 +441,7 @@ def stage(name, app_dir, lang):
         (work / "marks.json").write_text(json.dumps(
             {"end": end, "marks": state["marks"], "music": files,
              "zoom": state["zoom"], "size": state["size"]}))
-        os._exit(0)
+        hard_exit(0)
 
     def guarded(fn):
         def run():
