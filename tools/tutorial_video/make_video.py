@@ -369,7 +369,13 @@ def stage(name, app_dir, lang):
 
     import audio_engine
     import main
+    import update_check
     from tutorial_engine import _HighlightFrame
+
+    # Keine Update-Pruefung beim Dreh: in einem frischen --app-dir ohne Snooze
+    # legt sich sonst der Hinweis auf eine neue Version ueber die App und
+    # faengt die Klicks ab. Der manuelle Weg ueber das Menue bleibt.
+    update_check.UpdateChecker.start = lambda self, *args, **kwargs: None
 
     # Musik der App mitschneiden: genau das, was an die Soundkarte geht, also
     # mit Tempo, Tonhoehe und Fade Out. Ein Abschnitt je Wiedergabe.
@@ -837,6 +843,7 @@ def stage(name, app_dir, lang):
         w, h = (int(v * scale) // 2 * 2 for v in (area.width(), area.height()))
         state["size"] = (w, h)
         import imageio_ffmpeg
+        progress = work / "progress.txt"
         state["ffmpeg"] = subprocess.Popen(
             [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
              "-f", "gdigrab", "-framerate", str(FPS), "-draw_mouse", "1",
@@ -844,29 +851,40 @@ def stage(name, app_dir, lang):
              "-offset_y", str(int(area.y() * scale)),
              "-video_size", f"{w}x{h}", "-i", "desktop",
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-             "-pix_fmt", "yuv420p", str(work / "raw.mp4")],
+             "-pix_fmt", "yuv420p",
+             # Bildzaehler (frame=N) laufend in eine Datei, fuer check_recording.
+             "-progress", str(progress), "-stats_period", "1",
+             str(work / "raw.mp4")],
             stdin=subprocess.PIPE)
 
-        raw = work / "raw.mp4"
-        # ffmpeg puffert, und ein ruhiges Bild ergibt kaum Daten: erst nach
-        # STALL_S Sekunden ohne Wachstum von raw.mp4 gilt die Aufnahme als tot.
-        STALL_S = 20
-        grown = {"size": 0, "at": time.monotonic()}
+        # Lebenszeichen ist der Bildzaehler, nicht die Groesse von raw.mp4:
+        # bei ruhigem Bild puffert ffmpeg so wenig Daten, dass die Datei lange
+        # nicht waechst, gezaehlt wird trotzdem jedes Bild.
+        STALL_S = 10
+        counted = {"frame": -1, "at": time.monotonic()}
+
+        def frames_so_far():
+            try:
+                text = progress.read_text(errors="replace")
+            except OSError:
+                return -1
+            hits = re.findall(r"^frame=(\d+)", text, re.M)
+            return int(hits[-1]) if hits else -1
 
         def check_recording():
-            """Alle 2 s: laeuft ffmpeg noch, und waechst raw.mp4? Sonst gleich
+            """Alle 2 s: laeuft ffmpeg noch, und zaehlt es Bilder? Sonst gleich
             abbrechen statt erst am Ende in finish()."""
             if state["ffmpeg"].poll() is not None:
                 print("[Video] ffmpeg hat die Aufnahme beendet (siehe Meldung "
                       "darueber), Abbruch.", file=sys.stderr)
                 finish(False)
             now = time.monotonic()
-            size = raw.stat().st_size if raw.exists() else 0
-            if size > grown["size"]:
-                grown.update(size=size, at=now)
-            elif now - grown["at"] > STALL_S:
-                print(f"[Video] ffmpeg laeuft, schreibt aber seit {STALL_S} s "
-                      f"nichts nach {raw.name}, Abbruch.", file=sys.stderr)
+            frame = frames_so_far()
+            if frame > counted["frame"]:
+                counted.update(frame=frame, at=now)
+            elif now - counted["at"] > STALL_S:
+                print(f"[Video] ffmpeg laeuft, nimmt aber seit {STALL_S} s kein "
+                      "Bild mehr auf, Abbruch.", file=sys.stderr)
                 finish(False)
             QTimer.singleShot(2000, check_recording)
 
