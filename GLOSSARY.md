@@ -331,6 +331,23 @@ pruefen kann, ob sie korrekt aufloest. Optional, nur nach Freigabe in den Einste
 _EN_: Square Flow
 _Avoid_: Mitlaufender Square, Square-Ansicht
 
+### Regeln
+
+**Regel**:
+Automatik nach dem Muster Ausloeser, Bedingung, Aktion, die bei einem Ereignis im
+Programm selbst etwas ausfuehrt, etwa beim Song-Start oder per Stream-Deck-Taste.
+_EN_: Rule
+
+**System-Regel**:
+Regel, die mit dem Programm ausgeliefert wird. Der Caller kann sie nur ein- und
+ausschalten und einer Taste zuordnen, nicht aendern oder loeschen.
+_EN_: System Rule
+
+**Eigene Regel**:
+Regel, die der Caller selbst anlegt, aendert, loescht oder importiert.
+_EN_: Custom Rule
+_Avoid_: User-Regel, Benutzerregel
+
 ### Oberflaeche
 
 **Widget**:

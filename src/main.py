@@ -1434,6 +1434,7 @@ class P29MainWindow(QMainWindow):
         self.dock_clock.setObjectName("dock_clock")
         self.dock_clock.hide()  # Default; restoreState() stellt echten Zustand her
         self._add_view_menu_entry(self.dock_clock, _t("dock_clock"))
+        self.tutorial_engine.register_widget("clock", self.clock_widget)
         perf_log("    Clock dock", _tclock)
 
         # --- Dock: Square Flow (intern#247) — vor _restore_layout() wie alle
@@ -2774,6 +2775,11 @@ class P29MainWindow(QMainWindow):
     def _finish_startup(self):
         """Letzter Start-Schritt: Lokation vorschlagen, dann app_started (intern#222)."""
         try:
+            broken = self.rule_engine.broken_user_rules_path
+            if broken:   # intern#257: beiseitegelegte rules_user.json melden
+                QMessageBox.warning(
+                    self, _t("rule.broken_file_title"),
+                    _t("rule.broken_file_msg").replace("{path}", broken))
             self._auto_detect_location_on_startup()
         finally:
             self.rule_engine.fire_trigger("app_started")

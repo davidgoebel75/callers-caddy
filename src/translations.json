@@ -126,9 +126,9 @@
     "ja": "本日のテンポ"
   },
   "tooltip_today_tempo": {
-    "de": "Session-Tempo (gilt für alle Songs)",
-    "en": "Session tempo (applies to all songs)",
-    "ja": "セッションのテンポ（すべての曲に適用）"
+    "de": "Heutiges Tempo (gilt für alle Songs)",
+    "en": "Today's Tempo (applies to all songs)",
+    "ja": "本日のテンポ（すべての曲に適用）"
   },
   "label_song_tempo": {
     "de": "Song-Tempo",
@@ -7362,6 +7362,16 @@
     "de": "{n} Regeln wirklich löschen?",
     "en": "Really delete {n} rules?",
     "ja": "{n} 件のルールを本当に削除しますか？"
+  },
+  "rule.broken_file_title": {
+    "de": "Eigene Regeln nicht lesbar",
+    "en": "Custom rules unreadable",
+    "ja": "カスタムルールを読み込めません"
+  },
+  "rule.broken_file_msg": {
+    "de": "Die Datei mit deinen eigenen Regeln war beschädigt und konnte nicht geladen werden. Callers Caddy startet ohne eigene Regeln.\n\nDie beschädigte Datei wurde gesichert unter:\n{path}",
+    "en": "The file with your custom rules was damaged and could not be loaded. Callers Caddy starts without custom rules.\n\nThe damaged file was saved as:\n{path}",
+    "ja": "カスタムルールのファイルが破損しており、読み込めませんでした。Callers Caddy はカスタムルールなしで起動します。\n\n破損したファイルは次の場所に保存されました:\n{path}"
   },
   "form_date_added": {
     "de": "Hinzugefügt",
