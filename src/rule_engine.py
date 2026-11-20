@@ -320,7 +320,8 @@ class RuleEngine:
         if not os.path.exists(path):
             return []
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            # utf-8-sig: von Hand im Windows-Editor gespeichert (mit BOM) ist nicht kaputt
+            with open(path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
             rules = []
             for rd in data.get("rules", []):

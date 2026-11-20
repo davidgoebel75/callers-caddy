@@ -167,6 +167,17 @@ def test_laden_registriert_fehlende_trigger(tmp_path, engine):
     assert t["song_loaded"].display_name == "Song Loaded"   # unveraendert
 
 
+def test_datei_mit_bom_wird_geladen(tmp_path, engine):
+    """Im Windows-Editor gespeichert (UTF-8 mit BOM) ist die Datei nicht kaputt."""
+    p = tmp_path / "rules" / "rules_user.json"
+    p.parent.mkdir()
+    p.write_text(json.dumps({"rules": [_rule("u1").to_dict()]}), encoding="utf-8-sig")
+    engine.load()
+    assert [r.id for r in engine.get_user_rules()] == ["u1"]
+    assert p.exists()
+    assert engine.broken_user_rules_path is None
+
+
 @pytest.mark.parametrize("kaputt", [
     '{"rules": [{"id": "u1", "name": "Wichtig"',        # abgebrochen
     '',                                                 # leer
