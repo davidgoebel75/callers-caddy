@@ -1434,6 +1434,7 @@ class P29MainWindow(QMainWindow):
         self.dock_clock.setObjectName("dock_clock")
         self.dock_clock.hide()  # Default; restoreState() stellt echten Zustand her
         self._add_view_menu_entry(self.dock_clock, _t("dock_clock"))
+        self.tutorial_engine.register_widget("clock", self.clock_widget)
         perf_log("    Clock dock", _tclock)
 
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten

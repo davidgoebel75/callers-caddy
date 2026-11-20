@@ -154,7 +154,7 @@ Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
 
 **Uhr**:
-Dock mit der aktuellen Uhrzeit als Digitaluhr. Nicht verwechseln mit der
+Widget mit der aktuellen Uhrzeit als Digitaluhr. Nicht verwechseln mit der
 Pausen-Uhr, die rueckwaerts zaehlt.
 _EN_: Clock
 
@@ -175,7 +175,7 @@ _EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
 
 **Massenlauf**:
-Eine Pruefung oder Reparatur im Potential-Dock, die viele Songs nacheinander
+Eine Pruefung oder Reparatur im Potential-Widget, die viele Songs nacheinander
 bearbeitet (z. B. BPM ermitteln, Loops suchen). Ab einer gewissen Menge erst ein
 Probelauf mit wenigen Songs zur Zeitschaetzung; abbrechen laesst Bearbeitetes stehen.
 _EN_: Bulk Run
@@ -341,3 +341,11 @@ _EN_: System Rule
 Regel, die der Caller selbst anlegt, aendert, loescht oder importiert.
 _EN_: Custom Rule
 _Avoid_: User-Regel, Benutzerregel
+
+### Oberflaeche
+
+**Widget**:
+Teilfenster des Hauptfensters (z. B. Uhr, Potential, Lyrics), das sich ueber das
+Menue Ansicht ein- und ausblenden, verschieben und als loses Fenster herausziehen laesst.
+_EN_: Widget
+_Avoid_: Dock, Panel (Dock bleibt nur als interner Code-Bezeichner stehen)

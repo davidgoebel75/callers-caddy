@@ -126,9 +126,9 @@
     "ja": "本日のテンポ"
   },
   "tooltip_today_tempo": {
-    "de": "Session-Tempo (gilt für alle Songs)",
-    "en": "Session tempo (applies to all songs)",
-    "ja": "セッションのテンポ（すべての曲に適用）"
+    "de": "Heutiges Tempo (gilt für alle Songs)",
+    "en": "Today's Tempo (applies to all songs)",
+    "ja": "本日のテンポ（すべての曲に適用）"
   },
   "label_song_tempo": {
     "de": "Song-Tempo",
