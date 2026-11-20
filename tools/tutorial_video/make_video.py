@@ -48,7 +48,7 @@ DEFAULT_LANG = "en"
 # (die INI wird nach dem Lauf zurueckgespielt).
 RECORDING_SETTINGS = {
     "feedback/enabled": False,   # Feedback-Dialog nach Songende (BL-119)
-    # Start-Countdown vor dem Liedstart; ein Szenario dazu schaltet ihn per
+    # Start-Countdown vor dem Songstart; ein Szenario dazu schaltet ihn per
     # SETTINGS = {"display/countdown_enabled": True} wieder ein.
     "display/countdown_enabled": False,
 }
@@ -334,8 +334,8 @@ def stage(name, app_dir, lang):
     os.chdir(app_dir)   # Dev-Modus: app_dir = CWD, vor dem Import von main
     sys.path.insert(0, str(SRC))
 
-    from PySide6.QtCore import (QEvent, QPoint, QPointF, QSettings, QTimer,
-                                QVariantAnimation, Qt)
+    from PySide6.QtCore import (QEvent, QPoint, QPointF, QRect, QSettings,
+                                QTimer, QVariantAnimation, Qt)
     from PySide6.QtGui import (QColor, QContextMenuEvent, QCursor, QMouseEvent,
                                QPainter, QPen)
     from PySide6.QtTest import QTest
@@ -353,8 +353,12 @@ def stage(name, app_dir, lang):
     settings.setValue("display/language", lang)
     # Fehlerprotokolle von frueher (z. B. ein abgebrochener Dreh) als gemeldet
     # markieren, sonst legt sich beim Start der Hinweis darauf ueber die App.
-    # Vergleich wie in src/crash_handler.py: Dateiname crash_<Zeitstempel>.log.
-    settings.setValue("crash/last_notified", time.strftime("crash_%Y%m%d_%H%M%S_999999.log"))
+    # Schluessel und Suche von src/crash_handler.py selbst: das neueste
+    # vorhandene Log gilt als gemeldet, ohne dessen Namensformat nachzubauen.
+    from crash_handler import LAST_NOTIFIED_KEY, CrashLogger
+    old_logs = CrashLogger.find_crash_logs(str(app_dir))
+    if old_logs:
+        settings.setValue(LAST_NOTIFIED_KEY, os.path.basename(old_logs[0]))
     # Szenario-eigene Werte (SETTINGS) nach den festen: z. B. eine Funktion
     # ausschalten, die das Video dann in den Einstellungen einschaltet.
     for key, value in {**RECORDING_SETTINGS, **getattr(scenario, "SETTINGS", {})}.items():
@@ -412,22 +416,21 @@ def stage(name, app_dir, lang):
                 # bleiben, sonst friert die App ein, statt sich zu beenden.
                 proc.kill()
                 ok = False
+        # Hart beenden: kein closeEvent, die App speichert nichts mehr.
         if not ok:
             os._exit(1)
-        if ok:
-            import numpy as np
-            import soundfile
-            files = []
-            for n, (start, rate, channels, blocks, _last) in enumerate(music):
-                data = np.frombuffer(b"".join(blocks), dtype=np.float32)
-                soundfile.write(str(work / f"music_{n}.wav"),
-                                data.reshape(-1, channels), rate)
-                files.append((start, f"music_{n}.wav"))
-            (work / "marks.json").write_text(json.dumps(
-                {"end": end, "marks": state["marks"], "music": files,
-                 "zoom": state["zoom"], "size": state["size"]}))
-        # Hart beenden: kein closeEvent, die App speichert nichts mehr.
-        os._exit(0 if ok else 1)
+        import numpy as np
+        import soundfile
+        files = []
+        for n, (start, rate, channels, blocks, _last) in enumerate(music):
+            data = np.frombuffer(b"".join(blocks), dtype=np.float32)
+            soundfile.write(str(work / f"music_{n}.wav"),
+                            data.reshape(-1, channels), rate)
+            files.append((start, f"music_{n}.wav"))
+        (work / "marks.json").write_text(json.dumps(
+            {"end": end, "marks": state["marks"], "music": files,
+             "zoom": state["zoom"], "size": state["size"]}))
+        os._exit(0)
 
     def guarded(fn):
         def run():
@@ -607,9 +610,9 @@ def stage(name, app_dir, lang):
 
             QTimer.singleShot(arrived + 300, guarded(press))
 
-        def close_dialog(self, accept=True, zoom_back=True):
-            """Klickt im offenen modalen Dialog OK (accept) bzw. Abbrechen.
-            zoom_back: danach wieder das ganze Bild."""
+        def close_dialog(self, accept=True):
+            """Klickt im offenen modalen Dialog OK (accept) bzw. Abbrechen,
+            danach wieder das ganze Bild."""
             from PySide6.QtWidgets import QDialogButtonBox, QMessageBox
             want = (QDialogButtonBox.AcceptRole, QDialogButtonBox.YesRole) if accept else (
                 QDialogButtonBox.RejectRole, QDialogButtonBox.NoRole)
@@ -629,9 +632,8 @@ def stage(name, app_dir, lang):
                 btn = button_of(dlg)
                 if btn is None:
                     raise LookupError(f"Kein {'OK' if accept else 'Abbrechen'} im Dialog")
-                done = (lambda: state["zoom"].append(
-                    (time.monotonic(), self.zoom_rect(None, 1)))) if zoom_back else None
-                self._glide_click(btn, btn.rect().center(), done)
+                self._glide_click(btn, btn.rect().center(), lambda: state["zoom"].append(
+                    (time.monotonic(), self.zoom_rect(None, 1))))
 
             self._wait_for(QApplication.activeModalWidget, press, "Dialog")
 
@@ -649,7 +651,7 @@ def stage(name, app_dir, lang):
             # oeffentliche focus_row() und die Zeilenliste _rows.
             self.open_menu("menu_design", "menu_general_settings")
 
-            def settings_dialog():
+            def find_settings_dialog():
                 dlg = QApplication.activeModalWidget()
                 rows = getattr(dlg, "_rows", None)
                 # Der Dialog baut seine Zeilen erst im naechsten Takt auf.
@@ -672,7 +674,7 @@ def stage(name, app_dir, lang):
 
                 QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 600, guarded(pick))
 
-            self._wait_for(settings_dialog, in_dialog, "Einstellungen")
+            self._wait_for(find_settings_dialog, in_dialog, "Einstellungen")
 
         def context_menu(self, path, item):
             """Rechtsklick auf das Element, dann im echten Kontextmenue der App auf
@@ -738,17 +740,11 @@ def stage(name, app_dir, lang):
                 if act is None:
                     popup.close()
                     raise LookupError(f"Menueeintrag nicht gefunden: {label}")
-                # Zoom auf Menuetitel + aufgeklapptes Menue (Fensterkoordinaten).
-                origin = self.win.mapToGlobal(QPoint(0, 0))
+                # Zoom auf Menuetitel + aufgeklapptes Menue (Bildschirmkoordinaten).
                 g = popup.geometry()
-                x0 = min(g.left(), target.x() - 30) - origin.x()
-                y0 = bar.mapToGlobal(QPoint(0, 0)).y() - origin.y()
-                x1, y1 = g.right() - origin.x(), g.bottom() - origin.y()
-                scale = self.win.devicePixelRatioF()
-                full_w, full_h = state["size"]
-                state["zoom"].append((time.monotonic(), fit_rect(
-                    x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale,
-                    full_w, full_h)))
+                x0 = min(g.left(), target.x() - 30)
+                y0 = bar.mapToGlobal(QPoint(0, 0)).y()
+                self._zoom_global(QRect(QPoint(x0, y0), QPoint(g.right(), g.bottom())))
                 rect = popup.actionGeometry(act)
                 spot_local = rect.center()
                 box = (act.defaultWidget().findChild(QCheckBox)
