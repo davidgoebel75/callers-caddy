@@ -4,14 +4,16 @@ Aufruf aus dem Projektstamm:
     python tools/tutorial_video/make_video.py player
     python tools/tutorial_video/make_video.py player --app-dir ../2_Test
 
-Ein Szenario (scenarios/<name>.py) ist eine Liste von Schritten: Sprechtext,
+Jedes Tutorial hat einen eigenen Ordner, benannt nach dem englischen
+Begriff: scenarios/<name>/scenario.py (Drehbuch, im Git), Ergebnis in
+out/<name>/<name>_<sprache>.mp4 und .srt (lokal). Ein Szenario ist eine Liste von Schritten: Sprechtext,
 Element zum Zeigen, Bedienung. Ablauf: Edge-TTS spricht die Texte -> die App
 startet und wird im Takt der Tonlaengen bedient -> ffmpeg filmt das Fenster,
 die Musik der App wird mitgeschnitten -> Stimme, Musik und Untertitel kommen
-dazu. Ergebnis: out/<name>.mp4 und .srt.
+dazu. Ergebnis: out/<name>/<name>_<sprache>.mp4 und .srt.
 
 Braucht: pip install edge-tts imageio-ffmpeg, dazu einen Bildschirm, auf den
-das Fenster in Videogroesse (SIZE) samt Titelleiste passt. Die Sprechtexte
+das Fenster in Videogroesse (SIZE, per --size) samt Titelleiste passt. Die Sprechtexte
 gehen an den Vorlese-Dienst von Microsoft. Die App darf nicht schon laufen, Maus und
 Bildschirmbereich gehoeren waehrend der Aufnahme dem Skript. INI und DB werden
 gesichert und danach zurueckgespielt. Ausnahme: Ohne eigenes LAYOUT im Szenario
@@ -34,20 +36,85 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parents[1] / "src"
 OUT = HERE / "out"
-VOICE = "de-DE-SeraphinaMultilingualNeural"   # spricht englische Begriffe englisch
-SIZE = (1920, 1080)   # Fensterinhalt = Videobild
+# Sprache der Oberflaeche -> (Name in der Abfrage, Stimme); Standard Englisch
+# (erreicht alle). Angeboten wird nur, wofuer das Szenario Texte hat.
+LANGUAGES = {
+    "en": ("English", "en-US-ChristopherNeural"),
+    "de": ("Deutsch", "de-DE-SeraphinaMultilingualNeural"),   # spricht englische Begriffe englisch
+    "ja": ("日本語", "ja-JP-NanamiNeural"),
+}
+DEFAULT_LANG = "en"
+# Vor jedem Dreh fest gesetzt, egal wie die Testumgebung gerade steht
+# (die INI wird nach dem Lauf zurueckgespielt).
+RECORDING_SETTINGS = {
+    "feedback/enabled": False,   # Feedback-Dialog nach Songende (BL-119)
+    # Start-Countdown vor dem Liedstart; ein Szenario dazu schaltet ihn per
+    # SETTINGS = {"display/countdown_enabled": True} wieder ein.
+    "display/countdown_enabled": False,
+}
+SIZE = (1920, 1080)   # Fensterinhalt = Videobild; per --size aenderbar
 FPS = 15
 SETTLE_MS = 4000      # App-Start abwarten (Docks, Sequenzen, Start-Hinweise)
 LEAD = 1.0            # Sekunden Stille vor dem ersten Satz
 GAP = 0.7             # Sekunden Pause nach einem Schritt (Schritt-Feld "hold")
 CLICK_MARK_MS = 800   # Dauer der Klick-Markierung
 CLICK_MARK_COLOR = "#ffd54a"
+MENU_OPEN_MS = 900    # Rechtsklick -> Zeiger faehrt zum Eintrag
+MENU_SHOW_MS = 1400   # Eintrag hervorgehoben, dann Klick
 ZOOM_SECONDS = 0.8    # Dauer der Zoom-Fahrt
 MUSIC_VOLUME = 0.4  # Musik der App im Video, unter der Stimme zusaetzlich leiser
+GLIDE_STEPS = 20      # Zeigerfahrt: Zwischenschritte ...
+GLIDE_STEP_MS = 25    # ... und ihr Abstand
+
+
+def say_text(step, lang):
+    """Sprechtext eines Schritts: str fuer alle Sprachen oder {"en": ..., "de": ...}."""
+    say = step["say"]
+    if isinstance(say, dict):
+        if lang not in say:
+            sys.exit(f"[Video] Kein Sprechtext fuer Sprache '{lang}': {say}")
+        return say[lang]
+    return say
+
+
+def scenario_languages(steps):
+    """Sprachen, fuer die jeder Schritt einen Sprechtext hat (str gilt fuer alle)."""
+    return [lang for lang in LANGUAGES
+            if all(not isinstance(s["say"], dict) or lang in s["say"] for s in steps)]
+
+
+def ask_language(available):
+    """Fragt vor der Aufnahme nach der Sprache der Oberflaeche (Enter = Standard)."""
+    default = DEFAULT_LANG if DEFAULT_LANG in available else available[0]
+    options = "  ".join(f"[{k}] {LANGUAGES[k][0]}" for k in available)
+    while True:
+        answer = input(f"Sprache der Oberflaeche? {options}  (Enter = {default}): ")
+        answer = answer.strip().lower() or default
+        if answer in available:
+            return answer
+        print(f"  Bitte eine von: {', '.join(available)}")
+
+
+def plain(text):
+    """Menuetext ohne Kuerzel-Markierung: "&Ansicht" -> "Ansicht"."""
+    return (text or "").replace("&", "")
+
+
+def parse_size(text):
+    """argparse-Typ fuer --size: "1600x900" -> (1600, 900)."""
+    m = re.fullmatch(r"(\d+)x(\d+)", text.strip().lower())
+    if not m or int(m[1]) == 0 or int(m[2]) == 0:
+        raise argparse.ArgumentTypeError(
+            f"'{text}' ist keine Videogroesse, erwartet BxH, z. B. 1600x900")
+    return int(m[1]), int(m[2])
+
+
+def scenario_file(name):
+    return HERE / "scenarios" / name / "scenario.py"
 
 
 def load_scenario(name):
-    spec = importlib.util.spec_from_file_location(name, HERE / "scenarios" / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, scenario_file(name))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -90,19 +157,21 @@ def ffmpeg(*args, **kw):
                            *map(str, args)], check=True, **kw)
 
 
-def speak_all(steps):
+def speak_all(steps, lang):
     """Spricht jeden Text in eine WAV-Datei, liefert [(wav, dauer)]."""
     import edge_tts
     clip_dir = OUT / "clips"
     clip_dir.mkdir(parents=True, exist_ok=True)
     clips = []
+    voice = LANGUAGES[lang][1]
     for step in steps:
+        text = say_text(step, lang)
         # Dateiname aus Stimme und Text: ein unveraenderter Satz wird nicht neu geholt.
-        digest = hashlib.sha1(f"{VOICE}|{step['say']}".encode("utf-8")).hexdigest()[:16]
+        digest = hashlib.sha1(f"{voice}|{text}".encode("utf-8")).hexdigest()[:16]
         wav = clip_dir / f"{digest}.wav"
         if not wav.exists():
             mp3 = wav.with_suffix(".mp3")
-            edge_tts.Communicate(step["say"], VOICE).save_sync(str(mp3))
+            edge_tts.Communicate(text, voice).save_sync(str(mp3))
             ffmpeg("-i", mp3, "-ar", "24000", "-ac", "1", wav)
             mp3.unlink()
         with wave.open(str(wav)) as w:
@@ -165,7 +234,7 @@ def audio_filter(music_starts):
     return ";".join(parts)
 
 
-def finish_video(name, steps, clips, work):
+def finish_video(name, steps, clips, work, lang):
     """Setzt aus Aufnahme, Clips und Musik-Mitschnitt das fertige Video zusammen."""
     raw = work / "raw.mp4"
     log = json.loads((work / "marks.json").read_text())
@@ -176,11 +245,11 @@ def finish_video(name, steps, clips, work):
         # her, weil ffmpeg beim Start unbestimmt lange braucht.
         return max(0.0, total - (log["end"] - wall))
 
-    timeline = [(video_time(t), clips[i][0], clips[i][1], steps[i]["say"])
+    timeline = [(video_time(t), clips[i][0], clips[i][1], say_text(steps[i], lang))
                 for t, i in log["marks"]]
     voice = work / "voice.wav"
-    srt = OUT / f"{name}.srt"
-    mp4 = OUT / f"{name}.mp4"
+    srt = OUT / name / f"{name}_{lang}.srt"
+    mp4 = OUT / name / f"{name}_{lang}.mp4"
     build_voice_track(timeline, total, voice)
     write_srt(timeline, srt)
 
@@ -206,31 +275,40 @@ def finish_video(name, steps, clips, work):
     print(f"[Video] fertig: {mp4}")
 
 
-def produce(name, app_dir):
+def produce(name, app_dir, lang):
     """Elternprozess: sprechen, App-Lauf als Kindprozess, aufraeumen, schneiden."""
-    work = OUT / f"{name}.work"
+    work = OUT / name / f"{name}_{lang}.work"
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     steps = load_scenario(name).STEPS
-    clips = speak_all(steps)
+    clips = speak_all(steps, lang)
     (work / "durations.json").write_text(json.dumps([d for _w, d in clips]))
 
     # ponytail: sichert nur INI und Standard-DB im App-Ordner; liegt die DB
     # woanders, eigenen Demo-Ordner per --app-dir nehmen.
-    keep = [f for f in (app_dir / "callers_caddy.ini", app_dir / "callers_caddy.db")
-            if f.exists()]
+    ini = app_dir / "callers_caddy.ini"
+    files = (ini, app_dir / "callers_caddy.db")
+    keep = [f for f in files if f.exists()]
+    # Gab es sie vorher nicht (frischer --app-dir), danach wieder loeschen,
+    # sonst bleiben Dreh-Werte (crash/last_notified, Countdown aus, SETTINGS)
+    # dauerhaft stehen.
+    fresh = [f for f in files if not f.exists()]
     for f in keep:
         shutil.copy2(f, work / f.name)
     try:
         code = subprocess.run([sys.executable, __file__, name, "--stage",
-                               "--app-dir", str(app_dir)]).returncode
+                               "--app-dir", str(app_dir),
+                               "--lang", lang,
+                               "--size", f"{SIZE[0]}x{SIZE[1]}"]).returncode
     finally:
         for f in keep:
             shutil.copy2(work / f.name, f)
+        for f in fresh:
+            f.unlink(missing_ok=True)
         for leftover in ("callers_caddy.db-wal", "callers_caddy.db-shm"):
             (app_dir / leftover).unlink(missing_ok=True)
         kept_layout = work / "layout_keep.ini"
-        if kept_layout.exists():
+        if kept_layout.exists() and ini not in fresh:
             # Das Arbeitslayout nach SETUP in die zurueckgespielte INI uebernehmen.
             from PySide6.QtCore import QSettings
             source = QSettings(str(kept_layout), QSettings.IniFormat)
@@ -240,16 +318,16 @@ def produce(name, app_dir):
             target.sync()
     if code != 0:
         sys.exit(f"[Video] App-Lauf gescheitert (Code {code}), kein Video erzeugt")
-    finish_video(name, steps, clips, work)
+    finish_video(name, steps, clips, work, lang)
 
 
 # ---------------------------------------------------------------------------
 # Kindprozess: App starten und bedienen
 # ---------------------------------------------------------------------------
 
-def stage(name, app_dir):
+def stage(name, app_dir, lang):
     """Startet die App, spielt das Szenario ab, filmt mit. Kehrt nicht zurueck."""
-    work = OUT / f"{name}.work"
+    work = OUT / name / f"{name}_{lang}.work"
     scenario = load_scenario(name)
     steps = scenario.STEPS
     durations = json.loads((work / "durations.json").read_text())
@@ -258,11 +336,29 @@ def stage(name, app_dir):
 
     from PySide6.QtCore import (QEvent, QPoint, QPointF, QSettings, QTimer,
                                 QVariantAnimation, Qt)
-    from PySide6.QtGui import QColor, QCursor, QMouseEvent, QPainter, QPen
+    from PySide6.QtGui import (QColor, QContextMenuEvent, QCursor, QMouseEvent,
+                               QPainter, QPen)
     from PySide6.QtTest import QTest
     from PySide6.QtWidgets import QApplication, QDockWidget, QWidget
+
+    def glide(start, target, delay=0, steps=GLIDE_STEPS, step_ms=GLIDE_STEP_MS):
+        """Mauszeiger gleitet ab delay (ms) von start nach target. Liefert den
+        Zeitpunkt (ms ab jetzt), zu dem er angekommen ist."""
+        for n in range(1, steps + 1):
+            QTimer.singleShot(delay + n * step_ms, lambda n=n: QCursor.setPos(
+                start + (target - start) * (n / steps)))
+        return delay + steps * step_ms + 60
+
     settings = QSettings(str(app_dir / "callers_caddy.ini"), QSettings.IniFormat)
-    settings.setValue("display/language", "de")
+    settings.setValue("display/language", lang)
+    # Fehlerprotokolle von frueher (z. B. ein abgebrochener Dreh) als gemeldet
+    # markieren, sonst legt sich beim Start der Hinweis darauf ueber die App.
+    # Vergleich wie in src/crash_handler.py: Dateiname crash_<Zeitstempel>.log.
+    settings.setValue("crash/last_notified", time.strftime("crash_%Y%m%d_%H%M%S_999999.log"))
+    # Szenario-eigene Werte (SETTINGS) nach den festen: z. B. eine Funktion
+    # ausschalten, die das Video dann in den Einstellungen einschaltet.
+    for key, value in {**RECORDING_SETTINGS, **getattr(scenario, "SETTINGS", {})}.items():
+        settings.setValue(key, value)
     skin = getattr(scenario, "SKIN", None)
     if skin:
         if not (app_dir / "skins" / skin).is_dir():
@@ -273,7 +369,13 @@ def stage(name, app_dir):
 
     import audio_engine
     import main
+    import update_check
     from tutorial_engine import _HighlightFrame
+
+    # Keine Update-Pruefung beim Dreh: in einem frischen --app-dir ohne Snooze
+    # legt sich sonst der Hinweis auf eine neue Version ueber die App und
+    # faengt die Klicks ab. Der manuelle Weg ueber das Menue bleibt.
+    update_check.UpdateChecker.start = lambda self, *args, **kwargs: None
 
     # Musik der App mitschneiden: genau das, was an die Soundkarte geht, also
     # mit Tempo, Tonhoehe und Fade Out. Ein Abschnitt je Wiedergabe.
@@ -289,7 +391,10 @@ def stage(name, app_dir):
             music[-1][3].append(outdata.tobytes())
             music[-1][4] = now
 
-    audio_engine.AudioEngine._callback = tapped_callback
+    # MUSIC = False im Szenario: Musik nicht ins Video (z. B. Song mit
+    # Urheberrecht); die App spielt sie trotzdem, Ton nur aus den Lautsprechern.
+    if getattr(scenario, "MUSIC", True):
+        audio_engine.AudioEngine._callback = tapped_callback
 
     # marks: (Wanduhr, Schritt-Index), zoom: (Wanduhr, [x, y, breite])
     state = {"ffmpeg": None, "marks": [], "zoom": [], "size": None}
@@ -298,9 +403,17 @@ def stage(name, app_dir):
         end = time.monotonic()
         proc = state["ffmpeg"]
         if proc:
-            proc.stdin.write(b"q")
-            proc.stdin.flush()
-            proc.wait(timeout=30)
+            try:
+                proc.stdin.write(b"q")
+                proc.stdin.flush()
+                proc.wait(timeout=30)
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                # ffmpeg laeuft nicht mehr (oder haengt): nicht daran haengen
+                # bleiben, sonst friert die App ein, statt sich zu beenden.
+                proc.kill()
+                ok = False
+        if not ok:
+            os._exit(1)
         if ok:
             import numpy as np
             import soundfile
@@ -382,9 +495,12 @@ def stage(name, app_dir):
                 raise LookupError(f"Element nicht sichtbar: {path}")
             return w
 
-        def _spot(self, path, row=None):
-            """(Widget fuer Maus-Ereignisse, Punkt darin)."""
+        def _spot(self, path, row=None, at=None):
+            """(Widget fuer Maus-Ereignisse, Punkt darin). at = fester Punkt im
+            Element (QPoint), z. B. ein Taenzer auf einer Zeichenflaeche."""
             w = self.widget(path)
+            if at is not None:
+                return w, at
             if row is None:
                 return w, w.rect().center()
             return w.viewport(), w.visualRect(w.model().index(row, 0)).center()
@@ -399,10 +515,7 @@ def stage(name, app_dir):
             self._frame = _HighlightFrame([self.widget(path)], self.win.skin_mgr,
                                           owner=self.win)
             w, p = self._spot(path, row)
-            start, target = QCursor.pos(), w.mapToGlobal(p)
-            for n in range(1, 31):
-                QTimer.singleShot(n * 20, lambda n=n: QCursor.setPos(
-                    start + (target - start) * (n / 30)))
+            glide(QCursor.pos(), w.mapToGlobal(p), steps=30, step_ms=20)
 
         def hide_dock(self, name):
             """Schliesst ein Dock, z. B. hide_dock("dock_notes")."""
@@ -430,20 +543,255 @@ def stage(name, app_dir):
             QTimer.singleShot(150, guarded(lambda: QTest.mouseRelease(
                 w, Qt.LeftButton, Qt.NoModifier, p)))
 
-        def double_click(self, path, row=None):
-            # Echte Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py
-            w, p = self._spot(path, row)
+        def double_click(self, path, row=None, at=None):
+            """Doppelklick, asynchron: die Ereignisse kommen erst im naechsten
+            Takt an. Ein Schritt, der das Ergebnis braucht, gehoert also in den
+            naechsten STEPS-Eintrag, nicht direkt dahinter in dasselbe do."""
+            # Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py, nur
+            # das letzte Release vor dem DblClick: oeffnet der einen modalen
+            # Dialog, bliebe ein spaeteres Release in dessen exec() haengen und
+            # kaeme nach close_dialog() verwaist auf dem Element an.
+            w, p = self._spot(path, row, at)
             spot = w.mapToGlobal(p)
             QCursor.setPos(spot)
             self._mark(spot)   # zwei Ringe kurz nacheinander = Doppelklick
+
+            def events():
+                QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
+                QApplication.sendEvent(w, QMouseEvent(
+                    QEvent.MouseButtonDblClick, QPointF(p), QPointF(spot),
+                    Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
+
             QTimer.singleShot(220, guarded(lambda: self._mark(spot)))
-            QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
-            QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
-            QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
-            QApplication.sendEvent(w, QMouseEvent(
-                QEvent.MouseButtonDblClick, QPointF(p), QPointF(w.mapToGlobal(p)),
-                Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
-            QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
+            # Per Timer: oeffnet der Doppelklick einen modalen Dialog, blockiert
+            # dessen exec() sonst den Ablauf, und der naechste Schritt kaeme nie.
+            QTimer.singleShot(0, guarded(events))
+
+        def _zoom_global(self, rect):
+            """Bild auf ein Rechteck in Bildschirmkoordinaten zoomen (QRect)."""
+            origin = self.win.mapToGlobal(QPoint(0, 0))
+            scale = self.win.devicePixelRatioF()
+            full_w, full_h = state["size"]
+            state["zoom"].append((time.monotonic(), fit_rect(
+                (rect.left() - origin.x()) * scale, (rect.top() - origin.y()) * scale,
+                rect.width() * scale, rect.height() * scale, full_w, full_h)))
+
+        def _wait_for(self, find, then, what, timeout_ms=8000):
+            """Ruft then(ergebnis) auf, sobald find() etwas liefert (alle 100 ms)."""
+            deadline = time.monotonic() + timeout_ms / 1000
+
+            def poll():
+                found = find()
+                if found is not None:
+                    then(found)
+                elif time.monotonic() > deadline:
+                    raise LookupError(f"Nicht erschienen: {what}")
+                else:
+                    QTimer.singleShot(100, guarded(poll))
+
+            QTimer.singleShot(100, guarded(poll))
+
+        def _glide_click(self, w, local, after=None):
+            """Zeiger gleitet zu local in w, klickt dort, dann after()."""
+            spot = w.mapToGlobal(local)
+            arrived = glide(QCursor.pos(), spot)
+
+            def press():
+                self._mark(spot)
+                QTest.mouseClick(w, Qt.LeftButton, Qt.NoModifier, local)
+                if after:
+                    after()
+
+            QTimer.singleShot(arrived + 300, guarded(press))
+
+        def close_dialog(self, accept=True, zoom_back=True):
+            """Klickt im offenen modalen Dialog OK (accept) bzw. Abbrechen.
+            zoom_back: danach wieder das ganze Bild."""
+            from PySide6.QtWidgets import QDialogButtonBox, QMessageBox
+            want = (QDialogButtonBox.AcceptRole, QDialogButtonBox.YesRole) if accept else (
+                QDialogButtonBox.RejectRole, QDialogButtonBox.NoRole)
+
+            def button_of(dlg):
+                if isinstance(dlg, QMessageBox):
+                    pairs = [(b, dlg.buttonRole(b)) for b in dlg.buttons()]
+                else:
+                    pairs = [(b, box.buttonRole(b))
+                             for box in dlg.findChildren(QDialogButtonBox)
+                             for b in box.buttons()]
+                hit = [b for b, role in pairs if role in want]
+                # Nur ein Knopf (Hinweis-Fenster): der schliesst in jedem Fall.
+                return hit[0] if hit else (pairs[0][0] if len(pairs) == 1 else None)
+
+            def press(dlg):
+                btn = button_of(dlg)
+                if btn is None:
+                    raise LookupError(f"Kein {'OK' if accept else 'Abbrechen'} im Dialog")
+                done = (lambda: state["zoom"].append(
+                    (time.monotonic(), self.zoom_rect(None, 1)))) if zoom_back else None
+                self._glide_click(btn, btn.rect().center(), done)
+
+            self._wait_for(QApplication.activeModalWidget, press, "Dialog")
+
+        def show_dialog(self):
+            """Zoomt auf den gerade offenen modalen Dialog (wartet, bis er da ist)."""
+            self._wait_for(QApplication.activeModalWidget,
+                           lambda dlg: self._zoom_global(dlg.frameGeometry()), "Dialog")
+
+        def setting(self, key):
+            """Allgemeine Einstellungen ueber das Menue oeffnen, zur Zeile key
+            springen (z. B. "square_flow/enabled"), ihre Checkbox umschalten und
+            mit OK schliessen. Danach wieder ganzes Bild. Nur fuer Checkbox-
+            Zeilen: eine Combobox oeffnete ein Popup, das den OK-Klick schluckt."""
+            # Benutzt vom Einstellungsdialog (src/settings_dialog.py) das
+            # oeffentliche focus_row() und die Zeilenliste _rows.
+            self.open_menu("menu_design", "menu_general_settings")
+
+            def settings_dialog():
+                dlg = QApplication.activeModalWidget()
+                rows = getattr(dlg, "_rows", None)
+                # Der Dialog baut seine Zeilen erst im naechsten Takt auf.
+                return dlg if rows and hasattr(dlg, "focus_row") else None
+
+            def in_dialog(dlg):
+                if not dlg.focus_row(key):
+                    raise LookupError(f"Einstellung nicht im Dialog: {key}")
+                self._zoom_global(dlg.frameGeometry())
+                row = next(r for r in dlg._rows if r.full_key == key)
+                from PySide6.QtWidgets import QCheckBox
+                if not isinstance(row.widget, QCheckBox):
+                    raise LookupError(f"setting() kann nur Checkboxen, {key} ist "
+                                      f"{type(row.widget).__name__}")
+
+                def pick():
+                    w = row.widget
+                    self._glide_click(w, w.rect().center(),
+                                      lambda: QTimer.singleShot(1200, guarded(self.close_dialog)))
+
+                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + 600, guarded(pick))
+
+            self._wait_for(settings_dialog, in_dialog, "Einstellungen")
+
+        def context_menu(self, path, item):
+            """Rechtsklick auf das Element, dann im echten Kontextmenue der App auf
+            den Eintrag zeigen und klicken. item = Uebersetzungsschluessel
+            (z. B. "clock_menu_seconds"), passt so in jeder Sprache."""
+            from i18n import _t
+            label = _t(item)
+            w, p = self._spot(path)
+            spot = w.mapToGlobal(p)
+            QCursor.setPos(spot)
+            self._mark(spot)
+
+            def pick():
+                menu = QApplication.activePopupWidget()
+                act = (next((a for a in menu.actions() if plain(a.text()) == label), None)
+                       if menu else None)
+                if act is None:
+                    if menu:
+                        menu.close()
+                    raise LookupError(f"Menueeintrag nicht gefunden: {label}")
+                local = menu.actionGeometry(act).center()
+                target = menu.mapToGlobal(local)
+                arrived = glide(QCursor.pos(), target)
+                QTimer.singleShot(arrived, lambda: menu.setActiveAction(act))
+
+                def press():
+                    self._mark(target)
+                    QTest.mouseClick(menu, Qt.LeftButton, Qt.NoModifier, local)
+
+                QTimer.singleShot(MENU_SHOW_MS, guarded(press))
+
+            # Menue erst zeigen lassen; exec() laeuft in eigener Ereignisschleife,
+            # die Timer laufen darin weiter.
+            QTimer.singleShot(MENU_OPEN_MS, guarded(pick))
+            QTimer.singleShot(150, guarded(lambda: QApplication.sendEvent(
+                w, QContextMenuEvent(QContextMenuEvent.Mouse, p, spot))))
+
+        def open_menu(self, menu, item, click=True):
+            """Menue der Menueleiste oeffnen, ins Bild zoomen, auf einen Eintrag
+            zeigen und (click=True) anklicken. menu/item = Uebersetzungsschluessel,
+            z. B. open_menu("menu_view", "dock_clock")."""
+            from i18n import _t
+            from PySide6.QtWidgets import QCheckBox, QWidgetAction
+            bar = self.win.menuBar()
+            title, label = _t(menu), _t(item)
+            top = next((a for a in bar.actions() if plain(a.text()) == title), None)
+            if top is None or top.menu() is None:
+                raise LookupError(f"Menue nicht gefunden: {title}")
+            local = bar.actionGeometry(top).center()
+            target = bar.mapToGlobal(local)
+            arrived = glide(QCursor.pos(), target)
+
+            def press_title():
+                self._mark(target)
+                QTest.mouseClick(bar, Qt.LeftButton, Qt.NoModifier, local)
+                QTimer.singleShot(MENU_OPEN_MS, guarded(show_item))
+
+            def show_item():
+                popup = top.menu()
+                act = next((a for a in popup.actions()
+                            if plain(a.data() if isinstance(a.data(), str) else a.text()) == label),
+                           None)
+                if act is None:
+                    popup.close()
+                    raise LookupError(f"Menueeintrag nicht gefunden: {label}")
+                # Zoom auf Menuetitel + aufgeklapptes Menue (Fensterkoordinaten).
+                origin = self.win.mapToGlobal(QPoint(0, 0))
+                g = popup.geometry()
+                x0 = min(g.left(), target.x() - 30) - origin.x()
+                y0 = bar.mapToGlobal(QPoint(0, 0)).y() - origin.y()
+                x1, y1 = g.right() - origin.x(), g.bottom() - origin.y()
+                scale = self.win.devicePixelRatioF()
+                full_w, full_h = state["size"]
+                state["zoom"].append((time.monotonic(), fit_rect(
+                    x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale,
+                    full_w, full_h)))
+                rect = popup.actionGeometry(act)
+                spot_local = rect.center()
+                box = (act.defaultWidget().findChild(QCheckBox)
+                       if isinstance(act, QWidgetAction) and act.defaultWidget() else None)
+                if box is not None:   # Ansicht-Menue: Zeile mit Checkbox
+                    spot_local = box.mapTo(popup, box.rect().center())
+                s1 = popup.mapToGlobal(spot_local)
+                # Erst den Zoom laufen lassen, dann zum Eintrag gleiten: zuerst
+                # senkrecht ins Menue, dann hin. Schraeg ueber die Menueleiste
+                # wuerde der Zeiger einen Nachbartitel streifen, und Qt klappt
+                # dann dessen Menue auf.
+                s0 = QCursor.pos()
+                inside = QPoint(s0.x(), max(s0.y(), g.top() + 12))
+                on_item = glide(s0, inside, delay=int(ZOOM_SECONDS * 1000) + 200,
+                                steps=8)
+                on_item = glide(inside, s1, delay=on_item)
+                QTimer.singleShot(on_item, lambda: popup.setActiveAction(act))
+
+                def press_item():
+                    if click:
+                        self._mark(s1)
+                        if box is not None:
+                            QTest.mouseClick(box, Qt.LeftButton, Qt.NoModifier,
+                                             box.rect().center())
+                        else:
+                            QTest.mouseClick(popup, Qt.LeftButton, Qt.NoModifier,
+                                             spot_local)
+                    QTimer.singleShot(700, lambda: popup.isVisible() and popup.close())
+
+                QTimer.singleShot(int(ZOOM_SECONDS * 1000) + MENU_SHOW_MS,
+                                  guarded(press_item))
+
+            QTimer.singleShot(arrived, guarded(press_title))
+
+        def type_text(self, path, text):
+            """In ein Eingabefeld klicken und Text Zeichen fuer Zeichen tippen
+            (alle 0,12 s), z. B. type_text("song_list._filter_bar.edit_search", "YRR")."""
+            self.click(path)
+            w = self.widget(path)
+            w.setFocus()
+            for n, ch in enumerate(text):
+                QTimer.singleShot(400 + n * 120, guarded(
+                    lambda ch=ch: QTest.keyClicks(w, ch)))
 
         def keys(self, path, key, count=1):
             """Tastendruecke im Abstand von 0,3 s, z. B. keys(..., "Up", 4)."""
@@ -480,12 +828,22 @@ def stage(name, app_dir):
         win.raise_()
         win.activateWindow()
         QApplication.processEvents()
+        frame = win.frameGeometry()
+        if not avail.contains(frame):
+            # Sonst liegt die Menueleiste ausserhalb des Bildschirms, und ffmpeg
+            # kann den Bereich nicht aufnehmen.
+            print(f"[Video] Fenster {frame.width()}x{frame.height()} (Videogroesse "
+                  f"{SIZE[0]}x{SIZE[1]} plus Titelleiste) passt nicht auf den "
+                  f"Bildschirm ({avail.width()}x{avail.height()} frei). Kleinere "
+                  f"--size waehlen, z. B. 1600x900.", file=sys.stderr)
+            finish(False)
 
         area = win.geometry()   # Fensterinhalt ohne Titelleiste
         scale = win.devicePixelRatioF()
         w, h = (int(v * scale) // 2 * 2 for v in (area.width(), area.height()))
         state["size"] = (w, h)
         import imageio_ffmpeg
+        progress = work / "progress.txt"
         state["ffmpeg"] = subprocess.Popen(
             [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
              "-f", "gdigrab", "-framerate", str(FPS), "-draw_mouse", "1",
@@ -493,8 +851,44 @@ def stage(name, app_dir):
              "-offset_y", str(int(area.y() * scale)),
              "-video_size", f"{w}x{h}", "-i", "desktop",
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-             "-pix_fmt", "yuv420p", str(work / "raw.mp4")],
+             "-pix_fmt", "yuv420p",
+             # Bildzaehler (frame=N) laufend in eine Datei, fuer check_recording.
+             "-progress", str(progress), "-stats_period", "1",
+             str(work / "raw.mp4")],
             stdin=subprocess.PIPE)
+
+        # Lebenszeichen ist der Bildzaehler, nicht die Groesse von raw.mp4:
+        # bei ruhigem Bild puffert ffmpeg so wenig Daten, dass die Datei lange
+        # nicht waechst, gezaehlt wird trotzdem jedes Bild.
+        STALL_S = 10
+        counted = {"frame": -1, "at": time.monotonic()}
+
+        def frames_so_far():
+            try:
+                text = progress.read_text(errors="replace")
+            except OSError:
+                return -1
+            hits = re.findall(r"^frame=(\d+)", text, re.M)
+            return int(hits[-1]) if hits else -1
+
+        def check_recording():
+            """Alle 2 s: laeuft ffmpeg noch, und zaehlt es Bilder? Sonst gleich
+            abbrechen statt erst am Ende in finish()."""
+            if state["ffmpeg"].poll() is not None:
+                print("[Video] ffmpeg hat die Aufnahme beendet (siehe Meldung "
+                      "darueber), Abbruch.", file=sys.stderr)
+                finish(False)
+            now = time.monotonic()
+            frame = frames_so_far()
+            if frame > counted["frame"]:
+                counted.update(frame=frame, at=now)
+            elif now - counted["at"] > STALL_S:
+                print(f"[Video] ffmpeg laeuft, nimmt aber seit {STALL_S} s kein "
+                      "Bild mehr auf, Abbruch.", file=sys.stderr)
+                finish(False)
+            QTimer.singleShot(2000, check_recording)
+
+        QTimer.singleShot(1500, check_recording)
 
         def show(i):
             if i >= len(steps):
@@ -551,6 +945,24 @@ def demo():
     assert fit_rect(0, 0, 400, 500, 1920, 1080, pad=20) == [0, 0, 960]
     assert fit_rect(1800, 1000, 100, 60, 1920, 1080, pad=10) == [1778, 990, 142]
     assert fit_rect(0, 0, 1920, 1080, 1920, 1080) == [0, 0, 1920]
+    # --size: nur BxH mit Zahlen > 0.
+    assert parse_size("1600x900") == (1600, 900) and parse_size(" 800X600 ") == (800, 600)
+    for bad in ("1600", "1600x900x1", "abc", "0x900", "1600x"):
+        try:
+            parse_size(bad)
+        except argparse.ArgumentTypeError:
+            continue
+        raise AssertionError(f"--size {bad} haette abgelehnt werden muessen")
+    # Sprachen: dict-Texte begrenzen die Auswahl, str gilt fuer alle.
+    steps = [dict(say={"en": "Hi", "de": "Hallo"}), dict(say="Callers Caddy")]
+    assert scenario_languages(steps) == ["en", "de"]
+    assert say_text(steps[0], "de") == "Hallo" and say_text(steps[1], "ja") == "Callers Caddy"
+    assert plain("&Ansicht") == "Ansicht"
+    # Jedes Szenario laesst sich aus scenarios/<name>/scenario.py laden.
+    for folder in sorted((HERE / "scenarios").iterdir()):
+        if scenario_file(folder.name).exists():
+            module = load_scenario(folder.name)
+            assert module.STEPS and scenario_languages(module.STEPS), folder.name
     # Der Filter muss von ffmpeg angenommen werden (Stimme + zwei Musik-Stuecke).
     # Hinein und wieder heraus zoomen: ffmpeg muss auch diesen Filter annehmen.
     zoom = zoom_filter([(0.5, [0, 0, 160]), (2.0, [0, 0, 320])], 320, 180)
@@ -564,15 +976,32 @@ def demo():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("name", help="Szenario aus scenarios/, z. B. player, oder 'selftest'")
+    ap.add_argument("name", help="Tutorial-Ordner aus scenarios/, z. B. clock, oder 'selftest'")
     ap.add_argument("--app-dir", default=str(SRC), type=Path,
                     help="Ordner mit DB und INI (Standard: src/)")
+    ap.add_argument("--lang", choices=sorted(LANGUAGES),
+                    help="Sprache der Oberflaeche und Stimme; ohne Angabe wird gefragt")
+    ap.add_argument("--size", default=SIZE, type=parse_size,
+                    help="Videogroesse BxH, z. B. 1600x900 fuer Bildschirme mit "
+                         "1920x1080 (das Fenster samt Titelleiste muss draufpassen)")
     ap.add_argument("--stage", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
+    SIZE = args.size
     app_directory = Path(args.app_dir).resolve()
     if args.name == "selftest":
         demo()
     elif args.stage:
-        stage(args.name, app_directory)
+        stage(args.name, app_directory, args.lang)
     else:
-        produce(args.name, app_directory)
+        # Erst das Szenario pruefen, dann fragen: ein Tippfehler faellt sofort auf.
+        if not scenario_file(args.name).exists():
+            known = sorted(f.name for f in (HERE / "scenarios").iterdir()
+                           if scenario_file(f.name).exists())
+            ap.error(f"Szenario '{args.name}' nicht gefunden, vorhanden: {', '.join(known)}")
+        available = scenario_languages(load_scenario(args.name).STEPS)
+        if not available:
+            ap.error(f"Szenario '{args.name}': keine Sprache hat in jedem Schritt einen Text")
+        if args.lang and args.lang not in available:
+            ap.error(f"Szenario '{args.name}' hat keine Texte fuer '{args.lang}', "
+                     f"vorhanden: {', '.join(available)}")
+        produce(args.name, app_directory, args.lang or ask_language(available))
