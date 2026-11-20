@@ -167,16 +167,35 @@ def test_laden_registriert_fehlende_trigger(tmp_path, engine):
     assert t["song_loaded"].display_name == "Song Loaded"   # unveraendert
 
 
-def test_kaputte_datei_ergibt_leere_liste(tmp_path, engine):
+def test_datei_mit_bom_wird_geladen(tmp_path, engine):
+    """Im Windows-Editor gespeichert (UTF-8 mit BOM) ist die Datei nicht kaputt."""
     p = tmp_path / "rules" / "rules_user.json"
     p.parent.mkdir()
-    p.write_text('{"rules": [', encoding="utf-8")
+    p.write_text(json.dumps({"rules": [_rule("u1").to_dict()]}), encoding="utf-8-sig")
+    engine.load()
+    assert [r.id for r in engine.get_user_rules()] == ["u1"]
+    assert p.exists()
+    assert engine.broken_user_rules_path is None
+
+
+@pytest.mark.parametrize("kaputt", [
+    '{"rules": [{"id": "u1", "name": "Wichtig"',        # abgebrochen
+    '',                                                 # leer
+    '{"rules": [{"id": "u1"}, "kaputt"]}',              # eine Regel unlesbar
+])
+def test_kaputte_datei_wird_beiseitegelegt(tmp_path, engine, kaputt):
+    p = tmp_path / "rules" / "rules_user.json"
+    p.parent.mkdir()
+    p.write_text(kaputt, encoding="utf-8")
     engine.load()
     assert engine.get_user_rules() == []
+    assert not p.exists()
+    gesichert = engine.broken_user_rules_path
+    assert gesichert.startswith(str(p) + ".broken-")
+    assert open(gesichert, encoding="utf-8").read() == kaputt
     assert "ERROR" in (tmp_path / "logs" / "rules.log").read_text(encoding="utf-8")
 
 
-@pytest.mark.xfail(strict=True, reason="intern#257: kaputte Datei wird ueberschrieben")
 def test_kaputte_datei_ueberlebt_naechstes_speichern(tmp_path, engine):
     p = tmp_path / "rules" / "rules_user.json"
     p.parent.mkdir()
@@ -186,6 +205,60 @@ def test_kaputte_datei_ueberlebt_naechstes_speichern(tmp_path, engine):
     engine.add_user_rule(_rule("neu"))
     reste = [f.read_text(encoding="utf-8") for f in p.parent.iterdir()]
     assert kaputt in reste
+
+
+def _gesperrt(*a, **kw):
+    raise PermissionError("gesperrt")
+
+
+def test_sichern_per_kopie_wenn_umbenennen_scheitert(tmp_path, engine,
+                                                     monkeypatch):
+    p = tmp_path / "rules" / "rules_user.json"
+    p.parent.mkdir()
+    p.write_text("kaputt", encoding="utf-8")
+    monkeypatch.setattr("rule_engine.os.replace", _gesperrt)
+    engine.load()
+    assert open(engine.broken_user_rules_path, encoding="utf-8").read() == "kaputt"
+
+
+def test_speichern_gesperrt_wenn_sichern_scheitert(tmp_path, engine,
+                                                   monkeypatch):
+    p = tmp_path / "rules" / "rules_user.json"
+    p.parent.mkdir()
+    p.write_text("kaputt", encoding="utf-8")
+    monkeypatch.setattr("rule_engine.os.replace", _gesperrt)
+    monkeypatch.setattr("rule_engine.shutil.copy2", _gesperrt)
+    engine.load()
+    monkeypatch.undo()
+    engine.add_user_rule(_rule("neu"))
+    assert p.read_text(encoding="utf-8") == "kaputt"
+    assert engine.broken_user_rules_path is None
+    assert "nicht gespeichert" in (tmp_path / "logs" / "rules.log").read_text(
+        encoding="utf-8")
+
+
+def test_abgebrochenes_speichern_laesst_datei_heil(tmp_path, engine, monkeypatch):
+    p = tmp_path / "rules" / "rules_user.json"
+    _write(p, [_rule("u1")])
+    vorher = p.read_text(encoding="utf-8")
+    engine.load()
+
+    def halb_schreiben(obj, f, **kw):
+        f.write('{"rules": [')
+        raise OSError("Platte voll")
+
+    monkeypatch.setattr("rule_engine.json.dump", halb_schreiben)
+    with pytest.raises(OSError):
+        engine.add_user_rule(_rule("neu"))
+    assert p.read_text(encoding="utf-8") == vorher
+    assert [f.name for f in p.parent.iterdir()] == ["rules_user.json"]
+
+
+def test_heile_datei_kein_beiseitelegen(tmp_path, engine):
+    _write(tmp_path / "rules" / "rules_user.json", [_rule("u1")])
+    engine.load()
+    assert engine.broken_user_rules_path is None
+    assert [f.name for f in (tmp_path / "rules").iterdir()] == ["rules_user.json"]
 
 
 # --- INI-Overrides der Systemregeln -------------------------------------------
