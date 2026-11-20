@@ -1017,7 +1017,7 @@ def stage(name, app_dir, lang, probe=False):
                         win.grab().save(str(target.with_suffix(".png")))
                         print(f"[Stellprobe] Layout geschrieben: {target}")
                         sys.stdout.flush()
-                        os._exit(0)
+                        hard_exit(0)   # wie nach dem Dreh: os._exit stuerzt mit 0xC0000005 ab
                     return False
 
             state["probe_filter"] = SaveOnClose(win)
