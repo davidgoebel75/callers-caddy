@@ -137,7 +137,17 @@ _Avoid_: Band, Leseband
 Zahl am rechten Rand des Lesebalkens, die die Beats bis zum naechsten
 Abschnittswechsel herunterzaehlt (Opener, Figure, Middle Break, Closer). Braucht
 SyncPoints und einen BPM-Wert des Songs.
+Nicht zu verwechseln mit dem Start-Countdown.
 _EN_: In-band countdown
+
+**Start-Countdown**:
+Grosse Zahl ueber dem ganzen Bildschirm, die die Beats bis zur gespeicherten
+Startzeit des Songs herunterzaehlt, unabhaengig vom Lyric-Fenster. Braucht diese
+Startzeit und einen BPM-Wert des Songs. Ein- und ausschalten in den
+Einstellungen ("Start-Countdown anzeigen"). Der
+In-Lesebalken Countdown zaehlt dagegen waehrend des Songs bis zum naechsten
+Abschnittswechsel.
+_EN_: Start countdown
 
 **Loop**:
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
