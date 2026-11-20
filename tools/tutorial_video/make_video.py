@@ -343,8 +343,13 @@ def produce(name, app_dir, lang):
 
     # ponytail: sichert nur INI und Standard-DB im App-Ordner; liegt die DB
     # woanders, eigenen Demo-Ordner per --app-dir nehmen.
-    keep = [f for f in (app_dir / "callers_caddy.ini", app_dir / "callers_caddy.db")
-            if f.exists()]
+    ini = app_dir / "callers_caddy.ini"
+    files = (ini, app_dir / "callers_caddy.db")
+    keep = [f for f in files if f.exists()]
+    # Gab es sie vorher nicht (frischer --app-dir), danach wieder loeschen,
+    # sonst bleiben Dreh-Werte (crash/last_notified, Countdown aus, SETTINGS)
+    # dauerhaft stehen.
+    fresh = [f for f in files if not f.exists()]
     for f in keep:
         shutil.copy2(f, work / f.name)
     try:
@@ -355,10 +360,12 @@ def produce(name, app_dir, lang):
     finally:
         for f in keep:
             shutil.copy2(work / f.name, f)
+        for f in fresh:
+            f.unlink(missing_ok=True)
         for leftover in ("callers_caddy.db-wal", "callers_caddy.db-shm"):
             (app_dir / leftover).unlink(missing_ok=True)
         kept_layout = work / "layout_keep.ini"
-        if kept_layout.exists():
+        if kept_layout.exists() and ini not in fresh:
             # Das Arbeitslayout nach SETUP in die zurueckgespielte INI uebernehmen.
             from PySide6.QtCore import QSettings
             source = QSettings(str(kept_layout), QSettings.IniFormat)
@@ -419,7 +426,13 @@ def stage(name, app_dir, lang):
 
     import audio_engine
     import main
+    import update_check
     from tutorial_engine import _HighlightFrame
+
+    # Keine Update-Pruefung beim Dreh: in einem frischen --app-dir ohne Snooze
+    # legt sich sonst der Hinweis auf eine neue Version ueber die App und
+    # faengt die Klicks ab. Der manuelle Weg ueber das Menue bleibt.
+    update_check.UpdateChecker.start = lambda self, *args, **kwargs: None
 
     # Musik der App mitschneiden: genau das, was an die Soundkarte geht, also
     # mit Tempo, Tonhoehe und Fade Out. Ein Abschnitt je Wiedergabe.
@@ -588,7 +601,13 @@ def stage(name, app_dir, lang):
                 w, Qt.LeftButton, Qt.NoModifier, p)))
 
         def double_click(self, path, row=None, at=None):
-            # Echte Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py
+            """Doppelklick, asynchron: die Ereignisse kommen erst im naechsten
+            Takt an. Ein Schritt, der das Ergebnis braucht, gehoert also in den
+            naechsten STEPS-Eintrag, nicht direkt dahinter in dasselbe do."""
+            # Ereignisfolge wie in tests/songs/test_playlist_doppelklick.py, nur
+            # das letzte Release vor dem DblClick: oeffnet der einen modalen
+            # Dialog, bliebe ein spaeteres Release in dessen exec() haengen und
+            # kaeme nach close_dialog() verwaist auf dem Element an.
             w, p = self._spot(path, row, at)
             spot = w.mapToGlobal(p)
             QCursor.setPos(spot)
@@ -598,10 +617,10 @@ def stage(name, app_dir, lang):
                 QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
                 QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
                 QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p)
+                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
                 QApplication.sendEvent(w, QMouseEvent(
                     QEvent.MouseButtonDblClick, QPointF(p), QPointF(spot),
                     Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
-                QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p)
 
             QTimer.singleShot(220, guarded(lambda: self._mark(spot)))
             # Per Timer: oeffnet der Doppelklick einen modalen Dialog, blockiert
@@ -680,8 +699,9 @@ def stage(name, app_dir, lang):
 
         def setting(self, key):
             """Allgemeine Einstellungen ueber das Menue oeffnen, zur Zeile key
-            springen (z. B. "square_flow/enabled"), ihr Feld anklicken (Checkbox:
-            umschalten) und mit OK schliessen. Danach wieder ganzes Bild."""
+            springen (z. B. "square_flow/enabled"), ihre Checkbox umschalten und
+            mit OK schliessen. Danach wieder ganzes Bild. Nur fuer Checkbox-
+            Zeilen: eine Combobox oeffnete ein Popup, das den OK-Klick schluckt."""
             # Benutzt vom Einstellungsdialog (src/settings_dialog.py) das
             # oeffentliche focus_row() und die Zeilenliste _rows.
             self.open_menu("menu_design", "menu_general_settings")
@@ -697,6 +717,10 @@ def stage(name, app_dir, lang):
                     raise LookupError(f"Einstellung nicht im Dialog: {key}")
                 self._zoom_global(dlg.frameGeometry())
                 row = next(r for r in dlg._rows if r.full_key == key)
+                from PySide6.QtWidgets import QCheckBox
+                if not isinstance(row.widget, QCheckBox):
+                    raise LookupError(f"setting() kann nur Checkboxen, {key} ist "
+                                      f"{type(row.widget).__name__}")
 
                 def pick():
                     w = row.widget
@@ -876,6 +900,7 @@ def stage(name, app_dir, lang):
         w, h = (int(v * scale) // 2 * 2 for v in (area.width(), area.height()))
         state["size"] = (w, h)
         import imageio_ffmpeg
+        progress = work / "progress.txt"
         state["ffmpeg"] = subprocess.Popen(
             [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
              "-f", "gdigrab", "-framerate", str(FPS), "-draw_mouse", "1",
@@ -883,14 +908,42 @@ def stage(name, app_dir, lang):
              "-offset_y", str(int(area.y() * scale)),
              "-video_size", f"{w}x{h}", "-i", "desktop",
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-             "-pix_fmt", "yuv420p", str(work / "raw.mp4")],
+             "-pix_fmt", "yuv420p",
+             # Bildzaehler (frame=N) laufend in eine Datei, fuer check_recording.
+             "-progress", str(progress), "-stats_period", "1",
+             str(work / "raw.mp4")],
             stdin=subprocess.PIPE)
 
+        # Lebenszeichen ist der Bildzaehler, nicht die Groesse von raw.mp4:
+        # bei ruhigem Bild puffert ffmpeg so wenig Daten, dass die Datei lange
+        # nicht waechst, gezaehlt wird trotzdem jedes Bild.
+        STALL_S = 10
+        counted = {"frame": -1, "at": time.monotonic()}
+
+        def frames_so_far():
+            try:
+                text = progress.read_text(errors="replace")
+            except OSError:
+                return -1
+            hits = re.findall(r"^frame=(\d+)", text, re.M)
+            return int(hits[-1]) if hits else -1
+
         def check_recording():
+            """Alle 2 s: laeuft ffmpeg noch, und zaehlt es Bilder? Sonst gleich
+            abbrechen statt erst am Ende in finish()."""
             if state["ffmpeg"].poll() is not None:
-                print("[Video] ffmpeg hat die Aufnahme nicht gestartet (siehe "
-                      "Meldung darueber), Abbruch.", file=sys.stderr)
+                print("[Video] ffmpeg hat die Aufnahme beendet (siehe Meldung "
+                      "darueber), Abbruch.", file=sys.stderr)
                 finish(False)
+            now = time.monotonic()
+            frame = frames_so_far()
+            if frame > counted["frame"]:
+                counted.update(frame=frame, at=now)
+            elif now - counted["at"] > STALL_S:
+                print(f"[Video] ffmpeg laeuft, nimmt aber seit {STALL_S} s kein "
+                      "Bild mehr auf, Abbruch.", file=sys.stderr)
+                finish(False)
+            QTimer.singleShot(2000, check_recording)
 
         QTimer.singleShot(1500, check_recording)
 
