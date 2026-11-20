@@ -3,6 +3,7 @@
 Aufruf aus dem Projektstamm:
     python tools/tutorial_video/make_video.py player
     python tools/tutorial_video/make_video.py player --app-dir ../2_Test
+    python tools/tutorial_video/make_video.py player --drehbuch   # nur Tabelle
 
 Jedes Tutorial hat einen eigenen Ordner, benannt nach dem englischen
 Begriff: scenarios/<name>/scenario.py (Drehbuch, im Git), Ergebnis in
@@ -98,6 +99,62 @@ def ask_language(available):
 def plain(text):
     """Menuetext ohne Kuerzel-Markierung: "&Ansicht" -> "Ansicht"."""
     return (text or "").replace("&", "")
+
+
+def action_text(do):
+    """Bedienung eines Schritts als Quelltext: lambda a: a.click(X) -> "a.click(X)"."""
+    import inspect
+    # ponytail: liest die Quelltextzeile der lambda; eine ueber mehrere Zeilen
+    # umbrochene lambda erscheint gekuerzt, dann benannte Funktion nehmen.
+    try:
+        line = inspect.getsource(do).strip()
+    except (OSError, TypeError):
+        return getattr(do, "__name__", "?")
+    m = re.search(r"lambda\s+\w+\s*:\s*(.*)", line)
+    if not m:
+        return getattr(do, "__name__", line)
+    # Ausdruck endet am ersten "," oder ")" ausserhalb von Klammern und Strings
+    # (danach folgen weitere Schritt-Felder wie hold=3).
+    depth, quote = 0, None
+    for n, ch in enumerate(m[1]):
+        if quote:
+            quote = None if ch == quote else quote
+        elif ch in "\"'":
+            quote = ch
+        elif ch in "([{":
+            depth += 1
+        elif ch in ")]}" and depth:
+            depth -= 1
+        elif ch in ",)]}" and not depth:
+            return m[1][:n].strip()
+    return m[1].strip()
+
+
+def screenplay(steps, langs):
+    """Drehbuch als Markdown-Tabelle: Nr., Sprechtext je Sprache, Element, Aktion."""
+    def cell(value):
+        return str(value).replace("|", "\\|").replace("\n", " ")
+
+    def element(step):
+        parts = []
+        if "point" in step:
+            point = step["point"]
+            parts.append(f"{point[0]} Zeile {point[1]}" if isinstance(point, tuple)
+                         else str(point))
+        if "zoom" in step:
+            parts.append(f"Zoom: {step['zoom'] or 'ganzes Fenster'}")
+        return "; ".join(parts) or "-"
+
+    def action(step):
+        text = action_text(step["do"]) if "do" in step else "-"
+        return f"{text} (stehen {step['hold']} s)" if "hold" in step else text
+
+    head = ["Nr."] + [LANGUAGES[k][0] for k in langs] + ["Element", "Aktion"]
+    rows = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+    for n, step in enumerate(steps, 1):
+        row = [str(n)] + [say_text(step, k) for k in langs] + [element(step), action(step)]
+        rows.append("| " + " | ".join(cell(c) for c in row) + " |")
+    return "\n".join(rows)
 
 
 def parse_size(text):
@@ -958,11 +1015,21 @@ def demo():
     assert scenario_languages(steps) == ["en", "de"]
     assert say_text(steps[0], "de") == "Hallo" and say_text(steps[1], "ja") == "Callers Caddy"
     assert plain("&Ansicht") == "Ansicht"
+    # Drehbuch: Aktion aus dem Quelltext der lambda, | im Text maskiert.
+    steps = [dict(say={"en": "A | B", "de": "C"}, point=("x", 2), zoom=None,
+                  do=lambda a: a.click("x.btn", 2), hold=3),
+             dict(say="Ende")]
+    table = screenplay(steps, ["en", "de"]).splitlines()
+    assert table[0] == "| Nr. | English | Deutsch | Element | Aktion |"
+    assert table[2] == ('| 1 | A \\| B | C | x Zeile 2; Zoom: ganzes Fenster '
+                        '| a.click("x.btn", 2) (stehen 3 s) |'), table[2]
+    assert table[3] == "| 2 | Ende | Ende | - | - |"
     # Jedes Szenario laesst sich aus scenarios/<name>/scenario.py laden.
     for folder in sorted((HERE / "scenarios").iterdir()):
         if scenario_file(folder.name).exists():
             module = load_scenario(folder.name)
             assert module.STEPS and scenario_languages(module.STEPS), folder.name
+            screenplay(module.STEPS, scenario_languages(module.STEPS))
     # Der Filter muss von ffmpeg angenommen werden (Stimme + zwei Musik-Stuecke).
     # Hinein und wieder heraus zoomen: ffmpeg muss auch diesen Filter annehmen.
     zoom = zoom_filter([(0.5, [0, 0, 160]), (2.0, [0, 0, 320])], 320, 180)
@@ -984,6 +1051,9 @@ if __name__ == "__main__":
     ap.add_argument("--size", default=SIZE, type=parse_size,
                     help="Videogroesse BxH, z. B. 1600x900 fuer Bildschirme mit "
                          "1920x1080 (das Fenster samt Titelleiste muss draufpassen)")
+    ap.add_argument("--drehbuch", action="store_true",
+                    help="Nur das Drehbuch als Markdown-Tabelle ausgeben, ohne App "
+                         "und ohne Vorlese-Dienst (mit --lang nur diese Sprache)")
     ap.add_argument("--stage", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     SIZE = args.size
@@ -1004,4 +1074,8 @@ if __name__ == "__main__":
         if args.lang and args.lang not in available:
             ap.error(f"Szenario '{args.name}' hat keine Texte fuer '{args.lang}', "
                      f"vorhanden: {', '.join(available)}")
+        if args.drehbuch:
+            print(screenplay(load_scenario(args.name).STEPS,
+                             [args.lang] if args.lang else available))
+            sys.exit(0)
         produce(args.name, app_directory, args.lang or ask_language(available))
