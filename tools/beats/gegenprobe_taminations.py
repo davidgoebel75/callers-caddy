@@ -32,6 +32,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "src"))
 from caddy.beats import variant_rules as vr  # noqa: E402
+from caddy.beats import calc  # noqa: E402
 CSV_PATH = os.path.join(HERE, "callerlab_timing.csv")
 VALUE_TYPES = ("fest", "bereich", "dynamisch")
 STD_NOTE = "Standard-Variante vorgeschlagen, bitte bestaetigen"  # aus zuordnung_vorschlag.py
@@ -110,6 +111,42 @@ def fmt(lo, hi):
     return f"{lo:g}" if lo == hi else f"{lo:g}-{hi:g}"
 
 
+def per_sequence(folder, emap, rows):
+    """Beat-Rechnung (caddy.beats.calc) je Zeile und je Sequenz gegen Taminations.
+    Ohne Taminations-Werte gerechnet, damit dynamische Calls nicht mit sich selbst verglichen
+    werden. Rueckgabe: (Zeilen-Abweichungen je Text, Sequenz-Ergebnisse)."""
+    table = calc.BeatTable(rows)
+    load = lambda n: json.load(open(os.path.join(folder, n), encoding="utf-8"))  # noqa: E731
+    inp = {s["id"]: s for s in load("tam_input.json")}
+    band = {r["id"]: r for r in load("pruefband.json")}
+    lines = collections.defaultdict(list)    # text -> [(calc Beats, tam)]
+    seqs = []
+    for r in load("tam_results.json"):
+        sid = r["id"]
+        b = band.get(sid, {})
+        if not r.get("ok") or b.get("urteil") != "gruen" or sid not in inp:
+            continue
+        s = inp[sid]
+        n0 = s.get("n_start", 0)
+        res = []
+        for i, (text, tb) in enumerate(zip(s["orig"], r.get("beats") or [])):
+            if i < n0:
+                continue
+            be = calc.line_beats(table, emap.get(text, ()), text, squared_set=(i == n0))
+            res.append(be)
+            if tb is not None:
+                lines[text].append((be, float(tb)))
+        singer = "singer" in (s.get("type") or "").lower()
+        if singer and s.get("end"):
+            # Schluss des Singers (von der Pruefung ergaenzt, kein Kartentext)
+            end_ents = emap.get(s["end"]) or ("call_swing", "call_couples_promenade")
+            res.append(calc.line_beats(table, end_ents, s["end"]))
+        total = calc.sequence_beats(res)
+        tam_total = b.get("beats") if singer else b.get("beats_koerper")
+        seqs.append(dict(id=sid, singer=singer, total=total, tam=tam_total))
+    return lines, seqs
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("db")
@@ -185,6 +222,52 @@ def main():
             wr.writeheader()
             wr.writerows(rows)
         print(f"[--bestaetigen] {n} Zeilen als geprueft markiert", file=sys.stderr)
+
+    lines, seqs = per_sequence(a.folder, entity_map(a.db), rows)
+    print("\n## F. Beat-Rechnung je Kartenzeile (alle Zeilen, auch Supercalls) gegen Taminations\n")
+    allv = [(be, t) for v in lines.values() for be, t in v]
+    cat = collections.Counter(
+        "unbekannt" if calc.UNKNOWN in be.flags else
+        "im Wert" if calc.deviation(be, t) == 0 else
+        "bis 1" if abs(calc.deviation(be, t)) <= 1 else
+        "bis 2" if abs(calc.deviation(be, t)) < 2 else "Hinweis (>= 2)" for be, t in allv)
+    print(f"{len(allv)} Zeilen: " + ", ".join(f"{k} {cat[k]}" for k in
+                                              ("im Wert", "bis 1", "bis 2", "Hinweis (>= 2)",
+                                               "unbekannt")))
+    agg = []
+    for text, v in lines.items():
+        warn = [(be, t) for be, t in v if calc.warn_deviation(be, t)
+                and calc.UNKNOWN not in be.flags]
+        if len(warn) >= a.min_n:
+            agg.append((len(warn), len(v), text, calc.fmt(warn[0][0]),
+                        st.median(t for _b, t in warn)))
+    print(f"\nKartentexte mit mind. {a.min_n} Hinweisen (Abweichung >= 2), haeufigste zuerst:\n")
+    print(f"{'Hinw.':>5} {'von':>5}  {'Rechnung':>9} {'Tam.':>5}  Kartentext")
+    for nw, nv, text, f, med in sorted(agg, reverse=True)[:40]:
+        print(f"{nw:5} {nv:5}  {f:>9} {med:5g}  {text}")
+
+    print("\n## G. Summe je Sequenz (Singer: Figur inkl. Swing & Promenade)\n")
+    for singer in (True, False):
+        grp = [x for x in seqs if x["singer"] == singer]
+        if not grp:
+            continue
+        unk = sum(1 for x in grp if x["total"].flags & {calc.UNKNOWN, calc.NOT_TIMED})
+        d = [x["tam"] - (x["total"].lo + x["total"].hi) / 2 for x in grp
+             if x["tam"] and not x["total"].flags & {calc.UNKNOWN, calc.NOT_TIMED}]
+        name = "Singer" if singer else "Patter"
+        print(f"{name}: {len(grp)} Sequenzen, {unk} mit unbekannten/Not-Timed-Anteilen. "
+              f"Taminations minus Rechnung (Mitte): Median {st.median(d):+g}, "
+              f"Q1-Q3 {st.quantiles(d, n=4)[0]:+g} bis {st.quantiles(d, n=4)[2]:+g}"
+              if len(d) >= 4 else f"{name}: {len(grp)} Sequenzen")
+        if singer:
+            amp = collections.Counter(calc.traffic_light(x["total"]) for x in grp
+                                      if not x["total"].flags & {calc.UNKNOWN})
+            tam = collections.Counter(calc.traffic_light(calc.Beats(x["tam"], x["tam"]))
+                                      for x in grp if x["tam"])
+            print(f"  Ampel nach Taminations-Summe: gruen {tam[calc.GREEN]}, "
+                  f"gelb {tam[calc.YELLOW]}, rot {tam[calc.RED]}")
+            print(f"  Ampel (ohne unbekannte): gruen {amp[calc.GREEN]}, gelb {amp[calc.YELLOW]}, "
+                  f"rot {amp[calc.RED]}")
 
     pv = per_variant(groups, tb, a.min_n)
     c2 = collections.Counter("im Wert" if o["d"] == 0 else "bis 1" if abs(o["d"]) <= 1

@@ -5,13 +5,16 @@ Freie Suchmuster gibt es bewusst nicht: Die Pflegedatei soll sich nicht kaputtsc
 `parse()` weist alles Unbekannte ab.
 
 Auswahl-Kuerzel (entscheiden, ob eine Zeile zum Text passt):
-- `number=N`      die Zahl im Text ist N (Square Thru 4). Ohne Zahl passt die Zeile nicht.
+- `number=N`      die Zahl im Text ist N (Square Thru 4; "1/2 Square Thru" = 2, "3/4" = 3).
+                  Ohne Zahl passt die Zeile nicht.
 - `odd` / `even`  die Zahl im Text ist ungerade / gerade
 - `fraction=X`    Bruchteil im Text: `1/4`, `1/2`, `3/4`, `full` (auch "half", "quarter",
                   "three quarter", "all the way"). Ohne Bruchteil passt die Zeile nicht,
                   auch `full` nicht ("Shoot the Star" ist nicht "Shoot the Star Full Around").
 - `ss`            aus dem Squared Set: der Text beginnt mit Heads/Sides
 - `home`          der Text enthaelt "home" (Promenade Home)
+- `named`         nur genannte Taenzer tanzen: der Text beginnt mit einer Gruppe
+                  (Ends, Centers, Outsides, Heads, Boys ...), z. B. "Ends Cloverleaf" = 4 active
 - `parts`         Summe ueber N Teile; ungerade und gerade Teile stehen in je einer Zeile.
                   Passt nur, wenn der Text eine Zahl enthaelt (Eight Chain 4, nicht
                   Eight Chain Thru). Die Summe bildet die Beat-Rechnung.
@@ -28,7 +31,7 @@ import re
 
 QT_FREE = True
 
-SELECT_KEYS = ("number", "odd", "even", "fraction", "ss", "home", "parts")
+SELECT_KEYS = ("number", "odd", "even", "fraction", "ss", "home", "parts", "named")
 CALC_KEYS = ("minus_pass_thru",)
 _WITH_VALUE = {"number", "fraction"}
 FRACTIONS = ("1/4", "1/2", "3/4", "full")
@@ -40,6 +43,10 @@ _FRACTION_WORDS = (
     (r"\b1/4\b|\bquarter\b", "1/4"),
     (r"\bfull\b|\ball the way\b|\bfull around\b", "full"),
 )
+_NAMED_RE = re.compile(
+    r"^\s*(?:\([^)]*\)\s*)?(?:the\s+)?(?:heads?|sides?|ends|centers|outsides|insides|boys|girls|"
+    r"men|ladies|leaders|trailers|beaus|belles|very centers|new centers|new ends|"
+    r"center (?:four|4|boys|girls)|end (?:boys|girls))\b", re.I)
 _SS_RE = re.compile(r"^\s*(?:\([^)]*\)\s*)?(?:the\s+)?(?:heads?|sides?)\b", re.I)
 
 
@@ -90,6 +97,18 @@ def text_number(text):
     return int(nums[-1]) if nums else None
 
 
+_FRACTION_HANDS = {"1/4": 1, "1/2": 2, "3/4": 3}
+
+
+def text_count(text):
+    """Zahl fuer `number`/`odd`/`even`/`parts`: ganze Zahl im Text, sonst ein vorangestellter
+    Bruchteil als Haende ("1/2 Square Thru" = Square Thru 2, "3/4" = 3)."""
+    n = text_number(text)
+    if n is None:
+        n = _FRACTION_HANDS.get(text_fraction(text) or "")
+    return n
+
+
 def from_squared_set(text):
     return bool(_SS_RE.match(text))
 
@@ -104,7 +123,7 @@ def matches(rule, text, squared_set=None):
     sel = {k: v for k, v in rule.items() if k in SELECT_KEYS}
     if not sel:
         return False
-    n = text_number(text)
+    n = text_count(text)
     for key, val in sel.items():
         if key == "number" and n != int(val):
             return False
@@ -116,9 +135,11 @@ def matches(rule, text, squared_set=None):
             return False
         if key == "ss" and (squared_set is False or not from_squared_set(text)):
             return False
-        if key == "home" and not re.search(r"home", text, re.I):
+        if key == "home" and not re.search(r"\bhome\b", text, re.I):
             return False
         if key == "parts" and n is None:
+            return False
+        if key == "named" and not _NAMED_RE.match(text):
             return False
     return True
 
