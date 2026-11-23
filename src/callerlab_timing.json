@@ -1,5 +1,5 @@
 {
- "version": "8f183ac516b6ff8c",
+ "version": "ba382443916dbbb2",
  "notice": "Reprinted with permission of CALLERLAB.",
  "rows": [
   {"programm": "MS", "call": "Arm Turns", "entity_ids": "call_arm_turns", "variante": "1/2 around", "typ": "fest", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "1", "variante_regel": "fraction=1/2"},
@@ -117,7 +117,7 @@
   {"programm": "MS", "call": "Touch a Quarter", "entity_ids": "call_touch_a_quarter", "variante": "", "typ": "fest", "beats": "2", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "1", "variante_regel": ""},
   {"programm": "MS", "call": "Couples Trade", "entity_ids": "call_couples_trade", "variante": "from Two-Faced Line", "typ": "fest", "beats": "6", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Trade Family", "standard": "1", "variante_regel": ""},
   {"programm": "MS", "call": "Couples Trade", "entity_ids": "call_couples_trade", "variante": "from One-Faced Line", "typ": "fest", "beats": "8", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Trade Family, more if non-adjacent", "standard": "", "variante_regel": ""},
-  {"programm": "MS", "call": "(Named Dancers) Trade", "entity_ids": "call_named_dancers_trade", "variante": "Mini-Wave", "typ": "fest", "beats": "3", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Trade Family", "standard": "1", "variante_regel": ""},
+  {"programm": "MS", "call": "(Named Dancers) Trade", "entity_ids": "call_named_dancers_trade|call_right_hand_trade|call_left_hand_trade", "variante": "Mini-Wave", "typ": "fest", "beats": "3", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Trade Family", "standard": "1", "variante_regel": ""},
   {"programm": "MS", "call": "(Named Dancers) Trade", "entity_ids": "call_named_dancers_trade", "variante": "Couple", "typ": "fest", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Trade Family", "standard": "", "variante_regel": ""},
   {"programm": "MS", "call": "(Named Dancers) Trade", "entity_ids": "call_named_dancers_trade", "variante": "Non-Adjacent Dancers", "typ": "dynamisch", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "more than 4", "standard": "", "variante_regel": ""},
   {"programm": "MS", "call": "Partner Trade", "entity_ids": "call_partner_trade", "variante": "", "typ": "fest", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Trade Family", "standard": "1", "variante_regel": ""},

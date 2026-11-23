@@ -114,7 +114,7 @@ MS;Tag the Line;call_tag_the_line;1/4 Tag;fest;3;;;MS 2026-07-05;Tag the Line Fa
 MS;Touch a Quarter;call_touch_a_quarter;;fest;2;;;MS 2026-07-05;;1;;
 MS;Couples Trade;call_couples_trade;from Two-Faced Line;fest;6;;;MS 2026-07-05;Trade Family;1;;
 MS;Couples Trade;call_couples_trade;from One-Faced Line;fest;8;;;MS 2026-07-05;Trade Family, more if non-adjacent;;;
-MS;(Named Dancers) Trade;call_named_dancers_trade;Mini-Wave;fest;3;;;MS 2026-07-05;Trade Family;1;;
+MS;(Named Dancers) Trade;call_named_dancers_trade|call_right_hand_trade|call_left_hand_trade;Mini-Wave;fest;3;;;MS 2026-07-05;Trade Family;1;;
 MS;(Named Dancers) Trade;call_named_dancers_trade;Couple;fest;4;;;MS 2026-07-05;Trade Family;;;
 MS;(Named Dancers) Trade;call_named_dancers_trade;Non-Adjacent Dancers;dynamisch;4;;;MS 2026-07-05;more than 4;;;
 MS;Partner Trade;call_partner_trade;;fest;4;;;MS 2026-07-05;Trade Family;1;;
