@@ -61,6 +61,19 @@ class CallTimingMixin:
         print(f"[SongDB] Beat-Tabelle eingespielt: {len(rows)} Zeilen (version {version})")
         return True
 
+    def get_call_figures(self, call_texts) -> dict:
+        """{Kartentext: [App-Calls]} aus call_text_figures (Haupt-Call + weitere Figuren)."""
+        texts = sorted(set(t for t in call_texts if t))
+        out = {}
+        if not texts:
+            return out
+        marks = ",".join("?" * len(texts))
+        for text, eid in self._conn.execute(
+                "SELECT call_text, entity_id FROM call_text_figures "
+                f"WHERE call_text IN ({marks})", texts):
+            out.setdefault(text, []).append(eid)
+        return out
+
     def get_call_timing_rows(self) -> list[dict]:
         """Alle Zeilen in Dateireihenfolge, als Dicts fuer caddy.beats.calc.BeatTable."""
         cur = self._conn.execute(

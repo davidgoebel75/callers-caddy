@@ -11268,10 +11268,15 @@
     "en": "{beats} beats",
     "ja": "{beats} ビート"
   },
-  "seq_header_beats_over": {
-    "de": "{beats} Beats (über 64)",
-    "en": "{beats} beats (over 64)",
-    "ja": "{beats} ビート（64 超過）"
+  "seq_header_beats_tooltip": {
+    "de": "Beats nach den CALLERLAB-Timing-Charts. Bei dynamischen Calls rechnet die Summe mit dem Wert von Square Flow (SF), wenn vorhanden.\nAmpel bei Singern: grün bis 64, gelb 65–68, rot darüber.",
+    "en": "Beats according to the CALLERLAB timing charts. For dynamic calls, the total uses the Square Flow (SF) value if available.\nTraffic light for singing calls: green up to 64, yellow 65–68, red above.",
+    "ja": "CALLERLAB タイミング表によるビート数。動的なコールでは、Square Flow（SF）の値があれば合計にその値を使います。\nシンギングコールの信号：64 まで緑、65～68 黄、それ以上は赤。"
+  },
+  "seq_beats_sf": {
+    "de": "SF {beats}",
+    "en": "SF {beats}",
+    "ja": "SF {beats}"
   },
   "seq_tam_open_btn": {
     "de": "Taminations",

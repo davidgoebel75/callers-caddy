@@ -4,6 +4,7 @@ Enthaelt Sequenz-Ansicht/-Verwaltung, Import- und Editor-Dialoge sowie den
 Call-Mapping-Dialog. Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
+import html
 import os
 import random
 
@@ -27,6 +28,7 @@ from song_db_sequences import calls_to_json
 import sequence_import as seq_import
 from i18n import _t
 import program_selection
+from caddy.beats import calc as beat_calc, sequence as beat_seq
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
@@ -34,6 +36,10 @@ from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
                              fuzzy_suggest_cache, optimize_groups, suggestion_differs,
                              suggest_figure_set)
 from sequence_filter import filter_query_args
+
+# intern#164: Ampel der Beat-Summe bei Singern (Kopfzeile Sequenz-Detail)
+_LIGHT_COLORS = {beat_calc.GREEN: "#22c55e", beat_calc.YELLOW: "#eab308",
+                 beat_calc.RED: "#ef4444"}
 
 
 class _ComboClickToOpen(QObject):
@@ -112,6 +118,11 @@ class SequenceViewWidget(QWidget):
         # Warnung) und die gerade getanzte Zeile; None/-1 = nichts anzeigen.
         self._flow = None
         self._flow_line = -1
+        # intern#164: Beats nach CALLERLAB je Zeile und Summe (caddy.beats.sequence);
+        # Tabelle einmal aus der DB, Figuren je Sequenz.
+        self._beats = None
+        self._beat_table = None
+        self._beat_figures = ((), {})
         self._html_font = 14
         self.on_open_taminations = None   # callback() -> Browser mit Taminations
         # BL-173: Callback, wenn sich die Sequenzliste aendert (fuer das Gating
@@ -140,6 +151,8 @@ class SequenceViewWidget(QWidget):
         # sich handelt — auch ohne aktiven Filter im Sequenzen-Widget.
         self._lbl_header = QLabel()
         self._lbl_header.setAlignment(Qt.AlignCenter)
+        # intern#164: Ampelpunkt farbig -> Rich Text (Text wird escaped)
+        self._lbl_header.setTextFormat(Qt.RichText)
         # Farbe per StyleSheet, Schriftgroesse per QFont (wird in
         # _recalc_header_font dynamisch an die Breite angepasst).
         self._lbl_header.setStyleSheet(f"color: {self._text_color()};")
@@ -303,26 +316,34 @@ class SequenceViewWidget(QWidget):
         # Der normale Dock setzt das Attribut nie -> keine Verhaltensaenderung.
         self._html_font = font_size
         hl = getattr(self, "_highlight_text", None)
-        # intern#247: Takte je Call (aus Square Flow) im grauen Etikett hinter
-        # dem Call, getanzte Zeile hinterlegt, Abbruchzeile rot.
+        # intern#164: Beats nach CALLERLAB im grauen Etikett hinter dem Call,
+        # bei dynamischen Calls dazu der Wert aus Square Flow ("SF n"), bei
+        # Abweichung >= 2 Beats ein Warnzeichen. intern#247: getanzte Zeile
+        # hinterlegt, Abbruchzeile rot.
         flow = self._flow or {}
-        beats = flow.get("beats") or []
+        lines = self._beats.lines if self._beats else ()
         fail = flow.get("fail_card")
+        warn_col = self._skin_mgr.color("warning", "#ef4444") if self._skin_mgr else "#ef4444"
+        badge_style = (f"font-size:{badge_size}px;color:#aaa;border:1px solid #666;"
+                       f"padding:1px 3px;border-radius:2px;")
         line_bg = (self._skin_mgr.color("selection_bg", "#0067c0")
                    if self._skin_mgr else "#0067c0")
         line_fg = (self._skin_mgr.color("selection_text", "#ffffff")
                    if self._skin_mgr else "#ffffff")
         parts = []
         for i, (_pos, call_text, entity_id, _to, _canonical, program_label) in enumerate(self._calls):
-            b = beats[i] if i < len(beats) else None
-            tag = " · ".join(x for x in ((program_label if entity_id else ""),
-                                         (f"{b:g}" if b is not None else "")) if x)
-            if tag:
-                badge = (f'&nbsp;<span style="font-size:{badge_size}px;color:#aaa;'
-                         f'border:1px solid #666;padding:1px 3px;'
-                         f'border-radius:2px;">{tag}</span>')
-            else:
-                badge = ""
+            li = lines[i] if i < len(lines) else None
+            b = (beat_calc.fmt(li.beats)
+                 if li and beat_calc.UNKNOWN not in li.beats.flags else "")
+            tag = " · ".join(x for x in ((program_label if entity_id else ""), b) if x)
+            badge = f'&nbsp;<span style="{badge_style}">{tag}</span>' if tag else ""
+            if li and li.tam is not None and (li.dynamic or li.warn):
+                sf = _t("seq_beats_sf").format(beats=f"{li.tam:g}")
+                if li.warn:
+                    badge += (f'&nbsp;<span style="font-size:{badge_size + 2}px;'
+                              f'color:{warn_col};">⚠</span>')
+                badge += (f'&nbsp;<span style="{badge_style}font-style:italic;">'
+                          f'{sf}</span>')
             if entity_id is None:
                 badge += '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
             sep = "<br>" if i < len(self._calls) - 1 else ""
@@ -398,20 +419,44 @@ class SequenceViewWidget(QWidget):
         self._render_header()
 
     def _render_header(self):
-        """Kopfzeile aus Typ/Schwierigkeit plus (intern#247) Summe der Takte und
-        Warnsymbol aus Square Flow."""
+        """Kopfzeile aus Typ/Schwierigkeit plus (intern#164) Summe der Beats nach
+        CALLERLAB und bei Singern die Ampel; Warnknopf aus Square Flow (intern#247)."""
         parts = [p for p in (getattr(self, "_header_base", ""),) if p]
-        flow = self._flow or {}
-        if flow.get("total") is not None:
-            total = flow["total"]
-            over = flow.get("singer") and total > 64
-            key = "seq_header_beats_over" if over else "seq_header_beats"
-            parts.append(_t(key).format(beats=f"{total:g}"))
+        b = self._beats
+        light = None
+        if b is not None and any(b.lines):
+            parts.append(_t("seq_header_beats").format(beats=beat_calc.fmt(b.total)))
+            light = b.light
         text = "   ·   ".join(parts)
+        rich = html.escape(text)
+        if light:
+            text += "  ●"
+            rich += f'&nbsp;&nbsp;<span style="color:{_LIGHT_COLORS[light]};">●</span>'
+        self._lbl_header.setToolTip(_t("seq_header_beats_tooltip") if b and any(b.lines)
+                                    else "")
         self._apply_flow_warn_button()
         self._header_text = text
-        self._lbl_header.setText(text)
+        self._lbl_header.setText(rich)
         self._recalc_header_font()
+
+    def _compute_beats(self):
+        """intern#164: Beats je Zeile und Summe fuer die gezeigten Calls, mit den
+        Square-Flow-Beats, falls vorhanden."""
+        if not self._calls:
+            self._beats = None
+            return
+        if self._beat_table is None:
+            try:
+                self._beat_table = beat_calc.BeatTable(self._db.get_call_timing_rows())
+            except Exception as e:   # Anzeige ohne Beats statt Absturz
+                print(f"[Sequences] Beat-Tabelle nicht lesbar: {e}")
+                self._beat_table = beat_calc.BeatTable([])
+        texts = tuple(c[1] for c in self._calls)
+        if self._beat_figures[0] != texts:
+            self._beat_figures = (texts, self._db.get_call_figures(texts))
+        self._beats = beat_seq.sequence_info(
+            self._beat_table, texts, self._beat_figures[1], self._seq_type,
+            (self._flow or {}).get("beats"))
 
     # ---- Square Flow (intern#247) ----
 
@@ -424,6 +469,7 @@ class SequenceViewWidget(QWidget):
         if info == self._flow:
             return
         self._flow = info
+        self._compute_beats()
         self._render_header()
         self._recalc_font_size()
 
@@ -492,6 +538,7 @@ class SequenceViewWidget(QWidget):
     def _update_content(self):
         if not self._seq_ids:
             self._flow, self._flow_line = None, -1
+            self._beats = None
             self._text_edit.clear()
             self._lbl_header.setText("")
             self._lbl_pos.setText("")
@@ -518,6 +565,8 @@ class SequenceViewWidget(QWidget):
             c[:5] + (program_selection.call_program_label(
                 c[5] or [], self._program_bands, labels),)
             for c in self._db.get_sequence_calls(seq_id)]
+        self._compute_beats()
+        self._render_header()
         self._recalc_font_size()
         # Nochmal nach erstem Layout-Pass, damit height()/width() korrekt ist
         QTimer.singleShot(0, self._recalc_font_size)
