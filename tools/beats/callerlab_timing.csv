@@ -1,0 +1,296 @@
+﻿programm;call;entity_ids;variante;typ;beats;beats_bis;anything_ab;quelle;bemerkung;standard;variante_regel;pruefen
+MS;Arm Turns;call_arm_turns;1/2 around;fest;4;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Arm Turns;call_arm_turns;3/4 around;bereich;4;6;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Arm Turns;call_arm_turns;full around;bereich;6;8;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Allemande Left (or Allemande Right);call_allemande_left|call_allemande_right;1/2 Arm Turn;bereich;4;6;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Allemande Left (or Allemande Right);call_allemande_left|call_allemande_right;3/4 Arm Turn;bereich;6;8;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Allemande Left (or Allemande Right);call_allemande_left|call_allemande_right;full Arm Turn;fest;8;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Bend the Line;call_bend_the_line;Line of Four;fest;4;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Bend the Line;call_bend_the_line;Line of Eight;fest;6;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Box the Gnat;call_box_the_gnat;;fest;4;;;MS 2026-07-05;;1;;
+MS;California Twirl;call_california_twirl;;fest;4;;;MS 2026-07-05;;1;;
+MS;Cast Off 3/4;call_cast_off_three_quarters;;fest;6;;;MS 2026-07-05;;1;;
+MS;Centers In;call_centers_in;;fest;2;;;MS 2026-07-05;;1;;
+MS;Circle Left (or Right);call_circle_left|call_circle_right;SS 8 Dancers full around;fest;16;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;SS 8 Dancers 3/4 around;fest;12;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;SS 8 Dancers 1/2 around;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;SS 8 Dancers 1/4 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Four (FC) full around;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Four (FC) 3/4 around;fest;6;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Four (FC) 1/2 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Four (FC) 1/4 around;fest;2;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Two (2 Facing Dancers) full around;fest;7;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Two (2 Facing Dancers) 3/4 around;fest;5;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Two (2 Facing Dancers) 1/2 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circle Left (or Right);call_circle_left|call_circle_right;Circle of Two (2 Facing Dancers) 1/4 around;fest;2;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Circulates;call_named_dancers_circulate|call_couples_circulate|call_all_eight_circulate|call_split_circulate|call_single_file_circulate;;fest;4;;;MS 2026-07-05;;1;;"Welche Circulates meint die Chart? Vorschlag: die fuenf MS-Circulates; Standard-Variante vorgeschlagen, bitte bestaetigen"
+MS;Circulates;call_named_dancers_circulate|call_couples_circulate|call_all_eight_circulate|call_split_circulate|call_single_file_circulate;if the Circulate is a Pass Thru;fest;2;;;MS 2026-07-05;;;;"Welche Circulates meint die Chart? Vorschlag: die fuenf MS-Circulates; Standard-Variante vorgeschlagen, bitte bestaetigen"
+MS;Courtesy Turn;call_courtesy_turn;;fest;4;;;MS 2026-07-05;;1;;
+MS;Dive Thru;call_dive_thru;Couple diving;fest;2;;;MS 2026-07-05;parallel: Couple making arch 6;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Dive Thru;call_dive_thru;Couple making arch;fest;6;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Dosado;call_dosado;SS across set;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Dosado;call_dosado;otherwise;fest;6;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Double Pass Thru;call_double_pass_thru;;fest;4;;;MS 2026-07-05;;1;;
+MS;Extend;call_extend;;fest;2;;;MS 2026-07-05;;1;;
+MS;Ferris Wheel;call_ferris_wheel;;fest;6;;;MS 2026-07-05;;1;;
+MS;First Couple Go Left/Right, Next Couple Go Right/Left;call_first_go_next_go;;fest;6;;;MS 2026-07-05;;1;;
+MS;Flutterwheel (or Reverse Flutterwheel);call_flutterwheel|call_reverse_flutterwheel;FC;fest;8;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Flutterwheel (or Reverse Flutterwheel);call_flutterwheel|call_reverse_flutterwheel;SS Heads or Sides;fest;10;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Flutterwheel (or Reverse Flutterwheel);call_flutterwheel|call_reverse_flutterwheel;SS All;fest;12;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Fold;call_fold;;fest;2;;;MS 2026-07-05;;1;;
+MS;Cross Fold;call_cross_fold;;fest;4;;;MS 2026-07-05;;1;;
+MS;Forward and Back;call_forward_and_back;Lines close together;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Forward and Back;call_forward_and_back;all others;fest;8;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Grand Square;call_grand_square;;fest;32;;;MS 2026-07-05;;1;;
+MS;Half Sashay / Rollaway / Ladies In, Men Sashay;call_half_sashay|call_rollaway|call_ladies_in_men_sashay;;fest;4;;;MS 2026-07-05;;1;;
+MS;Couples Hinge;call_couples_hinge;;fest;3;;;MS 2026-07-05;Hinge Family;1;;
+MS;Single Hinge;call_single_hinge;;fest;2;;;MS 2026-07-05;Hinge Family;1;;
+MS;Ladies Chain;call_two_ladies_chain;Two Ladies from FC;fest;6;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Ladies Chain;call_two_ladies_chain;Two Ladies from SS;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Four Ladies Chain;call_four_ladies_chain;from SS;fest;8;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Four Ladies Chain;call_four_ladies_chain;3/4;fest;10;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Chain Down the Line;call_chain_down_the_line;;fest;8;;;MS 2026-07-05;;1;;
+MS;Lead Right (or Lead Left);call_lead_right|call_lead_left;;fest;4;;;MS 2026-07-05;;1;;
+MS;Alamo Style;call_alamo_style;Allemande Left in Alamo Style;fest;4;;;MS 2026-07-05;Ocean Wave Family;1;;
+MS;Balance;call_balance;;fest;4;;;MS 2026-07-05;Ocean Wave Family;1;;
+MS;Step to a Wave;call_step_to_a_wave;;fest;2;;;MS 2026-07-05;Ocean Wave Family;1;;
+MS;Dosado to a Wave;call_dosado_to_a_wave;;fest;6;;;MS 2026-07-05;Ocean Wave Family;1;;
+MS;Single Circle to a Wave;call_single_circle_to_a_wave;;fest;4;;;MS 2026-07-05;Ocean Wave Family;1;;
+MS;Pass the Ocean;call_pass_the_ocean;;fest;4;;;MS 2026-07-05;;1;;
+MS;Pass Thru;call_pass_thru;Facing Dancers;fest;2;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Pass Thru;call_pass_thru;SS Heads or Sides;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Promenade Couples;call_couples_promenade;SS full around;fest;16;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Promenade Couples;call_couples_promenade;SS 3/4 around;fest;12;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Promenade Couples;call_couples_promenade;SS 1/2 around;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Promenade Couples;call_couples_promenade;SS 1/4 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Single File Promenade;call_single_file_promenade;4 Dancers inside;fest;8;;;MS 2026-07-05;;1;;
+MS;Star Promenade;call_star_promenade;Four Couples full around;fest;12;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Promenade;call_star_promenade;Four Couples 3/4 around;fest;9;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Promenade;call_star_promenade;Four Couples 1/2 around;fest;6;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Promenade;call_star_promenade;Four Couples 1/4 around;fest;3;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Promenade;call_star_promenade;Four Couples full around with back out at home;fest;16;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Wrong Way Promenade;call_wrong_way_promenade;SS full around;fest;16;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Wrong Way Promenade;call_wrong_way_promenade;SS 3/4 around;fest;12;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Wrong Way Promenade;call_wrong_way_promenade;SS 1/2 around;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Wrong Way Promenade;call_wrong_way_promenade;SS 1/4 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Recycle;call_recycle;;fest;4;;;MS 2026-07-05;;1;;
+MS;Right and Left Grand / Weave the Ring / Wrong Way Grand;call_right_and_left_grand|call_weave_the_ring|call_wrong_way_grand;;fest;10;;;MS 2026-07-05;;1;;
+MS;Right and Left Thru;call_right_and_left_thru;FC;fest;6;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Right and Left Thru;call_right_and_left_thru;Ocean Wave;fest;6;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Right and Left Thru;call_right_and_left_thru;SS Heads or Sides;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Run;call_run;;fest;4;;;MS 2026-07-05;;1;;
+MS;Cross Run;call_cross_run;;fest;6;;;MS 2026-07-05;;1;;
+MS;Scoot Back;call_scoot_back;;fest;6;;;MS 2026-07-05;;1;;
+MS;Separate;call_separate;;dynamisch;2;;;MS 2026-07-05;2 plus time to travel around the outside;1;;
+MS;Separate around 1 to a Line;call_separate_around_to_a_line;Pass Thru, Separate Around 1 to a Line;fest;8;;;MS 2026-07-05;;1;;
+MS;Separate around 2 to a Line;call_separate_around_to_a_line;Pass Thru, Separate Around 2 to a Line;fest;10;;;MS 2026-07-05;;1;;
+MS;Separate around 1 into the Middle;call_separate_around_come_into_middle;Pass Thru, Separate Around 1 into the Middle;fest;8;;;MS 2026-07-05;;1;;
+MS;Separate around 2 into the Middle;call_separate_around_come_into_middle;Pass Thru, Separate Around 2 into the Middle;fest;12;;;MS 2026-07-05;;1;;
+MS;Slide Thru;call_slide_thru;;fest;4;;;MS 2026-07-05;;1;;
+MS;Spin the Top;call_spin_the_top;;fest;8;;;MS 2026-07-05;;1;;
+MS;Split Two;call_split_two;;plus_call;2;;;MS 2026-07-05;2 plus next call;1;;
+MS;Square Thru / Left Square Thru;call_square_thru|call_left_square_thru;FC 1;fest;2;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Square Thru / Left Square Thru;call_square_thru|call_left_square_thru;FC 2;fest;5;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Square Thru / Left Square Thru;call_square_thru|call_left_square_thru;FC 3;bereich;7;8;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Square Thru / Left Square Thru;call_square_thru|call_left_square_thru;FC 4;fest;10;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Square Thru / Left Square Thru;call_square_thru|call_left_square_thru;SS odd numbers;call_plus;2;;;MS 2026-07-05;wörtlich: SS odd numbers: add 2 to previous count;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Four Dancers full around;fest;8;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Four Dancers 3/4 around;fest;6;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Four Dancers 1/2 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Four Dancers 1/4 around;fest;2;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Eight Dancers full around;fest;16;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Eight Dancers 3/4 around;fest;12;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Eight Dancers 1/2 around;fest;8;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Right / Left;call_right_hand_star|call_left_hand_star;Eight Dancers 1/4 around;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Star Thru;call_star_thru;;fest;4;;;MS 2026-07-05;;1;;
+MS;Sweep a Quarter;call_sweep_a_quarter;Two Couples;fest;2;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Sweep a Quarter;call_sweep_a_quarter;all Four Couples;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Swing;call_swing;;dynamisch;4;;;MS 2026-07-05;variable, at least 4;1;;
+MS;Swing Thru;call_swing_thru;;fest;6;;;MS 2026-07-05;;1;;
+MS;Tag the Line;call_tag_the_line;(Full) Tag;fest;6;;;MS 2026-07-05;Tag the Line Family;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Tag the Line;call_tag_the_line;3/4 Tag;fest;5;;;MS 2026-07-05;Tag the Line Family;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Tag the Line;call_tag_the_line;1/2 Tag;fest;4;;;MS 2026-07-05;Tag the Line Family;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Tag the Line;call_tag_the_line;1/4 Tag;fest;3;;;MS 2026-07-05;Tag the Line Family;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Touch a Quarter;call_touch_a_quarter;;fest;2;;;MS 2026-07-05;;1;;
+MS;Couples Trade;call_couples_trade;from Two-Faced Line;fest;6;;;MS 2026-07-05;Trade Family;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Couples Trade;call_couples_trade;from One-Faced Line;fest;8;;;MS 2026-07-05;Trade Family, more if non-adjacent;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;(Named Dancers) Trade;call_named_dancers_trade;Mini-Wave;fest;3;;;MS 2026-07-05;Trade Family;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;(Named Dancers) Trade;call_named_dancers_trade;Couple;fest;4;;;MS 2026-07-05;Trade Family;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;(Named Dancers) Trade;call_named_dancers_trade;Non-Adjacent Dancers;dynamisch;4;;;MS 2026-07-05;more than 4;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Partner Trade;call_partner_trade;;fest;4;;;MS 2026-07-05;Trade Family;1;;
+MS;Trade By;call_trade_by;;fest;4;;;MS 2026-07-05;;1;;
+MS;U-Turn Back;call_u_turn_back;;fest;2;;;MS 2026-07-05;Turn Back Family;1;;
+MS;Backtrack;call_backtrack;;fest;2;;;MS 2026-07-05;Turn Back Family;1;;
+MS;Veer Left (or Veer Right);call_veer_left|call_veer_right;;fest;2;;;MS 2026-07-05;;1;;
+MS;Wheel and Deal;call_wheel_and_deal;;fest;4;;;MS 2026-07-05;;1;;
+MS;Wheel Around (or Reverse Wheel Around);call_wheel_around|call_reverse_wheel_around;;fest;4;;;MS 2026-07-05;;1;;
+MS;Zoom;call_zoom;;fest;4;;;MS 2026-07-05;;1;;
+Plus;(Anything) & Roll;concept_anything_and_roll;;call_plus;2;;;Plus 2026-07-05;;1;;
+Plus;(Anything) & Spread;concept_anything_and_spread;;call_plus;2;;;Plus 2026-07-05;;1;;
+Plus;Acey Deucey;call_acey_deucey;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;All 8 Spin the Top;call_all_8_spin_the_top;;fest;10;;;Plus 2026-07-05;;1;;
+Plus;Chase Right;call_chase_right;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Circle to a Line;call_circle_to_a_line;;fest;8;;;Plus 2026-07-05;;1;;
+Plus;Clover and (Anything);concept_clover_and_anything;;max;4;;;Plus 2026-07-05;greater of 4 or the anything call;1;;
+Plus;Cloverleaf;call_cloverleaf;8 active dancers;fest;8;;;Plus 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Cloverleaf;call_cloverleaf;4 active dancers;fest;6;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Coordinate;call_coordinate;;fest;8;;;Plus 2026-07-05;;1;;
+Plus;Crossfire;call_crossfire;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Cut the Diamond;call_cut_the_diamond;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Diamond Circulate;call_diamond_circulate;;fest;3;;;Plus 2026-07-05;;1;;
+Plus;Dixie Grand;call_dixie_grand;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Dixie Style to an Ocean Wave;call_dixie_style_to_a_wave;Facing Couples or Facing Tandems;fest;6;;;Plus 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Dixie Style to an Ocean Wave;call_dixie_style_to_a_wave;SS All;fest;8;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Do Paso;call_do_paso;;fest;12;;;Plus 2026-07-05;;1;;
+Plus;Eight Chain Thru;call_eight_chain_thru;eight hands;fest;20;;;Plus 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Eight Chain Thru;call_eight_chain_thru;four hands;fest;10;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Eight Chain 1, 2, 3, etc.;call_eight_chain_thru;each odd-numbered part;fest;2;;;Plus 2026-07-05;Summe über die Teile;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Eight Chain 1, 2, 3, etc.;call_eight_chain_thru;each even-numbered part;fest;3;;;Plus 2026-07-05;Summe über die Teile;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Explode and (Anything);concept_explode_and_anything;;plus_call;2;;;Plus 2026-07-05;from Waves only;1;;
+Plus;Explode the Wave;call_explode_the_wave;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Fan the Top;call_fan_the_top;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;Flip the Diamond;call_flip_the_diamond;;fest;3;;;Plus 2026-07-05;;1;;
+Plus;Follow Your Neighbor;call_follow_your_neighbor;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Grand Swing Thru;call_grand_swing_thru;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Linear Cycle;call_linear_cycle;;bereich;8;10;;Plus 2026-07-05;from Waves only;1;;
+Plus;Load the Boat;call_load_the_boat;;fest;12;;;Plus 2026-07-05;;1;;
+Plus;Pair Off;call_pair_off;;fest;2;;;Plus 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Pair Off;call_pair_off;SS;fest;4;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Partner Hinge;call_partner_hinge;;fest;2;;;Plus 2026-07-05;;1;;
+Plus;Partner Tag;call_partner_tag;;fest;3;;;Plus 2026-07-05;;1;;
+Plus;Pass the Sea;call_pass_the_sea;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Pass to the Center;call_pass_to_the_center;new Centers;fest;2;;;Plus 2026-07-05;parallel: new Ends 6;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Pass to the Center;call_pass_to_the_center;new Ends;fest;6;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Peel Off;call_peel_off;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;Peel the Top;call_peel_the_top;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Ping Pong Circulate;call_ping_pong_circulate;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Quarter Thru;call_quarter_thru;;fest;6;;;Plus 2026-07-05;Quarter Thru Family;1;;
+Plus;Three-Quarter Thru;call_three_quarter_thru;;fest;8;;;Plus 2026-07-05;Quarter Thru Family;1;;
+Plus;Grand Quarter Thru;call_grand_quarter_thru;;fest;6;;;Plus 2026-07-05;Quarter Thru Family;1;;
+Plus;Grand Three Quarter Thru;call_grand_three_quarter_thru;;fest;8;;;Plus 2026-07-05;Quarter Thru Family;1;;
+Plus;Relay the Deucey;call_relay_the_deucey;;fest;20;;;Plus 2026-07-05;;1;;
+Plus;Scoot and Dodge;call_scoot_and_dodge;;fest;8;;;Plus 2026-07-05;;1;;
+Plus;See Saw;call_see_saw;;fest;8;;;Plus 2026-07-05;;1;;
+Plus;Shoot the Star;call_shoot_the_star;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;Shoot the Star Full Around;call_shoot_the_star;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Slip the Clutch;call_slip_the_clutch;;fest;2;;;Plus 2026-07-05;;1;;
+Plus;Spin Chain and Exchange the Gears;call_spin_chain_and_exchange_the_gears;;fest;26;;;Plus 2026-07-05;;1;;
+Plus;Spin Chain the Gears;call_spin_chain_the_gears;;fest;24;;;Plus 2026-07-05;;1;;
+Plus;Spin Chain Thru;call_spin_chain_thru;resulting Ends;fest;3;;;Plus 2026-07-05;parallel: resulting Centers 16;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Spin Chain Thru;call_spin_chain_thru;resulting Centers;fest;16;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Teacup Chain;call_teacup_chain;;fest;32;;;Plus 2026-07-05;;1;;
+Plus;Allemande Thar;call_allemande_thar;Left Arm Turn 1/2 to Thar;fest;2;;;Plus 2026-07-05;Thar Family;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Allemande Thar;call_allemande_thar;SS Allemande Left Forward Two to Thar;fest;12;;;Plus 2026-07-05;Thar Family;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Wrong Way Thar;call_wrong_way_thar;Right Arm Turn 1/2 to Wrong Way Thar;fest;2;;;Plus 2026-07-05;Thar Family;1;;
+Plus;Track 2;call_track_2;;fest;8;;;Plus 2026-07-05;;1;;
+Plus;Trade the Wave;call_trade_the_wave;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Triple Scoot;call_triple_scoot;;fest;6;;;Plus 2026-07-05;;1;;
+Plus;Triple Trade;call_triple_trade;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;Turn Thru;call_turn_thru;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;Walk and Dodge;call_walk_and_dodge;;fest;4;;;Plus 2026-07-05;;1;;
+Plus;Walk Around the Corner;call_walk_around;;fest;8;;;Plus 2026-07-05;;1;;
+A1;Any Hand (Anything);concept_any_hand;;not_timed;;;;A1 2025-06-12;;1;;
+A1;(Anything) and Cross / (Named Dancers) Cross;call_anything_and_cross|call_named_dancers_cross;;call_plus;2;;;A1 2025-06-12;;1;;
+A1;As Couples Concept;concept_as_couples;;not_timed;;;;A1 2025-06-12;;1;;
+A1;Brace Thru (formerly Half Breed Thru);call_brace_thru;;fest;6;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Brace Thru (formerly Half Breed Thru);call_brace_thru;SS;fest;8;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Cast A Shadow;call_cast_a_shadow;;fest;10;;;A1 2025-06-12;;1;;
+A1;Chain Reaction (1/4 Tag);call_chain_reaction;;fest;12;;;A1 2025-06-12;;1;;
+A1;Clover and (Anything);concept_clover_and_anything;;max;4;;;A1 2025-06-12;greater of 4 or the call, Tabelle 2022: 4 + Call;1;;
+A1;Cross Clover and (Anything);call_cross_clover_and_anything;;max;10;;;A1 2025-06-12;greater of 10 or the call, Tabelle 2022: 10 + Call;1;;
+A1;Cross Over Circulate;call_cross_over_circulate;;fest;6;;;A1 2025-06-12;;1;;
+A1;Cross Trail Thru;call_cross_trail_thru;;fest;6;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Cross Trail Thru;call_cross_trail_thru;SS;fest;6;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Cycle and Wheel;call_cycle_and_wheel;;fest;4;;;A1 2025-06-12;;1;;
+A1;Double Star Thru;call_double_star_thru;;fest;6;;;A1 2025-06-12;;1;;
+A1;Ends Bend;call_ends_bend;;fest;2;;;A1 2025-06-12;;1;;
+A1;Explode and (Anything);concept_explode_and_anything;;plus_call;2;;;A1 2025-06-12;;1;;
+A1;Explode the Line;call_explode_the_line;;fest;6;;;A1 2025-06-12;;1;;
+A1;Fractional Tops;call_fractional_tops;1/4 the Top;fest;4;;;A1 2025-06-12;from point of contact;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Fractional Tops;call_fractional_tops;1/2 the Top;fest;6;;;A1 2025-06-12;from point of contact;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Fractional Tops;call_fractional_tops;3/4 the Top;fest;8;;;A1 2025-06-12;from point of contact;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Grand Quarter Thru;call_grand_quarter_thru;;fest;6;;;A1 2025-06-12;;1;;
+A1;Grand Three-Quarter Thru;call_grand_three_quarter_thru;;fest;8;;;A1 2025-06-12;;1;;
+A1;Grand Follow Your Neighbor;call_grand_follow_your_neighbor;;fest;6;;;A1 2025-06-12;;1;;
+A1;Horseshoe Turn;call_horseshoe_turn;;fest;6;;;A1 2025-06-12;;1;;
+A1;Lockit;call_lockit;;fest;4;;;A1 2025-06-12;;1;;
+A1;Mix;call_mix;;fest;6;;;A1 2025-06-12;;1;;
+A1;Pair Off;call_pair_off;;fest;2;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Pair Off;call_pair_off;SS;fest;4;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Partner Hinge;call_partner_hinge;;fest;2;;;A1 2025-06-12;;1;;
+A1;Partner Tag;call_partner_tag;;fest;3;;;A1 2025-06-12;;1;;
+A1;Pass In / Out;call_pass_in|call_pass_out;;fest;4;;;A1 2025-06-12;;1;;
+A1;Pass the Sea;call_pass_the_sea;;fest;6;;;A1 2025-06-12;;1;;
+A1;Quarter In / Out;call_quarter_in|call_quarter_out;;fest;2;;;A1 2025-06-12;;1;;
+A1;Quarter Thru;call_quarter_thru;;fest;6;;;A1 2025-06-12;;1;;
+A1;Right (Left) Roll to a Wave;call_roll_to_a_wave;Tandem or Back-to-Back;fest;4;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Right (Left) Roll to a Wave;call_roll_to_a_wave;Facing Dancers;fest;2;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Scoot and Dodge;call_scoot_and_dodge;;fest;8;;;A1 2025-06-12;;1;;
+A1;Six-Two Acey Deucey;call_six_two_acey_deucey;;fest;4;;;A1 2025-06-12;;1;;
+A1;Split Square Chain Thru;call_split_square_chain_thru;;fest;12;;;A1 2025-06-12;;1;;
+A1;Split Square Thru;call_split_square_thru;from SS full;fest;12;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Split Square Thru;call_split_square_thru;from SS 3/4;fest;10;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Split Square Thru;call_split_square_thru;from SS 1/2;fest;8;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Split Square Thru;call_split_square_thru;from Box full;fest;10;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Split Square Thru;call_split_square_thru;from Box 3/4;fest;8;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Split Square Thru;call_split_square_thru;from Box 1/2;fest;6;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Square Chain Thru;call_square_chain_thru;;fest;14;;;A1 2025-06-12;;1;;
+A1;Step and Slide;call_step_and_slide;;fest;4;;;A1 2025-06-12;;1;;
+A1;Swap Around / Reverse Swap Around;call_swap_around|call_reverse_swap_around;;fest;4;;;A1 2025-06-12;"im Original ""Swap Arouond""";1;;
+A1;Three-Quarter Thru;call_three_quarter_thru;;fest;8;;;A1 2025-06-12;;1;;
+A1;Transfer the Column;call_transfer_the_column;;fest;10;;;A1 2025-06-12;;1;;
+A1;Triple Cross;call_triple_cross;;fest;4;;;A1 2025-06-12;;1;;
+A1;Double Cross;call_double_cross;;fest;3;;;A1 2025-06-12;;1;;
+A1;Triple Star Thru;call_triple_star_thru;;fest;10;;;A1 2025-06-12;;1;;
+A1;Triple Trade;call_triple_trade;;fest;4;;;A1 2025-06-12;;1;;
+A1;Turn and Deal;call_turn_and_deal;;fest;4;;;A1 2025-06-12;;1;;
+A1;Wheel Thru / Left Wheel Thru;call_wheel_thru|call_left_wheel_thru;SS;fest;6;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Wheel Thru / Left Wheel Thru;call_wheel_thru|call_left_wheel_thru;Facing Couples;fest;4;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;All 4 Couples Chase Right;concept_all_4_couples+call_chase_right;;fest;10;;;A2 2025-06-12;;1;;
+A2;All 4 Couples Cross Trail Thru;concept_all_4_couples+call_cross_trail_thru;;fest;10;;;A2 2025-06-12;;1;;
+A2;All 4 Couples Pass Thru;concept_all_4_couples+call_pass_thru;;fest;8;;;A2 2025-06-12;;1;;
+A2;All 4 Couples Right and Left Thru;concept_all_4_couples+call_right_and_left_thru;;fest;10;;;A2 2025-06-12;;1;;
+A2;All 4 Couples Star Thru;concept_all_4_couples+call_star_thru;;fest;6;;;A2 2025-06-12;;1;;
+A2;All 8 Swing Thru;concept_all_8+call_swing_thru;;fest;8;;;A2 2025-06-12;;1;;
+A2;All 8 Dixie Style to a Wave;concept_all_8+call_dixie_style_to_a_wave;;fest;8;;;A2 2025-06-12;;1;;
+A2;All 8 Walk and Dodge;concept_all_8+call_walk_and_dodge;;fest;6;;;A2 2025-06-12;;1;;
+A2;All 8 Mix;concept_all_8+call_mix;;fest;10;;;A2 2025-06-12;;1;;
+A2;Checkmate the Column;call_checkmate_the_column;;fest;10;;;A2 2025-06-12;;1;;
+A2;Cut the Hourglass;call_cut_the_hourglass;;fest;6;;;A2 2025-06-12;;1;;
+A2;Diamond Chain Thru;call_diamond_chain_thru;;fest;10;;;A2 2025-06-12;;1;;
+A2;Flip the Hourglass;call_flip_the_hourglass;;fest;4;;;A2 2025-06-12;;1;;
+A2;Hourglass Circulate;call_hourglass_circulate;;fest;4;;;A2 2025-06-12;;1;;
+A2;In Roll Circulate;call_in_roll_circulate;;fest;4;;;A2 2025-06-12;;1;;
+A2;Mini-Busy;call_mini_busy;;fest;6;;;A2 2025-06-12;;1;;
+A2;Motivate;call_motivate;;fest;16;;;A2 2025-06-12;;1;;
+A2;Out Roll Circulate;call_out_roll_circulate;;fest;6;;;A2 2025-06-12;;1;;
+A2;Pass and Roll;call_pass_and_roll;;fest;10;;;A2 2025-06-12;;1;;
+A2;Pass and Roll Your Neighbor;call_pass_and_roll_your_neighbor;;fest;12;;;A2 2025-06-12;;1;;
+A2;Peel and Trail;call_peel_and_trail;from Tandem Couples;fest;4;;;A2 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Peel and Trail;call_peel_and_trail;from Box Circulate or Z;fest;6;;;A2 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Recycle;call_recycle;from Facing Couples;fest;6;;;A2 2025-06-12;;1;;
+A2;Remake;call_remake;Alamo;fest;12;;;A2 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Remake;call_remake;Others (including Grand);fest;10;;;A2 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Remake the Thar;call_remake_the_thar;;fest;10;;;A2 2025-06-12;;1;;
+A2;Scoot and Weave;call_scoot_and_weave;Waves;fest;10;;;A2 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Scoot and Weave;call_scoot_and_weave;1/4 Tag;fest;10;;;A2 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Scoot Chain Thru;call_scoot_chain_thru;Waves;fest;12;;;A2 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Scoot Chain Thru;call_scoot_chain_thru;1/4 Tag;fest;12;;;A2 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A2;Single Wheel;call_single_wheel;from Couple or Mini-Wave;fest;4;;;A2 2025-06-12;;1;;
+A2;Slide;call_slide_a2;;fest;3;;;A2 2025-06-12;;1;;
+A2;Slip;call_slip;;fest;3;;;A2 2025-06-12;;1;;
+A2;Slither;call_slither;;fest;3;;;A2 2025-06-12;;1;;
+A2;Spin the Windmill;call_spin_the_windmill;;fest;12;;;A2 2025-06-12;;1;;
+A2;Split / Box Counter Rotate;call_split_counter_rotate|call_box_counter_rotate;1/4;fest;4;;;A2 2025-06-12;;1;;
+A2;Split / Box Transfer;call_split_transfer|call_box_transfer;;fest;8;;;A2 2025-06-12;;1;;
+A2;Swing;call_swing;;fest;3;;;A2 2025-06-12;"A2-Call ""Swing"" (Mini-Wave), nicht der MS-Swing";1;;
+A2;Swing and Mix;call_swing_and_mix;;fest;8;;;A2 2025-06-12;;1;;
+A2;Switch the Wave;call_switch_the_wave;;fest;6;;;A2 2025-06-12;;1;;
+A2;Switch to a Diamond;call_switch_to_a_diamond;from Waves;fest;4;;;A2 2025-06-12;;1;;
+A2;Switch to an Hourglass;call_switch_to_an_hourglass;from Waves;fest;4;;;A2 2025-06-12;;1;;
+A2;Trade Circulate;call_trade_circulate;;fest;6;;;A2 2025-06-12;;1;;
+A2;Trail Off;call_trail_off;;fest;6;;;A2 2025-06-12;;1;;
+A2;Transfer and (Anything);concept_transfer_and_anything;;fest;8;;5;A2 2025-06-12;Anything starts on 5, längere Anything-Calls verlängern die Dauer;1;;
+A2;Zig Zag and variations;call_zig_zag;;fest;2;;;A2 2025-06-12;;1;;
+MS;Promenade Home;call_couples_promenade;;dynamisch;4;16;;abgeleitet;aus Promenade Couples (SS 1/4 bis full around), Wert je nach Startposition, aus Taminations;1;;
+MS;Swing and Promenade (Singing-Call-Ende);call_swing+call_couples_promenade;;dynamisch;8;;;abgeleitet;Swing (variable, at least 4) + Promenade Home (4 bis 16), üblich 8 + 16 = 24, Wert aus Taminations;1;;
