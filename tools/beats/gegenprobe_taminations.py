@@ -30,6 +30,8 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "src"))
+from caddy.beats import variant_rules as vr  # noqa: E402
 CSV_PATH = os.path.join(HERE, "callerlab_timing.csv")
 VALUE_TYPES = ("fest", "bereich", "dynamisch")
 STD_NOTE = "Standard-Variante vorgeschlagen, bitte bestaetigen"  # aus zuordnung_vorschlag.py
@@ -63,8 +65,35 @@ def samples(folder, emap):
                 continue
             ents = emap.get(text, set())
             if len(ents) == 1:
-                out[next(iter(ents))].append(float(b))
+                out[next(iter(ents))].append((float(b), text, i == s.get("n_start", 0)))
     return out
+
+
+def per_variant(groups, tb, min_n):
+    """Je App-Call: Zeilen der ersten Chart, die ihn fuehrt; jede Taminations-Zeile per
+    Variantenregel (caddy.beats.variant_rules.choose) einer Chart-Zeile zugeordnet."""
+    by_ent = collections.OrderedDict()
+    for grp in groups.values():
+        for r in grp:
+            for e in (x for x in r["entity_ids"].split("|") if x and "+" not in x):
+                by_ent.setdefault(e, {}).setdefault(r["programm"], []).append(r)
+    res = []
+    for e, charts in by_ent.items():
+        rows = next(iter(charts.values()))
+        hits = collections.defaultdict(list)
+        for b, text, first in tb.get(e, []):
+            row, how = vr.choose(rows, text, squared_set=first)
+            hits[id(row)].append(b)
+        for r in rows:
+            v = hits.get(id(r), [])
+            if len(v) < min_n or r["typ"] not in VALUE_TYPES or not r["beats"]:
+                continue
+            lo, hi = row_value(r)
+            med = st.median(v)
+            res.append(dict(e=e, prog=r["programm"], call=r["call"], var=r["variante"] or "(ohne)",
+                            regel=r["variante_regel"] or ("Standard" if r["standard"] == "1" else ""),
+                            n=len(v), med=med, val=fmt(lo, hi), d=dist(med, lo, hi)))
+    return res
 
 
 def row_value(r):
@@ -100,7 +129,7 @@ def main():
     out, ohne = [], []
     for (prog, call), grp in groups.items():
         ents = {e for r in grp for e in r["entity_ids"].split("|") if e and "+" not in e}
-        v = [b for e in ents for b in tb.get(e, [])]
+        v = [b for e in ents for b, *_ in tb.get(e, [])]
         vals = [r for r in grp if r["typ"] in VALUE_TYPES and r["beats"]]
         if not vals:
             continue
@@ -156,6 +185,18 @@ def main():
             wr.writeheader()
             wr.writerows(rows)
         print(f"[--bestaetigen] {n} Zeilen als geprueft markiert", file=sys.stderr)
+
+    pv = per_variant(groups, tb, a.min_n)
+    c2 = collections.Counter("im Wert" if o["d"] == 0 else "bis 1" if abs(o["d"]) <= 1
+                             else "bis 2" if abs(o["d"]) <= 2 else "mehr als 2" for o in pv)
+    print("\n## E. Je Variante: Kartentext per Variantenregel zugeordnet (Spalte variante_regel)\n")
+    print(f"{len(pv)} Varianten mit mind. {a.min_n} Vorkommen: "
+          + ", ".join(f"{k} {c2[k]}" for k in ("im Wert", "bis 1", "bis 2", "mehr als 2")))
+    print(f"\n{'Prog':4} {'Call':34} {'Variante':28} {'Regel':22} {'n':>5} {'Median':>6} "
+          f"{'Chart':>6} {'Abw.':>5}")
+    for o in sorted(pv, key=lambda o: (-abs(o["d"]), -o["n"])):
+        print(f"{o['prog']:4} {o['call'][:34]:34} {o['var'][:28]:28} {o['regel'][:22]:22} "
+              f"{o['n']:5} {o['med']:6g} {o['val']:>6} {o['d']:+5g}")
 
     print(f"\n## D. Ohne genug Taminations-Daten (< {a.min_n}): {len(ohne)} Calls\n")
     print("; ".join(ohne))

@@ -57,6 +57,174 @@ A2   Remake                                   n=22    Median 9, Standard Others 
 A2   Scoot and Weave                          n=54    Median 9.5, Standard Waves (10)
 A2   Scoot Chain Thru                         n=49    Median 13, Standard Waves (12)
 
+## E. Je Variante: Kartentext per Variantenregel zugeordnet (Spalte variante_regel)
+
+162 Varianten mit mind. 15 Vorkommen: im Wert 97, bis 1 41, bis 2 20, mehr als 2 4
+
+Prog Call                               Variante                     Regel                      n Median  Chart  Abw.
+Plus Eight Chain 1, 2, 3, etc.          each odd-numbered part       parts                     92    7.5      2  +5.5
+MS   Forward and Back                   all others                   Standard                  47      4      8    -4
+MS   Cross Run                          (ohne)                       Standard                 124      3      6    -3
+MS   Dosado to a Wave                   (ohne)                       Standard                  64      8      6    +2
+MS   Separate around 1 to a Line        Pass Thru, Separate Around 1 number=1,minus_pass_th   233      6      8    -2
+Plus Cloverleaf                         8 active dancers             Standard                 184      6      8    -2
+A1   Cast A Shadow                      (ohne)                       Standard                 159      8     10    -2
+MS   Pass Thru                          SS Heads or Sides            ss                       158      2      4    -2
+Plus Crossfire                          (ohne)                       Standard                 145      4      6    -2
+A1   Wheel Thru / Left Wheel Thru       SS                           ss                       105      4      6    -2
+Plus Spin Chain and Exchange the Gears  (ohne)                       Standard                 102     28     26    +2
+A1   Right (Left) Roll to a Wave        Facing Dancers               Standard                 101      4      2    +2
+A2   Trade Circulate                    (ohne)                       Standard                  70      4      6    -2
+MS   Ladies Chain                       Two Ladies from FC           Standard                  62      8      6    +2
+MS   First Couple Go Left/Right, Next C (ohne)                       Standard                  32      4      6    -2
+Plus Scoot and Dodge                    (ohne)                       Standard                  32      6      8    -2
+MS   Flutterwheel (or Reverse Flutterwh SS Heads or Sides            ss                        30      8     10    -2
+A1   Split Square Chain Thru            (ohne)                       Standard                  28     14     12    +2
+A1   Wheel Thru / Left Wheel Thru       SS                           ss                        28      4      6    -2
+Plus Quarter Thru                       (ohne)                       Standard                 232    4.5      6  -1.5
+Plus Spin Chain the Gears               (ohne)                       Standard                  74   22.5     24  -1.5
+MS   Square Thru / Left Square Thru     FC 4                         number=4                  66    8.5     10  -1.5
+A2   Checkmate the Column               (ohne)                       Standard                  54    8.5     10  -1.5
+A2   Pass and Roll Your Neighbor        (ohne)                       Standard                  16   13.5     12  +1.5
+MS   Swing Thru                         (ohne)                       Standard                2291      7      6    +1
+MS   Run                                (ohne)                       Standard                2180      3      4    -1
+Plus Walk and Dodge                     (ohne)                       Standard                 344      3      4    -1
+MS   U-Turn Back                        (ohne)                       Standard                 325      3      2    +1
+A1   Chain Reaction (1/4 Tag)           (ohne)                       Standard                 233     11     12    -1
+MS   Arm Turns                          1/2 around                   fraction=1/2             225      5      4    +1
+Plus Dixie Grand                        (ohne)                       Standard                 199      7      6    +1
+MS   Partner Trade                      (ohne)                       Standard                 175      3      4    -1
+Plus Circle to a Line                   (ohne)                       Standard                 166      9      8    +1
+Plus Pass the Sea                       (ohne)                       Standard                  96      5      6    -1
+A1   Transfer the Column                (ohne)                       Standard                  93      9     10    -1
+MS   Half Sashay / Rollaway / Ladies In (ohne)                       Standard                  84      3      4    -1
+Plus Partner Tag                        (ohne)                       Standard                  84      4      3    +1
+MS   Right and Left Thru                SS Heads or Sides            ss                        83      7      8    -1
+MS   Dive Thru                          Couple making arch           Standard                  78      5      6    -1
+Plus Spin Chain Thru                    resulting Centers            Standard                  69     17     16    +1
+A2   Pass and Roll                      (ohne)                       Standard                  58     11     10    +1
+Plus Relay the Deucey                   (ohne)                       Standard                  57     21     20    +1
+A2   Scoot Chain Thru                   Waves                        Standard                  49     13     12    +1
+MS   Wheel Around (or Reverse Wheel Aro (ohne)                       Standard                  44      3      4    -1
+A2   Single Wheel                       from Couple or Mini-Wave     Standard                  39      3      4    -1
+Plus Triple Trade                       (ohne)                       Standard                  31      3      4    -1
+A2   Switch to a Diamond                from Waves                   Standard                  31      3      4    -1
+A1   Triple Star Thru                   (ohne)                       Standard                  25      9     10    -1
+A2   Remake                             Others (including Grand)     Standard                  22      9     10    -1
+MS   Courtesy Turn                      (ohne)                       Standard                  21      3      4    -1
+MS   Touch a Quarter                    (ohne)                       Standard                1223    2.5      2  +0.5
+MS   Square Thru / Left Square Thru     FC 3                         number=3                 848    6.5    7-8  -0.5
+MS   Single Hinge                       (ohne)                       Standard                 684    1.5      2  -0.5
+MS   Spin the Top                       (ohne)                       Standard                 537    7.5      8  -0.5
+MS   Tag the Line                       (Full) Tag                   Standard                 452    5.5      6  -0.5
+Plus Dixie Style to an Ocean Wave       Facing Couples or Facing Tan Standard                 227    5.5      6  -0.5
+MS   Chain Down the Line                (ohne)                       Standard                 181    7.5      8  -0.5
+A2   Scoot and Weave                    Waves                        Standard                  54    9.5     10  -0.5
+A1   Split Square Thru                  from Box full                number=4                  47    9.5     10  -0.5
+A2   Spin the Windmill                  (ohne)                       Standard                  38   12.5     12  +0.5
+MS   Four Ladies Chain                  3/4                          fraction=3/4              37    9.5     10  -0.5
+MS   Tag the Line                       3/4 Tag                      fraction=3/4              26    4.5      5  -0.5
+Plus Three-Quarter Thru                 (ohne)                       Standard                  26    7.5      8  -0.5
+A2   Diamond Chain Thru                 (ohne)                       Standard                  18   10.5     10  +0.5
+Plus Fan the Top                        (ohne)                       Standard                 455      4      4 +7.10543e-15
+MS   Pass Thru                          Facing Dancers               Standard                2543      2      2    +0
+MS   Square Thru / Left Square Thru     FC 4                         number=4                1447     10     10    +0
+MS   (Named Dancers) Trade              Mini-Wave                    Standard                1406      3      3    +0
+MS   Right and Left Thru                FC                           Standard                1291      6      6    +0
+MS   Pass the Ocean                     (ohne)                       Standard                1224      4      4    +0
+MS   Extend                             (ohne)                       Standard                1063      2      2    +0
+MS   Star Thru                          (ohne)                       Standard                 863      4      4    +0
+MS   Double Pass Thru                   (ohne)                       Standard                 680      4      4    +0
+MS   Bend the Line                      Line of Four                 Standard                 640      4      4    +0
+MS   Wheel and Deal                     (ohne)                       Standard                 640      4      4    +0
+MS   Recycle                            (ohne)                       Standard                 628      4      4    +0
+MS   Circulates                         (ohne)                       Standard                 558      4      4    +0
+MS   Slide Thru                         (ohne)                       Standard                 557      4      4    +0
+MS   Scoot Back                         (ohne)                       Standard                 504      6      6    +0
+MS   Trade By                           (ohne)                       Standard                 499      4      4    +0
+MS   Ferris Wheel                       (ohne)                       Standard                 431      6      6    +0
+Plus Acey Deucey                        (ohne)                       Standard                 422      4      4    +0
+Plus Grand Swing Thru                   (ohne)                       Standard                 417      6      6    +0
+MS   Veer Left (or Veer Right)          (ohne)                       Standard                 415      2      2    +0
+MS   Circulates                         (ohne)                       Standard                 400      4      4    +0
+MS   Circulates                         (ohne)                       Standard                 384      4      4    +0
+MS   Cast Off 3/4                       (ohne)                       Standard                 375      6      6    +0
+MS   Lead Right (or Lead Left)          (ohne)                       Standard                 364      4      4    +0
+Plus Explode the Wave                   (ohne)                       Standard                 320      6      6    +0
+MS   Circulates                         (ohne)                       Standard                 317      4      4    +0
+MS   Promenade Couples                  SS 1/2 around                fraction=1/2             293      8      8    +0
+MS   Zoom                               (ohne)                       Standard                 288      4      4    +0
+MS   Dosado                             otherwise                    Standard                 287      6      6    +0
+Plus Load the Boat                      (ohne)                       Standard                 287     12     12    +0
+MS   Centers In                         (ohne)                       Standard                 277      2      2    +0
+MS   Fold                               (ohne)                       Standard                 233      2      2    +0
+Plus Track 2                            (ohne)                       Standard                 232      8      8    +0
+MS   Box the Gnat                       (ohne)                       Standard                 228      4      4    +0
+Plus Linear Cycle                       (ohne)                       Standard                 217    9.5   8-10    +0
+Plus Ping Pong Circulate                (ohne)                       Standard                 216      6      6    +0
+Plus Diamond Circulate                  (ohne)                       Standard                 212      3      3    +0
+MS   Sweep a Quarter                    Two Couples                  Standard                 206      2      2    +0
+MS   Half Sashay / Rollaway / Ladies In (ohne)                       Standard                 202      4      4    +0
+Plus Chase Right                        (ohne)                       Standard                 202      6      6    +0
+Plus Coordinate                         (ohne)                       Standard                 198      8      8    +0
+MS   Flutterwheel (or Reverse Flutterwh FC                           Standard                 191      8      8    +0
+Plus Trade the Wave                     (ohne)                       Standard                 190      6      6    +0
+Plus Flip the Diamond                   (ohne)                       Standard                 180      3      3    +0
+MS   Cross Fold                         (ohne)                       Standard                 169      4      4    +0
+MS   Flutterwheel (or Reverse Flutterwh FC                           Standard                 131      8      8    +0
+Plus Pass to the Center                 new Ends                     Standard                 129      6      6    +0
+MS   Single Circle to a Wave            (ohne)                       Standard                 127      4      4    +0
+Plus Peel Off                           (ohne)                       Standard                 122      4      4    +0
+Plus Follow Your Neighbor               (ohne)                       Standard                 115      6      6    +0
+A1   Pass In / Out                      (ohne)                       Standard                 113      4      4    +0
+A1   Square Chain Thru                  (ohne)                       Standard                 110     14     14    +0
+A1   Turn and Deal                      (ohne)                       Standard                 101      4      4    +0
+MS   Step to a Wave                     (ohne)                       Standard                  99      2      2    +0
+MS   Veer Left (or Veer Right)          (ohne)                       Standard                  94      2      2    +0
+A1   Cross Over Circulate               (ohne)                       Standard                  92      6      6    +0
+MS   Four Ladies Chain                  from SS                      Standard                  83      8      8    +0
+A1   Double Star Thru                   (ohne)                       Standard                  82      6      6    +0
+MS   Allemande Left (or Allemande Right 1/2 Arm Turn                 Standard                  81      6    4-6    +0
+Plus Peel the Top                       (ohne)                       Standard                  80      6      6    +0
+A1   Lockit                             (ohne)                       Standard                  78      4      4    +0
+MS   Square Thru / Left Square Thru     FC 2                         number=2                  77      5      5    +0
+A1   Horseshoe Turn                     (ohne)                       Standard                  71      6      6    +0
+MS   Couples Hinge                      (ohne)                       Standard                  70      3      3    +0
+Plus Cut the Diamond                    (ohne)                       Standard                  65      6      6    +0
+A2   Motivate                           (ohne)                       Standard                  59     16     16    +0
+Plus Triple Scoot                       (ohne)                       Standard                  57      6      6    +0
+MS   California Twirl                   (ohne)                       Standard                  56      4      4    +0
+Plus Turn Thru                          (ohne)                       Standard                  52      4      4    +0
+A2   In Roll Circulate                  (ohne)                       Standard                  48      4      4    +0
+A2   Split / Box Counter Rotate         1/4                          Standard                  48      4      4    +0
+A1   Wheel Thru / Left Wheel Thru       Facing Couples               Standard                  44      4      4    +0
+A1   Ends Bend                          (ohne)                       Standard                  41      2      2    +0
+A1   Swap Around / Reverse Swap Around  (ohne)                       Standard                  41      4      4    +0
+MS   Ladies Chain                       Two Ladies from SS           ss                        39      8      8    +0
+A1   Step and Slide                     (ohne)                       Standard                  39      4      4    +0
+A1   Swap Around / Reverse Swap Around  (ohne)                       Standard                  38      4      4    +0
+A1   Pass In / Out                      (ohne)                       Standard                  35      4      4    +0
+A2   Switch the Wave                    (ohne)                       Standard                  35      6      6    +0
+A1   Cycle and Wheel                    (ohne)                       Standard                  34      4      4    +0
+A1   Quarter In / Out                   (ohne)                       Standard                  32      2      2    +0
+A2   Slip                               (ohne)                       Standard                  31      3      3    +0
+A2   Out Roll Circulate                 (ohne)                       Standard                  29      6      6    +0
+MS   Square Thru / Left Square Thru     FC 3                         number=3                  27      7    7-8    +0
+A1   Explode the Line                   (ohne)                       Standard                  26      6      6    +0
+A1   Split Square Thru                  from Box 3/4                 number=3                  25      8      8    +0
+Plus Grand Quarter Thru                 (ohne)                       Standard                  24      6      6    +0
+A1   Mix                                (ohne)                       Standard                  23      6      6    +0
+A2   Peel and Trail                     from Tandem Couples          Standard                  22      4      4    +0
+Plus Pair Off                           SS                           ss                        21      4      4    +0
+A1   Cross Trail Thru                   (ohne)                       Standard                  21      6      6    +0
+A1   Wheel Thru / Left Wheel Thru       Facing Couples               Standard                  21      4      4    +0
+A2   Split / Box Transfer               (ohne)                       Standard                  21      8      8    +0
+A2   Hourglass Circulate                (ohne)                       Standard                  20      4      4    +0
+MS   Tag the Line                       1/2 Tag                      fraction=1/2              17      4      4    +0
+MS   Couples Trade                      from Two-Faced Line          Standard                  17      6      6    +0
+A2   Flip the Hourglass                 (ohne)                       Standard                  16      4      4    +0
+A1   Brace Thru (formerly Half Breed Th (ohne)                       Standard                  15      6      6    +0
+
 ## D. Ohne genug Taminations-Daten (< 15): 52 Calls
 
 MS Grand Square (n=1); MS Alamo Style (n=2); MS Balance (n=4); MS Single File Promenade (n=0); MS Star Promenade (n=4); MS Wrong Way Promenade (n=2); MS Separate (n=1); MS Separate around 1 into the Middle (n=1); MS Separate around 2 into the Middle (n=1); MS Star Right / Left (n=0); MS Swing (n=9); MS Backtrack (n=0); Plus All 8 Spin the Top (n=3); Plus Do Paso (n=1); Plus Partner Hinge (n=11); Plus Grand Three Quarter Thru (n=3); Plus See Saw (n=0); Plus Shoot the Star (n=10); Plus Shoot the Star Full Around (n=10); Plus Slip the Clutch (n=4); Plus Teacup Chain (n=5); Plus Allemande Thar (n=0); Plus Wrong Way Thar (n=0); Plus Walk Around the Corner (n=0); A1 Fractional Tops (n=0); A1 Grand Three-Quarter Thru (n=3); A1 Grand Follow Your Neighbor (n=4); A1 Partner Hinge (n=11); A1 Six-Two Acey Deucey (n=12); A1 Triple Cross (n=3); A1 Double Cross (n=0); A2 All 4 Couples Chase Right (n=0); A2 All 4 Couples Cross Trail Thru (n=0); A2 All 4 Couples Pass Thru (n=0); A2 All 4 Couples Right and Left Thru (n=0); A2 All 4 Couples Star Thru (n=0); A2 All 8 Swing Thru (n=0); A2 All 8 Dixie Style to a Wave (n=0); A2 All 8 Walk and Dodge (n=0); A2 All 8 Mix (n=0); A2 Cut the Hourglass (n=5); A2 Mini-Busy (n=14); A2 Remake the Thar (n=1); A2 Slide (n=0); A2 Slither (n=3); A2 Swing (n=9); A2 Swing and Mix (n=13); A2 Switch to an Hourglass (n=12); A2 Trail Off (n=11); A2 Transfer and (Anything) (n=1); A2 Zig Zag and variations (n=6); MS Swing and Promenade (Singing-Call-Ende) (n=0)

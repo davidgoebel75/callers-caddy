@@ -28,7 +28,7 @@ fehlen noch.
 |---|---|
 | `entity_ids` | App-Calls der Zeile (`calls.entity_id`). `a\|b` = einer davon, `a+b` = beide zusammen in einer Kartenzeile (Konzept + Call, z. B. All 4 Couples Pass Thru) |
 | `standard` | `1` = Standard-Variante des Calls. Gilt ohne Square Flow, wenn der Kartentext die Variante nicht verrät. Genau eine je Call und Chart |
-| `variante_regel` | Merkmal im Kartentext, an dem die Variante erkannt wird (folgt) |
+| `variante_regel` | Englische Kürzel, mit Komma getrennt: `number=N`, `odd`, `even`, `fraction=1/4\|1/2\|3/4\|full`, `ss`, `home`, `parts`, `minus_pass_thru`. Bedeutung und Auswahl in `src/caddy/beats/variant_rules.py`; Unbekanntes wird abgewiesen |
 | `pruefen` | Grund für eine Prüfung durch David. Leer = geprüft. Das Build-Werkzeug nimmt die Tabelle nur an, wenn die Spalte überall leer ist |
 | `programm` | Chart, aus der die Zeile stammt (MS, Plus, A1, A2). Manche Calls stehen in mehreren Charts. |
 | `call` | Name wie in der Chart |
