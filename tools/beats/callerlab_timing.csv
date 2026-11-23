@@ -39,8 +39,8 @@ MS;Flutterwheel (or Reverse Flutterwheel);call_flutterwheel|call_reverse_flutter
 MS;Flutterwheel (or Reverse Flutterwheel);call_flutterwheel|call_reverse_flutterwheel;SS All;fest;12;;;MS 2026-07-05;;;;
 MS;Fold;call_fold;;fest;2;;;MS 2026-07-05;;1;;
 MS;Cross Fold;call_cross_fold;;fest;4;;;MS 2026-07-05;;1;;
-MS;Forward and Back;call_forward_and_back;Lines close together;fest;4;;;MS 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
-MS;Forward and Back;call_forward_and_back;all others;fest;8;;;MS 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+MS;Forward and Back;call_forward_and_back;Lines close together;fest;4;;;MS 2026-07-05;;;;
+MS;Forward and Back;call_forward_and_back;all others;fest;8;;;MS 2026-07-05;Standard bestaetigt 2026-11-23 (David: CALLERLAB gilt, Taminations weicht ab);1;;
 MS;Grand Square;call_grand_square;;fest;32;;;MS 2026-07-05;;1;;
 MS;Half Sashay / Rollaway / Ladies In, Men Sashay;call_half_sashay|call_rollaway|call_ladies_in_men_sashay;;fest;4;;;MS 2026-07-05;;1;;
 MS;Couples Hinge;call_couples_hinge;;fest;3;;;MS 2026-07-05;Hinge Family;1;;
@@ -132,8 +132,8 @@ Plus;All 8 Spin the Top;call_all_8_spin_the_top;;fest;10;;;Plus 2026-07-05;;1;;
 Plus;Chase Right;call_chase_right;;fest;6;;;Plus 2026-07-05;;1;;
 Plus;Circle to a Line;call_circle_to_a_line;;fest;8;;;Plus 2026-07-05;;1;;
 Plus;Clover and (Anything);concept_clover_and_anything;;max;4;;;Plus 2026-07-05;greater of 4 or the anything call;1;;
-Plus;Cloverleaf;call_cloverleaf;8 active dancers;fest;8;;;Plus 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
-Plus;Cloverleaf;call_cloverleaf;4 active dancers;fest;6;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Cloverleaf;call_cloverleaf;8 active dancers;fest;8;;;Plus 2026-07-05;Standard bestaetigt 2026-11-23 (David: CALLERLAB gilt, Taminations weicht ab);1;;
+Plus;Cloverleaf;call_cloverleaf;4 active dancers;fest;6;;;Plus 2026-07-05;;;;
 Plus;Coordinate;call_coordinate;;fest;8;;;Plus 2026-07-05;;1;;
 Plus;Crossfire;call_crossfire;;fest;6;;;Plus 2026-07-05;;1;;
 Plus;Cut the Diamond;call_cut_the_diamond;;fest;6;;;Plus 2026-07-05;;1;;
@@ -142,8 +142,8 @@ Plus;Dixie Grand;call_dixie_grand;;fest;6;;;Plus 2026-07-05;;1;;
 Plus;Dixie Style to an Ocean Wave;call_dixie_style_to_a_wave;Facing Couples or Facing Tandems;fest;6;;;Plus 2026-07-05;;1;;
 Plus;Dixie Style to an Ocean Wave;call_dixie_style_to_a_wave;SS All;fest;8;;;Plus 2026-07-05;;;;
 Plus;Do Paso;call_do_paso;;fest;12;;;Plus 2026-07-05;;1;;
-Plus;Eight Chain Thru;call_eight_chain_thru;eight hands;fest;20;;;Plus 2026-07-05;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
-Plus;Eight Chain Thru;call_eight_chain_thru;four hands;fest;10;;;Plus 2026-07-05;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
+Plus;Eight Chain Thru;call_eight_chain_thru;eight hands;fest;20;;;Plus 2026-07-05;Standard bestaetigt 2026-11-23 (David: CALLERLAB gilt, Taminations weicht ab);1;;
+Plus;Eight Chain Thru;call_eight_chain_thru;four hands;fest;10;;;Plus 2026-07-05;;;;
 Plus;Eight Chain 1, 2, 3, etc.;call_eight_chain_thru;each odd-numbered part;fest;2;;;Plus 2026-07-05;Summe über die Teile;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
 Plus;Eight Chain 1, 2, 3, etc.;call_eight_chain_thru;each even-numbered part;fest;3;;;Plus 2026-07-05;Summe über die Teile;;;Standard-Variante vorgeschlagen, bitte bestaetigen
 Plus;Explode and (Anything);concept_explode_and_anything;;plus_call;2;;;Plus 2026-07-05;from Waves only;1;;
@@ -223,8 +223,8 @@ A1;Pass In / Out;call_pass_in|call_pass_out;;fest;4;;;A1 2025-06-12;;1;;
 A1;Pass the Sea;call_pass_the_sea;;fest;6;;;A1 2025-06-12;;1;;
 A1;Quarter In / Out;call_quarter_in|call_quarter_out;;fest;2;;;A1 2025-06-12;;1;;
 A1;Quarter Thru;call_quarter_thru;;fest;6;;;A1 2025-06-12;;1;;
-A1;Right (Left) Roll to a Wave;call_roll_to_a_wave;Tandem or Back-to-Back;fest;4;;;A1 2025-06-12;;;;Standard-Variante vorgeschlagen, bitte bestaetigen
-A1;Right (Left) Roll to a Wave;call_roll_to_a_wave;Facing Dancers;fest;2;;;A1 2025-06-12;;1;;Standard-Variante vorgeschlagen, bitte bestaetigen
+A1;Right (Left) Roll to a Wave;call_roll_to_a_wave;Tandem or Back-to-Back;fest;4;;;A1 2025-06-12;;;;
+A1;Right (Left) Roll to a Wave;call_roll_to_a_wave;Facing Dancers;fest;2;;;A1 2025-06-12;Standard bestaetigt 2026-11-23 (David: CALLERLAB gilt, Taminations weicht ab);1;;
 A1;Scoot and Dodge;call_scoot_and_dodge;;fest;8;;;A1 2025-06-12;;1;;
 A1;Six-Two Acey Deucey;call_six_two_acey_deucey;;fest;4;;;A1 2025-06-12;;1;;
 A1;Split Square Chain Thru;call_split_square_chain_thru;;fest;12;;;A1 2025-06-12;;1;;
