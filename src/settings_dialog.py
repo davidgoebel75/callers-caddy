@@ -54,6 +54,7 @@ _EXCLUDED_SUFFIX = "_dock"
 _EXCLUDED_KEYS: dict[str, set] = {
     "sequences": {
         "mdb_path", "json_import_dir", "mapping_export_dir", "csds_import_dir",
+        "detail_labels",  # intern#164: nur per Rechtsklick im Sequenz-Detail
     },
     "display": {"date_format"},  # eigener Toggle im Design-Menu
     "audio": set(),  # primary/secondary_device werden als device_combo angezeigt

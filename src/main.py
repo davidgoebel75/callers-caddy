@@ -969,7 +969,8 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr,
-                                                       session=self.session)
+                                                       session=self.session,
+                                                       settings=self._settings)
         # MS50: Sequenz-Filter und Sequenz-Detail (intern#176) lesen die Wahl beim
         # Erzeugen selbst (Sequenzen laedt _init_sequences() erst nach window.show()).
         # Der Player-Button braucht erst die fertige Verdrahtung (DB, Sequenzen-Sync).

@@ -11278,6 +11278,21 @@
     "en": "SF {beats}",
     "ja": "SF {beats}"
   },
+  "seq_labels_off": {
+    "de": "Programm und Beats ausblenden",
+    "en": "Hide program and beats",
+    "ja": "プログラムとビートを隠す"
+  },
+  "seq_labels_inline": {
+    "de": "Programm und Beats hinter dem Call",
+    "en": "Program and beats after the call",
+    "ja": "プログラムとビートをコールの後ろに表示"
+  },
+  "seq_labels_below": {
+    "de": "Programm und Beats unter dem Call",
+    "en": "Program and beats below the call",
+    "ja": "プログラムとビートをコールの下に表示"
+  },
   "seq_tam_open_btn": {
     "de": "Taminations",
     "en": "Taminations",

@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
-    QAction, QFont, QFontMetrics, QKeySequence, QShortcut,
+    QAction, QActionGroup, QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
 from song_db import SongDatabase
@@ -36,6 +36,11 @@ from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
                              fuzzy_suggest_cache, optimize_groups, suggestion_differs,
                              suggest_figure_set)
 from sequence_filter import filter_query_args
+from caddy.settings import ini_keys
+
+# intern#164: Etiketten im Sequenz-Detail (INI sequences/detail_labels)
+LABEL_OFF, LABEL_INLINE, LABEL_BELOW = "off", "inline", "below"
+LABEL_MODES = (LABEL_OFF, LABEL_INLINE, LABEL_BELOW)
 
 # intern#164: Ampel der Beat-Summe bei Singern (Kopfzeile Sequenz-Detail)
 _LIGHT_COLORS = {beat_calc.GREEN: "#22c55e", beat_calc.YELLOW: "#eab308",
@@ -81,10 +86,17 @@ class SequenceViewWidget(QWidget):
     Wird von SequencesWidget über on_open_detail gesteuert.
     """
 
-    def __init__(self, db, skin_mgr=None, session=None):
+    def __init__(self, db, skin_mgr=None, session=None, settings=None):
         super().__init__()
         self._db = db
         self._skin_mgr = skin_mgr
+        # intern#164: Etiketten (Programm, Beats) aus / hinter / unter dem Call,
+        # per Rechtsklick umschaltbar, in der INI gemerkt (ohne settings: Standard)
+        self._settings = settings
+        mode = (ini_keys.get(settings, ini_keys.SEQ_DETAIL_LABELS) if settings is not None
+                else ini_keys.default(ini_keys.SEQ_DETAIL_LABELS))
+        self._label_mode = mode if mode in LABEL_MODES else LABEL_INLINE
+        self._line_calls = []   # Textzeile -> Index in _calls (Zeile unter dem Call)
         self._seq_ids = []
         self._current_idx = 0
         self._calls = []
@@ -330,23 +342,40 @@ class SequenceViewWidget(QWidget):
                    if self._skin_mgr else "#0067c0")
         line_fg = (self._skin_mgr.color("selection_text", "#ffffff")
                    if self._skin_mgr else "#ffffff")
+        mode = self._label_mode
         parts = []
+        self._line_calls = []
         for i, (_pos, call_text, entity_id, _to, _canonical, program_label) in enumerate(self._calls):
             li = lines[i] if i < len(lines) else None
-            b = (beat_calc.fmt(li.beats)
-                 if li and beat_calc.UNKNOWN not in li.beats.flags else "")
-            tag = " · ".join(x for x in ((program_label if entity_id else ""), b) if x)
-            badge = f'&nbsp;<span style="{badge_style}">{tag}</span>' if tag else ""
-            if li and li.tam is not None and (li.dynamic or li.warn):
-                sf = _t("seq_beats_sf").format(beats=f"{li.tam:g}")
-                if li.warn:
-                    badge += (f'&nbsp;<span style="font-size:{badge_size + 2}px;'
-                              f'color:{warn_col};">⚠</span>')
-                badge += (f'&nbsp;<span style="{badge_style}font-style:italic;">'
-                          f'{sf}</span>')
-            if entity_id is None:
-                badge += '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
-            sep = "<br>" if i < len(self._calls) - 1 else ""
+            badges = []
+            if mode != LABEL_OFF:
+                b = (beat_calc.fmt(li.beats)
+                     if li and beat_calc.UNKNOWN not in li.beats.flags else "")
+                tag = " · ".join(x for x in ((program_label if entity_id else ""), b) if x)
+                if tag:
+                    badges.append(f'<span style="{badge_style}">{tag}</span>')
+                if li and li.tam is not None and (li.dynamic or li.warn):
+                    sf = _t("seq_beats_sf").format(beats=f"{li.tam:g}")
+                    if li.warn:
+                        badges.append(f'<span style="font-size:{badge_size + 2}px;'
+                                      f'color:{warn_col};">⚠</span>')
+                    badges.append(f'<span style="{badge_style}font-style:italic;">'
+                                  f'{sf}</span>')
+            # Mapping-Stand, kein Programm/Beat: bleibt in jeder Anzeige hinter dem Call
+            unmapped = ('&nbsp;<span style="font-size:10px;color:#ff6666;'
+                        'font-style:italic;">?</span>') if entity_id is None else ""
+            last = i == len(self._calls) - 1
+            self._line_calls.append(i)
+            if mode == LABEL_BELOW and badges:
+                # Eigene Zeile in kleiner Schrift; der Umbruch steht IN der kleinen
+                # Schrift, sonst bekaeme die Zeile die Hoehe der Call-Schrift.
+                self._line_calls.append(i)
+                badge = (f'{unmapped}<br><span style="font-size:{badge_size + 1}px;">'
+                         + "&nbsp;".join(badges) + ("" if last else "<br>") + "</span>")
+                sep = ""
+            else:
+                badge = "".join(f"&nbsp;{x}" for x in badges) + unmapped
+                sep = "" if last else "<br>"
             if hl and call_text == hl:
                 label = (f'<span style="background-color:#ffd54a;color:#212529;">'
                          f'{call_text}</span>')
@@ -608,8 +637,10 @@ class SequenceViewWidget(QWidget):
         rect = self._text_edit.cursorRect(cursor)
         if not rect.top() <= pos.y() <= rect.bottom():
             return None     # unterhalb der letzten Zeile
-        idx = self._text_edit.toPlainText()[:cursor.position()].count("\n")
-        return idx if idx < len(self._calls) else None
+        line = self._text_edit.toPlainText()[:cursor.position()].count("\n")
+        # intern#164: Mit Etiketten unter dem Call hat ein Call zwei Textzeilen
+        line_calls = self._line_calls or range(len(self._calls))
+        return line_calls[line] if line < len(line_calls) else None
 
     def _call_text_at(self, pos):
         """Call-Text der Zeile unter pos oder None (intern#177)."""
@@ -646,15 +677,37 @@ class SequenceViewWidget(QWidget):
         """Kontextmenue des Textfelds: der Eintrag zum Call-Mapping, darunter
         die Standard-Eintraege (Kopieren, Alles auswaehlen)."""
         menu = self._text_edit.createStandardContextMenu()
+        first = menu.actions()[0] if menu.actions() else None
         call_text = self._call_text_at(pos) if self.on_open_call_mapping else None
         if call_text:
-            first = menu.actions()[0] if menu.actions() else None
             act = QAction(_t("ctx_open_call_mapping_for_call_text"), menu)
             act.triggered.connect(
                 lambda: self._open_call_mapping_for_call_text(call_text))
             menu.insertAction(first, act)
             menu.insertSeparator(first)
+        # intern#164: Programm und Beats aus / hinter / unter dem Call
+        group = QActionGroup(menu)
+        for mode, key in ((LABEL_OFF, "seq_labels_off"), (LABEL_INLINE, "seq_labels_inline"),
+                          (LABEL_BELOW, "seq_labels_below")):
+            act = QAction(_t(key), menu)
+            act.setCheckable(True)
+            act.setChecked(mode == self._label_mode)
+            act.setData(mode)
+            group.addAction(act)
+            act.triggered.connect(lambda _on=False, m=mode: self.set_label_mode(m))
+            menu.insertAction(first, act)
+        menu.insertSeparator(first)
         return menu
+
+    def set_label_mode(self, mode):
+        """intern#164: Etiketten aus / hinter / unter dem Call; in der INI gemerkt."""
+        if mode not in LABEL_MODES:
+            return
+        self._label_mode = mode
+        if self._settings is not None:
+            self._settings.setValue(ini_keys.SEQ_DETAIL_LABELS, mode)
+        if self._calls:
+            self._recalc_font_size()
 
     def _on_text_context_menu(self, pos):
         menu = self._build_text_menu(pos)
