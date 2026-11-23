@@ -1,0 +1,62 @@
+Gegenprobe CALLERLAB gegen Taminations, Messlauf kontrolle_2026-11-15, DB-Kopie 2026-11-08
+153 Calls mit mind. 15 Vorkommen. Standard-Variante gegen Median: im Wert 81, bis 1 42, bis 2 21, mehr als 2 9
+
+## A. Standard-Variante: eine andere Variante passt besser zum Median
+
+Prog Call                                         n Median     Q1-Q3  Standard -> naeher
+MS   Square Thru / Left Square Thru            2510    7.5    5-10    FC 4 (10) -> FC 3 (7-8)
+MS   Promenade Couples                          303      8    8-8     SS full around (16) -> SS 1/2 around (8)
+MS   Arm Turns                                  225      5    4-5     1/2 around (4) -> 3/4 around (4-6)
+Plus Cloverleaf                                 184      6  4.5-6.5   8 active dancers (8) -> 4 active dancers (6)
+MS   Ladies Chain                               101      8    8-8     Two Ladies from FC (6) -> Two Ladies from SS (8)
+A1   Right (Left) Roll to a Wave                101      4    4-4     Facing Dancers (2) -> Tandem or Back-to-Back (4)
+Plus Eight Chain Thru                           100    7.5    5-10    eight hands (20) -> four hands (10)
+Plus Eight Chain 1, 2, 3, etc.                  100    7.5    5-10    each odd-numbered part (2) -> each even-numbered part (3)
+MS   Forward and Back                            47      4    4-4     all others (8) -> Lines close together (4)
+Plus Pair Off                                    25      4    4-4     (ohne) (2) -> SS (4)
+A1   Pair Off                                    25      4    4-4     (ohne) (2) -> SS (4)
+MS   Circle Left (or Right)                      15     10    8-10    SS 8 Dancers full around (16) -> SS 8 Dancers 3/4 around (12)
+
+## B. Standard-Wert weicht um mehr als 2 Beats vom Median ab
+
+Prog Call                                         n Median     Q1-Q3  Chart  Abw.
+Plus Eight Chain Thru                           100    7.5    5-10       20 -12.5
+MS   Promenade Couples                          303      8    8-8        16    -8
+MS   Circle Left (or Right)                      15     10    8-10       16    -6
+Plus Eight Chain 1, 2, 3, etc.                  100    7.5    5-10        2  +5.5
+MS   Forward and Back                            47      4    4-4         8    -4
+MS   Separate around 2 to a Line                247      6  5.5-6        10    -4
+MS   Cross Run                                  124      3    3-3         6    -3
+MS   Square Thru / Left Square Thru            2510    7.5    5-10       10  -2.5
+MS   Dosado to a Wave                            64      8    8-8         6    +2
+
+## C. Standard-Variante bestaetigt (mehrere Varianten, Standard am naechsten)
+
+MS   Allemande Left (or Allemande Right)      n=81    Median 6, Standard 1/2 Arm Turn (4-6)
+MS   Bend the Line                            n=640   Median 4, Standard Line of Four (4)
+MS   Circulates                               n=1671  Median 4, Standard (ohne) (4)
+MS   Dive Thru                                n=78    Median 5, Standard Couple making arch (6)
+MS   Dosado                                   n=287   Median 6, Standard otherwise (6)
+MS   Flutterwheel (or Reverse Flutterwheel)   n=359   Median 8, Standard FC (8)
+MS   Four Ladies Chain                        n=120   Median 8, Standard from SS (8)
+MS   Pass Thru                                n=2701  Median 2, Standard Facing Dancers (2)
+MS   Right and Left Thru                      n=1374  Median 6, Standard FC (6)
+MS   Sweep a Quarter                          n=206   Median 2, Standard Two Couples (2)
+MS   Tag the Line                             n=496   Median 5.5, Standard (Full) Tag (6)
+MS   Couples Trade                            n=17    Median 6, Standard from Two-Faced Line (6)
+MS   (Named Dancers) Trade                    n=1406  Median 3, Standard Mini-Wave (3)
+Plus Dixie Style to an Ocean Wave             n=227   Median 5.5, Standard Facing Couples or Facing Tandems (6)
+Plus Pass to the Center                       n=129   Median 6, Standard new Ends (6)
+Plus Spin Chain Thru                          n=69    Median 17, Standard resulting Centers (16)
+A1   Brace Thru (formerly Half Breed Thru)    n=15    Median 6, Standard (ohne) (6)
+A1   Cross Trail Thru                         n=33    Median 6, Standard (ohne) (6)
+A1   Split Square Thru                        n=99    Median 9.5, Standard from Box full (10)
+A1   Wheel Thru / Left Wheel Thru             n=198   Median 4, Standard Facing Couples (4)
+A2   Peel and Trail                           n=22    Median 4, Standard from Tandem Couples (4)
+A2   Remake                                   n=22    Median 9, Standard Others (including Grand) (10)
+A2   Scoot and Weave                          n=54    Median 9.5, Standard Waves (10)
+A2   Scoot Chain Thru                         n=49    Median 13, Standard Waves (12)
+
+## D. Ohne genug Taminations-Daten (< 15): 52 Calls
+
+MS Grand Square (n=1); MS Alamo Style (n=2); MS Balance (n=4); MS Single File Promenade (n=0); MS Star Promenade (n=4); MS Wrong Way Promenade (n=2); MS Separate (n=1); MS Separate around 1 into the Middle (n=1); MS Separate around 2 into the Middle (n=1); MS Star Right / Left (n=0); MS Swing (n=9); MS Backtrack (n=0); Plus All 8 Spin the Top (n=3); Plus Do Paso (n=1); Plus Partner Hinge (n=11); Plus Grand Three Quarter Thru (n=3); Plus See Saw (n=0); Plus Shoot the Star (n=10); Plus Shoot the Star Full Around (n=10); Plus Slip the Clutch (n=4); Plus Teacup Chain (n=5); Plus Allemande Thar (n=0); Plus Wrong Way Thar (n=0); Plus Walk Around the Corner (n=0); A1 Fractional Tops (n=0); A1 Grand Three-Quarter Thru (n=3); A1 Grand Follow Your Neighbor (n=4); A1 Partner Hinge (n=11); A1 Six-Two Acey Deucey (n=12); A1 Triple Cross (n=3); A1 Double Cross (n=0); A2 All 4 Couples Chase Right (n=0); A2 All 4 Couples Cross Trail Thru (n=0); A2 All 4 Couples Pass Thru (n=0); A2 All 4 Couples Right and Left Thru (n=0); A2 All 4 Couples Star Thru (n=0); A2 All 8 Swing Thru (n=0); A2 All 8 Dixie Style to a Wave (n=0); A2 All 8 Walk and Dodge (n=0); A2 All 8 Mix (n=0); A2 Cut the Hourglass (n=5); A2 Mini-Busy (n=14); A2 Remake the Thar (n=1); A2 Slide (n=0); A2 Slither (n=3); A2 Swing (n=9); A2 Swing and Mix (n=13); A2 Switch to an Hourglass (n=12); A2 Trail Off (n=11); A2 Transfer and (Anything) (n=1); A2 Zig Zag and variations (n=6); MS Swing and Promenade (Singing-Call-Ende) (n=0)

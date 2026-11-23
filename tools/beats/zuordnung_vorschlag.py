@@ -77,12 +77,17 @@ OVERRIDES = {
 # Standard-Variante von Hand, wo die Heuristik daneben liegt: Call -> Variante
 STANDARD_OVERRIDES = {
     "Arm Turns": "1/2 around",
+    "Allemande Left (or Allemande Right)": "1/2 Arm Turn",  # David: halber Arm Turn + Pass Thru
     "Dosado": "otherwise",
     "Forward and Back": "all others",
     "Square Thru / Left Square Thru": "FC 4",
     "Remake": "Others (including Grand)",
     "Circle Left (or Right)": "SS 8 Dancers full around",
     "Split Square Thru": "from Box full",
+    # Parallele Teile (Bemerkung "parallel: ..."): es zaehlt die laengere Bewegung
+    "Dive Thru": "Couple making arch",
+    "Pass to the Center": "new Ends",
+    "Spin Chain Thru": "resulting Centers",
 }
 
 
