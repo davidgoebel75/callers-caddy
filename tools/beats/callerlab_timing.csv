@@ -106,7 +106,7 @@ MS;Star Thru;call_star_thru;;fest;4;;;MS 2026-07-05;;1;;
 MS;Sweep a Quarter;call_sweep_a_quarter;Two Couples;fest;2;;;MS 2026-07-05;;1;;
 MS;Sweep a Quarter;call_sweep_a_quarter;all Four Couples;fest;4;;;MS 2026-07-05;;;;
 MS;Swing;call_swing;;dynamisch;4;;;MS 2026-07-05;variable, at least 4;1;;
-MS;Swing Thru;call_swing_thru;;fest;6;;;MS 2026-07-05;;1;;
+MS;Swing Thru;call_swing_thru|call_left_swing_thru;;fest;6;;;MS 2026-07-05;;1;;
 MS;Tag the Line;call_tag_the_line;(Full) Tag;fest;6;;;MS 2026-07-05;Tag the Line Family;1;;
 MS;Tag the Line;call_tag_the_line;3/4 Tag;fest;5;;;MS 2026-07-05;Tag the Line Family;;fraction=3/4;
 MS;Tag the Line;call_tag_the_line;1/2 Tag;fest;4;;;MS 2026-07-05;Tag the Line Family;;fraction=1/2;

@@ -45,6 +45,13 @@ def test_fuellwoerter_zaehlen_nicht(table):
     assert info.lines[1].beats.flags == frozenset() and info.lines[1].beats.lo == 10
 
 
+def test_bezeichner_zaehlen_nicht(table):
+    fig = {"Beaus Run": ["dancer_beau", "call_run"], "Left Swing Thru": ["call_left_swing_thru"]}
+    info = seq.sequence_info(table, ["Beaus Run", "Left Swing Thru"], fig)
+    assert calc.UNKNOWN not in info.lines[0].beats.flags
+    assert info.lines[1].beats.lo == 6 and not info.lines[1].beats.flags
+
+
 def test_unbekannter_call_kennzeichnet_die_summe(table):
     info = seq.sequence_info(table, ["Square Thru 4", "Gibt es nicht"], FIG)
     assert calc.UNKNOWN in info.lines[1].beats.flags

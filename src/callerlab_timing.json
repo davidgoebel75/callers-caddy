@@ -1,5 +1,5 @@
 {
- "version": "e37ad1a8625585cf",
+ "version": "8f183ac516b6ff8c",
  "notice": "Reprinted with permission of CALLERLAB.",
  "rows": [
   {"programm": "MS", "call": "Arm Turns", "entity_ids": "call_arm_turns", "variante": "1/2 around", "typ": "fest", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "1", "variante_regel": "fraction=1/2"},
@@ -109,7 +109,7 @@
   {"programm": "MS", "call": "Sweep a Quarter", "entity_ids": "call_sweep_a_quarter", "variante": "Two Couples", "typ": "fest", "beats": "2", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "1", "variante_regel": ""},
   {"programm": "MS", "call": "Sweep a Quarter", "entity_ids": "call_sweep_a_quarter", "variante": "all Four Couples", "typ": "fest", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "", "variante_regel": ""},
   {"programm": "MS", "call": "Swing", "entity_ids": "call_swing", "variante": "", "typ": "dynamisch", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "variable, at least 4", "standard": "1", "variante_regel": ""},
-  {"programm": "MS", "call": "Swing Thru", "entity_ids": "call_swing_thru", "variante": "", "typ": "fest", "beats": "6", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "1", "variante_regel": ""},
+  {"programm": "MS", "call": "Swing Thru", "entity_ids": "call_swing_thru|call_left_swing_thru", "variante": "", "typ": "fest", "beats": "6", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "", "standard": "1", "variante_regel": ""},
   {"programm": "MS", "call": "Tag the Line", "entity_ids": "call_tag_the_line", "variante": "(Full) Tag", "typ": "fest", "beats": "6", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Tag the Line Family", "standard": "1", "variante_regel": ""},
   {"programm": "MS", "call": "Tag the Line", "entity_ids": "call_tag_the_line", "variante": "3/4 Tag", "typ": "fest", "beats": "5", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Tag the Line Family", "standard": "", "variante_regel": "fraction=3/4"},
   {"programm": "MS", "call": "Tag the Line", "entity_ids": "call_tag_the_line", "variante": "1/2 Tag", "typ": "fest", "beats": "4", "beats_bis": "", "anything_ab": "", "quelle": "MS 2026-07-05", "bemerkung": "Tag the Line Family", "standard": "", "variante_regel": "fraction=1/2"},

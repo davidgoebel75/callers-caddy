@@ -17,8 +17,15 @@ from caddy.choreo.mapping import END_FORMATION, SINGER_SCHLUSS
 QT_FREE = True
 
 SINGER_END = ("call_swing", "call_couples_promenade")
-# App-Calls ohne eigene Bewegung: zaehlen nicht und machen die Zeile nicht "unbekannt"
+# App-Calls ohne eigene Bewegung: zaehlen nicht und machen die Zeile nicht "unbekannt".
+# Fuellwoerter und reine Bezeichner (Beau, Belle; Formationen; Trenner), Entscheidung
+# David 2026-11-23.
 NO_BEATS = frozenset({"filler_words"})
+NO_BEATS_PREFIXES = ("dancer_", "formation_", "separator_")
+
+
+def has_no_beats(entity):
+    return entity in NO_BEATS or entity.startswith(NO_BEATS_PREFIXES)
 
 
 @dataclass(frozen=True)
@@ -64,7 +71,7 @@ def sequence_info(table, calls, figures, seq_type="", tam_beats=None):
             lines.append(None)
             continue
         mapped = figures.get(text) or ()
-        ents = [e for e in mapped if e not in NO_BEATS]
+        ents = [e for e in mapped if not has_no_beats(e)]
         if mapped and not ents:          # nur Fuellwoerter: kein Wert, kein Etikett
             lines.append(None)
             continue
