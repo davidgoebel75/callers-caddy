@@ -55,6 +55,7 @@ class TamEngine:
         self._q = None
         self._lock = threading.Lock()
         self._version = None
+        self.start_count = 0                 # wie oft der Prozess gestartet wurde (Perf-Marken)
 
     def available(self):
         return bool(self._path) and os.path.isfile(self._path)
@@ -68,6 +69,7 @@ class TamEngine:
         self._proc = subprocess.Popen(
             [self._path], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, text=True, encoding="utf-8", creationflags=flags)
+        self.start_count += 1
         self._q = queue.Queue()
         threading.Thread(target=self._read, args=(self._proc, self._q), daemon=True,
                          name="tam_cli-reader").start()

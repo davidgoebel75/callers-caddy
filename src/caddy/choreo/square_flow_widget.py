@@ -10,6 +10,7 @@ und Beschriftung liegen als Bild im Zwischenspeicher. Tempo = Tempo des Songs (b
 """
 import html
 import math
+import time
 
 from PySide6.QtCore import Qt, QTimer, QElapsedTimer, QPointF, QRectF, Signal
 from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, QFont,
@@ -17,7 +18,8 @@ from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, QPixmap, QPolygonF, Q
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QBoxLayout, QLabel, QPushButton, QMenu,
                                QSizePolicy)
 
-from caddy.choreo import figure_clock, flow_info, pilot_colors, square_chain
+import perf
+from caddy.choreo import figure_clock, flow_info, perf_marks, pilot_colors, square_chain
 from caddy.choreo.timeline import Timeline
 from caddy.settings import ini_keys
 from i18n import _t
@@ -51,6 +53,7 @@ class _Floor(QWidget):
         self.zoom = 1.0                    # Shift/Strg + Mausrad, ZOOM_MIN..ZOOM_MAX
         self._bg = None
         self._bg_key = None
+        self.stats = None                  # perf_marks.AnimStats, solange die Animation laeuft
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumSize(120, 120)
 
@@ -128,6 +131,15 @@ class _Floor(QWidget):
         return pm
 
     def paintEvent(self, _event):
+        stats = self.stats
+        if stats is None:
+            self._paint()
+            return
+        t0 = time.perf_counter()
+        self._paint()
+        stats.paint((time.perf_counter() - t0) * 1000)
+
+    def _paint(self):
         p = QPainter(self)
         p.drawPixmap(0, 0, self._background())
         if not self.pose or not self.dancers:
@@ -234,6 +246,7 @@ class SquareFlowWidget(QWidget):
         self._view = None                   # (rot, gezeigte Taenzer) waehrend des Mitlaufens
         self._view_rot = False
         self._pilot = {}                    # Phase 3: letzte Farben aus dem Pilot Square
+        self._anim_stats = perf_marks.AnimStats()   # Perf-Marken, nur bei Performance-Logging
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -529,6 +542,7 @@ class SquareFlowWidget(QWidget):
                 self._reported = result
                 self.result_ready.emit(self._seq[0], result)
             return
+        t0 = perf.perf_start()
         self._result = result
         self._tl = Timeline(result.get("animation"))
         ext = self._tl.extent()
@@ -539,6 +553,7 @@ class SquareFlowWidget(QWidget):
         self._floor.invalidate_background()
         self._show_result_status()
         self._seek(0.0)
+        perf.perf_log("SquareFlow._on_ready (Zeitachse)", t0)
         self._reported = result
         self.result_ready.emit(self._seq[0], result)
         if self._pending_card is not None and not self._tl.empty():
@@ -607,6 +622,32 @@ class SquareFlowWidget(QWidget):
         return -1
 
     def _seek(self, beat):
+        stats = self._floor.stats
+        if stats is None:
+            self._do_seek(beat)
+            return
+        t0 = time.perf_counter()
+        self._do_seek(beat)
+        stats.step((time.perf_counter() - t0) * 1000)
+        line = stats.poll()
+        if line:
+            perf.perf_write(line)
+
+    def _anim_begin(self):
+        """Animation laeuft an: Sammel-Statistik fuer das Perflog starten (nur wenn an)."""
+        if self._floor.stats is None and perf.is_enabled():
+            self._anim_stats.restart()
+            self._floor.stats = self._anim_stats
+
+    def _anim_end(self):
+        """Animation steht: angefangenes Fenster ins Perflog schreiben."""
+        stats, self._floor.stats = self._floor.stats, None
+        if stats is not None:
+            line = stats.poll(force=True)
+            if line:
+                perf.perf_write(line)
+
+    def _do_seek(self, beat):
         if self._tl is None or self._tl.empty():
             return
         self._beat = max(0.0, min(beat, self._tl.total_beats))
@@ -693,6 +734,7 @@ class SquareFlowWidget(QWidget):
             self.pause()
             self._following = True
             self._shown_line = None
+            self._anim_begin()
         if not ready:
             return                                   # Ergebnis kommt noch
         rot = self._rot_slots if (part >= 0 and inverted) else None
@@ -715,6 +757,8 @@ class SquareFlowWidget(QWidget):
     def follow_off(self):
         """Song steht oder Dynamic Lyrics ist aus: Square Flow wieder manuell (Belegung und
         Drehung zurueck auf die Sequenz, wie sie im Sequenz-Detail steht)."""
+        if self._following:
+            self._anim_end()
         self._following = False
         self._follow_hold = None
         self._follow_region = None
@@ -787,11 +831,14 @@ class SquareFlowWidget(QWidget):
         self._shown_line = None
         self._clock.start()
         self._timer.start(self._interval())
+        self._anim_begin()
         self._btn_play.setText("⏸")
         self._btn_play.setToolTip(_t("sf_btn_pause"))
 
     def pause(self):
         self._timer.stop()
+        if not self._following:
+            self._anim_end()
         self._stop_at = None
         self._btn_play.setText("▶")
         self._btn_play.setToolTip(_t("sf_btn_play"))

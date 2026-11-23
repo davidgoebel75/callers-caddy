@@ -8177,13 +8177,16 @@ class P29MainWindow(QMainWindow):
         """Ergebnis von Square Flow -> Takte, Abbruchzeile und Warnsymbol im
         Sequenz-Detail (None = Sequenz gewechselt, Anzeige leeren)."""
         from caddy.choreo import flow_info
+        _t0 = perf_start()
         view = self.sequence_view_widget
         view.set_flow_info(calls, flow_info.detail_info(calls, result))
         if result is None or flow_info.engine_failed(result):
+            perf_log("SquareFlow -> Sequenz-Detail", _t0)
             return
         # Phase 2: Takte da -> Lesebalken nach Beats neu aufbauen (No-Op ohne Dynamic)
         if tuple(calls) == tuple(view.current_calls() or ()):
             self.lyrics_widget.refresh_dynamic_from_sequence()
+        perf_log("SquareFlow -> Sequenz-Detail + Lesebalken", _t0)
 
     def _taminations_online(self):
         """True, solange Qt keine fehlende Verbindung meldet (ohne Backend: True)."""

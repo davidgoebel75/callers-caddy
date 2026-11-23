@@ -18,11 +18,13 @@ gerechnet, ohne dass jede Schreibstelle Bescheid geben muss (Review #192, Punkt 
 """
 import hashlib
 import threading
+import time
 from collections import OrderedDict
 
 from PySide6.QtCore import QObject, Signal
 
-from caddy.choreo import analysis
+import perf
+from caddy.choreo import analysis, perf_marks
 from caddy.choreo.engine import TamEngine
 
 _CACHE_SIZE = 64
@@ -113,7 +115,15 @@ class SquareFlowWorker(QObject):
             except Exception as exc:             # Feature darf die App nie mitreissen
                 self._emit(token, {"error": f"{type(exc).__name__}: {exc}"})
 
+    def _mark(self, t0, seq_id, n_calls, source, engine_started=False, error=None):
+        """Perf-Marke je Auftrag (nur bei eingeschaltetem Performance-Logging)."""
+        if perf.is_enabled():
+            perf.perf_write(perf_marks.analyse_line(
+                seq_id, n_calls, source, (time.perf_counter() - t0) * 1000,
+                engine_started=engine_started, error=error))
+
     def _run_job(self, token, calls, seq_type, seq_id, need_anim):
+        t0 = time.perf_counter()
         app = self._load_app()
         ihash = analysis.input_hash(calls, seq_type, app)
         key = ihash                          # Zeilen, Typ und Call-Mapping
@@ -121,10 +131,13 @@ class SquareFlowWorker(QObject):
         if result is not None:
             self._cache.move_to_end(key)
             self._emit(token, result)
+            self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_MEMORY)
             return
         eng = self.engine()
         if not eng.available():
             self._emit(token, {"error": "engine_missing"})
+            self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_ENGINE,
+                       error="engine_missing")
             return
         efp = self._engine_fingerprint()
         db = self._db_path if (self._db_path and seq_id is not None) else None
@@ -135,13 +148,19 @@ class SquareFlowWorker(QObject):
                 cached = analysis.from_cache(row[2])
                 if cached is not None:
                     self._emit(token, cached)
+                    self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_DB)
                     if not need_anim:
                         return
+                    t0 = time.perf_counter()     # Engine-Lauf danach eigens messen
+        starts = getattr(eng, "start_count", 0)
         result = analysis.analyse_sequence(eng.run, calls, seq_type, app)
         self._cache[key] = result
         while len(self._cache) > _CACHE_SIZE:
             self._cache.popitem(last=False)
         self._emit(token, result)
+        self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_ENGINE,
+                   engine_started=getattr(eng, "start_count", 0) != starts,
+                   error=result.get("error") if isinstance(result, dict) else None)
         if db:
             from song_db_sequences import write_choreo_cache
             write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result))
