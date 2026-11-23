@@ -41,6 +41,26 @@ fehlen noch.
 
 `;`-getrennt, UTF-8, in Excel bearbeitbar.
 
+## Build: CSV → `src/callerlab_timing.json`
+
+Nach jeder Änderung an der CSV:
+
+```
+python tools/beats/build_callerlab_timing.py
+```
+
+Das Werkzeug prüft streng und schreibt nur, wenn alles stimmt; sonst listet es alle Fehler mit
+Zeilennummer (wie in Excel) auf. Geprüft werden: Spaltenkopf, `programm`, `typ`, `quelle`,
+ganze Zahlen in `beats`/`beats_bis`/`anything_ab` passend zum `typ`, Kürzel in `variante_regel`,
+jede Kennung in `entity_ids` gegen `src/reference_calls.json`, genau ein `standard` je App-Call
+und Chart, keine doppelte Zeile und eine leere Spalte `pruefen`.
+
+Das JSON trägt dieselben Spalten (ohne `pruefen`) als Text, eine Zeile je Datensatz, und eine
+`version` = Inhalts-Hash der Zeilen. Die App befüllt die DB neu, sobald sich die Version ändert;
+Hochzählen von Hand entfällt. `--check` meldet nur, ob das JSON zur CSV passt;
+`tests/beats/test_build_timing.py` prüft dasselbe. Die Build-Spec (`installer/callers_caddy.spec`)
+legt das JSON neben `reference_calls.json`.
+
 ## Regeln, die nicht in einzelnen Zeilen stehen
 
 - **Timing ab Kontaktpunkt.** Schritte bis zum Kontaktpunkt kommen dazu. Aus dem Squared Set in die
