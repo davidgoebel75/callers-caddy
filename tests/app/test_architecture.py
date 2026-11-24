@@ -43,7 +43,7 @@ QT_FREE_MODULES = {
     "reading_band_path",
     "shortcode_parser", "singing_body_detect", "singing_sections",
     "skin_manager", "song_catalog", "song_db", "song_types", "song_db_potential",
-    "song_db_schema", "song_db_sequences", "song_match",
+    "song_db_schema", "song_db_sequences", "song_db_timing", "song_match",
     "subfolder_duplicate_repair", "sync_point_lines", "time_stretcher",
     "zip_import",
 }

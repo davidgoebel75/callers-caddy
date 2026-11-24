@@ -338,6 +338,31 @@ CREATE TABLE IF NOT EXISTS sequence_choreo (
 """
 
 
+# intern#164: Beats je Call nach den CALLERLAB-Timing-Charts. Reine Referenz aus
+# src/callerlab_timing.json (erzeugt von tools/beats/build_callerlab_timing.py),
+# beim Start komplett ersetzt, sobald sich dessen Version aendert (Marke
+# callerlab_timing_version in app_meta; song_db_timing.py). Spalten wie die
+# Pflegedatei; entity_ids bleibt Text ('a|b' = einer davon, 'a+b' = beide
+# zusammen), id = Reihenfolge der Datei.
+_CREATE_CALL_TIMING_TABLE = """
+CREATE TABLE IF NOT EXISTS call_timing (
+    id              INTEGER PRIMARY KEY,
+    programm        TEXT NOT NULL DEFAULT '',
+    call            TEXT NOT NULL DEFAULT '',
+    entity_ids      TEXT NOT NULL DEFAULT '',
+    variante        TEXT NOT NULL DEFAULT '',
+    typ             TEXT NOT NULL DEFAULT '',
+    beats           INTEGER,
+    beats_bis       INTEGER,
+    anything_ab     INTEGER,
+    quelle          TEXT NOT NULL DEFAULT '',
+    bemerkung       TEXT NOT NULL DEFAULT '',
+    standard        INTEGER NOT NULL DEFAULT 0,
+    variante_regel  TEXT NOT NULL DEFAULT ''
+);
+"""
+
+
 # MS50-Umbau: kleiner Key/Value-Speicher fuer Referenzdaten-Version u.ae.
 _CREATE_APP_META_TABLE = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -361,7 +386,7 @@ _TABLE_SCHEMAS = (
     _CREATE_SEQUENCE_CALLS_TABLE, _CREATE_POTENTIAL_IGNORED_TABLE,
     _CREATE_NOTES_TABLE, _CREATE_DANCE_PROGRAMS_TABLE,
     _CREATE_LOCATION_PROGRAMS_TABLE, _CREATE_APP_META_TABLE,
-    _CREATE_SEQUENCE_CHOREO_TABLE,
+    _CREATE_SEQUENCE_CHOREO_TABLE, _CREATE_CALL_TIMING_TABLE,
 )
 
 
@@ -462,6 +487,7 @@ class SchemaMixin:
         self._conn.execute(_CREATE_LOCATION_PROGRAMS_TABLE)
         self._conn.execute(_CREATE_APP_META_TABLE)
         self._conn.execute(_CREATE_SEQUENCE_CHOREO_TABLE)
+        self._conn.execute(_CREATE_CALL_TIMING_TABLE)
         self._create_band_cache_triggers()
         self._conn.commit()
         self._insert_default_dance_programs()
