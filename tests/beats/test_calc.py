@@ -103,6 +103,10 @@ def test_summe_ampel_und_anzeige():
     assert calc.traffic_light(total) == calc.GREEN
     assert calc.traffic_light(B(60, 66)) == calc.YELLOW
     assert calc.traffic_light(B(60, 69)) == calc.RED
+    open_end = frozenset({calc.UNKNOWN})
+    assert calc.traffic_light(B(60, 60, open_end)) == calc.NEUTRAL
+    assert calc.traffic_light(B(66, 66, open_end)) == calc.YELLOW
+    assert calc.traffic_light(B(70, 70, frozenset({calc.NOT_TIMED}))) == calc.RED
     assert calc.fmt(B(7, 8)) == "7–8"
     assert calc.fmt(B(58, 58, frozenset({calc.NOT_TIMED}))) == "≥ 58 + ?"
 

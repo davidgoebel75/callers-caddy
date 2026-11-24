@@ -42,9 +42,11 @@ from caddy.settings import ini_keys
 LABEL_OFF, LABEL_INLINE, LABEL_BELOW = "off", "inline", "below"
 LABEL_MODES = (LABEL_OFF, LABEL_INLINE, LABEL_BELOW)
 
-# intern#164: Ampel der Beat-Summe bei Singern (Kopfzeile Sequenz-Detail)
-_LIGHT_COLORS = {beat_calc.GREEN: "#22c55e", beat_calc.YELLOW: "#eab308",
-                 beat_calc.RED: "#ef4444"}
+# intern#164: Ampel der Beat-Summe bei Singern (Kopfzeile Sequenz-Detail):
+# Skin-Schluessel und Ersatzfarbe; gelb hat keinen Skin-Schluessel.
+_LIGHT_COLORS = {beat_calc.GREEN: ("success", "#22c55e"), beat_calc.YELLOW: (None, "#eab308"),
+                 beat_calc.RED: ("warning", "#ef4444"),
+                 beat_calc.NEUTRAL: ("text_dim", "#999999")}
 
 
 class _ComboClickToOpen(QObject):
@@ -95,7 +97,8 @@ class SequenceViewWidget(QWidget):
         self._settings = settings
         mode = (ini_keys.get(settings, ini_keys.SEQ_DETAIL_LABELS) if settings is not None
                 else ini_keys.default(ini_keys.SEQ_DETAIL_LABELS))
-        self._label_mode = mode if mode in LABEL_MODES else LABEL_INLINE
+        self._label_mode = (mode if mode in LABEL_MODES
+                            else ini_keys.default(ini_keys.SEQ_DETAIL_LABELS))
         self._line_calls = []   # Textzeile -> Index in _calls (Zeile unter dem Call)
         self._seq_ids = []
         self._current_idx = 0
@@ -153,6 +156,15 @@ class SequenceViewWidget(QWidget):
             return self._skin_mgr.color("text", "#f0f0f0")
         return "#f0f0f0"
 
+    def _skin_color(self, key, fallback):
+        return self._skin_mgr.color(key, fallback) if self._skin_mgr and key else fallback
+
+    def _header_style(self, size=None):
+        """StyleSheet der Kopfzeile. Mit Selektor, damit der Tooltip (ein QLabel) weder
+        die grosse Schrift noch die Textfarbe erbt (Review #194)."""
+        font = f" font-size: {size}px;" if size else ""
+        return f"QLabel#seqHeader {{ color: {self._text_color()};{font} }}"
+
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
@@ -162,12 +174,13 @@ class SequenceViewWidget(QWidget):
         # gezeigten Sequenz. Zeigt auf einen Blick, um was fuer eine Sequenz es
         # sich handelt — auch ohne aktiven Filter im Sequenzen-Widget.
         self._lbl_header = QLabel()
+        self._lbl_header.setObjectName("seqHeader")
         self._lbl_header.setAlignment(Qt.AlignCenter)
         # intern#164: Ampelpunkt farbig -> Rich Text (Text wird escaped)
         self._lbl_header.setTextFormat(Qt.RichText)
         # Farbe per StyleSheet, Schriftgroesse per QFont (wird in
         # _recalc_header_font dynamisch an die Breite angepasst).
-        self._lbl_header.setStyleSheet(f"color: {self._text_color()};")
+        self._lbl_header.setStyleSheet(self._header_style())
         self._header_text = ""
         layout.addWidget(self._lbl_header)
 
@@ -335,8 +348,9 @@ class SequenceViewWidget(QWidget):
         flow = self._flow or {}
         lines = self._beats.lines if self._beats else ()
         fail = flow.get("fail_card")
-        warn_col = self._skin_mgr.color("warning", "#ef4444") if self._skin_mgr else "#ef4444"
-        badge_style = (f"font-size:{badge_size}px;color:#aaa;border:1px solid #666;"
+        warn_col = self._skin_color("warning", "#ef4444")
+        badge_style = (f"font-size:{badge_size}px;color:{self._skin_color('text_dim', '#aaaaaa')};"
+                       f"border:1px solid {self._skin_color('border', '#666666')};"
                        f"padding:1px 3px;border-radius:2px;")
         line_bg = (self._skin_mgr.color("selection_bg", "#0067c0")
                    if self._skin_mgr else "#0067c0")
@@ -460,7 +474,8 @@ class SequenceViewWidget(QWidget):
         rich = html.escape(text)
         if light:
             text += "  ●"
-            rich += f'&nbsp;&nbsp;<span style="color:{_LIGHT_COLORS[light]};">●</span>'
+            rich += (f'&nbsp;&nbsp;<span style="color:{self._skin_color(*_LIGHT_COLORS[light])};">'
+                     '●</span>')
         self._lbl_header.setToolTip(_t("seq_header_beats_tooltip") if b and any(b.lines)
                                     else "")
         self._apply_flow_warn_button()
@@ -480,12 +495,14 @@ class SequenceViewWidget(QWidget):
             except Exception as e:   # Anzeige ohne Beats statt Absturz
                 print(f"[Sequences] Beat-Tabelle nicht lesbar: {e}")
                 self._beat_table = beat_calc.BeatTable([])
+        _t0 = perf_start()
         texts = tuple(c[1] for c in self._calls)
         if self._beat_figures[0] != texts:
             self._beat_figures = (texts, self._db.get_call_figures(texts))
         self._beats = beat_seq.sequence_info(
             self._beat_table, texts, self._beat_figures[1], self._seq_type,
             (self._flow or {}).get("beats"))
+        perf_log(f"SeqView._compute_beats ({len(texts)} Zeilen)", _t0)
 
     # ---- Square Flow (intern#247) ----
 
@@ -547,7 +564,7 @@ class SequenceViewWidget(QWidget):
         ignoriert — die Groesse MUSS per `font-size` im StyleSheet gesetzt werden.
         Leerer Header → nichts zu tun."""
         if not self._header_text:
-            self._lbl_header.setStyleSheet(f"color: {self._text_color()};")
+            self._lbl_header.setStyleSheet(self._header_style())
             return
         avail = self._lbl_header.width() - 8  # kleiner Sicherheitsrand
         if avail < 20:
@@ -561,8 +578,7 @@ class SequenceViewWidget(QWidget):
                 best = size
             else:
                 break
-        self._lbl_header.setStyleSheet(
-            f"color: {self._text_color()}; font-size: {best}px;")
+        self._lbl_header.setStyleSheet(self._header_style(best))
 
     def _update_content(self):
         if not self._seq_ids:

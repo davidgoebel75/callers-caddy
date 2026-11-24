@@ -80,7 +80,8 @@ legt das JSON neben `reference_calls.json`.
 ## Gegenprobe gegen Taminations
 
 `gegenprobe_taminations.py` vergleicht die Chart mit den Taminations-Medianen eines Messlaufs aus
-intern#163. Stand 2026-11-14 (Annahmen-Runde 5, `gegenprobe_taminations_2026-11-14.txt`):
+intern#163. Lauf-Ergebnisse gehören nicht ins Repo, sie stehen im Issue intern#164.
+Stand 2026-11-14 (Annahmen-Runde 5):
 126 Calls verglichen, 83 im Bereich der Chart, 31 bis 1 Beat daneben, 10 bis 2, 2 mehr
 (Cross Run: Taminations 3, Chart 6). Taminations zählt nach Animation (z. B. Heads Square Thru 4 = 12
 = Chart 10 + 2 aus dem Squared Set) und schwankt im Einzelfall stark; nur der Median ist brauchbar.

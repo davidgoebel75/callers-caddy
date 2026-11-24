@@ -3,8 +3,8 @@
 Verbindet die Kartenzeilen mit der Rechnung aus `calc`:
 - Startmarken "(Zero Box)", "(Zero Line)", "(Rotated)" sind keine getanzte Zeile (kein Wert).
 - Die erste getanzte Zeile beginnt im Squared Set, wenn keine Startmarke davor steht.
-- Singer: Ist die letzte Zeile der Schluss (Swing and Promenade ...), zaehlt sie als
-  Swing + Promenade, unabhaengig vom Mapping. Fehlt der Schluss auf der Karte, kommt er
+- Singer: Die letzte Schluss-Zeile (Swing and Promenade ...) zaehlt als Swing +
+  Promenade, unabhaengig vom Mapping. Fehlt der Schluss auf der Karte, kommt er
   (wie bei Square Flow) unsichtbar zur Summe dazu.
 - Square Flow (Taminations) liefert je Zeile Beats. Sie ersetzen nur dynamische Werte in
   der Summe; weicht ein Wert bei einem festen Call um >= 2 Beats ab, gibt es einen Hinweis.
@@ -63,8 +63,13 @@ def sequence_info(table, calls, figures, seq_type="", tam_beats=None):
     singer = is_singer(seq_type)
     tam_beats = list(tam_beats or [])
     first = next((i for i, t in enumerate(calls) if not is_marker(t)), None)
-    has_marker = first is not None and first > 0
-    last = len(calls) - 1
+    # Squared Set: nur ohne Startmarke davor, und fuer die erste Zeile mit Bewegung
+    # (eine Zeile nur aus Fuellwoertern davor reicht ihn weiter).
+    squared_set_open = first == 0
+    # Singer-Schluss: die letzte Schluss-Zeile der Karte, auch wenn danach noch eine
+    # Zeile steht; dann kommt er nicht noch einmal unsichtbar zur Summe dazu.
+    end = (next((i for i in range(len(calls) - 1, -1, -1) if is_singer_end(calls[i])), None)
+           if singer else None)
     lines, sums = [], []
     for i, text in enumerate(calls):
         if is_marker(text):
@@ -75,18 +80,20 @@ def sequence_info(table, calls, figures, seq_type="", tam_beats=None):
         if mapped and not ents:          # nur Fuellwoerter: kein Wert, kein Etikett
             lines.append(None)
             continue
-        if singer and i == last and is_singer_end(text):
+        if i == end:
             ents = SINGER_END
-        ss = (i == first and not has_marker)
+        ss, squared_set_open = squared_set_open, False
         base = calc.line_beats(table, ents, text, squared_set=ss)
         tam = tam_beats[i] if i < len(tam_beats) else None
         dynamic = calc.DYNAMIC in base.flags
-        warn = (not dynamic and tam is not None and calc.UNKNOWN not in base.flags
+        # Bei unbekannten und Not-Timed-Zeilen ist der Tabellenwert keine Vergleichsbasis
+        warn = (not dynamic and tam is not None
+                and not base.flags & {calc.UNKNOWN, calc.NOT_TIMED}
                 and calc.warn_deviation(base, tam))
         lines.append(LineInfo(base, tam, dynamic, warn))
         sums.append(calc.line_beats(table, ents, text, squared_set=ss, tam_beats=tam)
                     if dynamic and tam is not None else base)
-    if singer and calls and not is_singer_end(calls[-1]):
+    if singer and calls and end is None:
         sums.append(calc.line_beats(table, SINGER_END, "Swing and Promenade"))
     total = calc.sequence_beats(sums)
     light = calc.traffic_light(total) if singer and sums else None

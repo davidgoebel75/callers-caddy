@@ -38,6 +38,7 @@ DYNAMIC = "dynamic"          # Wert haengt vom Weg ab (Nennwert/Bereich, ohne En
 TAMINATIONS = "taminations"  # dynamischer Wert aus Taminations uebernommen
 
 GREEN, YELLOW, RED = "green", "yellow", "red"
+NEUTRAL = "neutral"          # Ampel ohne Aussage: Summe enthaelt Unbekanntes
 
 
 @dataclass(frozen=True)
@@ -197,9 +198,14 @@ def sequence_beats(lines):
 
 def traffic_light(total):
     """Ampel fuer eine 64-Beat-Figur nach dem Hoechstwert (Entscheidung David 2026-11-23):
-    gruen bis 64, gelb 65-68, rot darueber."""
+    gruen bis 64, gelb 65-68, rot darueber.
+
+    Enthaelt die Summe eine unbekannte oder Not-Timed-Zeile, ist der Hoechstwert nur
+    eine Untergrenze: gelb/rot bleiben (die Figur ist mindestens so lang), gruen wird
+    zu neutral, weil es nicht belegt ist (Entscheidung David 2026-11-24, Review #194)."""
+    open_end = bool(total.flags & {NOT_TIMED, UNKNOWN})
     if total.hi <= 64:
-        return GREEN
+        return NEUTRAL if open_end else GREEN
     if total.hi <= 68:
         return YELLOW
     return RED

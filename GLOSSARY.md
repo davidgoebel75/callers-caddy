@@ -331,6 +331,34 @@ pruefen kann, ob sie korrekt aufloest. Optional, nur nach Freigabe in den Einste
 _EN_: Square Flow
 _Avoid_: Mitlaufender Square, Square-Ansicht
 
+**Beats je Call**:
+Wie lange ein Call dauert, in Beats nach den CALLERLAB-Timing-Charts. Ein Wert
+(Square Thru 4 = 10), ein Bereich (7–8) oder "≥ n + ?", wenn ein Teil kein Timing
+hat. Die Summe einer Sequenz steht in der Kopfzeile des Sequenz-Details.
+_EN_: Beats per Call
+_Avoid_: Takte (ein Takt sind mehrere Beats), Timing (allein)
+
+**Dynamischer Call**:
+Call, dessen Dauer vom Weg abhaengt, z. B. Swing and Promenade (8–24 Beats). Die
+Chart nennt nur einen Bereich; den genauen Wert liefert Square Flow.
+_EN_: Dynamic Call
+
+**SF-Wert**:
+Beats einer Zeile, wie Square Flow (die Choreo-Engine) sie tanzt. Steht als "SF n"
+hinter dynamischen Calls und ersetzt dort in der Summe den Bereich.
+_EN_: SF Value
+
+**Etikett**:
+Graues Kaestchen hinter (oder unter) einem Call im Sequenz-Detail mit Programm und
+Beats. Per Rechtsklick hinter dem Call, darunter oder aus.
+_EN_: Label
+_Avoid_: Badge, Tag
+
+**Ampel**:
+Farbiger Punkt hinter der Beat-Summe eines Singing Calls: gruen bis 64, gelb 65–68,
+rot darueber, grau, wenn eine Zeile ohne Timing die Summe offen laesst.
+_EN_: Traffic Light
+
 ### Regeln
 
 **Regel**:

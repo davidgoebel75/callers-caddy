@@ -97,3 +97,36 @@ def test_ampel_nach_hoechstwert(table):
     calls = ["Square Thru 4"] * 6 + ["Swing and Promenade"]
     info = seq.sequence_info(table, calls, FIG, seq_type="Singer")
     assert info.total.hi == 60 + 24 and info.light == calc.RED
+
+
+def test_ampel_neutral_statt_gruen_bei_unbekannter_zeile(table):
+    """Review #194: '>= n + ?' darf nicht gruen zeigen; gelb/rot bleiben."""
+    calls = ["Square Thru 4", "Gibt es nicht", "Swing and Promenade"]
+    info = seq.sequence_info(table, calls, FIG, seq_type="Singer")
+    assert calc.UNKNOWN in info.total.flags and info.light == calc.NEUTRAL
+    long = seq.sequence_info(table, ["Square Thru 4"] * 6 + calls, FIG, seq_type="Singer")
+    assert long.light == calc.RED
+
+
+def test_keine_warnung_bei_not_timed(table):
+    """Review #194: bei Not Timed ist der Tabellenwert nur eine Untergrenze."""
+    fig = dict(FIG, **{"As Couples Square Thru 4": ["concept_as_couples", "call_square_thru"]})
+    info = seq.sequence_info(table, ["As Couples Square Thru 4"], fig, tam_beats=[20])
+    assert calc.NOT_TIMED in info.lines[0].beats.flags
+    assert not info.lines[0].warn
+
+
+def test_squared_set_ueberspringt_zeile_nur_aus_fuellwoertern(table):
+    fig = {"(Keep Her)": ["filler_words"], "Heads Pass Thru": ["call_pass_thru"]}
+    info = seq.sequence_info(table, ["(Keep Her)", "Heads Pass Thru", "Heads Pass Thru"], fig)
+    assert info.lines[0] is None
+    assert (info.lines[1].beats.lo, info.lines[2].beats.lo) == (4, 2)
+
+
+def test_singer_schluss_mit_zeile_danach_zaehlt_einmal(table):
+    """Review #194: Zeile nach dem Schluss -> Swing + Promenade nicht doppelt."""
+    calls = ["Heads Square Thru 4", "Swing and Promenade", "Right and Left Thru"]
+    info = seq.sequence_info(table, calls, FIG, seq_type="Singer")
+    assert info.lines[1].dynamic and (info.lines[1].beats.lo, info.lines[1].beats.hi) == (8, 24)
+    expected = sum(li.beats.lo for li in info.lines)
+    assert info.total.lo == expected
