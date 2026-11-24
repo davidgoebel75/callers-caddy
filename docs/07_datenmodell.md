@@ -65,9 +65,22 @@
 - sequence_id: Sequenz (Primaerschluessel, kein Fremdschluessel)
 - input_hash: Kartenzeilen, Typ, App-Callnamen dieser Zeilen, Mapping-Stand, Ergebnisform
 - engine_ver: Pruefsumme der Engine-Datei (tam_cli)
-- result_json: Urteil, Takte je Zeile, Summe, Abbruchzeile, Hinweise (ohne Animation)
+- result_json: Urteil, Beats je Zeile, Summe, Abbruchzeile, Hinweise (ohne Animation)
 - Abgeleiteter Zwischenspeicher fuer Square Flow: passt Hash oder Engine nicht mehr, wird
   neu gerechnet und ueberschrieben. Geschrieben aus dem Hintergrund-Thread ueber eine
   eigene kurze Verbindung. Darf jederzeit geleert werden.
+
+## Beats je Call (call_timing, intern#164)
+- Referenzdaten nach den CALLERLAB-Timing-Charts, eine Zeile je Call und Variante
+- programm, call, variante: wie in der Chart; entity_ids: App-Calls als Text
+  ('a|b' = einer davon, 'a+b' = beide zusammen)
+- typ: fest, bereich, dynamisch, not_timed, call_plus, plus_call, max
+- beats, beats_bis: Wert bzw. Bereich; anything_ab: ab welchem Teil "(Anything)" zaehlt
+- standard: 1 = diese Variante gilt, wenn die Karte nichts anderes sagt;
+  variante_regel: woran eine andere Variante erkannt wird
+- quelle, bemerkung: Chart-Stand und Hinweis (ohne Namen)
+- id = Reihenfolge der Quelldatei src/callerlab_timing.json
+- Wird beim Start komplett ersetzt, wenn die Version der Datei nicht zur Marke
+  callerlab_timing_version in app_meta passt. Nutzer pflegen hier nichts.
 
 Details: siehe docs/13_sequenzen.md

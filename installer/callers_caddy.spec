@@ -100,6 +100,9 @@ app_analysis = Analysis(
         # Wird zur Laufzeit ueber os.path.dirname(__file__) neben song_db.py
         # gesucht -> im Bundle == _internal/, also Ziel ".".
         (str(SRC_DIR / "reference_calls.json"), "."),
+        # Beats je Call nach CALLERLAB (intern#164), erzeugt von
+        # tools/beats/build_callerlab_timing.py; wie reference_calls.json neben song_db.py.
+        (str(SRC_DIR / "callerlab_timing.json"), "."),
         # Lizenzen (intern#248): build.py legt beides neben die EXE
         (str(PROJECT_ROOT / "LICENSE"), "."),
         (str(INSTALLER_DIR / "licenses"), "licenses"),

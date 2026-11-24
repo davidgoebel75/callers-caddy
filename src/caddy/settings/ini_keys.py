@@ -29,6 +29,8 @@ class IniKey:
 CLOCK_SHOW_SECONDS = "clock/show_seconds"
 CLOCK_TWELVE_HOUR = "clock/twelve_hour"
 CLOCK_SHOW_DATE = "clock/show_date"
+# intern#164: Programm und Beats im Sequenz-Detail: off | inline | below
+SEQ_DETAIL_LABELS = "sequences/detail_labels"
 # intern#247: Square Flow (Choreo-Engine)
 SQUARE_FLOW_ENABLED = "square_flow/enabled"
 SQUARE_FLOW_FRAME_RATE = "square_flow/frame_rate"
@@ -84,6 +86,9 @@ _ENTRIES = (
     _k("lyrics/reading_band_countdown_beats", int, 8, True),
     # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
     _k("sequences/show_hidden_on_start", bool, False, True),
+    # intern#164: Etiketten im Sequenz-Detail (nur Rechtsklick, nicht im Dialog;
+    # erst beim Umschalten geschrieben): off | inline | below
+    _k(SEQ_DETAIL_LABELS, str, "inline"),
     # intern#235: Uhr-Dock, eigene Sektion [clock] (Rechtsklick + Dialog)
     _k(CLOCK_SHOW_SECONDS, bool, False, True),
     _k(CLOCK_TWELVE_HOUR, bool, False, True),

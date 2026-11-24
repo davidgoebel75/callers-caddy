@@ -11268,10 +11268,30 @@
     "en": "{beats} beats",
     "ja": "{beats} ビート"
   },
-  "seq_header_beats_over": {
-    "de": "{beats} Beats (über 64)",
-    "en": "{beats} beats (over 64)",
-    "ja": "{beats} ビート（64 超過）"
+  "seq_header_beats_tooltip": {
+    "de": "Beats nach CALLERLAB · SF = Wert aus Square Flow\nAmpel (Singer): grün ≤ 64 · gelb ≤ 68 · rot darüber · grau = Summe offen (?)\n⚠ = Square Flow weicht um 2 Beats oder mehr ab",
+    "en": "Beats per CALLERLAB · SF = value from Square Flow\nTraffic light (singer): green ≤ 64 · yellow ≤ 68 · red above · grey = total open (?)\n⚠ = Square Flow differs by 2 beats or more",
+    "ja": "CALLERLAB によるビート数 · SF = Square Flow の値\n信号（シンギング）：緑 ≤ 64 · 黄 ≤ 68 · 赤 それ以上 · 灰 = 合計未確定（?）\n⚠ = Square Flow が 2 ビート以上異なる"
+  },
+  "seq_beats_sf": {
+    "de": "SF {beats}",
+    "en": "SF {beats}",
+    "ja": "SF {beats}"
+  },
+  "seq_labels_off": {
+    "de": "Programm und Beats ausblenden",
+    "en": "Hide program and beats",
+    "ja": "プログラムとビートを隠す"
+  },
+  "seq_labels_inline": {
+    "de": "Programm und Beats hinter dem Call",
+    "en": "Program and beats after the call",
+    "ja": "プログラムとビートをコールの後ろに表示"
+  },
+  "seq_labels_below": {
+    "de": "Programm und Beats unter dem Call",
+    "en": "Program and beats below the call",
+    "ja": "プログラムとビートをコールの下に表示"
   },
   "seq_tam_open_btn": {
     "de": "Taminations",
