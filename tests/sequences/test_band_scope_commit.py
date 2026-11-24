@@ -17,9 +17,14 @@ def test_band_scope_laesst_keine_transaktion_offen(tmp_path, keep):
         db = keep(SongDatabase(path))
     db._ensure_band_scope({1}, None)
     assert not db._conn.in_transaction
+    # Lesen auf der Haupt-DB: in einer offenen Transaktion friert das den Lese-Stand
+    # ein, erst dann scheitert der Schreibzugriff nach dem zweiten Schreiber.
+    db._conn.execute("SELECT count(*) FROM sequences").fetchall()
     other = sqlite3.connect(path, timeout=0.2)
-    other.execute("CREATE TABLE zweiter_schreiber (a)")
-    other.commit()
-    other.close()
+    try:
+        other.execute("CREATE TABLE zweiter_schreiber (a)")
+        other.commit()
+    finally:
+        other.close()
     db._conn.execute("CREATE TABLE haupt_schreibt (a)")
     db._conn.commit()

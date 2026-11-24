@@ -30,7 +30,7 @@ _NOTCH = 120                                  # ein Raster-Schritt des Mausrads
 CONTROL_POSITIONS = ("below", "above", "left", "right")
 _DEFAULTS = {
     "squareflow_floor": "#1d2028", "squareflow_grid": "#2a2e38",
-    "squareflow_grid_strong": "#3b404c", "squareflow_body_stroke": "#0b0d11",
+    "squareflow_grid_strong": "#3b404c", "squareflow_body_stroke": "#f0f0f0",
     "squareflow_couple1": "#d93a3a", "squareflow_couple2": "#2a9a4a",
     "squareflow_couple3": "#3a5fd9", "squareflow_couple4": "#e3b81e",
     "squareflow_band_good": "#1fa050", "squareflow_band_bad": "#d63428",
@@ -291,8 +291,8 @@ class SquareFlowWidget(QWidget):
         floor_box.setSpacing(4)
         floor_box.addWidget(self._floor, 1)
         floor_box.addWidget(self._call_label)
-        # Symbole wie im Musik-Player: |◀ / ▶| = vorheriger / naechster Call
-        # (wie Titel), ↺ = von vorn.
+        # Symbole wie in gaengigen Musik-Playern: |◀ / ▶| = vorheriger / naechster
+        # Call (wie Titel), ↺ = von vorn.
         self._btn_restart = self._button("↺", _t("sf_btn_restart"), self.restart)
         self._btn_prev = self._button("|◀", _t("sf_btn_prev"), self.prev_call)
         self._btn_play = self._button("▶", _t("sf_btn_play"), self.toggle_play)
