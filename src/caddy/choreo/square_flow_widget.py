@@ -291,8 +291,10 @@ class SquareFlowWidget(QWidget):
         floor_box.setSpacing(4)
         floor_box.addWidget(self._floor, 1)
         floor_box.addWidget(self._call_label)
-        self._btn_restart = self._button("|◀", _t("sf_btn_restart"), self.restart)
-        self._btn_prev = self._button("◀", _t("sf_btn_prev"), self.prev_call)
+        # Symbole wie im Musik-Player: |◀ / ▶| = vorheriger / naechster Call
+        # (wie Titel), ↺ = von vorn.
+        self._btn_restart = self._button("↺", _t("sf_btn_restart"), self.restart)
+        self._btn_prev = self._button("|◀", _t("sf_btn_prev"), self.prev_call)
         self._btn_play = self._button("▶", _t("sf_btn_play"), self.toggle_play)
         self._btn_next = self._button("▶|", _t("sf_btn_next"), self.next_call)
         self._controls = QWidget(self)
