@@ -63,15 +63,16 @@ def read_choreo_call_names(db_path: str, call_texts=None) -> dict:
 
 
 def read_choreo_cache(db_path: str, sequence_id: int):
-    """intern#247: (input_hash, engine_ver, result_json) aus sequence_choreo oder
-    None. Eigene, nur lesende Verbindung (Hintergrund-Thread)."""
+    """intern#247: (input_hash, engine_ver, result_json, anim_z) aus sequence_choreo
+    oder None. anim_z: Animation zlib-gepackt (intern#263), None bei Eintraegen ohne.
+    Eigene, nur lesende Verbindung (Hintergrund-Thread)."""
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
     except sqlite3.Error:
         return None
     try:
         return con.execute(
-            "SELECT input_hash, engine_ver, result_json FROM sequence_choreo "
+            "SELECT input_hash, engine_ver, result_json, anim_z FROM sequence_choreo "
             "WHERE sequence_id = ?", (sequence_id,)).fetchone()
     except sqlite3.Error:
         return None
@@ -80,8 +81,9 @@ def read_choreo_cache(db_path: str, sequence_id: int):
 
 
 def write_choreo_cache(db_path: str, sequence_id: int, input_hash: str,
-                       engine_ver: str, result_json: str) -> bool:
+                       engine_ver: str, result_json: str, anim_z=None) -> bool:
     """intern#247: Ergebnis je Sequenz ablegen (ersetzt den alten Eintrag).
+    anim_z: Animation zlib-gepackt (intern#263, analysis.anim_to_blob) oder None.
     Eigene kurze Verbindung aus dem Hintergrund-Thread; gelingt das Schreiben
     nicht (DB gesperrt), bleibt es beim naechsten Mal ungespeichert."""
     try:
@@ -92,8 +94,9 @@ def write_choreo_cache(db_path: str, sequence_id: int, input_hash: str,
         with con:
             con.execute(
                 "INSERT OR REPLACE INTO sequence_choreo "
-                "(sequence_id, input_hash, engine_ver, result_json) VALUES (?, ?, ?, ?)",
-                (sequence_id, input_hash, engine_ver, result_json))
+                "(sequence_id, input_hash, engine_ver, result_json, anim_z) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (sequence_id, input_hash, engine_ver, result_json, anim_z))
         return True
     except sqlite3.Error:
         return False

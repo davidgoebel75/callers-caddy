@@ -41,7 +41,9 @@ def test_lesen_schreiben_und_tabelle_da(tmp_path, keep):
     assert read_choreo_cache(db, 5) is None
     assert write_choreo_cache(db, 5, "h", "e", '{"a": 1}')
     assert write_choreo_cache(db, 5, "h2", "e", '{"a": 2}')         # ersetzt
-    assert read_choreo_cache(db, 5) == ("h2", "e", '{"a": 2}')
+    assert read_choreo_cache(db, 5) == ("h2", "e", '{"a": 2}', None)
+    assert write_choreo_cache(db, 5, "h3", "e", '{"a": 3}', b"z")
+    assert read_choreo_cache(db, 5)[3] == b"z"
 
 
 def test_hash_aendert_sich_mit_zeilen_typ_und_app():
@@ -164,3 +166,45 @@ def test_zuordnungen_viele_texte_in_teilen(tmp_path, keep):
     texts = list(full)[:1500] + [f"Unbekannt {i}" for i in range(1200)]
     got = read_choreo_call_names(db_path, texts)
     assert got == {k: full[k] for k in texts if k in full}
+
+
+def test_animation_gepackt_rund():
+    """intern#263: Animation in anim_z, from_cache macht das Ergebnis wieder vollstaendig."""
+    anim = {"frames": [[0.0, [1, 2, 3]], [0.25, [1, 2, 4]]], "total_beats": 8}
+    res = {"urteil": "gruen", "card_beats": [4, 6], "animation": anim}
+    blob = analysis.anim_to_blob(res)
+    assert isinstance(blob, bytes) and len(blob) < len(str(anim)) + 50
+    back = analysis.from_cache(analysis.to_cache(res), blob)
+    assert back["animation"] == anim and back["cached"] and back["card_beats"] == [4, 6]
+    assert analysis.anim_to_blob({"animation": {}}) is None
+    assert analysis.anim_to_blob({"animation": None}) is None
+    assert analysis.anim_from_blob(b"kaputt") is None
+    assert analysis.from_cache(analysis.to_cache(res), b"kaputt")["animation"] is None
+
+
+@pytest.mark.skipif(engine.find_engine() is None, reason="tam_cli nicht vorhanden")
+def test_neue_sitzung_mit_animation_ohne_engine(tmp_path, keep, qapp):
+    """intern#263: Square Flow sichtbar (need_animation) und die Sequenz ist aus einer
+    frueheren Sitzung bekannt: Ergebnis samt Animation aus der DB, Engine bleibt aus."""
+    db = _db(tmp_path, keep)
+    w1 = SquareFlowWorker(db)
+    got, spin = _wait(qapp, w1, 1)
+    w1.request(1, CALLS, TYPE, seq_id=7, need_animation=True)
+    spin()
+    w1.shutdown()
+    assert got and got[0]["animation"]
+    assert read_choreo_cache(db, 7)[3]                     # Animation gespeichert
+
+    w2 = SquareFlowWorker(db)
+    got2, spin2 = _wait(qapp, w2, 1)
+    w2.request(1, CALLS, TYPE, seq_id=7, need_animation=True)
+    spin2()
+    _spin(qapp, got2, 2, 1)                                # kein zweites Ergebnis
+    assert len(got2) == 1 and got2[0].get("cached")
+    assert got2[0]["animation"] == got[0]["animation"]
+    assert w2.engine()._proc is None                       # Engine nicht gestartet
+    w2.request(2, CALLS, TYPE, seq_id=7, need_animation=True)   # jetzt aus dem Speicher
+    _spin(qapp, got2, 2, 10)
+    assert got2[1]["animation"] == got[0]["animation"]
+    assert w2.engine()._proc is None
+    w2.shutdown()

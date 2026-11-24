@@ -7,9 +7,10 @@ dem ersten Auftrag.
 
 Zwischenspeicher in zwei Stufen:
 - im Arbeitsspeicher: komplette Ergebnisse (mit Animation) der letzten Sequenzen;
-- in der DB (sequence_choreo): Ergebnis ohne Animation. Ein Treffer wird sofort gemeldet
-  (Takte, Warnung), ohne die Engine zu starten. Wird die Animation gebraucht (Dock sichtbar),
-  rechnet der Worker danach trotzdem und meldet ein zweites Mal.
+- in der DB (sequence_choreo): Ergebnis und, seit intern#263, die Animation (zlib-gepackt).
+  Ein Treffer wird sofort gemeldet, ohne die Engine zu starten. Nur bei einem alten Eintrag
+  ohne Animation rechnet der Worker danach noch, wenn sie gebraucht wird (Dock sichtbar),
+  und meldet ein zweites Mal.
 
 Die Zuordnungen Call-Text -> Callname liest der Worker vor jedem Lauf frisch aus der DB
 (eine Abfrage, im Hintergrund-Thread, nur fuer die Kartentexte der Sequenz, intern#263).
@@ -150,23 +151,31 @@ class SquareFlowWorker(QObject):
             from song_db_sequences import read_choreo_cache
             row = read_choreo_cache(db, seq_id)
             if row and row[0] == ihash and row[1] == efp:
-                cached = analysis.from_cache(row[2])
+                cached = analysis.from_cache(row[2], row[3] if len(row) > 3 else None)
                 if cached is not None:
+                    complete = bool(cached.get("animation"))
+                    if complete:                 # intern#263: mit Animation -> fertig
+                        self._remember(key, cached)
                     self._emit(token, cached)
                     self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_DB)
-                    if not need_anim:
+                    if complete or not need_anim:
                         return
                     t0 = time.perf_counter()     # Engine-Lauf danach eigens messen
         starts = getattr(eng, "start_count", 0)
         result = analysis.analyse_sequence(eng.run, calls, seq_type, app)
-        self._cache[key] = result
-        while len(self._cache) > _CACHE_SIZE:
-            self._cache.popitem(last=False)
+        self._remember(key, result)
         self._emit(token, result)
         self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_ENGINE,
                    engine_started=getattr(eng, "start_count", 0) != starts,
                    error=result.get("error") if isinstance(result, dict) else None)
         if db:
             from song_db_sequences import write_choreo_cache
-            write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result))
+            write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result),
+                               analysis.anim_to_blob(result))
+
+    def _remember(self, key, result):
+        self._cache[key] = result
+        self._cache.move_to_end(key)
+        while len(self._cache) > _CACHE_SIZE:
+            self._cache.popitem(last=False)
 

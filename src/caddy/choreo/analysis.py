@@ -6,6 +6,7 @@ engine.TamEngine.run (blockiert, nur im Hintergrund-Thread aufrufen).
 import hashlib
 import json
 import re
+import zlib
 from urllib.parse import quote
 
 from caddy.choreo import mapping, pruefband, timeline
@@ -46,21 +47,45 @@ def input_hash(calls, seq_type, app=None):
 
 
 def to_cache(result):
-    """Ergebnis ohne Animation als JSON (fuer sequence_choreo)."""
+    """Ergebnis ohne Animation als JSON (fuer sequence_choreo.result_json; die Animation
+    steht gepackt daneben in anim_z, siehe anim_to_blob)."""
     return json.dumps({k: v for k, v in result.items() if k != "animation"},
                       ensure_ascii=False)
 
 
-def from_cache(text):
+def from_cache(text, anim_z=None):
+    """Ergebnis aus sequence_choreo. Mit anim_z (intern#263) kommt die Animation dazu,
+    das Ergebnis ist dann vollstaendig; ohne (oder unlesbar) ist "animation" None."""
     try:
         res = json.loads(text)
     except (TypeError, ValueError):
         return None
     if not isinstance(res, dict):
         return None
-    res["animation"] = None
+    res["animation"] = anim_from_blob(anim_z)
     res["cached"] = True
     return res
+
+
+def anim_to_blob(result):
+    """Animation eines Ergebnisses zlib-gepackt fuer sequence_choreo.anim_z (intern#263),
+    None ohne Animation. Ca. 40 KB JSON werden zu ca. 10 KB."""
+    anim = result.get("animation") if isinstance(result, dict) else None
+    if not anim:
+        return None
+    raw = json.dumps(anim, ensure_ascii=False, separators=(",", ":"))
+    return zlib.compress(raw.encode("utf-8"), 6)
+
+
+def anim_from_blob(blob):
+    """Gegenstueck zu anim_to_blob; None bei fehlendem oder kaputtem Eintrag."""
+    if not blob:
+        return None
+    try:
+        anim = json.loads(zlib.decompress(bytes(blob)).decode("utf-8"))
+    except (zlib.error, TypeError, ValueError, UnicodeDecodeError):
+        return None
+    return anim if isinstance(anim, dict) and anim else None
 
 
 def _card_spans(n_cards, src, end_src, call_starts, total, n_body):

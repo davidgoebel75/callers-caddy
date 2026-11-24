@@ -325,7 +325,9 @@ CREATE TABLE IF NOT EXISTS song_properties (
 
 
 # intern#247: Ergebnis der Choreo-Engine je Sequenz (Square Flow): Urteil,
-# Takte je Zeile, Hinweise (ohne Animation). Abgeleitet und jederzeit
+# Takte je Zeile, Hinweise; seit intern#263 auch die Animation (anim_z,
+# zlib-gepacktes JSON, ca. 10 KB), damit Square Flow eine bekannte Sequenz
+# ohne Engine-Lauf zeigen kann. Abgeleitet und jederzeit
 # verwerfbar: passt input_hash (Zeilen, Typ, Mapping-Stand, App-Callnamen)
 # oder engine_ver nicht mehr, wird neu gerechnet und ueberschrieben.
 _CREATE_SEQUENCE_CHOREO_TABLE = """
@@ -333,7 +335,8 @@ CREATE TABLE IF NOT EXISTS sequence_choreo (
     sequence_id  INTEGER PRIMARY KEY,
     input_hash   TEXT NOT NULL DEFAULT '',
     engine_ver   TEXT NOT NULL DEFAULT '',
-    result_json  TEXT NOT NULL DEFAULT ''
+    result_json  TEXT NOT NULL DEFAULT '',
+    anim_z       BLOB
 );
 """
 
