@@ -82,6 +82,14 @@ class SequenceViewWidget(QWidget):
         self._seq_ids = []
         self._current_idx = 0
         self._calls = []
+        # intern#263: Calls (mit Teaching-Orders), Typ und Schwierigkeit der
+        # Sequenzen der Liste, beim Setzen der Liste auf einmal gelesen. Der
+        # Wechsel (Weiter, Dynamic Lyrics) liest dann nicht mehr ca. 12-mal aus
+        # der DB; das kostete waehrend der Wiedergabe bis zu einige 100 ms,
+        # weil jede Abfrage den GIL abgibt. Gilt fuer _details_ver.
+        self._details = {}
+        self._details_ver = None
+        self._labels = None   # Band -> Programmname, mit dem Speicher verworfen
         # intern#176: Baender der Tanzprogramm-Wahl fuer das Programm-Etikett
         # hinter jedem Call (None = keine Wahl, z. B. im Beispiel-Betrachter).
         self._program_bands = None
@@ -241,6 +249,7 @@ class SequenceViewWidget(QWidget):
         self._db = db
         self._seq_ids = seq_ids
         self._current_idx = current_idx
+        self._reload_details()
         if seq_ids:
             # Buttons reaktivieren (koennten durch _show_empty deaktiviert sein)
             self._btn_delete.setEnabled(True)
@@ -251,6 +260,50 @@ class SequenceViewWidget(QWidget):
         self._notify_sequences_changed()
         self._notify_current_sequence_changed()
         perf_log("SeqView.set_sequence: TOTAL", _t0)
+
+    # ---- Speicher der Sequenz-Daten (intern#263) ----
+
+    _PRELOAD_MAX = 3000   # groessere Listen: Abschnitte ab der gezeigten Sequenz
+    _CHUNK = 200
+
+    def _reload_details(self):
+        """Speicher neu fuellen: die ganze Liste (bis _PRELOAD_MAX), sonst ein
+        Abschnitt ab der gezeigten Sequenz. Laeuft mit dem Setzen der Liste."""
+        self._details, self._details_ver, self._labels = {}, None, None
+        if not self._seq_ids:
+            return
+        if len(self._seq_ids) <= self._PRELOAD_MAX:
+            self._load_details(self._seq_ids)
+        else:
+            self._load_details(self._seq_ids[self._current_idx:
+                                             self._current_idx + self._CHUNK])
+
+    def _load_details(self, seq_ids):
+        many = getattr(self._db, "get_sequence_details_many", None)
+        if many is None:
+            return
+        ver = self._db.sequence_data_version()
+        if ver != self._details_ver:
+            self._details, self._details_ver = {}, ver
+        self._details.update(many(seq_ids))
+
+    def _detail(self, seq_id):
+        """(calls, seq_type, difficulty) der Sequenz. Aus dem Speicher, solange
+        sich in der DB nichts geaendert hat (eine kleine Abfrage); sonst und bei
+        einer Luecke der naechste Abschnitt ab hier. Ohne Sammel-Abfrage (Test-
+        Attrappen) wie frueher einzeln."""
+        if getattr(self._db, "get_sequence_details_many", None) is None:
+            raw = self._db.get_sequence_raw(seq_id) or {}
+            return (self._db.get_sequence_calls(seq_id),
+                    raw.get("seq_type"), raw.get("difficulty"))
+        if self._db.sequence_data_version() != self._details_ver:
+            self._details, self._details_ver, self._labels = {}, None, None
+        hit = self._details.get(seq_id)
+        if hit is None:
+            idx = self._current_idx
+            self._load_details([seq_id] + self._seq_ids[idx:idx + self._CHUNK])
+            hit = self._details.get(seq_id, ([], "", ""))
+        return hit
 
     def current_calls(self) -> list:
         """BL-173: Call-Zeilen der AKTUELL gezeigten Sequenz (fuer Dynamic Lyrics).
@@ -385,10 +438,10 @@ class SequenceViewWidget(QWidget):
 
         Leere Werte werden weggelassen; ist gar nichts gesetzt, bleibt die Zeile
         leer (nimmt dann kaum Platz weg)."""
-        raw = self._db.get_sequence_raw(seq_id) or {}
-        seq_type = (raw.get("seq_type") or "").strip()
+        _calls, seq_type, difficulty = self._detail(seq_id)
+        seq_type = (seq_type or "").strip()
         self._seq_type = seq_type
-        difficulty = (raw.get("difficulty") or "").strip()
+        difficulty = (difficulty or "").strip()
         parts = []
         if seq_type:
             parts.append(f"{_t('header_type')}: {seq_type}")
@@ -513,11 +566,13 @@ class SequenceViewWidget(QWidget):
             self._btn_next.setEnabled(self._current_idx < len(self._seq_ids) - 1)
         # intern#176: 6. Spalte (Teaching-Orders je Figur) wird hier durch das
         # fertige Programm-Etikett (Text) ersetzt; _make_html liest nur dieses.
-        labels = program_selection.label_by_band(self._db.get_all_dance_programs())
+        if self._labels is None:        # intern#263: mit dem Speicher gelesen
+            self._labels = program_selection.label_by_band(
+                self._db.get_all_dance_programs())
         self._calls = [
             c[:5] + (program_selection.call_program_label(
-                c[5] or [], self._program_bands, labels),)
-            for c in self._db.get_sequence_calls(seq_id)]
+                c[5] or [], self._program_bands, self._labels),)
+            for c in self._detail(seq_id)[0]]
         self._recalc_font_size()
         # Nochmal nach erstem Layout-Pass, damit height()/width() korrekt ist
         QTimer.singleShot(0, self._recalc_font_size)
@@ -544,6 +599,7 @@ class SequenceViewWidget(QWidget):
             self._current_idx = self._seq_ids.index(seq_id)
         else:
             self._seq_ids, self._current_idx = ids, idx
+        self._reload_details()
         self._update_content()
         self._notify_current_sequence_changed()
 

@@ -10,6 +10,15 @@ import json
 import sqlite3
 
 
+# Hoechstzahl Werte je IN (...)-Liste (Grenze fuer SQL-Parameter)
+_SQL_CHUNK = 400
+
+
+def _to_key(teaching_order):
+    """Sortierschluessel wie ORDER BY teaching_order in SQLite (NULL zuerst)."""
+    return (teaching_order is not None, teaching_order or 0)
+
+
 # ---- SQL-Statements: Sequenzen (Cached Live-Mapping) ----
 
 
@@ -472,6 +481,13 @@ class SequencesMixin:
         except Exception:
             return 0
 
+    def sequence_data_version(self) -> int:
+        """intern#263: Aenderungszaehler fuer Speicher ausserhalb der DB-Schicht
+        (Sequenz-Detail). Steigt per Trigger bei jeder Aenderung an
+        sequence_calls, call_text_mappings, call_text_figures_extra und
+        call_programs, also auch an Schreibstellen, die niemand Bescheid geben."""
+        return self._band_data_version()
+
     def _check_band_cache_version(self):
         """Verwirft den Band-Cache, sobald sich relevante Daten geaendert haben
         (sequences/sequence_calls/call_text_mappings/call_programs -> Trigger)."""
@@ -788,6 +804,62 @@ class SequencesMixin:
             "ORDER BY tags COLLATE NOCASE"
         )
         return [row[0] for row in cur.fetchall()]
+
+    def get_sequence_details_many(self, sequence_ids) -> dict:
+        """intern#263: Calls, Typ und Schwierigkeit vieler Sequenzen auf einmal,
+        fuer den Speicher des Sequenz-Details.
+
+        {sequence_id: (calls, seq_type, difficulty)}; calls genau wie
+        get_sequence_calls, seq_type/difficulty wie get_sequence_raw (roh).
+        Wenige Abfragen fuer die ganze Liste statt ca. 12 je Sequenz: Jede
+        Abfrage gibt den GIL ab, und waehrend der Wiedergabe kostet jedes
+        Zurueckholen bis zu 5 ms, wenn andere Threads rechnen.
+        Sequenzen, die es nicht gibt, fehlen im Ergebnis."""
+        ids = list(dict.fromkeys(sequence_ids))
+        rows = {}
+        for i in range(0, len(ids), _SQL_CHUNK):
+            part = ids[i:i + _SQL_CHUNK]
+            for r in self._conn.execute(
+                    "SELECT id, calls_json, field_1, field_2, field_3, field_4, "
+                    "field_5, field_6, field_7, field_8, field_9, field_10, "
+                    "field_11, field_12, field_13, field_14, field_15, type, difficulty "
+                    f"FROM sequences WHERE id IN ({','.join('?' * len(part))})", part):
+                calls = calls_from_json(r[1]) if r[1] else clean_calls(r[2:17])
+                rows[r[0]] = (calls, r[17], r[18])
+        texts = sorted({t for calls, _, _ in rows.values() for t in calls})
+        figure_tos = {}  # call_text -> {entity_id: [teaching_order, ...]}
+        mapping = {}     # call_text -> (entity_id, teaching_order, canonical_name)
+        for i in range(0, len(texts), _SQL_CHUNK):
+            part = texts[i:i + _SQL_CHUNK]
+            marks = ",".join("?" * len(part))
+            for text, eid, to in self._conn.execute(
+                    "SELECT f.call_text, f.entity_id, t.teaching_order "
+                    "FROM call_text_figures f "
+                    "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
+                    f"WHERE f.call_text IN ({marks})", part):
+                figure_tos.setdefault(text, {}).setdefault(eid, []).append(to)
+            # Wie get_sequence_calls: niedrigstes Band je Call-Text
+            # (ORDER BY teaching_order LIMIT 1, NULL zuerst wie in SQLite).
+            for text, eid, to, name in self._conn.execute(
+                    "SELECT m.call_text, m.entity_id, t.teaching_order, t.canonical_name "
+                    "FROM call_text_mappings m "
+                    "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
+                    f"WHERE m.call_text IN ({marks})", part):
+                old = mapping.get(text)
+                if old is None or _to_key(to) < _to_key(old[1]):
+                    mapping[text] = (eid, to, name)
+        out = {}
+        for sid, (calls, seq_type, difficulty) in rows.items():
+            result = []
+            for i, text in enumerate(calls):
+                m = mapping.get(text)
+                if m:
+                    result.append((i + 1, text, m[0], m[1], m[2],
+                                   list(figure_tos.get(text, {}).values())))
+                else:
+                    result.append((i + 1, text, None, None, None, None))
+            out[sid] = (result, seq_type, difficulty)
+        return out
 
     def get_sequence_calls(self, sequence_id: int) -> list[tuple]:
         """Gibt alle Calls einer Sequenz zurueck (via call_text_mappings).
