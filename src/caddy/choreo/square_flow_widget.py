@@ -518,14 +518,6 @@ class SquareFlowWidget(QWidget):
         self._worker.request(self._token, *self._seq, seq_id=self._seq_id,
                              need_animation=self.isVisible())
 
-    def invalidate(self):
-        """Call-Mapping geaendert: Zwischenspeicher verwerfen und neu rechnen."""
-        if self._worker is not None:
-            self._worker.invalidate()
-        if self._seq is not None:
-            self._dirty = True
-            self._maybe_request()
-
     def shutdown(self):
         self._timer.stop()
         if self._worker is not None:

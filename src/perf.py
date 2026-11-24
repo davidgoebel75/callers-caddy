@@ -13,6 +13,7 @@ Ausgabe: stdout UND zeitgestempelte Datei in logs/perf/.
 
 import sys
 import os
+import threading as _perf_threading
 import time as _perf_time
 
 # --- Startup-Perf: fruehester Messpunkt (Import-Zeit dieses Moduls) -----------
@@ -59,6 +60,9 @@ _PERF_ENABLED = False   # Wird via configure() aus INI gesetzt
 _APP_VERSION = "?"      # Wird via configure() aus main.__version__ gesetzt
 _PERF_FILE = None       # Datei-Handle fuer das Perf-Log
 _PERF_LINES = []        # Puffer bis Datei geoeffnet wird
+# perf_write wird auch aus Worker-Threads gerufen (Square Flow): Sperre, damit
+# Zeilen im Perflog nicht ineinanderlaufen.
+_PERF_WRITE_LOCK = _perf_threading.Lock()
 # letzten [Perf]-Event tracken, damit der Stall-Detektor sagen kann *was*
 # zuletzt auf dem Main-Thread lief, bevor er blockierte.
 _LAST_PERF_LABEL = ""
@@ -136,12 +140,13 @@ def perf_write(line: str):
         stamped = line
     else:
         stamped = f"{_perf_ts()} {line}"
-    print(stamped)
-    if _PERF_FILE:
-        _PERF_FILE.write(stamped + "\n")
-        _PERF_FILE.flush()
-    else:
-        _PERF_LINES.append(stamped)
+    with _PERF_WRITE_LOCK:
+        print(stamped)
+        if _PERF_FILE:
+            _PERF_FILE.write(stamped + "\n")
+            _PERF_FILE.flush()
+        else:
+            _PERF_LINES.append(stamped)
     # Letzten [Perf]-Event tracken (ohne Zeitstempel-Prefix und ohne Dauer)
     if line.startswith("[Perf]"):
         # "[Perf]   foo.bar (3 entries): 12ms" -> "foo.bar (3 entries)"
