@@ -574,6 +574,11 @@ class SequencesMixin:
         self._conn.execute("DELETE FROM seq_scope")
         self._conn.executemany(
             "INSERT INTO seq_scope (id) VALUES (?)", [(i,) for i in cover])
+        # DELETE/INSERT oeffnen implizit eine Transaktion. Ohne commit() bliebe die
+        # Haupt-Verbindung mit altem Lese-Stand darin haengen; sobald eine zweite
+        # Verbindung schreibt (Square-Flow-Cache), scheitert dann jeder Schreibzugriff
+        # hier mit "database is locked" (SQLITE_BUSY_SNAPSHOT), Review #194.
+        self._conn.commit()
         self._scope_key = key
 
     def invalidate_band_cache(self):
