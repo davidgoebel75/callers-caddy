@@ -33,16 +33,29 @@ _SELECT_CHOREO_CALL_NAMES = (
 )
 
 
-def read_choreo_call_names(db_path: str) -> dict:
+def read_choreo_call_names(db_path: str, call_texts=None) -> dict:
     """{Kartentext: Callname} aus der DB unter db_path, eigene Verbindung nur
     lesend (fuer Hintergrund-Threads, die die Haupt-Verbindung nicht teilen
-    duerfen). Leeres dict, wenn die DB nicht lesbar ist."""
+    duerfen). Leeres dict, wenn die DB nicht lesbar ist.
+
+    call_texts: nur diese Kartentexte lesen (intern#263). Square Flow braucht je
+    Auftrag nur die Zeilen der Sequenz; die ganze Tabelle (ca. 10.000 Zeilen)
+    kostete auf schwachen Rechnern ueber 100 ms je Auftrag. None = alle."""
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
     except sqlite3.Error:
         return {}
     try:
-        return dict(con.execute(_SELECT_CHOREO_CALL_NAMES).fetchall())
+        if call_texts is None:
+            return dict(con.execute(_SELECT_CHOREO_CALL_NAMES).fetchall())
+        texts = sorted({str(t) for t in call_texts if t})
+        out = {}
+        for i in range(0, len(texts), 400):              # Grenze fuer SQL-Parameter
+            part = texts[i:i + 400]
+            out.update(con.execute(
+                _SELECT_CHOREO_CALL_NAMES
+                + f" AND m.call_text IN ({','.join('?' * len(part))})", part).fetchall())
+        return out
     except sqlite3.Error:
         return {}
     finally:

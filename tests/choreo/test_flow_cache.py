@@ -130,3 +130,37 @@ def test_geaendertes_call_mapping_rechnet_neu(tmp_path, keep, qapp, monkeypatch)
     _spin(qapp, got, 3, 10)
     w.shutdown()
     assert len(runs) == 2 and runs[1].get("Boys Rnu") == "Run"
+
+
+def test_zuordnungen_nur_fuer_die_zeilen_der_sequenz(tmp_path, keep):
+    """intern#263: gefiltert gelesen gibt es dieselben Eintraege wie aus der ganzen Tabelle,
+    also denselben Cache-Schluessel; nur fremde Kartentexte fehlen."""
+    from song_db_sequences import read_choreo_call_names
+    db_path = _db(tmp_path, keep)
+    with contextlib.redirect_stdout(io.StringIO()):
+        db = keep(SongDatabase(db_path))
+    eid = db._conn.execute("SELECT entity_id FROM calls WHERE canonical_name = 'Run'"
+                           ).fetchone()[0]
+    for text in ("Boys Rnu", " Boys Rnu ", "Girls Rnu", "(Zero Box)"):
+        db.set_call_text_mapping(text, eid, mapped_by="manual")
+    full = read_choreo_call_names(db_path)
+    calls = ("(Zero Box)", " Boys Rnu ", "Swing Thru")
+    w = SquareFlowWorker(db_path, engine=_FakeEngine())
+    part = w._load_app(calls)
+    assert "Girls Rnu" in full and "Girls Rnu" not in part
+    assert {k: v for k, v in full.items() if k in part} == part
+    for c in calls:                            # Text wie gegeben und ohne Leerraum
+        for t in (c, c.strip()):
+            assert part.get(t) == full.get(t)
+    assert analysis.input_hash(calls, TYPE, part) == analysis.input_hash(calls, TYPE, full)
+    assert read_choreo_call_names(db_path, []) == {}
+
+
+def test_zuordnungen_viele_texte_in_teilen(tmp_path, keep):
+    """Mehr Kartentexte als SQL-Parameter erlaubt: wird in Teilen gelesen."""
+    from song_db_sequences import read_choreo_call_names
+    db_path = _db(tmp_path, keep)
+    full = read_choreo_call_names(db_path)
+    texts = list(full)[:1500] + [f"Unbekannt {i}" for i in range(1200)]
+    got = read_choreo_call_names(db_path, texts)
+    assert got == {k: full[k] for k in texts if k in full}

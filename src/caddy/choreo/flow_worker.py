@@ -12,7 +12,8 @@ Zwischenspeicher in zwei Stufen:
   rechnet der Worker danach trotzdem und meldet ein zweites Mal.
 
 Die Zuordnungen Call-Text -> Callname liest der Worker vor jedem Lauf frisch aus der DB
-(eine Abfrage, im Hintergrund-Thread). Sie gehen in den Schluessel beider Stufen ein:
+(eine Abfrage, im Hintergrund-Thread, nur fuer die Kartentexte der Sequenz, intern#263).
+Sie gehen in den Schluessel beider Stufen ein:
 Aendert sich das Call-Mapping irgendwo, passen alte Ergebnisse nicht mehr und werden neu
 gerechnet, ohne dass jede Schreibstelle Bescheid geben muss (Review #192, Punkt 7).
 """
@@ -28,6 +29,8 @@ from caddy.choreo import analysis, perf_marks
 from caddy.choreo.engine import TamEngine
 
 _CACHE_SIZE = 64
+# Zeilen, die mapping.map_sequence selbst einsetzt (Startformation), siehe _load_app
+_SYNTH_LINES = ("(Zero Box)", "(Zero Line)", "(implizit Zero Box)")
 
 
 class SquareFlowWorker(QObject):
@@ -71,12 +74,19 @@ class SquareFlowWorker(QObject):
 
     # --- Thread -------------------------------------------------------------
 
-    def _load_app(self):
-        """Aktuelle Zuordnungen Call-Text -> Callname (bei jedem Lauf neu gelesen)."""
+    def _load_app(self, calls):
+        """Aktuelle Zuordnungen Call-Text -> Callname (bei jedem Lauf neu gelesen), nur fuer
+        die Kartentexte dieser Sequenz (intern#263). mapping.py schlaegt die Zeilen mit
+        abgeschnittenem Leerraum nach, input_hash mit dem Text wie gegeben: beide Formen
+        lesen, dazu die Platzhalter, die mapping selbst als Zeile einsetzt."""
         if not self._db_path:
             return {}
         from song_db_sequences import read_choreo_call_names
-        return read_choreo_call_names(self._db_path)
+        texts = set(_SYNTH_LINES)
+        for c in calls:
+            texts.add(c)
+            texts.add(str(c).strip())
+        return read_choreo_call_names(self._db_path, texts)
 
     def _engine_fingerprint(self):
         """Stand der Engine-Datei (ohne den Prozess zu starten)."""
@@ -119,7 +129,7 @@ class SquareFlowWorker(QObject):
 
     def _run_job(self, token, calls, seq_type, seq_id, need_anim):
         t0 = time.perf_counter()
-        app = self._load_app()
+        app = self._load_app(calls)
         ihash = analysis.input_hash(calls, seq_type, app)
         key = ihash                          # Zeilen, Typ und Call-Mapping
         result = self._cache.get(key)
