@@ -7883,6 +7883,10 @@ class P29MainWindow(QMainWindow):
                     self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
                 else:
                     self.lyrics_widget.load_song(self.session.song)
+                # Das Neuladen verlaesst Dynamic Lyrics; wie beim Songwechsel
+                # Sync-Punkte laden und ein gewuenschtes Dynamic wieder anwenden
+                # (sonst bleibt Square Flow ohne Figurenfenster stehen).
+                self._push_lyrics_sync_identity(offer_copy=False)
             # Notizen-Widget (lazy — ggf. noch nicht erstellt)
             if self.notes_widget:
                 self.notes_widget.apply_skin(self.skin_mgr)
