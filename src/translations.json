@@ -11269,9 +11269,9 @@
     "ja": "{beats} ビート"
   },
   "seq_header_beats_tooltip": {
-    "de": "Beats nach den CALLERLAB-Timing-Charts. Bei dynamischen Calls rechnet die Summe mit dem Wert von Square Flow (SF), wenn vorhanden.\nAmpel bei Singern: grün bis 64, gelb 65–68, rot darüber; grau, wenn eine Zeile ohne Timing (?) die Summe offen lässt.\n⚠ hinter einem Call: Square Flow weicht um 2 Beats oder mehr von der Tabelle ab.",
-    "en": "Beats according to the CALLERLAB timing charts. For dynamic calls, the total uses the Square Flow (SF) value if available.\nTraffic light for singing calls: green up to 64, yellow 65–68, red above; grey if a line without timing (?) leaves the total open.\n⚠ after a call: Square Flow differs from the chart by 2 beats or more.",
-    "ja": "CALLERLAB タイミング表によるビート数。動的なコールでは、Square Flow（SF）の値があれば合計にその値を使います。\nシンギングコールの信号：64 まで緑、65～68 黄、それ以上は赤。タイミングのない行（?）で合計が確定しない場合は灰色。\nコールの後ろの ⚠：Square Flow の値が表と 2 ビート以上異なります。"
+    "de": "Beats nach CALLERLAB · SF = Wert aus Square Flow\nAmpel (Singer): grün ≤ 64 · gelb ≤ 68 · rot darüber · grau = Summe offen (?)\n⚠ = Square Flow weicht um 2 Beats oder mehr ab",
+    "en": "Beats per CALLERLAB · SF = value from Square Flow\nTraffic light (singer): green ≤ 64 · yellow ≤ 68 · red above · grey = total open (?)\n⚠ = Square Flow differs by 2 beats or more",
+    "ja": "CALLERLAB によるビート数 · SF = Square Flow の値\n信号（シンギング）：緑 ≤ 64 · 黄 ≤ 68 · 赤 それ以上 · 灰 = 合計未確定（?）\n⚠ = Square Flow が 2 ビート以上異なる"
   },
   "seq_beats_sf": {
     "de": "SF {beats}",
