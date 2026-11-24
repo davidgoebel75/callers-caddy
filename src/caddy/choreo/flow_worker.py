@@ -62,11 +62,6 @@ class SquareFlowWorker(QObject):
                 self._thread.start()
             self._cond.notify()
 
-    def invalidate(self):
-        """Call-Mapping oder Tabelle geaendert: Zwischenspeicher verwerfen."""
-        with self._cond:
-            self._cache.clear()
-
     def shutdown(self):
         with self._cond:
             self._stop = True
