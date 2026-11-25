@@ -434,6 +434,12 @@ QToolTip {
 }
 
 /* --- Tab-Bar (fuer Tabbed Docking) --- */
+/* Leiste selbst durchsichtig: sonst zeichnet Qt neben den Reitern die
+   Grundleiste in der (weissen) Windows-Palette. */
+QTabBar {
+    background-color: transparent;
+}
+
 QTabBar::tab {
     background-color: {{widget_bg}};
     color: {{text}};

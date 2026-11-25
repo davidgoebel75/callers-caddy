@@ -7266,6 +7266,10 @@ class P29MainWindow(QMainWindow):
         if old_dev is not None:
             self._settings.remove("audio/output_device")
 
+        # Tote Einstellung ohne Wirkung (las kein Code): aus Bestands-INIs
+        # entfernen, sonst zeigt der Dialog sie als rohes Textfeld.
+        self._settings.remove("sequences/auto_sync_program")
+
         defaults = ini_keys.seed_items()
         for key, value in defaults.items():
             if self._settings.value(key) is None:
@@ -7924,11 +7928,11 @@ class P29MainWindow(QMainWindow):
                 self.loop_finder._section_bar.update_colors()
                 self.loop_finder._waveform.set_colors(self.skin_mgr)
             # Lyrics neu sanitisieren (Theme-abhaengige Kontrastanpassung)
+            # Das Neuladen verlaesst Dynamic Lyrics; _reload_current_lyrics laedt
+            # danach wie beim Songwechsel die Sync-Punkte und wendet ein gewuenschtes
+            # Dynamic wieder an (sonst bleibt Square Flow ohne Figurenfenster stehen).
             if self.session.song:
-                if self._lyric_variant_filename:
-                    self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
-                else:
-                    self.lyrics_widget.load_song(self.session.song)
+                self._reload_current_lyrics()
             # Notizen-Widget (lazy — ggf. noch nicht erstellt)
             if self.notes_widget:
                 self.notes_widget.apply_skin(self.skin_mgr)

@@ -427,6 +427,12 @@ QToolTip {
 }
 
 /* --- Tab-Bar --- */
+/* Leiste selbst durchsichtig: sonst zeichnet Qt neben den Reitern die
+   Grundleiste in der (weissen) Windows-Palette. */
+QTabBar {
+    background-color: transparent;
+}
+
 QTabBar::tab {
     background-color: {{widget_bg}};
     color: {{button_bg}};
@@ -460,7 +466,7 @@ QGroupBox {
 QGroupBox::title {
     subcontrol-origin: margin;
     padding: 0 6px;
-    color: {{title_text}};
+    color: {{text}};
 }
 
 /* --- FormLayout Labels --- */

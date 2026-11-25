@@ -2560,6 +2560,26 @@
     "en": "Cancel",
     "ja": "キャンセル"
   },
+  "settings_search_placeholder": {
+    "de": "Einstellung suchen (Strg+F)",
+    "en": "Search settings (Ctrl+F)",
+    "ja": "設定を検索 (Ctrl+F)"
+  },
+  "settings_browse_dir_tip": {
+    "de": "Ordner auswählen",
+    "en": "Choose folder",
+    "ja": "フォルダーを選択"
+  },
+  "settings_browse_file_tip": {
+    "de": "Datei auswählen",
+    "en": "Choose file",
+    "ja": "ファイルを選択"
+  },
+  "settings_search_no_hits": {
+    "de": "Keine Einstellung gefunden",
+    "en": "No setting found",
+    "ja": "該当する設定がありません"
+  },
   "settings_btn_apply": {
     "de": "Übernehmen",
     "en": "Apply",
@@ -2939,16 +2959,6 @@
     "de": "Lautstärke der Hinweis-Audiodatei (0.0 = stumm, 1.0 = Originalpegel, bis 2.0 möglich).",
     "en": "Volume of the alert audio file (0.0 = muted, 1.0 = original level, up to 2.0).",
     "ja": "通知音声ファイルの音量（0.0 = 無音、1.0 = 原音レベル、最大 2.0）。"
-  },
-  "setting_label_sequences_auto_sync_program": {
-    "de": "Filter automatisch auf Tanzprogramm setzen",
-    "en": "Auto-set filter to dance program",
-    "ja": "フィルターをダンスプログラムに自動設定"
-  },
-  "setting_tip_sequences_auto_sync_program": {
-    "de": "Wenn das Tanzprogramm wechselt (Lokation oder Player), wird der Level-Filter im Sequenzen-Fenster automatisch angepasst.",
-    "en": "When the dance program changes (location or player), the level filter in the Sequences window is adjusted automatically.",
-    "ja": "ダンスプログラムが変わると（ロケーションまたはプレーヤー）、シーケンス画面のレベルフィルターが自動的に調整されます。"
   },
   "menu_view": {
     "de": "Ansicht",
