@@ -97,6 +97,11 @@ Plattennummer. Referenz beim Import, damit Titel und Label einheitlich sind.
 _EN_: Song Catalog
 _Avoid_: Katalog (allein, meint den Figurenkatalog), music_extended_data
 
+**Empfehlungs-Score**:
+Qualitaet des Songs mal Tage seit zuletzt gespielt; nie gespielte Songs zaehlen ab
+dem Erstaufnahme-Datum. Je hoeher, desto eher kommt der Song wieder dran.
+_EN_: Recommendation score
+
 **Cue Sheet**:
 Fremdes Blatt zu einem Singing Call: Songtext plus die gesungene Choreografie.
 Wird als Lyrics-Datei beim Song abgelegt.
@@ -138,20 +143,43 @@ _EN_: In-band countdown
 Der Ausschnitt zwischen Loop-In und Loop-Out, den ein Patter beliebig oft
 wiederholt, damit der Song so lange laeuft wie der Tip.
 
+**Suchfenster**:
+Die beiden Bereiche, in denen der Loop Finder nach Loop-In und Loop-Out sucht.
+Angabe in Prozent der Songdauer oder als Zeit: Loop-In ab Songbeginn, Loop-Out
+vor Songende. Passen die Fenster nicht zur Songlaenge, wird nicht gesucht.
+_EN_: Search Window
+
 **Pausen-Uhr**:
 Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
+
+**Uhr**:
+Widget mit der aktuellen Uhrzeit als Digitaluhr. Nicht verwechseln mit der
+Pausen-Uhr, die rueckwaerts zaehlt.
+_EN_: Clock
 
 **Wartemusik**:
 Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
 als gespielt und schaltet die Playlist nicht weiter.
 _EN_: Break Music
 
+**Abgebrochene Pause**:
+Pause, die vor Ablauf der Pausen-Uhr endet. Anders als eine abgelaufene Pause
+loest sie kein "Break Finished" aus.
+_EN_: Cancelled Break
+
 **Heutiges Tempo**:
 Tempo-Faktor fuer die laufende Tanzveranstaltung. Wirkt zusaetzlich auf jeden
 Song und wird nicht am Song gespeichert — im Gegensatz zum Song-Tempo.
 _EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
+
+**Massenlauf**:
+Eine Pruefung oder Reparatur im Potential-Widget, die viele Songs nacheinander
+bearbeitet (z. B. BPM ermitteln, Loops suchen). Ab einer gewissen Menge erst ein
+Probelauf mit wenigen Songs zur Zeitschaetzung; abbrechen laesst Bearbeitetes stehen.
+_EN_: Bulk Run
+_Avoid_: Batch-Lauf, Bulk-Job
 
 ### Figuren und Programme
 
@@ -184,6 +212,13 @@ Eintrag des Katalogs, der eine andere Figur abwandelt statt selbst getanzt zu we
 z. B. "All 8 Concept" in "All 8 Right & Left Thru". Zaehlt beim Limit wie eine Figur.
 _EN_: Concept
 
+**Fuellwoerter**:
+Zuordnungsziel fuer Call-Texte, die keine Figur sind, z. B. "Back Away", "Join Hands",
+"Boys go Right". Steht vor allen Programmen und schliesst keine Sequenz aus der
+Tanzprogramm-Wahl aus.
+_EN_: Filler Words
+_Avoid_: Noise, Stoppwort
+
 **Teaching-Order**:
 Offizielle Reihenfolge, in der die Figuren eines Programms beigebracht werden.
 _EN_: Teaching Order
@@ -198,6 +233,12 @@ Figur mit dem Platzhalter "(Anything)", in den eine beliebige andere Figur einge
 wird, z. B. "(Anything) & Roll". Gibt es ab Plus.
 _EN_: (Anything) Figure
 _Avoid_: (Anything)-Vorlage, Vorlage
+
+**(Named Dancers)-Figur**:
+Figur mit dem Platzhalter "(Named Dancers)", fuer den der Caller eine beliebige Gruppe
+von Taenzern nennt, z. B. "Heads Circulate" oder "Boys Cross". Eine Figur, die eine
+Gruppe fest im Namen traegt, z. B. "All Eight Circulate", ist eine eigene Figur.
+_EN_: (Named Dancers) Figure
 
 ### Sequenzen
 
@@ -283,3 +324,62 @@ erscheint, typischerweise frisch importiert. "Auch ausgeblendete Sequenzen anzei
 holt sie zurueck, ohne Typ, Schwierigkeit oder Tags anzutasten.
 _EN_: Hidden Sequence
 _Avoid_: Neueste Sequenz, versteckte Sequenz
+
+**Square Flow**:
+Fenster, das die Sequenz aus dem Sequenz-Detail als tanzenden Square zeigt und
+pruefen kann, ob sie korrekt aufloest. Optional, nur nach Freigabe in den Einstellungen.
+_EN_: Square Flow
+_Avoid_: Mitlaufender Square, Square-Ansicht
+
+**Beats je Call**:
+Wie lange ein Call dauert, in Beats nach den CALLERLAB-Timing-Charts. Ein Wert
+(Square Thru 4 = 10), ein Bereich (7–8) oder "≥ n + ?", wenn ein Teil kein Timing
+hat. Die Summe einer Sequenz steht in der Kopfzeile des Sequenz-Details.
+_EN_: Beats per Call
+_Avoid_: Takte (ein Takt sind mehrere Beats), Timing (allein)
+
+**Dynamischer Call**:
+Call, dessen Dauer vom Weg abhaengt, z. B. Swing and Promenade (8–24 Beats). Die
+Chart nennt nur einen Bereich; den genauen Wert liefert Square Flow.
+_EN_: Dynamic Call
+
+**SF-Wert**:
+Beats einer Zeile, wie Square Flow (die Choreo-Engine) sie tanzt. Steht als "SF n"
+hinter dynamischen Calls und ersetzt dort in der Summe den Bereich.
+_EN_: SF Value
+
+**Etikett**:
+Graues Kaestchen hinter (oder unter) einem Call im Sequenz-Detail mit Programm und
+Beats. Per Rechtsklick hinter dem Call, darunter oder aus.
+_EN_: Label
+_Avoid_: Badge, Tag
+
+**Ampel**:
+Farbiger Punkt hinter der Beat-Summe eines Singing Calls: gruen bis 64, gelb 65–68,
+rot darueber, grau, wenn eine Zeile ohne Timing die Summe offen laesst.
+_EN_: Traffic Light
+
+### Regeln
+
+**Regel**:
+Automatik nach dem Muster Ausloeser, Bedingung, Aktion, die bei einem Ereignis im
+Programm selbst etwas ausfuehrt, etwa beim Song-Start oder per Stream-Deck-Taste.
+_EN_: Rule
+
+**System-Regel**:
+Regel, die mit dem Programm ausgeliefert wird. Der Caller kann sie nur ein- und
+ausschalten und einer Taste zuordnen, nicht aendern oder loeschen.
+_EN_: System Rule
+
+**Eigene Regel**:
+Regel, die der Caller selbst anlegt, aendert, loescht oder importiert.
+_EN_: Custom Rule
+_Avoid_: User-Regel, Benutzerregel
+
+### Oberflaeche
+
+**Widget**:
+Teilfenster des Hauptfensters (z. B. Uhr, Potential, Lyrics), das sich ueber das
+Menue Ansicht ein- und ausblenden, verschieben und als loses Fenster herausziehen laesst.
+_EN_: Widget
+_Avoid_: Dock, Panel (Dock bleibt nur als interner Code-Bezeichner stehen)

@@ -14,7 +14,11 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 
 ## Modularisierung (BL-201)
 
-`main.py` wurde bewusst von ~29.000 auf ~7.300 Zeilen entschlackt: eigenstaendige Widgets/Dialoge/Worker liegen jetzt in Themenmodulen unter `src/` (`player_widget.py`, `songdata_widget.py`, `playlist_widget.py`, `sequences_widget.py`, `potential_widget.py`, `loopfinder_widget.py`, `lyrics_widget.py`, `break_photo_widget.py`, `reports_widget.py`, `dialogs_location_program.py`; geteilte Helfer/SVGs/Konstanten in `ui_helpers.py`, Perf in `perf.py`). In `main.py` bleiben nur `P29MainWindow` (Orchestrator), `main()` und Start-Glue.
+`main.py` wurde bewusst von ~29.000 auf ~7.300 Zeilen entschlackt: eigenstaendige Widgets/Dialoge/Worker liegen jetzt in Themenmodulen unter `src/` (`player_widget.py`, `songdata_widget.py`, `playlist_widget.py`, `sequences_widget.py`, `potential_widget.py`, `loopfinder_widget.py`, `lyrics_widget.py`, `reports_widget.py`, `dialogs_location_program.py`; geteilte Helfer/SVGs/Konstanten in `ui_helpers.py`, Perf in `perf.py`). In `main.py` bleiben nur `P29MainWindow` (Orchestrator), `main()` und Start-Glue.
+
+**Fachpakete (intern#220, `docs/adr/0001-fachpakete-in-src.md`):** Neue Module kommen in ein Fachpaket unter `src/caddy/` (Namen wie die Ordner in `tests/`; ein Thema ohne Testordner wie `camera/` bekommt ihn mit seinem ersten Test), bestehende ziehen erst um, wenn sie ohnehin angefasst werden. Erste Bewohner: `caddy/breaks/` (Pausen-Uhr), `caddy/clock/` (Uhr-Dock: Anzeigetext ohne Qt, Widget), `caddy/camera/` (Foto), `caddy/rules/` (Bedingungen und Aktionen der Regeln; `main.py` registriert nur), `caddy/bulk/` (Geruest der Massenlaeufe: Schleife ohne Qt, Qt-Mantel `BulkWorker`), `caddy/lyrics/` (Sync-Point-Schluessel und Body-Laenge, `sync_keys.py`), `caddy/settings/` (Verzeichnis der INI-Schluessel mit Standardwert) und `caddy/songs/` (Playlist-Datei `playlist_file.py`; Empfehlungsregel `recommendation.py`: Score, Sortierung, Songwahl; Songliste, Abendplaner und Regel-Aktion rufen sie). Import immer absolut (`from caddy.breaks.break_widget import BreakWidget`).
+- Zustandslogik ohne Qt in ein eigenes Modul mit `QT_FREE = True` (Muster: Reducer `caddy/breaks/break_clock.py`, Widget ruft nur `reduce()`); `tests/app/test_qt_free.py` prueft, dass es nirgends PySide6 importiert. Ein Reducer nur bei wirklich verzwicktem Zustand, sonst einfacher Wert oder reine Funktion; nicht spuerbar langsamer werden, im Zweifel mit `tools/benchmark` messen (`docs/adr/0002-zustandslogik-als-reducer.md`).
+- Beim Umzug alle Importe nachziehen, auch Lazy-Imports in Funktionen und `monkeypatch`-Strings in Tests (`git grep <altes_modul>`).
 
 **Regel fuer Neuentwicklung:** Neue Widgets, Dialoge, Worker oder groessere Hilfslogik NICHT in `main.py` schreiben, sondern gleich in ein passendes bestehendes Modul oder ein neues `*_widget.py` / `dialogs_*.py`. Faustregeln:
 - Module bleiben **zirkelfrei**: kein `import main` zur Ladezeit. Braucht ein Modul etwas aus `main` (z. B. `__version__`), per Lazy-Import in der Funktion holen (Muster `_app_version()` in `potential_widget.py`).
@@ -23,6 +27,19 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 - `main.py` importiert das Widget zurueck und verdrahtet es im Hauptfenster — wie die bestehenden `from *_widget import ...`-Zeilen.
 - Beim Verschieben von Code **Decorator-Zeilen mitnehmen** (`@dataclass` etc.) — der AST-Startpunkt zeigt sonst auf `class`/`def`, nicht auf `@decorator`.
 - Nach dem Aufteilen: `py_compile` + `pyflakes` (undefined = Fehler, unused imports trimmen), dann realer Import-Test.
+
+## Auslieferung an Bestandsinstallationen
+
+**Eine Aenderung an Daten oder Referenzen muss beim Update von selbst wirken.** Bestandskunden lesen keine Changelogs und klicken keinen Import an. Beim MS50-Umbau mussten Referenzdaten nachtraeglich von Hand importiert werden. Die meisten haben das nicht mitbekommen, es gab vermehrt Supportanfragen. Darum schon bei der Konzeption festlegen, wie die Loesung zu bestehenden DBs und INIs kommt, und eine Loesung bevorzugen, die im Code steckt:
+
+- **Regel im Code** (z. B. Filterlogik) vor geaenderten Daten: wirkt ab der ersten Ausfuehrung, ohne Migration.
+- **Neue Spalte:** nur ins `_CREATE_*`, `_add_missing_columns()` ergaenzt sie beim Start (`docs/12_erfahrungen.md`).
+- **Daten-Korrektur:** idempotentes SQL in `_DATA_FIXES` (`song_db_schema.py`), laeuft bei jedem Start.
+- **Referenzdaten (Calls, Programme, Teaching Order):** in `src/reference_calls.json` aendern und `REFERENCE_DATA_VERSION` erhoehen, `reseed_reference_data()` spielt sie beim naechsten Start ein. Eintraege, die nur im Code angelegt werden, loescht der Reseed.
+- **Einmalige Heilung, die rechnen muss:** Start-Methode mit Flag in `app_meta` (Muster `_backfill_auto_mappings_once()`).
+- **Neuer INI-Schluessel:** Standardwert im Code, kein Pflicht-Eintrag in der INI. Neue Schluessel kommen in das Verzeichnis `src/caddy/settings/ini_keys.py` (Typ, Standardwert, `seed=True` fuer die Saat in `_write_ini_defaults()`), gelesen mit `ini_keys.get(settings, key)`. Module, die noch `settings.value(key, default)` mit Literal nutzen, ziehen um, wenn sie ohnehin angefasst werden (intern#144).
+
+Braucht eine Loesung trotzdem einen Schritt des Anwenders (Import, Knopf), steht im Issue warum, und die App weist beim Start darauf hin. Ein Hinweis im Changelog allein reicht nicht. Tests fuer den Update-Weg von Altstaenden liegen in `tests/db/`.
 
 ## Audio-Prioritaet (TIC-0025, v0.80)
 
@@ -54,6 +71,10 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 
 - **StyleSheet haengt `setFont()` aus — Schriftgroesse IMMER per `font-size` im StyleSheet setzen**: Hat ein Widget ein StyleSheet gesetzt (schon ein blosses `color: …` reicht), ignoriert Qt spaetere `setFont()`/`setPixelSize()`-Aufrufe stillschweigend — die Schrift bleibt auf Standardgroesse. Das kostet jedes Mal eine Debug-Schleife. **Regel:** Wenn ein Widget ein StyleSheet hat und die Schriftgroesse dynamisch/berechnet ist, die Groesse ins selbe StyleSheet schreiben (`f"color: {c}; font-size: {px}px;"`), NICHT ueber `setFont()`. `QFontMetrics` zum Ausmessen ist ok — nur das Anwenden muss ueber das StyleSheet laufen. Trat u.a. bei BL-189 auf (dynamischer Header im `SequenceViewWidget`).
 
+- **`tabifyDockWidget()` nur mit Docks, die in keiner Tab-Gruppe stecken (intern#240)**: Qt kommt damit nur zurecht, wenn beide Docks am Hauptfenster angedockt sind und das zweite noch nicht getabbt ist. Sonst zerstoert Qt bis 6.10.2 seine interne Dock-Liste, und die App stuerzt spaeter an wechselnder Stelle mit einer Access Violation ab (ohne Python-Traceback, nur `faulthandler` zeigt die Zeile). Im Nachbau aus intern#241 tritt der Absturz ab 6.10.3 nicht mehr auf; der Commit „Harden QMainWindowLayout::tabifyDockWidgets()“ (QTBUG-143841) kommt erst mit 6.12 dazu. Wir sind auf 6.12.0 gepinnt, die Regel gilt trotzdem weiter, damit der Code nicht von einer bestimmten Qt-Version abhaengt. **Regel:** Wer Docks neu anordnet, nimmt sie zuerst per `removeDockWidget()` aus dem Layout und haengt Tab-Mitglieder nur per `tabifyDockWidget()` ein, ohne `addDockWidget()` davor (Muster `_reset_layout`). Gespeicherte Layouts ueber `restoreState()` sind nicht betroffen.
+
+- **Event-Handler ueberschreiben (`mousePressEvent`, `mouseDoubleClickEvent`, `keyPressEvent` …) → `super()` aufrufen**: Qt fuehrt in seinem eigenen Handler Buch (gemerkter Klick-Index, Auswahl, Fokus). Faellt der Aufruf weg, stimmt dieser Zustand nicht mehr, und Folge-Events laufen falsch. Bei intern#213 loeste das Loslassen nach dem Doppelklick ein zweites `cellClicked` aus, das den gerade gestarteten Song neu lud und stoppte. Weglassen nur, wenn Qts Verhalten bewusst unterdrueckt werden soll, dann mit Kommentar.
+
 - **QTableWidget-Pattern** (aus P27):
   ```python
   table.setUpdatesEnabled(False)
@@ -72,6 +93,7 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 
 ## Tests
 
-Neue Tests in den passenden Fachordner unter `tests/`, nicht flach nach `tests/`: `app/` Infrastruktur, Dialoge, Architektur-Regeln · `assignments/` Zuordnung, Figuren-Menge · `db/` DB-Schema, Update-Weg von Altständen · `lyrics/` Lyrics, Singing-Abschnitte, Heads/Sides · `playback/` Wiedergabe, Pausen-Uhr, Wartemusik · `sequences/` Sequenzen, Filter, Import · `settings/` INI, Einstellungsdialog, Skins · `songs/` Song-Katalog, Metadaten, ZIP-Import, Playlist. Tests laufen aus dem Stamm, aus `tests/` und aus jedem Unterordner.
+Neue Tests in den passenden Fachordner unter `tests/`, nicht flach nach `tests/`: `app/` Infrastruktur, Dialoge, Architektur-Regeln · `assignments/` Zuordnung, Figuren-Menge · `db/` DB-Schema, Update-Weg von Altständen · `lyrics/` Lyrics, Singing-Abschnitte, Heads/Sides · `breaks/` Pausen-Uhr, Wartemusik · `clock/` Uhr-Dock · `bulk/` Massenlaeufe (Geruest, Worker) · `playback/` Wiedergabe, Loop, Player · `rules/` Regeln (Trigger, Bedingungen, Aktionen) · `sequences/` Sequenzen, Filter, Import · `settings/` INI, Einstellungsdialog, Skins · `songs/` Song-Katalog, Metadaten, ZIP-Import, Playlist · `choreo/` Choreo-Engine (Mapping, Pruefband, Zeitachse) · `beats/` Beats je Call nach CALLERLAB (Variantenregeln, Pflegedatei). Tests laufen aus dem Stamm, aus `tests/` und aus jedem Unterordner.
 
-- **Widgets und Test-DBs gehen durch die Fixture `keep`** (`tests/conftest.py`), die sie am Testende abraeumt. Was liegen bleibt, sammelt ein spaeterer `gc.collect()` an zufaelliger Stelle ein, und die volle Suite stuerzt nur auf manchen Rechnern ab (PR #119).
+- **Widgets und Test-DBs gehen durch die Fixture `keep`** (`tests/conftest.py`), die sie am Testende abraeumt. Was liegen bleibt, sammelt ein spaeterer `gc.collect()` an zufaelliger Stelle ein, und die volle Suite stuerzt nur auf manchen Rechnern ab (PR #119). `tests/app/test_keep_regel.py` prueft `SongDatabase(...)` und `deleteLater()` mechanisch; Widgets bleiben Sache des Reviews.
+- **Mutation Testing** (mutmut, lokal bei Bedarf) prueft, ob Tests ein Ergebnis wirklich pruefen statt es nur auszufuehren. Einrichtung, Ablauf und Windows-Fallen stehen in `setup.cfg`.

@@ -65,47 +65,59 @@ def test_sperre_ohne_grund_laesst_sich_nicht_umgehen(tmp_path):
 
 
 @pytest.fixture
-def uhr(qapp):
-    from break_photo_widget import BreakWidget
-    w = BreakWidget()
+def uhr(keep):
+    """Pausen-Uhr mit mitgeschriebenen Callbacks. Die Logik dahinter pruefen die
+    Reducer-Tests in test_break_clock.py, hier nur die Verdrahtung."""
+    from caddy.breaks.break_widget import BreakWidget
+    w = keep(BreakWidget())
     w.events = []
     w.on_break_started = lambda with_music: w.events.append(("started", with_music))
     w.on_break_finished = lambda: w.events.append(("finished",))
-    yield w
-    w._timer.stop()
-    w.deleteLater()
+    return w
 
 
-def _ablaufen(w):
-    w._last_mono = 0.0          # naechster _tick zieht die ganze Restzeit ab
-    w._remaining = 0.001
-    w._tick()
-
-
-def test_frischer_start_feuert_fortsetzen_nicht(uhr):
-    uhr._toggle_start()                         # Start
-    assert uhr.events == [("started", False)]
-    uhr._remaining -= 5                         # etwas gelaufen
-    uhr._toggle_start()                         # anhalten
-    uhr._toggle_start()                         # fortsetzen
+def test_start_knopf_meldet_frischen_start(uhr):
+    uhr._btn_start.click()
+    assert uhr.state.running
     assert uhr.events == [("started", False)]
 
 
-def test_ablauf_feuert_finished_zuruecksetzen_nicht(uhr):
-    uhr.start_break(60)
-    uhr._remaining -= 5
-    uhr._reset()
-    assert ("finished",) not in uhr.events
-    uhr.start_break(60)
-    _ablaufen(uhr)
-    assert uhr.events == [("started", False), ("started", False), ("finished",)]
+@pytest.fixture
+def takt(uhr, monkeypatch):
+    """Gestellte Uhrzeit: takt(t) setzt die Zeit und loest einen Timer-Tick aus."""
+    import caddy.breaks.break_widget as modul
+    jetzt = [0.0]
+    monkeypatch.setattr(modul.time, "monotonic", lambda: jetzt[0])
+
+    def _takt(t):
+        jetzt[0] = t
+        uhr._timer.timeout.emit()
+    return _takt
 
 
-def test_start_nach_ablauf_ist_frisch(uhr):
+def test_ablauf_meldet_finished_und_haelt_an(uhr, takt):
     uhr.start_break(60)
-    _ablaufen(uhr)
-    uhr._toggle_start()
-    assert uhr.events == [("started", False), ("finished",), ("started", False)]
+    takt(100.0)                                 # erster Tick: nur Zeitmarke
+    takt(161.0)                                 # 61 s spaeter: abgelaufen
+    assert uhr.state.finished and not uhr.state.running
+    assert uhr.events == [("started", False), ("finished",)]
+
+
+def test_neustart_laufender_uhr_misst_die_zeit_neu(uhr, takt):
+    uhr.start_break(60)
+    takt(100.0)
+    takt(110.0)
+    assert uhr.state.remaining == 50
+    uhr.start_break(60)                         # Rule-Aktion bei laufender Uhr
+    takt(110.2)                                 # erster Tick danach: nur Zeitmarke
+    assert uhr.state.remaining == 60
+
+
+def test_reset_knopf_meldet_kein_finished(uhr):
+    uhr.start_break(60)
+    uhr._btn_reset.click()
+    assert not uhr.state.running
+    assert uhr.events == [("started", False)]
 
 
 def test_start_mit_wartemusik(uhr):

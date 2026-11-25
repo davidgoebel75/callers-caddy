@@ -51,10 +51,14 @@ class _Engine:
     def __init__(self):
         self.device = SPEAKER
         self.switches = []
+        self.forgotten = []
 
     def set_output_device(self, device):
         self.device = device
         self.switches.append(device)
+
+    def forget_device_fallback(self, device):
+        self.forgotten.append(device)
 
 
 class _Fenster:
@@ -93,11 +97,15 @@ class _Fenster:
 
 
 @pytest.fixture
-def fenster(qapp, tmp_path):
+def fenster(keep, tmp_path):
     ini = QSettings(str(tmp_path / "w.ini"), QSettings.IniFormat)
     ini.setValue("audio/primary_device", str(SPEAKER))
     ini.setValue("audio/secondary_device", str(HEADSET))
-    return _Fenster(ini)
+    f = _Fenster(ini)
+    # Qt-Widgets am Testende abraeumen (CODING_STANDARDS "Tests", PR #119)
+    keep(f._audio_device_combo)
+    keep(f._btn_audio_favorite)
+    return f
 
 
 def test_start_auf_favorit_1_mit_gekennzeichneter_liste(fenster):
@@ -180,12 +188,34 @@ def test_neuer_favorit_1_im_vorhoeren_schaltet_erst_danach(fenster):
     assert fenster.engine.switches == []                    # Vorhoeren bleibt, wo es ist
     assert fenster._pre_audition_device == OTHER
     assert fenster._btn_audio_favorite.text() == "1"
+    assert fenster.engine.forgotten == [OTHER]              # intern#237: danach neu versuchen
 
 
 def test_neuer_favorit_1_ohne_vorhoeren_schaltet_sofort(fenster):
     fenster._settings.setValue("audio/primary_device", str(OTHER))
     fenster._on_settings_applied(["audio/primary_device"])
     assert fenster.engine.device == OTHER
+
+
+# ---- Geraete-Auswahl im Footer waehrend des Vorhoerens (intern#182) ----
+
+def test_footer_auswahl_im_vorhoeren_schaltet_erst_danach(fenster):
+    _start_audition(fenster)
+    combo = fenster._audio_device_combo
+    combo.setCurrentIndex(combo.findData(OTHER))
+    fenster._on_audio_device_changed(combo.currentIndex())
+    assert fenster.engine.switches == []                    # Vorhoeren bleibt, wo es ist
+    assert fenster._pre_audition_device == OTHER
+    assert fenster._settings.value("audio/primary_device") == str(OTHER)
+    assert fenster._btn_audio_favorite.text() == "1"
+
+
+def test_footer_auswahl_ohne_vorhoeren_schaltet_sofort(fenster):
+    combo = fenster._audio_device_combo
+    combo.setCurrentIndex(combo.findData(OTHER))
+    fenster._on_audio_device_changed(combo.currentIndex())
+    assert fenster.engine.switches == [OTHER]
+    assert fenster.engine.forgotten == [OTHER]              # intern#237
 
 
 def test_tooltip_nennt_beide_geraete(fenster):

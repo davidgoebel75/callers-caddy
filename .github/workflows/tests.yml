@@ -1,8 +1,11 @@
 name: Tests
 
 on:
+  # Jede Basis, auch gestapelte PRs auf einen Feature-Branch.
   pull_request:
-    branches: [main, develop]
+  # Nach dem Merge: zwei einzeln gruene PRs koennen zusammen rot sein.
+  push:
+    branches: [develop]
 
 jobs:
   pytest:
@@ -11,9 +14,9 @@ jobs:
     # pip install. Laengster Lauf bisher: gut 4,5 Minuten.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

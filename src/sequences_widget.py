@@ -4,6 +4,7 @@ Enthaelt Sequenz-Ansicht/-Verwaltung, Import- und Editor-Dialoge sowie den
 Call-Mapping-Dialog. Zirkelfrei: keine Rueckbezuege auf main.py.
 """
 
+import html
 import os
 import random
 
@@ -19,7 +20,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QEvent, QObject
 from PySide6.QtGui import (
     QIcon, QColor, QSyntaxHighlighter, QTextCharFormat,
-    QAction, QFont, QFontMetrics, QKeySequence, QShortcut,
+    QAction, QActionGroup, QFont, QFontMetrics, QKeySequence, QShortcut,
 )
 
 from song_db import SongDatabase
@@ -27,6 +28,7 @@ from song_db_sequences import calls_to_json
 import sequence_import as seq_import
 from i18n import _t
 import program_selection
+from caddy.beats import calc as beat_calc, sequence as beat_seq
 from ui_helpers import mark_toggle, widen_combo_popup
 from zoom_wheel import install_ctrl_wheel_zoom
 from perf import perf_start, perf_log, perf_split
@@ -34,6 +36,17 @@ from sequence_mapper import (CallMatcher as _CallMatcher, figure_set_lookups,
                              fuzzy_suggest_cache, optimize_groups, suggestion_differs,
                              suggest_figure_set)
 from sequence_filter import filter_query_args
+from caddy.settings import ini_keys
+
+# intern#164: Etiketten im Sequenz-Detail (INI sequences/detail_labels)
+LABEL_OFF, LABEL_INLINE, LABEL_BELOW = "off", "inline", "below"
+LABEL_MODES = (LABEL_OFF, LABEL_INLINE, LABEL_BELOW)
+
+# intern#164: Ampel der Beat-Summe bei Singern (Kopfzeile Sequenz-Detail):
+# Skin-Schluessel und Ersatzfarbe; gelb hat keinen Skin-Schluessel.
+_LIGHT_COLORS = {beat_calc.GREEN: ("success", "#22c55e"), beat_calc.YELLOW: (None, "#eab308"),
+                 beat_calc.RED: ("warning", "#ef4444"),
+                 beat_calc.NEUTRAL: ("text_dim", "#999999")}
 
 
 class _ComboClickToOpen(QObject):
@@ -75,16 +88,30 @@ class SequenceViewWidget(QWidget):
     Wird von SequencesWidget über on_open_detail gesteuert.
     """
 
-    def __init__(self, db, skin_mgr=None):
+    def __init__(self, db, skin_mgr=None, session=None, settings=None):
         super().__init__()
         self._db = db
         self._skin_mgr = skin_mgr
+        # intern#164: Etiketten (Programm, Beats) aus / hinter / unter dem Call,
+        # per Rechtsklick umschaltbar, in der INI gemerkt (ohne settings: Standard)
+        self._settings = settings
+        mode = (ini_keys.get(settings, ini_keys.SEQ_DETAIL_LABELS) if settings is not None
+                else ini_keys.default(ini_keys.SEQ_DETAIL_LABELS))
+        self._label_mode = (mode if mode in LABEL_MODES
+                            else ini_keys.default(ini_keys.SEQ_DETAIL_LABELS))
+        self._line_calls = []   # Textzeile -> Index in _calls (Zeile unter dem Call)
         self._seq_ids = []
         self._current_idx = 0
         self._calls = []
         # intern#176: Baender der Tanzprogramm-Wahl fuer das Programm-Etikett
         # hinter jedem Call (None = keine Wahl, z. B. im Beispiel-Betrachter).
         self._program_bands = None
+        # intern#142: Tanzprogramm-Wahl aus der aktuellen Sitzung (ohne: keine Wahl)
+        self._session = session
+        if session is not None:
+            self._program_bands = program_selection.bands_for(
+                db.get_all_dance_programs(), session.program_ids)
+            session.program_ids_changed.connect(self._on_program_ids_changed)
         # BL-182: Zufalls-Modus (Würfel). Wenn aktiv, springt „Weiter" (Button,
         # Pfeiltaste, Dynamic-Lyrics-advance) zu einer zufälligen anderen Sequenz
         # aus der aktuell gefilterten Liste — Ziehen ohne Zurücklegen. Das
@@ -98,6 +125,21 @@ class SequenceViewWidget(QWidget):
         # intern#177: callback(call_texts) → Call-Mapping mit Fokus. Nur im Dock
         # gesetzt; der Beispiel-Betrachter des Call-Mappings bleibt ohne Eintrag.
         self.on_open_call_mapping = None
+        # intern#247: callback(index) -> Square Flow tanzt diese Kartenzeile.
+        # Nur im Dock gesetzt; None = Klick tut nichts (wie bisher).
+        self.on_call_clicked = None
+        self._seq_type = ""
+        # intern#247: Ergebnis von Square Flow fuer die gezeigte Sequenz (Takte,
+        # Warnung) und die gerade getanzte Zeile; None/-1 = nichts anzeigen.
+        self._flow = None
+        self._flow_line = -1
+        # intern#164: Beats nach CALLERLAB je Zeile und Summe (caddy.beats.sequence);
+        # Tabelle einmal aus der DB, Figuren je Sequenz.
+        self._beats = None
+        self._beat_table = None
+        self._beat_figures = ((), {})
+        self._html_font = 14
+        self.on_open_taminations = None   # callback() -> Browser mit Taminations
         # BL-173: Callback, wenn sich die Sequenzliste aendert (fuer das Gating
         # des Dynamic-Lyrics-Buttons im Lyrics-Widget).
         self.on_sequences_changed = None
@@ -114,6 +156,15 @@ class SequenceViewWidget(QWidget):
             return self._skin_mgr.color("text", "#f0f0f0")
         return "#f0f0f0"
 
+    def _skin_color(self, key, fallback):
+        return self._skin_mgr.color(key, fallback) if self._skin_mgr and key else fallback
+
+    def _header_style(self, size=None):
+        """StyleSheet der Kopfzeile. Mit Selektor, damit der Tooltip (ein QLabel) weder
+        die grosse Schrift noch die Textfarbe erbt (Review #194)."""
+        font = f" font-size: {size}px;" if size else ""
+        return f"QLabel#seqHeader {{ color: {self._text_color()};{font} }}"
+
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
@@ -123,10 +174,13 @@ class SequenceViewWidget(QWidget):
         # gezeigten Sequenz. Zeigt auf einen Blick, um was fuer eine Sequenz es
         # sich handelt — auch ohne aktiven Filter im Sequenzen-Widget.
         self._lbl_header = QLabel()
+        self._lbl_header.setObjectName("seqHeader")
         self._lbl_header.setAlignment(Qt.AlignCenter)
+        # intern#164: Ampelpunkt farbig -> Rich Text (Text wird escaped)
+        self._lbl_header.setTextFormat(Qt.RichText)
         # Farbe per StyleSheet, Schriftgroesse per QFont (wird in
         # _recalc_header_font dynamisch an die Breite angepasst).
-        self._lbl_header.setStyleSheet(f"color: {self._text_color()};")
+        self._lbl_header.setStyleSheet(self._header_style())
         self._header_text = ""
         layout.addWidget(self._lbl_header)
 
@@ -139,6 +193,8 @@ class SequenceViewWidget(QWidget):
         # intern#177: Rechtsklick auf einen Call-Text -> Call-Mapping
         self._text_edit.setContextMenuPolicy(Qt.CustomContextMenu)
         self._text_edit.customContextMenuRequested.connect(self._on_text_context_menu)
+        # intern#247: Linksklick auf eine Zeile -> Square Flow (on_call_clicked)
+        self._text_edit.viewport().installEventFilter(self)
         layout.addWidget(self._text_edit, 1)
 
         nav_layout = QHBoxLayout()
@@ -192,7 +248,25 @@ class SequenceViewWidget(QWidget):
         nav_layout.addStretch()
         nav_layout.addWidget(self._lbl_pos)
         nav_layout.addStretch()
+        # intern#247: Sequenz in Taminations im Browser ansehen (nur mit Square Flow)
+        self._btn_tam = QPushButton(_t("seq_tam_open_btn"))
+        self._btn_tam.setFixedHeight(_NAV_H)
+        self._btn_tam.setToolTip(_t("seq_tam_open_tooltip"))
+        self._btn_tam.clicked.connect(
+            lambda: self.on_open_taminations() if self.on_open_taminations else None)
+        self._btn_tam.setVisible(False)
+        # intern#247: Warnung aus Square Flow (Abbruch, rot, strittig, Engine-Fehler);
+        # Klick zeigt Ursache und Verbesserungsvorschlag
+        self._btn_flow_warn = QPushButton("⚠")
+        self._btn_flow_warn.setFixedHeight(_NAV_H)
+        self._btn_flow_warn.setToolTip(_t("seq_flow_warn_tooltip"))
+        self._btn_flow_warn.clicked.connect(self._show_flow_warning)
+        self._btn_flow_warn.setVisible(False)
+        self._tam_allowed = False
+
         nav_layout.addWidget(self._btn_edit)
+        nav_layout.addWidget(self._btn_flow_warn)
+        nav_layout.addWidget(self._btn_tam)
         nav_layout.addWidget(self._btn_to_notes)
         nav_layout.addWidget(self._btn_delete)
         nav_layout.addWidget(self._btn_random)
@@ -265,21 +339,65 @@ class SequenceViewWidget(QWidget):
         # Optionaler Treffer-Highlight: nur gesetzt, wenn das Widget als
         # "Beispiel-Betrachter" (Call-Mapping -> Beispiel zeigen) genutzt wird.
         # Der normale Dock setzt das Attribut nie -> keine Verhaltensaenderung.
+        self._html_font = font_size
         hl = getattr(self, "_highlight_text", None)
+        # intern#164: Beats nach CALLERLAB im grauen Etikett hinter dem Call,
+        # bei dynamischen Calls dazu der Wert aus Square Flow ("SF n"), bei
+        # Abweichung >= 2 Beats ein Warnzeichen. intern#247: getanzte Zeile
+        # hinterlegt, Abbruchzeile rot.
+        flow = self._flow or {}
+        lines = self._beats.lines if self._beats else ()
+        fail = flow.get("fail_card")
+        warn_col = self._skin_color("warning", "#ef4444")
+        badge_style = (f"font-size:{badge_size}px;color:{self._skin_color('text_dim', '#aaaaaa')};"
+                       f"border:1px solid {self._skin_color('border', '#666666')};"
+                       f"padding:1px 3px;border-radius:2px;")
+        line_bg = (self._skin_mgr.color("selection_bg", "#0067c0")
+                   if self._skin_mgr else "#0067c0")
+        line_fg = (self._skin_mgr.color("selection_text", "#ffffff")
+                   if self._skin_mgr else "#ffffff")
+        mode = self._label_mode
         parts = []
+        self._line_calls = []
         for i, (_pos, call_text, entity_id, _to, _canonical, program_label) in enumerate(self._calls):
-            if entity_id and program_label:
-                badge = (f'&nbsp;<span style="font-size:{badge_size}px;color:#aaa;'
-                         f'border:1px solid #666;padding:1px 3px;'
-                         f'border-radius:2px;">{program_label}</span>')
-            elif entity_id is None:
-                badge = '&nbsp;<span style="font-size:10px;color:#ff6666;font-style:italic;">?</span>'
+            li = lines[i] if i < len(lines) else None
+            badges = []
+            if mode != LABEL_OFF:
+                b = (beat_calc.fmt(li.beats)
+                     if li and beat_calc.UNKNOWN not in li.beats.flags else "")
+                tag = " · ".join(x for x in ((program_label if entity_id else ""), b) if x)
+                if tag:
+                    badges.append(f'<span style="{badge_style}">{tag}</span>')
+                if li and li.tam is not None and (li.dynamic or li.warn):
+                    sf = _t("seq_beats_sf").format(beats=f"{li.tam:g}")
+                    if li.warn:
+                        badges.append(f'<span style="font-size:{badge_size + 2}px;'
+                                      f'color:{warn_col};">⚠</span>')
+                    badges.append(f'<span style="{badge_style}font-style:italic;">'
+                                  f'{sf}</span>')
+            # Mapping-Stand, kein Programm/Beat: bleibt in jeder Anzeige hinter dem Call
+            unmapped = ('&nbsp;<span style="font-size:10px;color:#ff6666;'
+                        'font-style:italic;">?</span>') if entity_id is None else ""
+            last = i == len(self._calls) - 1
+            self._line_calls.append(i)
+            if mode == LABEL_BELOW and badges:
+                # Eigene Zeile in kleiner Schrift; der Umbruch steht IN der kleinen
+                # Schrift, sonst bekaeme die Zeile die Hoehe der Call-Schrift.
+                self._line_calls.append(i)
+                badge = (f'{unmapped}<br><span style="font-size:{badge_size + 1}px;">'
+                         + "&nbsp;".join(badges) + ("" if last else "<br>") + "</span>")
+                sep = ""
             else:
-                badge = ""
-            sep = "<br>" if i < len(self._calls) - 1 else ""
+                badge = "".join(f"&nbsp;{x}" for x in badges) + unmapped
+                sep = "" if last else "<br>"
             if hl and call_text == hl:
                 label = (f'<span style="background-color:#ffd54a;color:#212529;">'
                          f'{call_text}</span>')
+            elif i == self._flow_line:
+                label = (f'<span style="background-color:{line_bg};color:{line_fg};">'
+                         f'{call_text}</span>')
+            elif fail is not None and i == fail:
+                label = f'<span style="color:#ff6666;">{call_text}</span>'
             else:
                 label = call_text
             parts.append(f'<b>{label}</b>{badge}{sep}')
@@ -333,15 +451,108 @@ class SequenceViewWidget(QWidget):
         leer (nimmt dann kaum Platz weg)."""
         raw = self._db.get_sequence_raw(seq_id) or {}
         seq_type = (raw.get("seq_type") or "").strip()
+        self._seq_type = seq_type
         difficulty = (raw.get("difficulty") or "").strip()
         parts = []
         if seq_type:
             parts.append(f"{_t('header_type')}: {seq_type}")
         if difficulty:
             parts.append(f"{_t('header_difficulty')}: {difficulty}")
-        self._header_text = "   ·   ".join(parts)
-        self._lbl_header.setText(self._header_text)
+        self._header_base = "   ·   ".join(parts)
+        self._render_header()
+
+    def _render_header(self):
+        """Kopfzeile aus Typ/Schwierigkeit plus (intern#164) Summe der Beats nach
+        CALLERLAB und bei Singern die Ampel; Warnknopf aus Square Flow (intern#247)."""
+        parts = [p for p in (getattr(self, "_header_base", ""),) if p]
+        b = self._beats
+        light = None
+        if b is not None and any(b.lines):
+            parts.append(_t("seq_header_beats").format(beats=beat_calc.fmt(b.total)))
+            light = b.light
+        text = "   ·   ".join(parts)
+        rich = html.escape(text)
+        if light:
+            text += "  ●"
+            rich += (f'&nbsp;&nbsp;<span style="color:{self._skin_color(*_LIGHT_COLORS[light])};">'
+                     '●</span>')
+        self._lbl_header.setToolTip(_t("seq_header_beats_tooltip") if b and any(b.lines)
+                                    else "")
+        self._apply_flow_warn_button()
+        self._header_text = text
+        self._lbl_header.setText(rich)
         self._recalc_header_font()
+
+    def _compute_beats(self):
+        """intern#164: Beats je Zeile und Summe fuer die gezeigten Calls, mit den
+        Square-Flow-Beats, falls vorhanden."""
+        if not self._calls:
+            self._beats = None
+            return
+        if self._beat_table is None:
+            try:
+                self._beat_table = beat_calc.BeatTable(self._db.get_call_timing_rows())
+            except Exception as e:   # Anzeige ohne Beats statt Absturz
+                print(f"[Sequences] Beat-Tabelle nicht lesbar: {e}")
+                self._beat_table = beat_calc.BeatTable([])
+        _t0 = perf_start()
+        texts = tuple(c[1] for c in self._calls)
+        if self._beat_figures[0] != texts:
+            self._beat_figures = (texts, self._db.get_call_figures(texts))
+        self._beats = beat_seq.sequence_info(
+            self._beat_table, texts, self._beat_figures[1], self._seq_type,
+            (self._flow or {}).get("beats"))
+        perf_log(f"SeqView._compute_beats ({len(texts)} Zeilen)", _t0)
+
+    # ---- Square Flow (intern#247) ----
+
+    def set_flow_info(self, calls, info):
+        """Ergebnis von Square Flow fuer die Sequenz mit diesen Calls. Gehoert es
+        nicht (mehr) zur gezeigten Sequenz, wird es verworfen. info = None loescht.
+        info: {"beats": [...], "total", "singer", "fail_card", "warn", "warn_text"}"""
+        if info is not None and tuple(calls) != tuple(self.current_calls()):
+            return
+        if info == self._flow:
+            return
+        self._flow = info
+        self._compute_beats()
+        self._render_header()
+        self._recalc_font_size()
+
+    def set_flow_line(self, index):
+        """Zeile, die Square Flow gerade tanzt, hinterlegen (-1 = keine)."""
+        if index == self._flow_line:
+            return
+        self._flow_line = index
+        if self._calls:
+            self._text_edit.setHtml(self._make_html(self._html_font))
+
+    def _apply_flow_warn_button(self):
+        """Warn-Knopf vor "Taminations": nur mit Square Flow und bei einer Warnung."""
+        flow = self._flow or {}
+        show = bool(self._tam_allowed and flow.get("warn"))
+        self._btn_flow_warn.setVisible(show)
+        if show:
+            warn = self._skin_mgr.color("warning", "#ef4444") if self._skin_mgr else "#ef4444"
+            self._btn_flow_warn.setStyleSheet(f"color: {warn}; font-weight: bold;")
+
+    def _show_flow_warning(self):
+        text = (self._flow or {}).get("warn_text") or ""
+        if text:
+            QMessageBox.information(self, _t("seq_flow_warn_title"), text)
+
+    def set_taminations_enabled(self, visible, online=True):
+        """Knopf "In Taminations oeffnen": sichtbar mit Square Flow, aktiv nur online."""
+        self._tam_allowed = bool(visible)
+        self._apply_flow_warn_button()
+        self._btn_tam.setVisible(visible)
+        self._btn_tam.setEnabled(visible and online)
+        self._btn_tam.setToolTip(_t("seq_tam_open_tooltip") if online
+                                 else _t("seq_tam_offline_tooltip"))
+
+    def request_edit(self):
+        """Sequenz-Editor fuer die gezeigte Sequenz oeffnen (wie der Knopf)."""
+        self._on_edit()
 
     def _recalc_header_font(self):
         """BL-189: Passt die Schriftgroesse der Header-Zeile so an, dass der Text
@@ -353,7 +564,7 @@ class SequenceViewWidget(QWidget):
         ignoriert — die Groesse MUSS per `font-size` im StyleSheet gesetzt werden.
         Leerer Header → nichts zu tun."""
         if not self._header_text:
-            self._lbl_header.setStyleSheet(f"color: {self._text_color()};")
+            self._lbl_header.setStyleSheet(self._header_style())
             return
         avail = self._lbl_header.width() - 8  # kleiner Sicherheitsrand
         if avail < 20:
@@ -367,11 +578,12 @@ class SequenceViewWidget(QWidget):
                 best = size
             else:
                 break
-        self._lbl_header.setStyleSheet(
-            f"color: {self._text_color()}; font-size: {best}px;")
+        self._lbl_header.setStyleSheet(self._header_style(best))
 
     def _update_content(self):
         if not self._seq_ids:
+            self._flow, self._flow_line = None, -1
+            self._beats = None
             self._text_edit.clear()
             self._lbl_header.setText("")
             self._lbl_pos.setText("")
@@ -379,6 +591,8 @@ class SequenceViewWidget(QWidget):
             self._btn_next.setEnabled(False)
             return
         seq_id = self._seq_ids[self._current_idx]
+        # intern#247: Square-Flow-Ergebnis gehoert zur vorigen Sequenz
+        self._flow, self._flow_line = None, -1
         self._update_header(seq_id)
         self._lbl_pos.setText(f"{self._current_idx + 1} / {len(self._seq_ids)}")
         self._btn_prev.setEnabled(self._current_idx > 0)
@@ -396,6 +610,8 @@ class SequenceViewWidget(QWidget):
             c[:5] + (program_selection.call_program_label(
                 c[5] or [], self._program_bands, labels),)
             for c in self._db.get_sequence_calls(seq_id)]
+        self._compute_beats()
+        self._render_header()
         self._recalc_font_size()
         # Nochmal nach erstem Layout-Pass, damit height()/width() korrekt ist
         QTimer.singleShot(0, self._recalc_font_size)
@@ -427,9 +643,9 @@ class SequenceViewWidget(QWidget):
 
     # ---- Rechtsklick: Call-Mapping fuer einen Call-Text (intern#177) ----
 
-    def _call_text_at(self, pos):
-        """Call-Text der Zeile unter pos (Viewport-Koordinaten des Textfelds)
-        oder None. _make_html trennt die Calls mit <br>: die Zahl der
+    def _call_index_at(self, pos):
+        """Index in _calls der Zeile unter pos (Viewport-Koordinaten des
+        Textfelds) oder None. _make_html trennt die Calls mit <br>: die Zahl der
         Zeilenumbrueche vor der Cursor-Position ist der Index in _calls."""
         if not self._calls:
             return None
@@ -437,22 +653,77 @@ class SequenceViewWidget(QWidget):
         rect = self._text_edit.cursorRect(cursor)
         if not rect.top() <= pos.y() <= rect.bottom():
             return None     # unterhalb der letzten Zeile
-        idx = self._text_edit.toPlainText()[:cursor.position()].count("\n")
-        return self._calls[idx][1] if idx < len(self._calls) else None
+        line = self._text_edit.toPlainText()[:cursor.position()].count("\n")
+        # intern#164: Mit Etiketten unter dem Call hat ein Call zwei Textzeilen
+        line_calls = self._line_calls or range(len(self._calls))
+        return line_calls[line] if line < len(line_calls) else None
+
+    def _call_text_at(self, pos):
+        """Call-Text der Zeile unter pos oder None (intern#177)."""
+        idx = self._call_index_at(pos)
+        return self._calls[idx][1] if idx is not None else None
+
+    def current_sequence_id(self):
+        """intern#247: ID der gezeigten Sequenz oder None."""
+        if not self._seq_ids or self._current_idx >= len(self._seq_ids):
+            return None
+        return self._seq_ids[self._current_idx]
+
+    def current_sequence_type(self) -> str:
+        """intern#247: Typ der gezeigten Sequenz (sequences.type), "" ohne."""
+        return self._seq_type if self._seq_ids else ""
+
+    def eventFilter(self, obj, event):
+        """intern#247: Linksklick (ohne Textauswahl) auf eine Zeile meldet ihren
+        Index an on_call_clicked. Das Ereignis laeuft weiter an Qt."""
+        if (self.on_call_clicked is not None
+                and obj is self._text_edit.viewport()
+                and event.type() == QEvent.MouseButtonRelease
+                and event.button() == Qt.LeftButton
+                and not self._text_edit.textCursor().hasSelection()):
+            idx = self._call_index_at(event.position().toPoint())
+            if idx is not None:
+                try:
+                    self.on_call_clicked(idx)
+                except Exception:
+                    pass
+        return super().eventFilter(obj, event)
 
     def _build_text_menu(self, pos):
         """Kontextmenue des Textfelds: der Eintrag zum Call-Mapping, darunter
         die Standard-Eintraege (Kopieren, Alles auswaehlen)."""
         menu = self._text_edit.createStandardContextMenu()
+        first = menu.actions()[0] if menu.actions() else None
         call_text = self._call_text_at(pos) if self.on_open_call_mapping else None
         if call_text:
-            first = menu.actions()[0] if menu.actions() else None
             act = QAction(_t("ctx_open_call_mapping_for_call_text"), menu)
             act.triggered.connect(
                 lambda: self._open_call_mapping_for_call_text(call_text))
             menu.insertAction(first, act)
             menu.insertSeparator(first)
+        # intern#164: Programm und Beats aus / hinter / unter dem Call
+        group = QActionGroup(menu)
+        for mode, key in ((LABEL_OFF, "seq_labels_off"), (LABEL_INLINE, "seq_labels_inline"),
+                          (LABEL_BELOW, "seq_labels_below")):
+            act = QAction(_t(key), menu)
+            act.setCheckable(True)
+            act.setChecked(mode == self._label_mode)
+            act.setData(mode)
+            group.addAction(act)
+            act.triggered.connect(lambda _on=False, m=mode: self.set_label_mode(m))
+            menu.insertAction(first, act)
+        menu.insertSeparator(first)
         return menu
+
+    def set_label_mode(self, mode):
+        """intern#164: Etiketten aus / hinter / unter dem Call; in der INI gemerkt."""
+        if mode not in LABEL_MODES:
+            return
+        self._label_mode = mode
+        if self._settings is not None:
+            self._settings.setValue(ini_keys.SEQ_DETAIL_LABELS, mode)
+        if self._calls:
+            self._recalc_font_size()
 
     def _on_text_context_menu(self, pos):
         menu = self._build_text_menu(pos)
@@ -463,6 +734,10 @@ class SequenceViewWidget(QWidget):
         """Call-Mapping oeffnen, gefiltert auf diesen Call-Text. Das Neuladen
         danach macht der Aufgerufene (P29MainWindow._open_call_mapping)."""
         self.on_open_call_mapping([call_text])
+
+    def _on_program_ids_changed(self, ids):
+        self.set_program_bands(program_selection.bands_for(
+            self._db.get_all_dance_programs(), ids))
 
     def set_program_bands(self, bands):
         """intern#176: Tanzprogramm-Wahl uebernehmen und das Programm-Etikett
@@ -658,7 +933,7 @@ class SequencesWidget(QWidget):
     _ZOOM_MAX = 200
     _ZOOM_STEP = 10
 
-    def __init__(self, db, skin_mgr=None, settings=None):
+    def __init__(self, db, skin_mgr=None, settings=None, session=None):
         super().__init__()
         self.db = db
         self._skin_mgr = skin_mgr
@@ -686,6 +961,14 @@ class SequencesWidget(QWidget):
         self._program_sort_to = None
 
         self._build_ui()
+        # intern#142: Tanzprogramm-Wahl aus der aktuellen Sitzung. Beim Start nur
+        # die Baender setzen (defer_load): das teure Laden macht _init_sequences()
+        # nach window.show().
+        if session is not None:
+            self._session = session
+            self.set_program_bands(program_selection.bands_for(
+                db.get_all_dance_programs(), session.program_ids), defer_load=True)
+            session.program_ids_changed.connect(self._on_program_ids_changed)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -1037,6 +1320,15 @@ class SequencesWidget(QWidget):
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
 
+    def _on_program_ids_changed(self, _ids):
+        """Neues Laden kostet Main-Thread-Zeit: per singleShot entkoppeln (Audio-
+        Regel). Gerechnet wird mit der Wahl von dann, nicht mit dem Signalwert."""
+        QTimer.singleShot(0, self._apply_session_programs)
+
+    def _apply_session_programs(self):
+        self.set_program_bands(program_selection.bands_for(
+            self.db.get_all_dance_programs(), self._session.program_ids))
+
     def set_program_bands(self, bands, defer_load=False):
         """MS50: Setzt die Programm-Band-Menge der aktuellen Lokation (Mengen-Filter).
 
@@ -1088,6 +1380,11 @@ class SequencesWidget(QWidget):
         self._check_only_program.setChecked(False)
         self._check_only_program.blockSignals(False)
         self._on_filter_changed()
+
+    @property
+    def showing_hidden(self) -> bool:
+        """intern#205: Ist "Auch ausgeblendete Sequenzen anzeigen" gerade aktiv?"""
+        return self._show_hidden
 
     def show_hidden_sequences(self):
         """intern#119: Frisch importierte Sequenzen finden.

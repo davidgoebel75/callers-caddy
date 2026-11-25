@@ -20,6 +20,7 @@ from PySide6.QtGui import (
 from song_db import Song, Location, CHECK_BEATSNAP_GENRE_NAME
 from path_manager import PathManager
 from skin_manager import SkinManager
+import program_selection
 from i18n import _t
 from perf import perf_start, perf_split
 from ui_helpers import (
@@ -394,9 +395,16 @@ class PlayerWidget(QWidget):
         self._theme_font_px  = 13  # aus skin.json font_size, Standard 13
         # NEU-Button ist jetzt im Loop-Widget, aber _load_file bleibt hier
         self._build_ui()
-        # intern#142: Lokationswechsel kommt aus der aktuellen Sitzung
+        # intern#142: Lokationswechsel und geladener Song kommen aus der aktuellen Sitzung
+        self._session = session
+        self._db = None   # main setzt die DB nach dem Bauen (BL-083)
         if session is not None:
             session.location_changed.connect(self.set_location)
+            session.program_ids_changed.connect(self.apply_program_selection)
+
+    def _current_song(self):
+        """Geladener Song aus der aktuellen Sitzung (ohne Sitzung: kein Song)."""
+        return self._session.song if self._session is not None else None
 
     def _build_ui(self):
         _pb0 = perf_start()
@@ -506,6 +514,7 @@ class PlayerWidget(QWidget):
         title_row = QHBoxLayout()
         title_row.setContentsMargins(0, 0, 0, 0)
         title_row.setSpacing(6)
+        self._current_filename = None   # None = keine Datei angezeigt (intern#212)
         self.label_file = QLabel(_t("no_file_loaded"))
         self.label_file.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.label_file.setWordWrap(True)
@@ -823,6 +832,16 @@ class PlayerWidget(QWidget):
         self.set_planner_warning(location is not None)
 
     # BL-083 ----------------------------------------------------------------
+    def apply_program_selection(self, _ids=None):
+        """Oberstes Programm der Tanzprogramm-Wahl aus der Sitzung anzeigen
+        (intern#142). Ohne DB (main setzt sie erst nach dem Bauen) passiert nichts;
+        main ruft das beim Start einmal selbst, sobald die Verdrahtung steht."""
+        if self._db is None or self._session is None:
+            return
+        top_id, top_code = program_selection.top_program(
+            self._db.get_all_dance_programs(), self._session.program_ids)
+        self.set_dance_program(top_id, top_code)
+
     def set_dance_program(self, program_id, code: str):
         """Setzt das aktive Tanzprogramm und aktualisiert den Button-Text."""
         self._dance_program_id = program_id
@@ -897,6 +916,13 @@ class PlayerWidget(QWidget):
 
     def update_display(self):
         import time as _time
+        self._show_device_notice()
+        # intern#212: Ohne angezeigte Datei (nichts geladen oder Song geloescht)
+        # nichts anzeigen und vor allem btn_play nicht wieder einschalten. Die
+        # Engine behaelt die Audiodaten eines geloeschten Songs bis zum
+        # naechsten Laden, is_loaded() bleibt deshalb True.
+        if not self.has_file():
+            return
         if self.engine.is_playing():
             # Loop-Punkt-Erkennung: Seek zum Loop-In wenn Wiedergabe
             # den Loop-Out erreicht (wie Beat Snap Audition).
@@ -1015,8 +1041,7 @@ class PlayerWidget(QWidget):
         ueber MainWindow._flush_player_values()."""
         if not getattr(self, '_tempo_dirty', False):
             return
-        main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
         db = getattr(self, '_db', None)
         if not song or not song.id or db is None:
             self._tempo_dirty = False
@@ -1030,8 +1055,7 @@ class PlayerWidget(QWidget):
         """Schreibt Pitch in DB falls geaendert. Idempotent."""
         if not getattr(self, '_pitch_dirty', False):
             return
-        main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
         db = getattr(self, '_db', None)
         if not song or not song.id or db is None:
             self._pitch_dirty = False
@@ -1121,6 +1145,8 @@ class PlayerWidget(QWidget):
         self._load_file(filepath)
 
     def _on_play(self):
+        if not self.has_file():
+            return  # intern#212: nichts geladen oder Song geloescht
         self._exit_audition()  # Audition-Modus beenden, Primaerkanal wiederherstellen
         import time as _time
         is_resume = self.engine.paused  # VOR engine.play() pruefen
@@ -1146,6 +1172,33 @@ class PlayerWidget(QWidget):
             if is_resume and self.on_resumed:
                 self.on_resumed()
 
+    def _show_device_notice(self):
+        """Zeigt einen Geraete-Hinweis der Engine an (intern#237).
+
+        Nicht-modal: Die Musik laeuft beim Ausweichen aufs Standardgeraet schon,
+        der Hinweis darf nichts blockieren. Ein noch offener Hinweis wird
+        ersetzt statt gestapelt.
+        """
+        notice = self.engine.take_device_notice()
+        if notice is None:
+            return
+        kind, detail = notice
+        if kind == "fallback":
+            body = _t("audio_device_fallback_body", device=detail)
+        elif kind == "lost":
+            body = _t("audio_device_lost_body")
+        else:
+            body = _t("audio_device_failed_body")
+        box = getattr(self, "_device_notice_box", None)
+        if box is None:
+            box = QMessageBox(QMessageBox.Warning, _t("audio_device_title"), "",
+                              QMessageBox.Ok, self)
+            box.setModal(False)
+            self._device_notice_box = box
+        box.setText(body)
+        box.show()
+        box.raise_()
+
     def _do_play(self, is_resume: bool):
         """Startet die AUDIO-Wiedergabe + UI-Zustand. Feuert bewusst KEINE
         Rule-Trigger — das macht der Orchestrator vor bzw. nach diesem Aufruf,
@@ -1153,6 +1206,11 @@ class PlayerWidget(QWidget):
         import time as _time
         self.engine.reset_audio_diag()
         self.engine.play()
+        if not self.engine.playing and self.engine.is_loaded():
+            # intern#237: kein Ausgabegeraet startbar — Knoepfe bleiben im
+            # Stop-Zustand, Hinweis sofort statt erst beim naechsten Tick.
+            self._show_device_notice()
+            return
         self.btn_pause.setEnabled(True)
         self.btn_stop.setEnabled(True)
         self.btn_fade.setEnabled(True)
@@ -1181,6 +1239,33 @@ class PlayerWidget(QWidget):
         self._reset_play_timer()
         if self.on_manual_stop:
             self.on_manual_stop()
+
+    def clear_loaded_song(self):
+        """Zeigt wieder "keine Datei geladen" (intern#212, Song geloescht).
+
+        Nur die Oberflaeche: Die Audiodaten bleiben in der Engine, bis der
+        naechste Song geladen wird. update_display() laesst den Player ohne
+        Datei in Ruhe, damit btn_play aus bleibt; ohne Play-Knopf startet
+        auch keine Rule (die klickt btn_play).
+        """
+        self._current_filename = None
+        self.label_file.setText(_t("no_file_loaded"))
+        self.label_status.setText(_t("status_ready"))
+        for btn in (self.btn_play, self.btn_audition, self.btn_pause,
+                    self.btn_stop, self.btn_fade):
+            btn.setEnabled(False)
+        self.slider_position.setEnabled(False)
+        self.slider_position.blockSignals(True)
+        self.slider_position.setValue(0)
+        self.slider_position.blockSignals(False)
+        self.label_time_current.setText(fmt_precise(0.0))
+        self.label_time_total.setText(f" / {fmt_time(0.0)}")
+        self.label_loop_count.setVisible(False)
+        self._reset_play_timer()
+
+    def has_file(self) -> bool:
+        """True, solange der Player eine Datei anzeigt (geladen, nicht geloescht)."""
+        return self._current_filename is not None
 
     def _reset_play_timer(self):
         """Timer zuruecksetzen (Stop, Song-Ende, Fade-Ende)."""
@@ -1357,6 +1442,14 @@ class PlayerWidget(QWidget):
             pct = max(lo, min(hi, pct))
         self.spin_today_tempo.setValue(int(pct))
 
+    def effective_bpm(self) -> float:
+        """Tempo, mit dem der Song gerade laeuft (base_bpm * Song- * Tages-Tempo),
+        0.0 ohne bekannte BPM. Fuer Square Flow (intern#247)."""
+        if self._base_bpm <= 0:
+            return 0.0
+        return (self._base_bpm * self.spin_tempo.value() / 100.0
+                * self.spin_today_tempo.value() / 100.0)
+
     def _update_bpm_display(self):
         """BPM-Anzeige aktualisieren: base_bpm * song_tempo * today_tempo."""
         if self._base_bpm <= 0:
@@ -1430,6 +1523,13 @@ class PlayerWidget(QWidget):
         self._audition_active = True
         self.engine.seek(0)
         self.engine.play()
+        if not self.engine.playing:
+            # intern#237: kein Ausgabegeraet startbar — wie beim Play im
+            # Stop-Zustand bleiben, Hinweis zeigen, Vorhoeren beenden
+            # (stellt das Hauptgeraet wieder her).
+            self._show_device_notice()
+            self._exit_audition()
+            return
         self.btn_pause.setEnabled(True)
         self.btn_stop.setEnabled(True)
         self.btn_fade.setEnabled(True)
@@ -1453,9 +1553,10 @@ class LoopWidget(QWidget):
     daher passen sie gut zusammen mit dem NEU-Button.
     """
 
-    def __init__(self, engine, parent=None):
+    def __init__(self, engine, parent=None, session=None):
         super().__init__(parent)
         self.engine = engine
+        self._session = session
         self.on_new_clicked = None  # Callback: neuer Song laden
         self.on_new_dropped = None  # Callback(list[str]): Dateien/Ordner gedroppt (BL-179)
         self.on_set_marker = None   # Callback: Custom-Marker an aktueller Pos setzen (BL-185)
@@ -1647,13 +1748,17 @@ class LoopWidget(QWidget):
         self._sync_loop_to_song_data()
         self._save_loop_to_db()
 
+    def _current_song(self):
+        """Geladener Song aus der aktuellen Sitzung (ohne Sitzung: kein Song)."""
+        return self._session.song if self._session is not None else None
+
     def _save_loop_to_db(self):
         """Schreibt loop_in/loop_out aus der Engine direkt in die DB
         (Variante C: keine Sammelspeicherung beim Song-Wechsel mehr)."""
-        main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
         if not song or not song.id:
             return
+        main_win = self.window()
         loop_in = self.engine.loop_in_seconds
         loop_out = self.engine.loop_out_seconds
         song.loop_in = loop_in
@@ -1677,11 +1782,12 @@ class LoopWidget(QWidget):
         self._sync_loop_to_song_data()
         self.update_display()
         # In DB speichern (clear_loop umgeht Safety-Guard)
-        main_win = self.window()
-        if hasattr(main_win, '_current_song') and main_win._current_song:
-            main_win._current_song.loop_in = 0.0
-            main_win._current_song.loop_out = 0.0
-            main_win.db.clear_loop(main_win._current_song.id)
+        song = self._current_song()
+        if song:
+            main_win = self.window()
+            song.loop_in = 0.0
+            song.loop_out = 0.0
+            main_win.db.clear_loop(song.id)
 
     def _sync_loop_to_song_data(self):
         """Aktualisiert Loop-SpinBoxes im Song-Daten-Widget."""
@@ -1777,7 +1883,7 @@ class LoopWidget(QWidget):
         self.update_display()
 
         main_win = self.window()
-        song = getattr(main_win, '_current_song', None)
+        song = self._current_song()
 
         # Loop-Offset automatisch messen und anwenden
         offset_ms = None

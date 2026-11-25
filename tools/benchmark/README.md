@@ -33,8 +33,11 @@ python tools/benchmark/compare.py results/vorher.json results/nachher.json
 Gegen die **eingecheckte Baseline** vergleichen (in `baselines/`, env-bereinigt):
 
 ```bash
-python tools/benchmark/compare.py baselines/baseline_v0.158.json results/<dein-lauf>.json
+python tools/benchmark/compare.py baselines/baseline_v0.162.json results/<dein-lauf>.json
 ```
+
+Aktuelle Baseline ist **v0.162** (Stand vor Release 2.0, Median aus 5 Läufen).
+`baseline_v0.158.json` bleibt als ältere Vergleichsbasis liegen.
 
 ### Parameter
 
@@ -153,3 +156,53 @@ Fehlt das Modul (älterer Stand), entfallen beide Schritte.
 
 `compare.py` matcht Schritte per `name` und zeigt Delta + % gegen die Baseline
 (erster übergebener Report).
+
+## Vorgehen und Learnings (Performancetest vor Release 2.0, 2026-11-17)
+
+Bewährter Ablauf für den „üblichen Performancetest“ und was dabei aufgefallen ist.
+Befunde: intern#46, intern#256; Fix: callers-caddy#178.
+
+### Ablauf
+
+1. **Hauptlauf:** `--repeat 5` gegen die 2_Test-DB, dann `compare.py` gegen die
+   aktuelle Baseline **und** den letzten Lauf in `results/`.
+2. **Ursachen suchen:** denselben Lauf unter cProfile fahren
+   (`python -m cProfile -o bench.prof tools/benchmark/run_benchmark.py …`) und die
+   Aufrufbäume der auffälligen Schritte auswerten. cProfile bremst hier kaum, weil
+   die meiste Zeit in Qt/C liegt.
+3. **Start aufschlüsseln:** `--perf-log` liefert die in-App-Marken
+   (`.sandbox/logs/perf/`). Für den Fensteraufbau ist das die verlässliche Quelle.
+4. **Alltag gegenprüfen:** die Perf-Logs aus `2_Test/logs/perf/` tabellieren
+   (`__init__ GESAMT`, `Docks + Tutorials`, `Layout restore`). Sie zeigen, ob eine
+   Benchmark-Abweichung auch im echten Start auftritt.
+5. **Fix gezielt prüfen:** ein kleines Skript im Scratchpad, das `prepare_sandbox`,
+   `boot` und `Bench` aus `run_benchmark.py` importiert und nur das betroffene
+   Szenario fährt. Messgröße für Hänger: die **längste Lücke zwischen zwei
+   `processEvents()`**. Immer mit Gegenprobe ohne Fix (`git stash`).
+
+### Learnings
+
+- **Nicht nur den Median lesen, auch `samples_ms`.** Der ~1-s-Hänger des
+  Evening-Planner-Vorbaus war im Median von `lyrics_dynamic_on` (25 ms)
+  unsichtbar. Er stand nur als Einzelwert (894 ms / 1089 ms) in den Samples.
+- **Ausreißer an fester Position im Lauf → zeitgesteuerte Timer nach dem Start
+  verdächtigen.** `QTimer.singleShot(3000, …)` fällt in irgendeinen Messschritt,
+  der dann teuer aussieht, obwohl er selbst unschuldig ist.
+- **Der erste Import schwerer Bibliotheken ist ein versteckter Hänger.**
+  `numpy` + `scipy.signal`/`optimize` kosten beim ersten Mal ~1,2 s im
+  GUI-Thread. Lokale Imports verschieben nur den Zeitpunkt. Vorbauten dürfen
+  darum nie während der Wiedergabe laufen (`engine.is_playing()` prüfen).
+- **cProfile ist bei PySide-Konstruktoren unzuverlässig.** `P29MainWindow.__init__`
+  zeigte 49 ms bei gemessenen ~650 ms. Für den Start `--perf-log` nehmen.
+- **Start wird nur einmal je Prozess gemessen.** Für Aussagen zum Start mindestens
+  zwei Läufe vergleichen. Kaltstarts (erster Start des Tages) sind 2–3× langsamer,
+  fast ganz in der Import-Phase. Das liegt an Datenträger/Virenscanner, nicht am Code.
+- **Versteckte Docks hören trotzdem auf Signale.** `notes_widget.refresh` baut beim
+  Lokationswechsel alle Zeilen neu, auch bei verstecktem Dock. Bei der Suche nach
+  Kandidaten für Caching/Verzögern auf Signal-Handler versteckter Widgets achten,
+  nicht nur auf den Aufbau beim Start.
+- **Audiogerät vor dem Lauf prüfen.** „Stream-Init fehlgeschlagen … Fallback auf
+  System-Standard“ im Log heißt: Gerät aus oder belegt. Dann misst Play gegen das
+  falsche Gerät.
+- **Die Sandbox klont die echte INI seit 2026-09-14** (auch für Baseline v0.158).
+  Ein Unterschied in den Startzahlen lässt sich damit nicht erklären.

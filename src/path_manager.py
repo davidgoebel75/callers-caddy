@@ -28,19 +28,13 @@ Warum relativ?
 import os
 from PySide6.QtCore import QSettings
 
+from caddy.settings import ini_keys
+
 
 # Anzahl unterstuetzter Musik-Pfad-Slots
 MUSIC_DIR_SLOTS = 4
 
-# Relative Default-Pfade (von APP_DIR aus gesehen)
-_DEFAULTS = {
-    "music_dir_1": "music",
-    "import_dir":  "neu",
-    "lyrics_dir":  "lyrics",
-    "playlist_dir": "playlists",
-}
-
-# INI-Keys
+# INI-Keys (Standardwerte: caddy/settings/ini_keys.py)
 _INI_MUSIC_KEY = "paths/music_dir_{slot}"   # slot = 1..4
 _INI_KEYS = {
     "import_dir":   "paths/import_dir",
@@ -169,7 +163,7 @@ class PathManager:
         if slot == 1:
             return self._resolve_music_slot(1)  # Slot 1 hat immer einen Wert (Default)
         ini_key = _INI_MUSIC_KEY.format(slot=slot)
-        raw = self._settings.value(ini_key, "")
+        raw = ini_keys.get(self._settings, ini_key)
         if not raw:
             return ""
         return os.path.normpath(os.path.join(self._app_dir, raw))
@@ -196,7 +190,7 @@ class PathManager:
         """
         for slot in range(2, MUSIC_DIR_SLOTS + 1):
             ini_key = _INI_MUSIC_KEY.format(slot=slot)
-            raw = self._settings.value(ini_key, "")
+            raw = ini_keys.get(self._settings, ini_key)
             if not raw:
                 return slot
         return 0
@@ -346,8 +340,7 @@ class PathManager:
     def _resolve_music_slot(self, slot: int) -> str:
         """Liest und loest einen Musik-Slot-Pfad auf. Leere Slots ergeben ''."""
         ini_key = _INI_MUSIC_KEY.format(slot=slot)
-        default = _DEFAULTS.get(f"music_dir_{slot}", "")
-        raw = self._settings.value(ini_key, default)
+        raw = ini_keys.get(self._settings, ini_key)
         if not raw:
             return ""
         return os.path.normpath(os.path.join(self._app_dir, raw))
@@ -355,7 +348,7 @@ class PathManager:
     def _resolve(self, key: str) -> str:
         """Liest einen relativen Pfad aus der INI und loest ihn absolut auf."""
         ini_key = _INI_KEYS[key]
-        relative = self._settings.value(ini_key, _DEFAULTS.get(key, ""))
+        relative = ini_keys.get(self._settings, ini_key)
         return os.path.normpath(os.path.join(self._app_dir, relative))
 
     def _store_path(self, ini_key: str, absolute_path: str, label: str):

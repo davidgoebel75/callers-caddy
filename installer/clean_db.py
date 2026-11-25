@@ -34,6 +34,9 @@ TABLES_TO_CLEAR = [
     "potential_ignored",  # persoenliche "ignorieren"-Entscheidungen im Potential-Dashboard
     # MS50 (2026): Zuordnung Lokation->Tanzprogramme haengt an locations (Nutzerdaten).
     "location_programs",
+    # intern#247: Square-Flow-Ergebnisse je Sequenz, reiner Rechen-Cache. Haengt an
+    # sequence_id, und die Sequenzen werden unten neu gesetzt (neue IDs).
+    "sequence_choreo",
 ]
 
 # Tabellen die erhalten bleiben (Referenzdaten):

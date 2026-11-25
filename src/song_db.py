@@ -25,7 +25,7 @@ Lokation-Schema (generalisiert aus Club):
 Abspielhistorie (Drei-Schichten-Architektur):
   Schicht 1 — play_history: Unveraenderliches Protokoll (nur INSERTs)
   Schicht 2 — song_location_stats: Materialisierter Cache (last_played, play_count)
-  Schicht 3 — On-the-Fly: julianday('now') - julianday(last_played) fuer Empfehlungen
+  Schicht 3 — On-the-Fly: Kalendertage seit last_played (Ortszeit) fuer Empfehlungen
 
 Design-Entscheidungen:
   - Nur Dateiname gespeichert, KEINE absoluten Pfade (portabel)
@@ -48,6 +48,7 @@ from typing import Optional, List
 from song_db_potential import PotentialMixin
 from song_db_schema import SchemaMixin
 from song_db_sequences import SequencesMixin
+from song_db_timing import CallTimingMixin
 import song_types
 
 
@@ -323,7 +324,7 @@ LEFT JOIN song_location_stats sls
 
 # Version der gebuendelten Referenzdaten (reference_calls.json). Hochzaehlen, wenn
 # eine neue Referenz an Bestandsnutzer verteilt werden soll -> Reseed laeuft erneut.
-REFERENCE_DATA_VERSION = 3
+REFERENCE_DATA_VERSION = 4
 
 # Default-Programme inkl. Figuren-Limit (sequence_limit_to, BL-132). Das Limit
 # ist die Programm-Obergrenze aus sequence_mapper._PROGRAMS als ".999999", damit
@@ -406,7 +407,7 @@ def _row_to_song(row: tuple) -> Song:
     )
 
 
-class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
+class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin, CallTimingMixin):
     """SQLite-Datenbankzugriff fuer Songs, Lokationen und Abspielhistorie."""
 
     def __init__(self, db_path: Optional[str] = None):
@@ -443,11 +444,13 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
         self._backfill_calls_json()  # Option C: calls_json aus field_1..15 fuellen
         self._ensure_sequence_calls_index()  # enthält-Filter-Index sicherstellen
         self.reseed_reference_data()  # MS50: gebuendelte Referenz einspielen (einmalig)
+        self.seed_call_timing()  # intern#164: Beats je Call, je Version der Datei einmal
         # BL-210: Reste aelterer Versionen (kennen call_text_figures_extra nicht)
         # bei jedem Start aufraeumen, nicht erst beim naechsten Referenz-Update
         self._normalize_call_text_figures()
         self._conn.commit()
         self._backfill_auto_mappings_once()  # heilt ungemappte Massenimporte (einmalig)
+        self._remap_group_prefix_once()  # intern#89: Gruppe vorn im Call-Text (einmalig)
         self._recompute_max_to_once()  # intern#95: Band-Regel geaendert (einmalig)
         print(f"[SongDB] Datenbank geoeffnet: {db_path}")
 
@@ -607,6 +610,19 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             variants.append((idx, props.get(name_key, ""), props.get(file_key, "")))
             idx += 1
         return variants
+
+    def get_variant_owner(self, filename: str, kind: str = "music") -> Optional[Song]:
+        """Song, bei dem filename als Variante (Index 2+) eingetragen ist, sonst None.
+
+        Vergleich ohne Gross-/Kleinschreibung wie die Varianten-Pruefung des
+        ZIP-Imports (intern#132).
+        """
+        row = self._conn.execute(
+            "SELECT song_id FROM song_properties "
+            "WHERE key LIKE ? ESCAPE '\\' AND lower(value) = lower(?) "
+            "ORDER BY song_id LIMIT 1",
+            (f"{kind}\\_%\\_file", filename)).fetchone()
+        return self.get_by_id(row[0]) if row else None
 
     def add_variant(self, song_id: int, kind: str, name: str, filename: str):
         """Neue Variante anlegen (naechster freier Index ab 2).
@@ -974,6 +990,18 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
         print(f"[SongDB] Massen-Loeschung: {deleted} Songs "
               f"(Historie {'mit' if delete_history else 'behalten'})")
         return deleted
+
+    def open_worker_connection(self):
+        """Neue Verbindung fuer einen Hintergrund-Worker (intern#139).
+
+        Eigene Verbindung, weil SQLite-Verbindungen threadgebunden sind und die
+        Haupt-Verbindung nicht mitbenutzt werden darf. Liest nur self.db_path,
+        ist also aus dem Worker-Thread aufrufbar. Gleiche PRAGMAs wie die
+        Haupt-Verbindung. Der Aufrufer schliesst sie."""
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA busy_timeout=30000;")
+        conn.execute("PRAGMA foreign_keys=ON;")
+        return conn
 
     def bulk_delete_songs(self, song_ids: list, delete_history: bool = False) -> int:
         """Main-Thread-Variante (kleine Mengen). Delegiert an
@@ -1478,7 +1506,8 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             SELECT s.id, s.title, s.label, s.err, s.quality,
                    s.is_pattern, s.is_singing,
                    COALESCE(
-                       CAST(julianday('now') - julianday(sls.last_played) AS INTEGER),
+                       CAST(julianday(date('now', 'localtime'))
+                            - julianday(date(sls.last_played)) AS INTEGER),
                        ?
                    ) AS days_since,
                    GROUP_CONCAT(g.name, ',') AS genres
@@ -1972,24 +2001,48 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
             # BL-210: nach Merges und neuen Teaching-Orders die hoechste Figur je
             # Menge neu bestimmen, Dubletten Haupt/Zusatz aufloesen
             self._normalize_call_text_figures()
-            # 5) Builtin-dance_programs ersetzen (origin='user' bleibt erhalten)
+            # 5) Builtin-dance_programs abgleichen (origin='user' bleibt erhalten).
+            #    intern#206: per code aktualisieren statt loeschen + neu anlegen. Die
+            #    id bleibt so stabil - location_programs, locations.dance_program_id
+            #    und die INI (sequences/dance_programs) speichern ids, ein Neuanlegen
+            #    liess sie ins Leere zeigen. target_duration_min bleibt, wie der
+            #    Nutzer es eingestellt hat.
+            #    Geloescht wird nichts mehr: Ein Programm, das die Referenz nicht
+            #    mehr fuehrt, bleibt nach der Heilung als eigenes stehen, samt
+            #    Lokations-Zuordnung.
+            ref_codes = [dp["code"] for dp in ref["dance_programs"]]
+            # Heilung: Bis intern#206 schrieb insert_dance_program() kein origin,
+            # die Spalte steht auf DEFAULT 'builtin'. Im Tanzprogramm-Manager
+            # angelegte (oder dort umbenannte) Programme sahen also aus wie
+            # mitgelieferte; das alte DELETE hat sie geloescht (seit 0.139 bei
+            # jedem Kunden mit eigenen Programmen). Was weder in der Referenz
+            # noch in den Default-Programmen steht, gehoert dem Nutzer.
+            known = ref_codes + [code for code, *_ in _DEFAULT_DANCE_PROGRAMS]
             self._conn.execute(
-                "DELETE FROM dance_programs WHERE origin IS NULL OR origin='builtin';")
+                "UPDATE dance_programs SET origin='user' "
+                "WHERE (origin IS NULL OR origin='builtin') "
+                f"AND code NOT IN ({','.join('?' * len(known))})", known)
             band_to_pid = {}
             for dp in ref["dance_programs"]:
                 band = int(dp["band"])
-                cur = self._conn.execute(
+                self._conn.execute(
                     "INSERT INTO dance_programs "
                     "(code, label, sort_order, target_duration_min, sequence_limit_to, origin) "
-                    "VALUES (?, ?, ?, ?, ?, 'builtin');",
+                    "VALUES (?, ?, ?, 7.0, ?, 'builtin') "
+                    "ON CONFLICT(code) DO UPDATE SET label=excluded.label, "
+                    "sort_order=excluded.sort_order, "
+                    "sequence_limit_to=excluded.sequence_limit_to, origin='builtin' "
+                    "WHERE origin IS NULL OR origin='builtin';",
                     (dp["code"], dp["label"], dp.get("sort_order", band),
-                     7.0, band + 0.999999))
+                     band + 0.999999))
                 # Class-Varianten teilen sich das Band ihres 2026-/Basis-Programms
                 # (= gleiche Calls). Fuer die Band->Programm-Zuordnung der Lokations-
                 # Migration zaehlt nur das Primaer-Programm, sonst zeigte eine Lokation
                 # auf die Class-Variante statt aufs regulaere Programm.
                 if not dp.get("is_class"):
-                    band_to_pid[band] = cur.lastrowid
+                    band_to_pid[band] = self._conn.execute(
+                        "SELECT id FROM dance_programs WHERE code=?",
+                        (dp["code"],)).fetchone()[0]
             # 6) Lokationen EINMALIG auf das 2026-Set migrieren (Default NEU). Basic 10/20
             #    sind in MS50 (Band 30) absorbiert -> 2026-Baender = 30..100. Nur beim
             #    allerersten Reseed (Flag in app_meta), damit spaetere Referenz-Bumps die
@@ -2068,9 +2121,12 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
     def insert_dance_program(self, code: str, label: str, sort_order: int,
                               target_duration_min: float,
                               sequence_limit_to: float = None) -> int:
+        # intern#206: origin='user', sonst greift DEFAULT 'builtin' und ein
+        # Referenz-Update haelt das Programm fuer ein mitgeliefertes.
         cur = self._conn.execute(
-            "INSERT INTO dance_programs (code, label, sort_order, target_duration_min, sequence_limit_to) "
-            "VALUES (?, ?, ?, ?, ?);",
+            "INSERT INTO dance_programs "
+            "(code, label, sort_order, target_duration_min, sequence_limit_to, origin) "
+            "VALUES (?, ?, ?, ?, ?, 'user');",
             (code.strip(), label.strip(), sort_order, target_duration_min, sequence_limit_to),
         )
         self._conn.commit()

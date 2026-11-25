@@ -9,8 +9,13 @@ on:
         description: "Kurztitel fuer den Changelog-Abschnitt"
         required: false
         default: ""
+      part:
+        description: "Was hochzaehlen: patch = kleine Aenderungen/Fixes, minor = grosse neue Funktionen, major = Umbruch"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
       version:
-        description: "Versionsnummer erzwingen (leer = hochzaehlen)"
+        description: "Versionsnummer erzwingen, z. B. 2.0.0 (leer = hochzaehlen; schlaegt den Teil oben)"
         required: false
         default: ""
       dry_run:
@@ -26,9 +31,9 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -39,8 +44,15 @@ jobs:
         env:
           TITLE: ${{ inputs.title }}
           VERSION: ${{ inputs.version }}
+          PART: ${{ inputs.part }}
           CHECK: ${{ inputs.dry_run && '--check' || '' }}
-        run: python tools/bump_version.py --title "$TITLE" ${VERSION:+--version "$VERSION"} $CHECK
+        # Mit erzwungener Nummer zaehlt der Teil nicht (bump_version.py lehnt beides zusammen ab).
+        run: |
+          if [ -n "$VERSION" ]; then
+            python tools/bump_version.py --title "$TITLE" --version "$VERSION" $CHECK
+          else
+            python tools/bump_version.py --title "$TITLE" --part "$PART" $CHECK
+          fi
 
       - name: Commit und Push
         if: ${{ !inputs.dry_run }}

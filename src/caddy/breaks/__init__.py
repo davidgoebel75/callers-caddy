@@ -1,0 +1,1 @@
+"""Pausen-Uhr: Countdown, Wartemusik."""

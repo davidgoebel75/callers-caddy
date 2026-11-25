@@ -7,7 +7,6 @@ _PlayBarrier. Abhaengigkeiten nur auf Blatt-/Fremdmodule (perf, i18n, song_types
 """
 
 import math
-from datetime import date
 
 from PySide6.QtCore import Qt, QTimer, QEvent, QSize
 from PySide6.QtGui import QIcon, QColor
@@ -20,11 +19,6 @@ from PySide6.QtWidgets import (
 from i18n import _t
 from perf import perf_start, perf_split
 from song_types import PlayMode, has_loop_points
-
-
-# BL-170: Ersatz-Qualitaet fuer unbewertete Songs beim gewichteten Zufall.
-# quality 0 = "noch nicht bewertet" (s. song_db.py), nicht "schlecht".
-_UNRATED_QUALITY = 5
 
 
 # --- Reine Hilfsfunktionen + Loop-Dialog -------------------------------------
@@ -772,60 +766,7 @@ class SectionBarWidget(QWidget):
             btn.setChecked(False)
 
 
-# --- Song-Reco/Random/Datums-Helfer: aus main.py (BL-201, Stufe 7) — von
-# Songdata, Playlist und Hauptfenster genutzt.
-def _reco_days_since(song_id, last_played_map, fallback_date):
-    """Tage seit dem letzten Spielen dieses Songs.
-
-    Nie gespielt -> gemessen ab fallback_date (Erstaufnahme-Grenze aus der INI),
-    NICHT ab heute. Gemeinsame Quelle fuer die Empfehlungs-Sortierung UND die
-    Score-Anzeige, damit die angezeigte Zahl exakt der Sortierung entspricht.
-    """
-    today = date.today()
-    lp = last_played_map.get(song_id)
-    if lp:
-        try:
-            return (today - date.fromisoformat(lp[:10])).days
-        except (ValueError, TypeError):
-            pass
-    return (today - fallback_date).days
-
-
-def _reco_score(song, last_played_map, fallback_date) -> int:
-    """Empfehlungs-Score = Qualitaet x Tage-seit-gespielt (Ganzzahl)."""
-    return int(song.quality * _reco_days_since(song.id, last_played_map, fallback_date))
-
-
-def _weighted_random_order(songs, weight_of, draw_of):
-    """Gewichtete Zufalls-Reihenfolge (BL-170, Roulette-Wheel-Selection).
-
-    Ergebnis ist verteilungsgleich zu dem von Hand beschriebenen Verfahren
-    ("Scores aufsummieren, Zufallszahl im Summenbereich ziehen, von vorne
-    kumulativ zaehlen, Treffer entnehmen, wiederholen"), braucht aber nur
-    einen Sortierdurchlauf statt n Durchlaeufe ueber die Restliste:
-    O(n log n) statt O(n^2).
-
-    Verfahren nach Efraimidis/Spirakis: zu jedem Song mit Gewicht w wird aus
-    einer Gleichverteilung u in (0,1) der Schluessel -ln(u)/w gebildet;
-    aufsteigend sortiert entspricht das exakt dem wiederholten Ziehen ohne
-    Zuruecklegen. Songs mit hohem Gewicht bekommen im Mittel kleinere
-    Schluessel und landen vorne, ohne dass ein niedriges Gewicht chancenlos
-    waere.
-
-    Args:
-        songs: Liste der Songs.
-        weight_of: Callable(song) -> Gewicht > 0.
-        draw_of: Callable(song_id) -> gecachte Zufallszahl u aus (0,1).
-                 Ueber den Cache bleibt die Reihenfolge stabil, solange nur
-                 gefiltert wird (Tippen im Suchfeld sortiert nicht um).
-    """
-    keys = []
-    for s in songs:
-        w = weight_of(s)
-        u = draw_of(s.id)
-        keys.append((-math.log(u) / w, s))
-    keys.sort(key=lambda x: x[0])
-    return [s for _, s in keys]
+# Empfehlungs-/Zufalls-Helfer: caddy.songs.recommendation (intern#141).
 
 
 def _style_date_cell(item, inherited: bool):
@@ -842,6 +783,24 @@ def _style_date_cell(item, inherited: bool):
     item.setFont(f)
     item.setForeground(QColor("#888"))
     item.setToolTip(_t("tooltip_added_inherited"))
+
+
+def show_center_overlay(parent, text: str) -> QLabel:
+    """Zeigt einen Hinweis zentriert ueber parent ("Bitte warten" u. ae.).
+
+    Gibt das Label zurueck; der Aufrufer entfernt es mit deleteLater().
+    """
+    overlay = QLabel(text, parent)
+    overlay.setAlignment(Qt.AlignCenter)
+    overlay.setStyleSheet(
+        "background: rgba(0,0,0,180); color: white; font-size: 16px; "
+        "font-weight: bold; padding: 20px 40px; border-radius: 8px;")
+    overlay.adjustSize()
+    overlay.move((parent.width() - overlay.width()) // 2,
+                 (parent.height() - overlay.height()) // 2)
+    overlay.show()
+    overlay.raise_()
+    return overlay
 
 
 def mark_toggle(btn, active=False):

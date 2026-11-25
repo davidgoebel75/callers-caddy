@@ -1,5 +1,5 @@
 {
- "version": 3,
+ "version": 4,
  "merges": [
   [
    "call_walk_around_the_corner",
@@ -160,6 +160,18 @@
   }
  ],
  "call_programs": [
+  {
+   "entity_id": "filler_words",
+   "teaching_order": 0.001,
+   "program": "",
+   "canonical_name": "Filler Words"
+  },
+  {
+   "entity_id": "call_face",
+   "teaching_order": 0.002,
+   "program": "",
+   "canonical_name": "Face (In/Out/Left/Right/Partner/Corner)"
+  },
   {
    "entity_id": "call_all_eight_circulate",
    "teaching_order": 10.002103,

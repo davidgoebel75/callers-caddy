@@ -53,5 +53,12 @@ installer/class_designer_version_info.txt
 .vscode/
 .idea/
 
+# --- Mutation Testing (mutmut, siehe setup.cfg) ---------------------------
+.mutmut-cache
+html/
+
 # --- Claude Code lokale Einstellungen ----------------------------------------
 .claude/settings.local.json
+
+# --- Choreo-Engine (tam_cli) fuer die Entwicklung, nicht eingecheckt (intern#247) ---
+src/caddy/choreo/bin/

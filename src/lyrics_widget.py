@@ -17,7 +17,11 @@ import singing_sections
 import reading_band_path
 import heads_sides
 import sync_point_lines
+from caddy.choreo import figure_clock
+from caddy.lyrics.sync_keys import (
+    SINGING_BODY_BEATS, key_prefix, make_key, parse_key)
 from i18n import _t
+from caddy.settings import ini_keys
 from path_manager import PathManager
 from skin_manager import SkinManager
 from zoom_wheel import install_ctrl_wheel_zoom
@@ -495,7 +499,7 @@ class LyricsWidget(QWidget):
     # ist (Anteil von oben). 0.5 = Mitte: aktuelle Zeile zentriert, gleich viel
     # Kontext darueber wie darunter. Per INI ("lyric_sync/viewport_frac")
     # ueberschreibbar (siehe __init__).
-    _SYNC_ANCHOR_VIEWPORT_FRAC = 0.3   # intern#76: "Leseposition", INI lyrics/reading_position_pct
+    _SYNC_ANCHOR_VIEWPORT_FRAC = ini_keys.default("lyrics/reading_position_pct") / 100.0   # intern#76: "Leseposition", INI lyrics/reading_position_pct
 
     # Manuelles Scrollen (Rad/Ziehen/Tasten) setzt den Auto-Scroll fuer diese
     # Zeitspanne aus, damit man waehrend der Wiedergabe zu einer Zeile blaettern
@@ -714,11 +718,11 @@ class LyricsWidget(QWidget):
         self._last_dur = 0.0              # zuletzt gesehene Songdauer (Neuaufbau)
         self._interp_snapping = False     # letzte Interpolation im Ruecksprung?
         self._heading_kw = None           # Keyword-Woerter (lazy, singing_sections)
-        self._reading_band_enabled = True
-        self._reading_band_height_pct = 20
-        self._reading_band_opacity_pct = 30
-        self._band_countdown_enabled = True   # intern#148: In-Lesebalken Countdown
-        self._band_countdown_beats = 8        # Vorlauf in Beats
+        self._reading_band_enabled = ini_keys.default("lyrics/reading_band_enabled")
+        self._reading_band_height_pct = ini_keys.default("lyrics/reading_band_height")
+        self._reading_band_opacity_pct = ini_keys.default("lyrics/reading_band_opacity")
+        self._band_countdown_enabled = ini_keys.default("lyrics/reading_band_countdown")   # intern#148: In-Lesebalken Countdown
+        self._band_countdown_beats = ini_keys.default("lyrics/reading_band_countdown_beats")   # Vorlauf in Beats
         self._band_countdown = None           # gerade gezeigte Zahl oder None
         self._geom_cache = None               # (Schluessel, Geometrie) der Anker
         self._reading_band = _ReadingBandOverlay(self)
@@ -798,6 +802,9 @@ class LyricsWidget(QWidget):
         self._dynamic_anchors = None       # nachgefuehrte Anker fuers Auto-Scroll
         self._pre_dynamic = None           # Snapshot fuer sauberes Zuruecksetzen
         self._dyn_part_starts = []         # Startzeit je Figuren-Teil (Sek., sortiert)
+        # intern#247: je Teil (Start, Ende, nur_Rahmen, Block-Key) von SyncPoint zu SyncPoint
+        self._dyn_part_windows = []
+        self._dyn_beat_times = frozenset()  # Zeiten der Zwischenanker nach Beats
         self._dyn_block_keys = []          # eindeutige Figuren-Bloecke (Original-Zeilen)
         self._dyn_rendered_part = 0        # bis zu welchem Figuren-Teil auto-geblaettert
         self._dyn_factor = 1.0             # Zoom-Faktor zum Zeitpunkt des Einschaltens
@@ -820,6 +827,8 @@ class LyricsWidget(QWidget):
         self.get_current_sequence_calls = None  # () -> list[str] der aktuellen Sequenz
         self.advance_sequence_view = None        # () -> im Sequence-View weiterblaettern
         self.randomize_start_sequence_view = None  # BL-182: () -> beim Dynamic-Start zufaellige erste Sequenz (falls Shuffle an)
+        # intern#247: (calls) -> Square-Flow-Ergebnis (Takte) oder None
+        self.get_flow_result = None
 
         # --- BL-161: Automatik-Erfassung (2 Klicks → 7 Abschnitte) ---
         self._auto_calc_active = False    # True = Start/Ende werden gerade erfasst
@@ -2329,7 +2338,9 @@ class LyricsWidget(QWidget):
             # Modus frisch aus der INI lesen (koennte ueber Settings geaendert sein)
             settings = self._settings
             try:
-                self._dynamic_mode = str(settings.value("lyrics/dynamic_mode") or "")
+                self._dynamic_mode = str(ini_keys.get(settings, "lyrics/dynamic_mode") or "")
+            except KeyError:
+                raise  # Tippfehler im Schluessel nicht verschlucken
             except Exception:
                 pass
             # Erstaufruf: Modus abfragen und in der INI speichern
@@ -2372,12 +2383,16 @@ class LyricsWidget(QWidget):
         if self._settings is None:
             return
         try:
-            self._dynamic_wanted = self._settings.value(
-                "lyrics/dynamic_enabled", False, type=bool)
+            self._dynamic_wanted = ini_keys.get(
+                self._settings, "lyrics/dynamic_enabled", type=bool)
+        except KeyError:
+            raise  # Tippfehler im Schluessel nicht verschlucken
         except Exception:
             self._dynamic_wanted = False
         try:
-            self._dynamic_mode = str(self._settings.value("lyrics/dynamic_mode") or "")
+            self._dynamic_mode = str(ini_keys.get(self._settings, "lyrics/dynamic_mode") or "")
+        except KeyError:
+            raise
         except Exception:
             pass
         # Button-Haken den Wunsch widerspiegeln lassen (Apply folgt beim Song).
@@ -2514,10 +2529,12 @@ class LyricsWidget(QWidget):
         if self._settings is None:
             return
         try:
-            self._invert_enabled = self._settings.value(
-                "lyrics/dynamic_invert_enabled", False, type=bool)
+            self._invert_enabled = ini_keys.get(
+                self._settings, "lyrics/dynamic_invert_enabled", type=bool)
             self._invert_mode = str(
-                self._settings.value("lyrics/dynamic_invert_mode") or "").upper()
+                ini_keys.get(self._settings, "lyrics/dynamic_invert_mode") or "").upper()
+        except KeyError:
+            raise
         except Exception:
             return
         if hasattr(self, "_btn_invert"):
@@ -2537,7 +2554,7 @@ class LyricsWidget(QWidget):
     # Grenzen und Vorgabe der Timing-Parameter (Sekunden), siehe SETTINGS_META.
     # intern#156: Vorgabe gilt auch ohne INI-Eintrag (Update, Neuinstallation).
     _TIMING_OFFSET_LIMIT = 10
-    _TIMING_OFFSET_DEFAULT = -4
+    _TIMING_OFFSET_DEFAULT = ini_keys.default("lyrics/text_jump_offset")
 
     def reload_timing_settings(self):
         """intern#115: "Textsprung timen" und "Texttausch timen" aus der INI
@@ -2549,8 +2566,7 @@ class LyricsWidget(QWidget):
         for attr, key in (("_text_jump_offset", "lyrics/text_jump_offset"),
                           ("_dynamic_swap_offset", "lyrics/dynamic_swap_offset")):
             try:
-                val = int(float(self._settings.value(
-                    key, self._TIMING_OFFSET_DEFAULT) or 0))
+                val = int(float(ini_keys.get(self._settings, key) or 0))
             except (TypeError, ValueError):
                 val = 0
             setattr(self, attr, max(-lim, min(lim, val)))
@@ -2558,24 +2574,25 @@ class LyricsWidget(QWidget):
     def reload_reading_settings(self):
         """intern#76: Leseposition und Lesebalken aus der INI lesen (Start und
         Settings-Live-Apply). Unlesbare Werte gelten als Standard."""
-        def _num(key, default, lo, hi):
+        def _num(key, lo, hi):
+            default = ini_keys.default(key)
             try:
-                val = float(self._settings.value(key, default))
+                val = float(ini_keys.get(self._settings, key))
             except (TypeError, ValueError):
                 val = default
             return max(lo, min(hi, val))
         self._SYNC_ANCHOR_VIEWPORT_FRAC = _num(
-            "lyrics/reading_position_pct", 30, 0, 100) / 100.0
-        raw = self._settings.value("lyrics/reading_band_enabled", True)
+            "lyrics/reading_position_pct", 0, 100) / 100.0
+        raw = ini_keys.get(self._settings, "lyrics/reading_band_enabled")
         self._reading_band_enabled = str(raw).strip().lower() not in (
             "false", "0", "no", "off", "")
-        self._reading_band_height_pct = _num("lyrics/reading_band_height", 20, 2, 60)
-        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 30, 5, 100)
-        raw = self._settings.value("lyrics/reading_band_countdown", True)
+        self._reading_band_height_pct = _num("lyrics/reading_band_height", 2, 60)
+        self._reading_band_opacity_pct = _num("lyrics/reading_band_opacity", 5, 100)
+        raw = ini_keys.get(self._settings, "lyrics/reading_band_countdown")
         self._band_countdown_enabled = str(raw).strip().lower() not in (
             "false", "0", "no", "off", "")
         self._band_countdown_beats = int(_num(
-            "lyrics/reading_band_countdown_beats", 8, 2, 16))
+            "lyrics/reading_band_countdown_beats", 2, 16))
         if not self._band_countdown_enabled:
             self._band_countdown = None
         self._scroll_last_val = -1
@@ -2673,6 +2690,7 @@ class LyricsWidget(QWidget):
         # (Option B: nur der ersetzte Textbereich wird kuerzer, nicht das Timing).
         base_lines = pristine.toPlainText().split("\n")  # alte Zeilen == old_offsets
         edits = []  # (content_l0, call_end, calls) — Original-Zeilen
+        edit_keys = []  # je Eintrag in edits: Block-Key (intern#247)
         # intern#127: je Block normal oder mit getauschten Heads/Sides
         flags = self._dyn_invert_flags()
         self._dyn_invert_state = flags
@@ -2684,6 +2702,7 @@ class LyricsWidget(QWidget):
             call_end = self._resolve_block_cut(key[0], key[1], base_lines,
                                                base_sections)
             edits.append((cl0, call_end, inverted if inv else calls))
+            edit_keys.append(key)
 
         clone = pristine.clone(self._browser)
         for cl0, l1, calls in sorted(edits, key=lambda e: e[0], reverse=True):
@@ -2725,6 +2744,8 @@ class LyricsWidget(QWidget):
             old_line = self._char_to_line_in(old_offsets, p)
             new_line = min(remap(old_line), last_line)
             dyn.append([sec, self._line_offsets[new_line]])
+        dyn, self._dyn_beat_times = self._add_beat_anchors(
+            dyn, calls, edits, edit_keys, remap, last_line)
         self._dynamic_anchors = dyn
 
         self._recache_original_sizes_scaled(self._dyn_factor)
@@ -2741,6 +2762,76 @@ class LyricsWidget(QWidget):
             pass
         self.refresh_section_overlay()
         self._refresh_band_after_render()
+
+    def _flow_result(self, calls):
+        """Square-Flow-Ergebnis (Takte) zur Sequenz oder None (intern#247)."""
+        if not callable(self.get_flow_result):
+            return None
+        try:
+            return self.get_flow_result(list(calls))
+        except Exception:
+            return None
+
+    def _add_beat_anchors(self, dyn, calls, edits, edit_keys, remap, last_line):
+        """Lesebalken nach Beats (intern#247): Liegen Takte zur Sequenz vor, bekommt jede
+        Call-Zeile einer Figur einen Zwischenanker, anteilig nach Beats im Fenster von
+        SyncPoint zu SyncPoint. Nur fuer Teile, in denen der Caller selbst keine weiteren
+        Anker gesetzt hat. Ohne Takte, bei Abbruch oder roter Sequenz bleibt alles wie
+        bisher (gleichmaessig nach Zeilen). -> (Anker, Zeiten der Zwischenanker)."""
+        if not self._dyn_part_windows:
+            return dyn, frozenset()
+        fractions = figure_clock.card_fractions(self._flow_result(calls), len(calls))
+        if not fractions:
+            return dyn, frozenset()
+        first_line = {key: remap(cl0) for (cl0, _l1, _c), key in zip(edits, edit_keys)}
+        extra = []
+        for t0, t1, frame_only, key in self._dyn_part_windows:
+            if not frame_only or t1 is None or key not in first_line:
+                continue
+            base = first_line[key]
+            for t, line in figure_clock.beat_anchors(
+                    t0, t1, fractions, lambda i, b=base: min(b + i, last_line)):
+                extra.append([t, self._line_offsets[line]])
+        if not extra:
+            return dyn, frozenset()
+        return dyn + extra, frozenset(t for t, _p in extra)
+
+    def figure_window(self, pos: float):
+        """Figuren-Fenster zur Songzeit fuer Square Flow (intern#247).
+
+        None:            Dynamic Lyrics aus -> Square Flow bleibt manuell.
+        (-1, k, None, None, False): ausserhalb einer Figur (Opener, Middle Break,
+                         Closer, Zwischenmusik); k = zuletzt begonnener Teil (-1 davor).
+        (k, k, t0, t1, gespiegelt): Teil k laeuft, Fenster t0..t1 (echte SyncPoint-
+                         Zeiten); gespiegelt = Heads/Sides getauscht (intern#127)."""
+        if not self._dynamic_enabled or not self._dyn_part_windows:
+            return None
+        k = -1
+        for i, w in enumerate(self._dyn_part_windows):
+            if w[0] <= pos:
+                k = i
+        if k >= 0:
+            t0, t1, _frame, key = self._dyn_part_windows[k]
+            if t1 is not None and pos < t1:
+                return (k, k, t0, t1, self._part_inverted(k, key))
+        return (-1, k, None, None, False)
+
+    def _part_inverted(self, part: int, key) -> bool:
+        """Wird Teil `part` mit getauschten Heads/Sides gezeigt? Gleiche Regel wie beim
+        Text: eigener Block = feste Figur; gemeinsamer Block nur bei genau 4 Teilen."""
+        if not self._invert_active():
+            return False
+        try:
+            figs = self._dyn_block_figs[self._dyn_block_keys.index(key)]
+        except (ValueError, IndexError):
+            return False
+        if len(figs) == 1:
+            fig = figs[0]
+        elif len(self._dyn_part_starts) == 4 and part + 1 in figs:
+            fig = part + 1
+        else:
+            return False
+        return fig in heads_sides.inverted_figures(self._invert_mode)
 
     @staticmethod
     def _char_to_line_in(offsets: list, char_pos: int) -> int:
@@ -2811,6 +2902,17 @@ class LyricsWidget(QWidget):
                     break
         self._dyn_part_starts = sorted(part_list)
 
+        # intern#247: Fenster je Teil von SyncPoint zu SyncPoint (Lesebalken nach
+        # Beats, Square Flow im Singing Call)
+        anchor_lines = sorted((float(sec), self._char_to_line_in(old_offsets, p))
+                              for sec, p in self._sync_anchors)
+        keys = self._dyn_block_keys
+
+        def block_of(line):
+            return next((k for k in keys if k[0] <= line <= k[1]), None)
+        self._dyn_part_windows = figure_clock.part_windows(
+            anchor_lines, {k[0] for k in keys}, block_of)
+
         self._dyn_render_pending = False
         self._dyn_advance_pending = False
         # Kein rueckwirkendes Vorblaettern: der aktuelle Teil zaehlt als "schon
@@ -2863,6 +2965,8 @@ class LyricsWidget(QWidget):
         self._dynamic_anchors = None
         self._pre_dynamic = None
         self._dyn_part_starts = []
+        self._dyn_part_windows = []
+        self._dyn_beat_times = frozenset()
         self._dyn_block_keys = []
         self._dyn_block_figs = []
         self._dyn_invert_state = ()
@@ -2901,20 +3005,7 @@ class LyricsWidget(QWidget):
         heraus, damit die Basis wieder die UNskalierten Groessen enthaelt."""
         if not factor or factor <= 0:
             factor = 1.0
-        self._original_sizes = []
-        doc = self._browser.document()
-        block = doc.begin()
-        while block.isValid():
-            it = block.begin()
-            while not it.atEnd():
-                frag = it.fragment()
-                if frag.isValid():
-                    pt = frag.charFormat().fontPointSize()
-                    if pt and pt > 0:
-                        self._original_sizes.append(
-                            (frag.position(), frag.length(), float(pt) / factor))
-                it += 1
-            block = block.next()
+        self._original_sizes = self._collect_inline_sizes(factor)
 
     def _active_anchors(self) -> list:
         """SyncPoints, die das Auto-Scroll gerade nutzt (dynamisch oder Original)."""
@@ -2923,7 +3014,7 @@ class LyricsWidget(QWidget):
         return self._sync_anchors
 
     def _sync_key_prefix(self) -> str:
-        return f"lyric_sync_m{self._sync_music_slot}_l{self._sync_lyric_slot}_"
+        return key_prefix(self._sync_music_slot, self._sync_lyric_slot)
 
     def _load_sync_anchors(self):
         """Laedt die Anker der aktuellen (Musik x Lyric)-Kombi aus song_properties
@@ -2961,7 +3052,9 @@ class LyricsWidget(QWidget):
                 for idx, (sec, block) in enumerate(
                         sorted(self._sync_anchors, key=lambda a: a[0]), start=1):
                     self._db.set_property(
-                        self._sync_song_id, f"{prefix}{idx}", f"{sec:.2f}|{int(block)}")
+                        self._sync_song_id,
+                        make_key(self._sync_music_slot, self._sync_lyric_slot, idx),
+                        f"{sec:.2f}|{int(block)}")
             except Exception as e:
                 print(f"[BL-160] Sync-Punkte speichern fehlgeschlagen: {e}")
         # Songstart bleibt an den fruehesten SyncPoint gekoppelt (siehe unten).
@@ -3188,7 +3281,6 @@ class LyricsWidget(QWidget):
     # Ein Singing-Call-Body ist starr 7×64 = 448 Beats. Damit ist das Ende durch
     # Startpunkt + BPM determiniert — der Ende-Klick ist nur noch optionaler
     # Feinschliff (Tempo-Drift / ungenaue BPM), keine Pflicht mehr.
-    _SINGING_BODY_BEATS = 448
 
     def _sync_song_bpm(self) -> float:
         """Base-BPM des gerade gesyncten Songs (fuer die Ende-Ableitung)."""
@@ -3253,7 +3345,7 @@ class LyricsWidget(QWidget):
         bpm = self._sync_song_bpm()
         if bpm > 0:
             # Ende deterministisch aus 448 Beats (7×64) ableiten → ein Klick reicht.
-            end = self._auto_start_sec + self._SINGING_BODY_BEATS * (60.0 / bpm)
+            end = self._auto_start_sec + SINGING_BODY_BEATS * (60.0 / bpm)
             self._finish_auto_calc(self._auto_start_sec, end, derived=True)
         else:
             self._maybe_finish_auto_calc()   # Fallback ohne BPM: manuelles Ende
@@ -3787,15 +3879,14 @@ class LyricsWidget(QWidget):
             props = self._db.get_properties(self._sync_song_id)
         except Exception:
             return
-        import re as _re
         # Andere Kombis mit Sync-Punkten sammeln: (ms, ls) -> Anzahl
         others = {}
         cur = (self._sync_music_slot, self._sync_lyric_slot)
         for key in props:
-            m = _re.match(r'^lyric_sync_m(\d+)_l(\d+)_\d+$', key)
-            if not m:
+            parsed = parse_key(key)
+            if not parsed:
                 continue
-            pair = (int(m.group(1)), int(m.group(2)))
+            pair = parsed[:2]
             if pair == cur:
                 continue
             others[pair] = others.get(pair, 0) + 1
@@ -3824,7 +3915,7 @@ class LyricsWidget(QWidget):
 
     def _copy_sync_from(self, props: dict, src):
         """Kopiert die Sync-Keys der Quell-Kombi src=(ms,ls) auf die aktuelle."""
-        src_prefix = f"lyric_sync_m{src[0]}_l{src[1]}_"
+        src_prefix = key_prefix(*src)
         self._sync_anchors = []
         for key, value in props.items():
             if not key.startswith(src_prefix):
@@ -4343,7 +4434,56 @@ class LyricsWidget(QWidget):
 
     def _manual_zoom(self, delta_px: float):
         """Manueller Zoom: Aendert Schriftgroesse und deaktiviert Auto-Size."""
-        new_size = max(6, self._current_font_size + delta_px)
+        self._zoom_manually(max(6, self._current_font_size + delta_px))
+
+    def apply_zoom_pct(self, pct: int):
+        """Setzt den Zoom in Prozent der Basisgroesse, Auto-Size/-Breite
+        bleiben wie sie sind (Wiederherstellung beim Start)."""
+        size = self._base_font_size * pct / 100
+        self._set_font_size(size)
+        self._current_font_size = size
+        self._update_zoom_label()
+
+    def set_zoom(self, pct: int):
+        """Zoom aus dem Einstellungsdialog: wirkt wie die Zoom-Knoepfe und
+        schaltet Auto-Size/-Breite ab (intern#204)."""
+        self._zoom_manually(self._base_font_size * pct / 100)
+
+    _SIZE_KEYS = ("lyrics/zoom_pct", "lyrics/auto_size", "lyrics/auto_width")
+
+    def apply_size_settings(self, settings, changed_keys) -> None:
+        """Zoom, Auto-Size und Auto-Breite aus dem Einstellungsdialog (intern#204).
+
+        Feste Reihenfolge statt der von changed_keys: Der Zoom schaltet wie die
+        Zoom-Knoepfe Auto-Size/-Breite ab, ein im selben Dialog gesetzter
+        Auto-Haken gewinnt danach. Auto-Breite zuletzt, sie gewinnt wie beim
+        Start ueber Auto-Size.
+        """
+        if not set(self._SIZE_KEYS) & set(changed_keys):
+            return
+        if "lyrics/zoom_pct" in changed_keys:
+            try:
+                self.set_zoom(int(ini_keys.get(settings, "lyrics/zoom_pct")))
+            except (TypeError, ValueError):
+                pass
+        if "lyrics/auto_size" in changed_keys:
+            self.set_auto_size(ini_keys.get(settings, "lyrics/auto_size", type=bool))
+        if "lyrics/auto_width" in changed_keys:
+            self.set_auto_width(ini_keys.get(settings, "lyrics/auto_width", type=bool))
+        # Der Zoom kann einen Haken abgeschaltet haben, Auto-Breite schaltet
+        # Auto-Size ab: die INI zeigt den wirklichen Zustand wie nach _save_layout().
+        settings.setValue("lyrics/auto_size", self._auto_size_enabled)
+        settings.setValue("lyrics/auto_width", self._auto_width_enabled)
+
+    def set_auto_size(self, on: bool):
+        """Auto-Size wie per Button; schaltet Auto-Breite ab (intern#204)."""
+        self._btn_auto_size.setChecked(on)
+
+    def set_auto_width(self, on: bool):
+        """Auto-Breite wie per Button; schaltet Auto-Size ab (intern#204)."""
+        self._btn_auto_width.setChecked(on)
+
+    def _zoom_manually(self, new_size: float):
         self._set_font_size(new_size)
         self._current_font_size = new_size
         self._update_zoom_label()
@@ -4488,35 +4628,64 @@ class LyricsWidget(QWidget):
         Nach jedem setHtml/setPlainText aufrufen — die Liste ist die
         Basis fuer relative Zoom-Skalierung in _apply_zoom_factor.
         """
-        self._original_sizes = []
+        self._original_sizes = self._collect_inline_sizes(1.0)
+
+    def _collect_inline_sizes(self, factor: float) -> list:
+        """[(pristine_pos, length, pt / factor)] aller Fragmente mit eigener Groesse.
+
+        Positionen ohne Sync-Marken (intern#197): Stehen beim Einsammeln Marken
+        im Dokument, werden sie uebersprungen und die Positionen zurueckgerechnet.
+        """
+        sizes = []
         doc = self._browser.document()
+        marker_bg = QColor(self._SYNC_MARKER_BG)
         block = doc.begin()
         while block.isValid():
             it = block.begin()
             while not it.atEnd():
                 frag = it.fragment()
                 if frag.isValid():
-                    pt = frag.charFormat().fontPointSize()
-                    if pt and pt > 0:
-                        self._original_sizes.append(
-                            (frag.position(), frag.length(), float(pt))
-                        )
+                    fmt = frag.charFormat()
+                    pt = fmt.fontPointSize()
+                    if (pt and pt > 0 and not (self._marker_inserts
+                            and fmt.background().color() == marker_bg)):
+                        sizes.append((self._display_to_pristine(frag.position()),
+                                      frag.length(), float(pt) / factor))
                 it += 1
             block = block.next()
+        return sizes
+
+    def _display_segments(self, pos: int, length: int):
+        """Pristine-Bereich -> Anzeige-Bereiche [(start, laenge)] (intern#197).
+
+        Eine Marke an pristine-Position mp steht VOR dem Zeichen mp. Liegt sie
+        innerhalb des Bereichs, wird er dort geteilt, damit die Marke selbst
+        nicht mitformatiert wird.
+        """
+        end = pos + length
+        cuts = [mp for mp, _ml in sorted(self._marker_inserts) if pos < mp < end]
+        starts = [pos] + cuts
+        ends = cuts + [end]
+        return [(self._pristine_to_display(s), e - s) for s, e in zip(starts, ends)]
 
     def _apply_zoom_factor(self, factor: float):
-        """Skaliert alle gecachten Inline-Schriftgroessen um factor."""
+        """Skaliert alle gecachten Inline-Schriftgroessen um factor.
+
+        _original_sizes steht in Positionen ohne Sync-Marken; im Sync-Modus
+        werden die Bereiche auf das Dokument mit Marken umgerechnet (intern#197).
+        """
         if not self._original_sizes:
             return
         doc = self._browser.document()
         cursor = QTextCursor(doc)
         cursor.beginEditBlock()
         for (pos, length, orig_pt) in self._original_sizes:
-            cursor.setPosition(pos)
-            cursor.setPosition(pos + length, QTextCursor.KeepAnchor)
             fmt = QTextCharFormat()
             fmt.setFontPointSize(orig_pt * factor)
-            cursor.mergeCharFormat(fmt)
+            for start, seg_len in self._display_segments(pos, length):
+                cursor.setPosition(start)
+                cursor.setPosition(start + seg_len, QTextCursor.KeepAnchor)
+                cursor.mergeCharFormat(fmt)
         cursor.endEditBlock()
         # BL-171: Zoom aendert den Textfluss → Abschnittsflaechen neu vermessen
         self.refresh_section_overlay()
@@ -4782,12 +4951,21 @@ class LyricsWidget(QWidget):
             return self._geom_cache[1]
         layout = doc.documentLayout()
         max_pos = doc.characterCount() - 1
-        times = [sec for sec, _p in raw]
+        # intern#247: Zwischenanker nach Beats liegen oft binnen SECTION_END_GAP_SEC
+        # hintereinander. Sie zeigen immer auf die Mitte ihrer Zeile und zaehlen bei der
+        # Frage "beendet dieser Anker einen Abschnitt?" nicht mit.
+        beat_t = (self._dyn_beat_times
+                  if self._dynamic_enabled and self._dynamic_anchors is not None else ())
+        times = [sec for sec, _p in raw if sec not in beat_t]
+        real_idx = -1
         anchors, end_ys, section_ids = [], [], []
         start_y = None
         # Je Abschnitt nur einmal suchen: (erste Zeile, letzte Zeile, Ergebnis)
         spans = []
-        for i, (sec, p) in enumerate(raw):
+        for sec, p in raw:
+            is_beat = sec in beat_t
+            if not is_beat:
+                real_idx += 1
             geom = self._line_geom(p, doc, layout, max_pos)
             if geom is None:
                 continue
@@ -4800,9 +4978,11 @@ class LyricsWidget(QWidget):
                 if lo is not None:
                     spans.append((lo, hi, span))
             sid, first, last = span
-            if self._is_heading_text(text):
+            if is_beat:
+                y = top + height / 2
+            elif self._is_heading_text(text):
                 y = first if first is not None else top + height / 2
-            elif reading_band_path.ends_section(times, i):
+            elif reading_band_path.ends_section(times, real_idx):
                 y = top + height
             else:
                 y = top + height / 2

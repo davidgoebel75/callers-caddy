@@ -98,6 +98,11 @@ def register_v1_definitions(engine: RuleEngine):
                       {"kind": {"type": "choice",
                                 "choices": ["all", "without_music", "with_music"],
                                 "default": "all"}})
+    # intern#218: Genre des aktuellen Songs. "Is Not" gilt auch ohne Genre.
+    reg.add_condition("genre_is",               "Genre Is",
+                      {"genre_name": {"type": "genre_choice"}})
+    reg.add_condition("genre_is_not",           "Genre Is Not",
+                      {"genre_name": {"type": "genre_choice"}})
 
     # --- Aktionen ---
 
@@ -151,11 +156,22 @@ def register_v1_definitions(engine: RuleEngine):
     reg.add_action("live_volume_set", "Set Live-Volume (absolute %)",
                    {"value": {"type": "int", "default": 100, "min": 0, "max": 100}},
                    group="Audio")
+    # intern#222: Windows-Lautstaerke des Ausgabegeraets (nicht die App-eigene).
+    # at_least hebt nur an, exact setzt genau; Stummschaltung wird aufgehoben.
+    reg.add_action("system_volume_set", "Set System Volume (absolute %)",
+                   {"value": {"type": "int", "default": 80, "min": 0, "max": 100},
+                    "mode": {"type": "choice", "choices": ["at_least", "exact"],
+                             "default": "at_least"}},
+                   group="Audio")
     reg.add_action("auto_set_best_loop", "Auto-Set Best Loop",
                    {"preset": {"type": "preset_choice", "default": "Singing"}},
                    group="Audio")
     reg.add_action("auto_detect_bpm",    "Auto-Detect BPM",    {}, group="Audio")
     reg.add_action("toggle_loop_active", "Toggle Loop Active", {}, group="Audio")
+    # intern#218: eindeutig ein/aus, egal wie der Schalter vorher stand
+    reg.add_action("set_loop_active", "Set Loop Active",
+                   {"state": {"type": "choice", "choices": ["on", "off"],
+                              "default": "on"}}, group="Audio")
 
     # Layout & Docks
     reg.add_action("dock_open",  "Open Widget",     {"dock_name": {"type": "dock_choice"},
@@ -280,7 +296,7 @@ def register_v1_definitions(engine: RuleEngine):
     # BL-137: Sound abspielen — mischt eine Audiodatei in den laufenden Stream
     reg.add_action("play_sound", "Play Sound",
                    {"path":   {"type": "file",
-                               "file_filter": "Audio (*.mp3 *.wav *.flac *.ogg *.m4a);;All Files (*.*)"},
+                               "file_filter": "filter_audio_files"},   # i18n-Key (intern#252)
                     "volume": {"type": "float", "default": 1.0,
                                "min": 0.0, "max": 2.0, "step": 0.05}},
                    group="Info & Warnings")

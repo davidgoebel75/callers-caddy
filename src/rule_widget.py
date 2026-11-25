@@ -1031,6 +1031,24 @@ class RulesWidget(QWidget):
                         w.setCurrentIndex(idx)
                 w.setProperty("cond_param_name", param_name)
                 w.currentIndexChanged.connect(self._on_editor_changed)
+            elif param_type == "genre_choice":
+                # intern#218: wie bei den Genre-Aktionen
+                w = QComboBox()
+                w.setEnabled(not readonly)
+                if self._genre_names_provider:
+                    for _, gname in self._genre_names_provider():
+                        w.addItem(gname)
+                if value:
+                    idx = w.findText(str(value))
+                    if idx >= 0:
+                        w.setCurrentIndex(idx)
+                    else:
+                        # Genre geloescht/umbenannt: trotzdem anbieten, sonst
+                        # ueberschreibt das naechste Speichern die Regel still.
+                        w.addItem(str(value))
+                        w.setCurrentText(str(value))
+                w.setProperty("cond_param_name", param_name)
+                w.currentIndexChanged.connect(self._on_editor_changed)
             elif param_type == "mmss":
                 # BL-205: Zeit-Eingabe mm:ss (auch reine Sekunden), als String
                 # gespeichert; der Evaluator parst zu Sekunden.
@@ -1430,7 +1448,8 @@ class RulesWidget(QWidget):
                 browse = QPushButton("…")
                 browse.setFixedWidth(28)
                 browse.setEnabled(not readonly)
-                file_filter = schema.get("file_filter", "Alle Dateien (*.*)")
+                # _t: i18n-Key oder fester Filtertext (unbekannte Keys bleiben)
+                file_filter = _t(schema.get("file_filter", "Alle Dateien (*.*)"))
                 def _pick(checked=False, _w=w, _filter=file_filter, _name=param_name):
                     import os as _os
                     start_dir = _os.path.dirname(_w.text()) if _w.text() and _os.path.isfile(_w.text()) else ""

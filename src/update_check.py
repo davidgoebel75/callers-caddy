@@ -9,7 +9,8 @@ Ablauf / Design
 - Der Redirect `callerscaddy.de/download-area` zeigt auf einen oeffentlichen
   Google-Drive-Ordner. Der Redirect bleibt die EINZIGE fest verdrahtete Adresse —
   dahinter kann jederzeit ein anderer Ordner gehaengt werden.
-- Struktur im Ordner: pro Version ein Unterordner ("0.129", "0.130", ...), darin
+- Struktur im Ordner: pro Version ein Unterordner ("2.0.0", "2.0.1", ...; bis
+  0.162 zweistellig "0.129", "0.130"), darin
   drei ZIPs. NUR `Callers_Caddy_Update_<version>.zip` (schlankes Update, ohne
   DB/INI/User-Daten) darf geladen werden — NICHT die Vollinstallation
   (`Callers_Caddy_<version>.zip`) und NICHT die Code-ZIP.
@@ -46,6 +47,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QMessageBox
 
 from i18n import _t
+from caddy.settings import ini_keys
 
 # Stabile Adresse — Redirect auf den jeweils aktuellen Download-Ordner.
 UPDATE_URL = "https://callerscaddy.de/download-area"
@@ -64,24 +66,63 @@ _SNOOZE_DAYS = 7
 # INI-Schluessel (in der callers_caddy.ini des Hauptfensters).
 _SNOOZE_UNTIL_KEY = "update/snooze_until"      # ISO-Datum, bis wann still
 _SNOOZE_VERSION_KEY = "update/snooze_version"  # verschobene Version
+# Optional: andere Update-Quelle (Test-Ordner, spaeter evtl. Beta). Leer oder
+# fehlend -> UPDATE_URL. Kein UI, nur per Hand in der INI. Die Update-ZIP
+# enthaelt keine INI, der Eintrag uebersteht also Updates -- deshalb zeigen
+# Update-Dialoge und "Ueber" eine abweichende Quelle sichtbar an.
+_URL_KEY = "update/url"
+
+
+def configured_url(settings):
+    """Update-Quelle aus der INI, sonst UPDATE_URL. Nur https wird akzeptiert."""
+    if settings is None:
+        return UPDATE_URL
+    raw = str(ini_keys.get(settings, _URL_KEY) or "").strip()
+    if raw.lower().startswith("https://"):
+        return raw
+    return UPDATE_URL
+
+
+def custom_source_note(settings):
+    """Hinweistext, wenn die INI eine andere Update-Quelle setzt, sonst ""."""
+    url = configured_url(settings)
+    if url == UPDATE_URL:
+        return ""
+    return _t("update_custom_source", url=url)
 
 # Drive-Objekt-IDs stehen als data-id="..." an den DOM-Elementen.
 _DATA_ID_RE = re.compile(r'data-id="([a-zA-Z0-9_-]{20,})"')
-# Versionsordner: aria-label="0.130 Shared folder". Die zugehoerige data-id
-# steht zuverlaessig davor (naechste data-id vor dem Label).
-_FOLDER_LABEL_RE = re.compile(r'aria-label="(\d+\.\d+) Shared folder"')
+# Versionsordner: aria-label="2.0.16 Shared folder" (bis 0.162: "0.130 ...").
+# Die zugehoerige data-id steht zuverlaessig davor (naechste data-id vor dem Label).
+# Clients bis 0.162 kennen nur zwei Stellen: fuer sie gibt es den Brueckenordner
+# "2.0" (siehe _is_bridge).
+_FOLDER_LABEL_RE = re.compile(r'aria-label="(\d+(?:\.\d+){1,2}) Shared folder"')
 # Nur die schlanke Update-ZIP ist ein gueltiges Download-Ziel.
-_UPDATE_FILE_RE = re.compile(r"Callers_Caddy_Update_(\d+\.\d+)\.zip")
+_UPDATE_FILE_RE = re.compile(r"Callers_Caddy_Update_(\d+(?:\.\d+){1,2})\.zip")
 
 
 def _parse_version(text):
-    """'0.130' -> (0, 130). Gibt None zurueck, wenn kein Versions-String."""
+    """'2.0.16' -> (2, 0, 16), '0.130' -> (0, 130). None, wenn kein Versions-String.
+
+    Tupel vergleichen richtig ueber die Formatgrenze: (2, 0, 0) > (0, 162).
+    """
     if not text:
         return None
     try:
         return tuple(int(part) for part in text.strip().split("."))
     except (ValueError, AttributeError):
         return None
+
+
+def _is_bridge(version_tuple):
+    """Zweistellige Nummer ab 2 ('2.0') = Brueckenordner, kein echtes Release.
+
+    Clients bis 0.162 erkennen nur zweistellige Nummern. Damit sie den Umstieg
+    finden, liegt im Download-Bereich ein Ordner "2.0" mit
+    Callers_Caddy_Update_2.0.zip (Kopie der neuesten 2.x-Update-ZIP, legt
+    build.py an). Ab 2.0.0 wird er uebergangen.
+    """
+    return len(version_tuple) == 2 and version_tuple[0] >= 2
 
 
 def _fetch(url):
@@ -110,6 +151,8 @@ def _list_version_folders(parent_html):
     for m in _FOLDER_LABEL_RE.finditer(parent_html):
         vt = _parse_version(m.group(1))
         fid = _nearest_id_before(ids, m.start())
+        if vt and _is_bridge(vt):
+            continue  # Bruecke fuer Clients bis 0.162, kein eigenes Release
         if vt and fid:
             out.append((vt, m.group(1), fid))
     out.sort(reverse=True)  # hoechste Version zuerst
@@ -128,7 +171,7 @@ def _find_update_zip(folder_html):
     return m.group(1), fid
 
 
-def find_latest_update(current_version):
+def find_latest_update(current_version, url=None):
     """Ermittelt zweistufig, ob ein hoeheres Update mit echter Update-ZIP vorliegt.
 
     Stufe 1: Nur der Elternordner wird geladen. Gibt es keinen Versionsordner
@@ -142,7 +185,8 @@ def find_latest_update(current_version):
     current = _parse_version(current_version)
     if not current:
         return None
-    folders = _list_version_folders(_fetch(UPDATE_URL))
+    # Zur Laufzeit aufloesen: tools/update_check_probe.py setzt UPDATE_URL um.
+    folders = _list_version_folders(_fetch(url or UPDATE_URL))
     # Stufe 1: nur Ordner mit hoeherer Nummer sind ueberhaupt interessant.
     candidates = [f for f in folders if f[0] > current]
     if not candidates:
@@ -199,6 +243,8 @@ class UpdateChecker(QObject):
             return
         self._running = True
         self._manual = manual
+        # Quelle im Main-Thread lesen (QSettings), der Thread bekommt nur den String.
+        self._url = configured_url(self._settings)
         # intern#134: Daemon-Thread statt QThread. Ein QThread, der beim
         # Beenden noch im Netz-Timeout haengt, wird mit dem Hauptfenster
         # zerstoert -> Qt Fatal "QThread: Destroyed while thread is still
@@ -209,7 +255,7 @@ class UpdateChecker(QObject):
     def _run_check(self):
         """Netzwerk-Abfrage im Daemon-Thread (Main-Thread bleibt frei)."""
         try:
-            result = find_latest_update(self._current_version)
+            result = find_latest_update(self._current_version, self._url)
         except Exception:
             version, url, ok = "", "", False
         else:
@@ -272,18 +318,22 @@ class UpdateChecker(QObject):
             else:
                 self._show_check_failed()
 
+    def _with_note(self, text):
+        note = custom_source_note(self._settings)
+        return f"{text}\n\n{note}" if note else text
+
     def _show_up_to_date(self):
         QMessageBox.information(
             self._window,
             _t("update_none_title"),
-            _t("update_none_text", current=self._current_version),
+            self._with_note(_t("update_none_text", current=self._current_version)),
         )
 
     def _show_check_failed(self):
         QMessageBox.warning(
             self._window,
             _t("update_error_title"),
-            _t("update_error_text"),
+            self._with_note(_t("update_error_text")),
         )
 
     def _show_update_dialog(self, latest_version, download_url):
@@ -292,6 +342,9 @@ class UpdateChecker(QObject):
         box.setWindowTitle(_t("update_available_title"))
         box.setText(_t("update_available_text", version=latest_version,
                        current=self._current_version))
+        note = custom_source_note(self._settings)
+        if note:
+            box.setInformativeText(note)
         snooze_cb = QCheckBox(_t("update_snooze_checkbox"))
         box.setCheckBox(snooze_cb)
         download_btn = box.addButton(

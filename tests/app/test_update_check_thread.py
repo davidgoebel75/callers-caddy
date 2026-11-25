@@ -72,7 +72,7 @@ def _checker(qapp, monkeypatch, result):
 
 
 def test_result_arrives_in_main_thread(qapp, monkeypatch):
-    checker, calls = _checker(qapp, monkeypatch, lambda v: None)
+    checker, calls = _checker(qapp, monkeypatch, lambda v, url=None: None)
     checker.start()
     assert _wait_for(lambda: calls)
     assert calls == [(("", "", True), True)]
@@ -81,7 +81,7 @@ def test_result_arrives_in_main_thread(qapp, monkeypatch):
 
 def test_newer_version_is_reported(qapp, monkeypatch):
     checker, calls = _checker(qapp, monkeypatch,
-                              lambda v: ("0.160", "https://example.invalid/u.zip"))
+                              lambda v, url=None: ("0.160", "https://example.invalid/u.zip"))
     shown = []
     monkeypatch.setattr(checker, "_show_update_dialog",
                         lambda ver, url: shown.append((ver, url)))
@@ -91,7 +91,7 @@ def test_newer_version_is_reported(qapp, monkeypatch):
 
 
 def test_error_reports_ok_false(qapp, monkeypatch):
-    def _broken(v):
+    def _broken(v, url=None):
         raise OSError("offline")
 
     checker, calls = _checker(qapp, monkeypatch, _broken)
@@ -106,7 +106,7 @@ def test_double_start_is_ignored(qapp, monkeypatch):
     release = threading.Event()
     queries = []
 
-    def _slow(v):
+    def _slow(v, url=None):
         queries.append(1)
         release.wait(5)
         return None
@@ -127,7 +127,7 @@ def test_manual_click_during_startup_check_gets_feedback(qapp, monkeypatch):
     laeuft, startet keinen zweiten Thread, bekommt aber Rueckmeldung."""
     release = threading.Event()
 
-    def _slow(v):
+    def _slow(v, url=None):
         release.wait(5)
         return None
 
@@ -145,7 +145,7 @@ def test_emit_after_checker_destroyed_is_swallowed(qapp, monkeypatch):
     """Endet die Pruefung erst, nachdem der Checker beim Beenden zerstoert
     wurde, darf der Hintergrund-Thread nicht mit RuntimeError abbrechen."""
     import shiboken6
-    monkeypatch.setattr(update_check, "find_latest_update", lambda v: None)
+    monkeypatch.setattr(update_check, "find_latest_update", lambda v, url=None: None)
     checker = update_check.UpdateChecker(_Window(), "0.159")
     shiboken6.delete(checker)
     errors = []
@@ -168,7 +168,7 @@ def test_quit_during_check_without_qt_fatal(tmp_path):
         from PySide6.QtWidgets import QApplication, QMainWindow
         qInstallMessageHandler(lambda typ, ctx, msg: print("QT-MSG:", msg, flush=True))
         import update_check
-        update_check.find_latest_update = lambda v: time.sleep(5)
+        update_check.find_latest_update = lambda v, url=None: time.sleep(5)
         app = QApplication([])
         win = QMainWindow()
         win._update_checker = update_check.UpdateChecker(win, "0.159")

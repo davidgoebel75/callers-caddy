@@ -24,6 +24,70 @@ _SELECT_CALL_TEXT_FIGURES_RANKED = (
 )
 
 
+# intern#247: Kartentext -> Callname der App fuer die Choreo-Engine (letzte Lesart
+# im Mapping). Nur Texte mit genau einem Call (ohne call_text_figures_extra).
+_SELECT_CHOREO_CALL_NAMES = (
+    "SELECT m.call_text, c.canonical_name FROM call_text_mappings m "
+    "JOIN calls c ON c.entity_id = m.entity_id "
+    "WHERE m.call_text NOT IN (SELECT call_text FROM call_text_figures_extra)"
+)
+
+
+def read_choreo_call_names(db_path: str) -> dict:
+    """{Kartentext: Callname} aus der DB unter db_path, eigene Verbindung nur
+    lesend (fuer Hintergrund-Threads, die die Haupt-Verbindung nicht teilen
+    duerfen). Leeres dict, wenn die DB nicht lesbar ist."""
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+    except sqlite3.Error:
+        return {}
+    try:
+        return dict(con.execute(_SELECT_CHOREO_CALL_NAMES).fetchall())
+    except sqlite3.Error:
+        return {}
+    finally:
+        con.close()
+
+
+def read_choreo_cache(db_path: str, sequence_id: int):
+    """intern#247: (input_hash, engine_ver, result_json) aus sequence_choreo oder
+    None. Eigene, nur lesende Verbindung (Hintergrund-Thread)."""
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+    except sqlite3.Error:
+        return None
+    try:
+        return con.execute(
+            "SELECT input_hash, engine_ver, result_json FROM sequence_choreo "
+            "WHERE sequence_id = ?", (sequence_id,)).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        con.close()
+
+
+def write_choreo_cache(db_path: str, sequence_id: int, input_hash: str,
+                       engine_ver: str, result_json: str) -> bool:
+    """intern#247: Ergebnis je Sequenz ablegen (ersetzt den alten Eintrag).
+    Eigene kurze Verbindung aus dem Hintergrund-Thread; gelingt das Schreiben
+    nicht (DB gesperrt), bleibt es beim naechsten Mal ungespeichert."""
+    try:
+        con = sqlite3.connect(db_path, timeout=2)
+    except sqlite3.Error:
+        return False
+    try:
+        with con:
+            con.execute(
+                "INSERT OR REPLACE INTO sequence_choreo "
+                "(sequence_id, input_hash, engine_ver, result_json) VALUES (?, ?, ?, ?)",
+                (sequence_id, input_hash, engine_ver, result_json))
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        con.close()
+
+
 def _text_max_to(rows) -> dict:
     """Verdichtet Zeilen aus _SELECT_CALL_TEXT_FIGURES_RANKED zu
     {call_text: Teaching-Order}.
@@ -402,15 +466,24 @@ class SequencesMixin:
             self._seq_figures = None
             self._band_cache_ver_seen = ver
 
+    # Stand der Cover-Regel im Schluessel des persistenten _band_cover-Caches:
+    # aendert sich die Regel, passen alte Eintraege nicht mehr (intern#206).
+    _COVER_RULE = 2
+
     def _sequence_figures(self) -> dict:
         """intern#111: Figuren-Menge je Sequenz, nur Figuren mit call_programs-
-        Zeile (bandlose/ungemappte Calls schliessen nicht aus). Einmal je
-        Daten-Version aufbauen (~100 ms bei 106k sequence_calls); danach kostet
-        jede Band-/Limit-/"Nur"-Kombination nur einen Mengenvergleich (~2 ms)
-        statt des vollen Joins (~145 ms)."""
+        Zeile in einem echten Band (bandlose/ungemappte Calls schliessen nicht
+        aus). Einmal je Daten-Version aufbauen (~100 ms bei 106k sequence_calls);
+        danach kostet jede Band-/Limit-/"Nur"-Kombination nur einen Mengenvergleich
+        (~2 ms) statt des vollen Joins (~145 ms).
+
+        intern#206: Teaching-Order < 1 (Band 0: Filler Words, Face) liegt vor allen
+        Programmen und gehoert zu keinem. Solche Figuren zaehlen nicht als gebandet,
+        sonst schloesse jeder Filler-Text die Sequenz aus jeder Programmwahl aus."""
         if self._seq_figures is None:
             banded = {e for (e,) in self._conn.execute(
-                "SELECT DISTINCT entity_id FROM call_programs")}
+                "SELECT DISTINCT entity_id FROM call_programs "
+                "WHERE teaching_order >= 1")}
             text_figs = {}
             for ct, eid in self._conn.execute(
                     "SELECT call_text, entity_id FROM call_text_figures"):
@@ -442,7 +515,7 @@ class SequencesMixin:
         # Eintrag ist mit dem `v` gestempelt, bei dem er galt; passt es zum
         # aktuellen `v`, sparen wir den Aufbau von _sequence_figures (~100 ms) —
         # auch ueber Neustarts hinweg. cache_key ist stabil aus Band-Menge + Limit.
-        ck = f"{bands}|{max_to}"
+        ck = f"r{self._COVER_RULE}|{bands}|{max_to}"
         ver = self._band_data_version()
         try:
             prow = self._conn.execute(
@@ -501,6 +574,11 @@ class SequencesMixin:
         self._conn.execute("DELETE FROM seq_scope")
         self._conn.executemany(
             "INSERT INTO seq_scope (id) VALUES (?)", [(i,) for i in cover])
+        # DELETE/INSERT oeffnen implizit eine Transaktion. Ohne commit() bliebe die
+        # Haupt-Verbindung mit altem Lese-Stand darin haengen; sobald eine zweite
+        # Verbindung schreibt (Square-Flow-Cache), scheitert dann jeder Schreibzugriff
+        # hier mit "database is locked" (SQLITE_BUSY_SNAPSHOT), Review #194.
+        self._conn.commit()
         self._scope_key = key
 
     def invalidate_band_cache(self):
@@ -1423,7 +1501,9 @@ class SequencesMixin:
         """Stellt sicher dass der 'Filler Words'-Eintrag in teaching_order_calls existiert.
 
         teaching_order=0.001 → erscheint ganz oben in der sortierten Liste,
-        beeinflusst max_teaching_order einer Sequenz nicht nennenswert.
+        beeinflusst max_teaching_order einer Sequenz nicht nennenswert. Seit
+        intern#206 steht der Eintrag auch in reference_calls.json (der Reseed
+        loescht sonst alle call_programs); hier bleibt nur die Absicherung.
         """
         self._conn.execute(
             "INSERT OR IGNORE INTO calls (entity_id, canonical_name) "
@@ -1581,6 +1661,58 @@ class SequencesMixin:
         self._conn.execute(
             "INSERT OR REPLACE INTO app_meta (key, value) "
             "VALUES ('auto_mappings_backfilled', '1')")
+        self._conn.commit()
+
+    def _remap_group_prefix_once(self):
+        """Startup-Heilung (einmalig, per Flag in app_meta) fuer intern#89.
+
+        Bis dahin belegte eine Figur mit Gruppe im Namen den Schluessel des
+        blanken Calls ("All Eight Circulate" fing "Circulate"), und "All 8
+        Spin The Top" landete auf "Spin the Top". Zuordnungen mit genau einer
+        Figur, die auf diesen alten Volltreffer zeigen, bekommen den neuen --
+        auch 'manual', denn dann hat der Caller nur den falschen gruenen
+        Vorschlag bestaetigt. Danach ergaenzt der Abgleich die Texte, die erst
+        jetzt ein Volltreffer sind, und die Einstufung wird neu gerechnet.
+        """
+        if self._conn.execute(
+                "SELECT 1 FROM app_meta WHERE key='group_prefix_remapped'").fetchone():
+            return
+        try:
+            toc = self.get_teaching_order_calls()
+            if toc:
+                from sequence_mapper import CallMatcher, normalize_call_text
+                matcher = CallMatcher(toc)
+                # Spiegelt CallMatcher._exact vor intern#89: normalisiert
+                # (Gruppe vorn ab, kein canon_key), erster in Teaching-Order gewinnt
+                old = {}
+                for eid, name, *_ in toc:
+                    old.setdefault(normalize_call_text(name), eid)
+                rows = []
+                for text, eid in self._conn.execute(
+                        "SELECT call_text, entity_id FROM call_text_mappings m "
+                        "WHERE NOT EXISTS (SELECT 1 FROM call_text_figures_extra x "
+                        "WHERE x.call_text = m.call_text)"):
+                    new = matcher.exact_entity(text)
+                    if new and new != eid and eid == old.get(normalize_call_text(text)):
+                        rows.append((new, text))
+                self._conn.executemany(
+                    "UPDATE call_text_mappings SET entity_id = ?, mapped_by = 'auto' "
+                    "WHERE call_text = ?", rows)
+                self.backfill_auto_mappings()   # committet, das UPDATE mit
+                # Immer neu rechnen: scheitert es nach dem Commit, holt der
+                # naechste Start es nach (dann ohne umzuhaengende Zeilen)
+                self.recompute_sequence_max_to()
+                if rows:
+                    print(f"[SongDB] intern#89: {len(rows)} Zuordnungen umgehaengt")
+        except Exception as e:
+            # Darf den Start nie verhindern — Flag NICHT setzen, damit es beim
+            # naechsten Start erneut versucht wird.
+            print(f"[SongDB] Gruppen-Heilung (intern#89) uebersprungen: {e}")
+            self._conn.rollback()
+            return
+        self._conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) "
+            "VALUES ('group_prefix_remapped', '1')")
         self._conn.commit()
 
     def _recompute_max_to_once(self):
