@@ -11,7 +11,8 @@ eines Themes durch die Theme-Werte ersetzt werden:
 
 | Platzhalter | Bedeutung | Icons |
 |---|---|---|
-| `{{icon_color}}` | Haupt-Iconfarbe — alle Icons auf farbiger Button-Fläche | zoom-in/out, gear, pencil, save, bold, italic, underline, check, arrow-up/down (Spinbox/Combobox sitzen auf `button_bg`) + neutrale Teile von highlight/text-color |
+| `{{icon_color}}` | Haupt-Iconfarbe — alle Icons auf farbiger Button-Fläche | zoom-in/out, gear, pencil, save, bold, italic, underline, arrow-up/down (Spinbox/Combobox sitzen auf `button_bg`) + neutrale Teile von highlight/text-color |
+| `{{button_text}}` | Schriftfarbe der Buttons — Haken der Checkbox (sitzt auf `indicator_check`, wie Text auf einem Button) | check |
 | `{{title_icon}}` | Titelleisten-Icons (auf `title_bg`) | close, float |
 
 Nur zwei Icon-Farb-Keys: Fast alle Icons sitzen auf `button_bg` → `icon_color`. Nur die
