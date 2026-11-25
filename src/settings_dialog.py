@@ -8,6 +8,7 @@ Codeaenderungen.
 """
 
 import os
+from dataclasses import dataclass
 
 try:
     import sounddevice as _sd
@@ -21,18 +22,20 @@ except Exception:
     _SD_AVAILABLE = False
 
 from PySide6.QtCore import Qt, QDate, QTimer, QEvent, QPoint
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog, QWidget, QScrollArea, QFormLayout, QGroupBox,
     QLabel, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox,
     QAbstractSpinBox, QDateEdit, QComboBox, QSlider,
     QPushButton, QHBoxLayout, QVBoxLayout,
     QDialogButtonBox, QMessageBox, QFileDialog, QSizePolicy,
-    QFrame,
+    QFrame, QListWidget, QListWidgetItem,
 )
 from PySide6.QtCore import QSettings
 
 import program_selection
 from i18n import _t
+from ui_helpers import tinted_icon
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +556,54 @@ _SECTION_LABELS = {
     "rules":     "Rules (System)",
 }
 
+# intern#269: Icon je Sektion in der Liste links (Name im zentralen Icon-Set).
+# Sektionen ohne Eintrag erscheinen ohne Icon.
+_SECTION_ICONS = {
+    "display":   "eye",
+    "paths":     "folder",
+    "audio":     "volume-up",
+    "loop":      "loop",
+    "player":    "play",
+    "playlist":  "next-song",
+    "feedback":  "feedback",
+    "network":   "network",
+    "sort":      "sort",
+    "sequences": "sequenceview-open",
+    "notes":     "pencil",
+    "lyrics":    "lyrics-auto-width",
+    "clock":     "clock",
+    "square_flow": "square-flow",
+    "debug":     "system-ping",
+    "rules":     "toggle-manager",
+}
+
+
+# intern#269: Feldbreite je Typ. S = Zahlen/Datum, M = Auswahllisten.
+# ponytail: feste px, skalieren nicht mit font_size des Themes; bei Bedarf
+# auf fontMetrics umstellen
+_FIELD_S, _FIELD_M = 120, 260
+_FIELD_WIDTHS = {
+    "spinbox": _FIELD_S,
+    "doublespinbox": _FIELD_S,
+    "dateedit": _FIELD_S,
+    "combobox": _FIELD_M,
+}
+
+
+def matches_query(query: str, text: str) -> bool:
+    """intern#269: Jedes Wort der Suche muss als Teilwort im Text stehen,
+    ohne Ruecksicht auf Gross-/Kleinschreibung. Leere Suche passt immer."""
+    text = text.casefold()
+    return all(word in text for word in query.casefold().split())
+
+
+@dataclass
+class _SectionGroup:
+    section: str
+    group: QGroupBox
+    form: QFormLayout
+    rows: list["_SettingRow"]
+
 
 # ---------------------------------------------------------------------------
 # Hilfs-Funktionen
@@ -667,6 +718,8 @@ class _SettingRow:
         tip_key = f"setting_tip_{section}_{key}"
         tip_translated = _t(tip_key)
         tooltip = tip_translated if tip_translated != tip_key else meta.get("tooltip", "")
+        # intern#269: Die Suche vergleicht mit Label und Tooltip (aktive Sprache)
+        self.search_text = f"{label_text} {tooltip}"
         if tooltip:
             self.label.setToolTip(tooltip)
 
@@ -685,6 +738,15 @@ class _SettingRow:
             self.browse_btn = QPushButton("…")
             self.browse_btn.setFixedWidth(30)
             self.browse_btn.clicked.connect(self._browse)
+            # intern#269: Ordner-Icon statt "…" in der Schriftfarbe der Buttons
+            # (wie der Text auf "Aendern..."), sobald das Theme Icons liefert
+            icon = tinted_icon(skin_mgr, "folder.svg", "button_text")
+            if not icon.isNull():
+                self.browse_btn.setText("")
+                self.browse_btn.setIcon(icon)
+            self.browse_btn.setToolTip(_t(
+                "settings_browse_file_tip" if widget_type == "file"
+                else "settings_browse_dir_tip"))
 
         # MS50: Picker-Button fuer den "program_picker"-Zeilentyp
         self.picker_btn = None
@@ -893,6 +955,11 @@ class _SettingRow:
 
     def layout_widget(self) -> QWidget:
         """Gibt den Container fuer das Formular-Layout zurueck (Widget + ggf. Zusatz-Btn)."""
+        # intern#269: einheitliche Feldbreiten S/M nach Typ; alles andere (Text,
+        # Pfade, Geraete, Programme) fuellt die Breite (L), Checkboxen bleiben
+        width = _FIELD_WIDTHS.get(self._widget_type)
+        if width:
+            self.widget.setFixedWidth(width)
         extra_btn = self.browse_btn or self.picker_btn
         if extra_btn is None:
             return self.widget
@@ -926,12 +993,14 @@ class SettingsDialog(QDialog):
         self._program_picker_cb = program_picker_cb
         self._program_label_cb = program_label_cb
         self._rows: list[_SettingRow] = []
+        self._groups: list[_SectionGroup] = []   # intern#269: Liste links + Suche
         # intern#127: nach dem (deferten) Aufbau zu dieser Zeile springen
         self._focus_key = focus_key
 
         self.setWindowTitle(_t("settings_dialog_title"))
-        self.setMinimumSize(560, 500)
-        self.resize(660, 680)
+        self.setMinimumSize(760, 500)
+        # Breit genug, dass die Felder samt Auswahl-Buttons ohne Abschneiden passen
+        self.resize(1080, 720)
 
         self._build_ui()
 
@@ -945,6 +1014,7 @@ class SettingsDialog(QDialog):
         row = next((r for r in self._rows if r.full_key == full_key), None)
         if row is None:
             return False
+        self._search.clear()   # intern#269: Ziel koennte weggefiltert sein
         bar = self._scroll.verticalScrollBar()
         inner = self._scroll.widget()
 
@@ -993,7 +1063,34 @@ class SettingsDialog(QDialog):
         QTimer.singleShot(0, self._populate_groups_deferred)
 
         scroll.setWidget(inner)
-        main_layout.addWidget(scroll)
+
+        # intern#269: links Suchfeld + Sektionsliste, rechts die Scroll-Seite.
+        # Die Liste springt nur zur Sektion; rechts bleibt alles eine Seite.
+        self._search = QLineEdit()
+        self._search.setPlaceholderText(_t("settings_search_placeholder"))
+        self._search.setClearButtonEnabled(True)
+        self._search.textChanged.connect(self._apply_filter)
+        QShortcut(QKeySequence.StandardKey.Find, self, self._search.setFocus)
+
+        self._nav = QListWidget()
+        self._nav.setFixedWidth(210)
+        self._nav.itemClicked.connect(self._on_nav_clicked)
+        scroll.verticalScrollBar().valueChanged.connect(self._sync_nav)
+
+        self._no_hits = QLabel(_t("settings_search_no_hits"))
+        self._no_hits.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._no_hits.hide()
+
+        left = QVBoxLayout()
+        left.addWidget(self._search)
+        left.addWidget(self._nav)
+        right = QVBoxLayout()
+        right.addWidget(self._no_hits)
+        right.addWidget(scroll)
+        body = QHBoxLayout()
+        body.addLayout(left)
+        body.addLayout(right, 1)
+        main_layout.addLayout(body)
 
         # Button-Leiste
         btn_box = QDialogButtonBox()
@@ -1011,6 +1108,14 @@ class SettingsDialog(QDialog):
         """Wird per QTimer.singleShot(0) aufgerufen — haelt Main-Thread frei."""
         self._populate_groups()
         self._inner_layout.addStretch()
+        # intern#269: Labels ueber alle Sektionen gleich breit -> Felder fluchten
+        if self._rows:
+            for r in self._rows:
+                r.label.ensurePolished()   # Schrift aus dem Theme-StyleSheet
+            label_w = max(r.label.sizeHint().width() for r in self._rows)
+            for r in self._rows:
+                r.label.setFixedWidth(label_w)
+        self._fit_width()
         if self._focus_key:
             # Erst wenn die Zeilen stehen; ein Takt spaeter hat das Layout Geometrie
             QTimer.singleShot(0, lambda k=self._focus_key: self.focus_row(k))
@@ -1024,6 +1129,72 @@ class SettingsDialog(QDialog):
             child.installEventFilter(self)
         for child in self.findChildren(QSlider):
             child.installEventFilter(self)
+
+    # ------------------------------------------------------------------
+    # intern#269: Sektionsliste und Suche
+    # ------------------------------------------------------------------
+
+    def _fit_width(self):
+        """Verbreitert den Dialog, bis die Felder samt Auswahl-Buttons ganz
+        sichtbar sind (die Seite scrollt nie horizontal). Labellaengen haengen
+        von Sprache und Schrift ab, darum gemessen statt fest."""
+        need = (self._scroll.widget().minimumSizeHint().width()
+                - self._scroll.viewport().width()
+                + self._scroll.verticalScrollBar().sizeHint().width())
+        if need <= 0:
+            return
+        screen = self.screen().availableGeometry().width() if self.screen() else 0
+        width = self.width() + need
+        self.resize(min(width, screen) if screen else width, self.height())
+
+    def _apply_filter(self, query: str):
+        """Blendet Zeilen ohne Treffer und leere Sektionen aus (rechts und
+        links). Passt die Suche auf den Sektionstitel, bleibt die ganze
+        Sektion stehen."""
+        first_hit = None
+        for i, g in enumerate(self._groups):
+            hits = 0
+            for row in g.rows:
+                # Titel zaehlt mit: "audio" zeigt die Sektion, "audio laut" die Zeile
+                hit = matches_query(query, f"{g.group.title()} {row.search_text}")
+                g.form.setRowVisible(row.label, hit)
+                hits += hit
+            g.group.setVisible(hits > 0)
+            self._nav.item(i).setHidden(hits == 0)
+            if hits and first_hit is None:
+                first_hit = i
+        self._no_hits.setVisible(first_hit is None)
+        self._scroll.setVisible(first_hit is not None)
+        # Treffer beginnen oben; die alte Position passt nach dem Filtern nicht mehr
+        self._scroll.verticalScrollBar().setValue(0)
+        if first_hit is not None:
+            self._nav.setCurrentRow(first_hit)
+
+    def _on_nav_clicked(self, item: QListWidgetItem):
+        group = self._groups[self._nav.row(item)].group
+        self._scroll.verticalScrollBar().setValue(group.y())
+        # Kurze Sektionen am Ende erreicht die Seite nie ganz oben; die
+        # Markierung bleibt trotzdem auf dem geklickten Eintrag
+        self._nav.setCurrentItem(item)
+
+    def _sync_nav(self, value: int):
+        """Markiert links die Sektion, die oben auf der Seite steht."""
+        current = None
+        for i, g in enumerate(self._groups):
+            # +8: Gruppentitel ragt ueber den Rahmen, knapp darunter zaehlt schon
+            if g.group.isVisible() and g.group.y() <= value + 8:
+                current = i
+        if current is not None:
+            self._nav.blockSignals(True)
+            self._nav.setCurrentRow(current)
+            self._nav.blockSignals(False)
+
+    def keyPressEvent(self, event):
+        # Esc leert zuerst die Suche, erst ein zweites Esc schliesst
+        if event.key() == Qt.Key.Key_Escape and self._search.text():
+            self._search.clear()
+            return
+        super().keyPressEvent(event)
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Wheel and isinstance(
@@ -1101,6 +1272,7 @@ class SettingsDialog(QDialog):
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
+        rows = []
         for key in keys:
             # Wenn INI keinen Wert hat, faellt der Default aus SETTINGS_META ein
             meta = SETTINGS_META.get(f"{section}/{key}", {})
@@ -1108,10 +1280,19 @@ class SettingsDialog(QDialog):
             row = _SettingRow(section, key, raw, self._skin_mgr,
                               program_picker_cb=self._program_picker_cb,
                               program_label_cb=self._program_label_cb)
-            self._rows.append(row)
+            rows.append(row)
             form.addRow(row.label, row.layout_widget())
+        self._rows.extend(rows)
 
         self._inner_layout.addWidget(group)
+        self._groups.append(_SectionGroup(section, group, form, rows))
+        item = QListWidgetItem(title)
+        icon = _SECTION_ICONS.get(section)
+        if icon:
+            # Liste sitzt auf dem Eingabe-Hintergrund, nicht auf der Button-
+            # Flaeche: icon_color waere z. B. in Elegant unsichtbar
+            item.setIcon(tinted_icon(self._skin_mgr, f"{icon}.svg", "text"))
+        self._nav.addItem(item)
 
     # ------------------------------------------------------------------
     # Speichern / Apply

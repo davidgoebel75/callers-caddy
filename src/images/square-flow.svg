@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<g id="print" fill="{{icon_color}}">
+  <path d="M6,6.6 C8.6,6.6 9.8,8.9 9.8,11.5 C9.8,13.8 9,15.4 8.4,16.4 L3.6,16.4 C3,15.4 2.2,13.8 2.2,11.5 C2.2,8.9 3.4,6.6 6,6.6 Z"/>
+  <rect x="3.4" y="17.7" width="5.2" height="4.3" rx="1.7"/>
+</g>
+<use href="#print" transform="translate(12,-5)"/>
+</svg>
