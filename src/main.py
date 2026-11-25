@@ -7266,6 +7266,10 @@ class P29MainWindow(QMainWindow):
         if old_dev is not None:
             self._settings.remove("audio/output_device")
 
+        # Tote Einstellung ohne Wirkung (las kein Code): aus Bestands-INIs
+        # entfernen, sonst zeigt der Dialog sie als rohes Textfeld.
+        self._settings.remove("sequences/auto_sync_program")
+
         defaults = ini_keys.seed_items()
         for key, value in defaults.items():
             if self._settings.value(key) is None:

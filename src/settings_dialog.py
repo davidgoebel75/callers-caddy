@@ -323,12 +323,6 @@ SETTINGS_META: dict[str, dict] = {
                     "gilt nur bis zum nächsten Start."),
         "requires_restart": True,
     },
-    "sequences/auto_sync_program": {
-        "label": "Filter automatisch auf Tanzprogramm setzen",
-        "widget": "checkbox",
-        "default": True,
-        "tooltip": "Wenn das Tanzprogramm wechselt (Lokation oder Player), wird der Level-Filter im Sequenzen-Fenster automatisch angepasst.",
-    },
     "sequences/universal_import_dir": {
         "label": "Letzter Sequenz-Import-Ordner",
         "widget": "path",
