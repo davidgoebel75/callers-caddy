@@ -22,7 +22,7 @@ except Exception:
     _SD_AVAILABLE = False
 
 from PySide6.QtCore import Qt, QDate, QTimer, QEvent, QPoint
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog, QWidget, QScrollArea, QFormLayout, QGroupBox,
     QLabel, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox,
@@ -744,11 +744,12 @@ class _SettingRow:
             self.browse_btn = QPushButton("…")
             self.browse_btn.setFixedWidth(30)
             self.browse_btn.clicked.connect(self._browse)
-            # intern#269: Ordner-Icon statt "…", sobald das Theme Icons liefert
-            icon_dir = getattr(skin_mgr, "icon_dir", "")
-            if icon_dir:
+            # intern#269: Ordner-Icon statt "…" in der Schriftfarbe der Buttons
+            # (wie der Text auf "Aendern..."), sobald das Theme Icons liefert
+            icon = tinted_icon(skin_mgr, "folder.svg", "button_text")
+            if not icon.isNull():
                 self.browse_btn.setText("")
-                self.browse_btn.setIcon(QIcon(f"{icon_dir}/folder.svg"))
+                self.browse_btn.setIcon(icon)
             self.browse_btn.setToolTip(_t(
                 "settings_browse_file_tip" if widget_type == "file"
                 else "settings_browse_dir_tip"))
