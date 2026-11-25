@@ -65,7 +65,11 @@
 - sequence_id: Sequenz (Primaerschluessel, kein Fremdschluessel)
 - input_hash: Kartenzeilen, Typ, App-Callnamen dieser Zeilen, Mapping-Stand, Ergebnisform
 - engine_ver: Pruefsumme der Engine-Datei (tam_cli)
-- result_json: Urteil, Beats je Zeile, Summe, Abbruchzeile, Hinweise (ohne Animation)
+- result_json: Urteil, Beats je Zeile, Summe, Abbruchzeile, Hinweise; die Animation steht in anim_z
+- anim_z (intern#263): Animation als zlib-gepacktes JSON (ca. 10 KB). Leeres Blob = die Engine
+  hat endgueltig keine Animation geliefert (zaehlt als fertig); NULL = alter Eintrag oder Abbruch
+  ohne Engine-Urteil (Timeout), wird bei Bedarf neu gerechnet. Spalte kommt per
+  `_add_missing_columns` in bestehende DBs.
 - Abgeleiteter Zwischenspeicher fuer Square Flow: passt Hash oder Engine nicht mehr, wird
   neu gerechnet und ueberschrieben. Geschrieben aus dem Hintergrund-Thread ueber eine
   eigene kurze Verbindung. Darf jederzeit geleert werden.

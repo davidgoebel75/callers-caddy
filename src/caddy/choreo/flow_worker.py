@@ -26,12 +26,10 @@ from collections import OrderedDict
 from PySide6.QtCore import QObject, Signal
 
 import perf
-from caddy.choreo import analysis, perf_marks
+from caddy.choreo import analysis, mapping, perf_marks
 from caddy.choreo.engine import TamEngine
 
 _CACHE_SIZE = 64
-# Zeilen, die mapping.map_sequence selbst einsetzt (Startformation), siehe _load_app
-_SYNTH_LINES = ("(Zero Box)", "(Zero Line)", "(implizit Zero Box)")
 
 
 class SquareFlowWorker(QObject):
@@ -83,7 +81,7 @@ class SquareFlowWorker(QObject):
         if not self._db_path:
             return {}
         from song_db_sequences import read_choreo_call_names
-        texts = set(_SYNTH_LINES)
+        texts = set(mapping.SYNTH_LINES)
         for c in calls:
             texts.add(c)
             texts.add(str(c).strip())
@@ -151,10 +149,10 @@ class SquareFlowWorker(QObject):
             from song_db_sequences import read_choreo_cache
             row = read_choreo_cache(db, seq_id)
             if row and row[0] == ihash and row[1] == efp:
-                cached = analysis.from_cache(row[2], row[3] if len(row) > 3 else None)
+                cached = analysis.from_cache(row[2], row[3])
                 if cached is not None:
-                    complete = bool(cached.get("animation"))
-                    if complete:                 # intern#263: mit Animation -> fertig
+                    complete = analysis.cache_complete(cached, row[3])
+                    if complete:                 # intern#263: Animation oder NO_ANIM -> fertig
                         self._remember(key, cached)
                     self._emit(token, cached)
                     self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_DB)

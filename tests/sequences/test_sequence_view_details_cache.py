@@ -31,6 +31,18 @@ def test_sammelabfrage_gleich_einzelabfrage(db):
     db.set_call_text_mappings([("Square Thru 4", eid)])
     many = db.get_sequence_details_many([a, b, 99999])
     assert set(many) == {a, b}                       # fehlende Sequenz fehlt
+    # Regel "niedrigstes Band je Call-Text" (intern#87) wie die fruehere
+    # Einzelabfrage in SQL; get_sequence_calls laeuft seit Review #196 ueber
+    # get_sequence_details_many, der Vergleich damit allein waere leer.
+    best = db._conn.execute(
+        "SELECT m.entity_id, t.teaching_order, t.canonical_name "
+        "FROM call_text_mappings m "
+        "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
+        "WHERE m.call_text = ? ORDER BY t.teaching_order LIMIT 1",
+        ("Square Thru 4",)).fetchone()
+    assert many[a][0][0][2:5] == tuple(best)
+    assert many[a][0][1][1:5] == ("Unbekannter Text", None, None, None)
+    assert db.get_sequence_calls(99999) == []
     for sid in (a, b):
         calls, seq_type, difficulty = many[sid]
         assert calls == db.get_sequence_calls(sid)
@@ -77,3 +89,17 @@ def test_grosse_liste_in_abschnitten(db, keep, monkeypatch):
     w.advance()                                      # Luecke -> naechster Abschnitt
     assert w.current_calls() == ["C2"]
     assert {ids[2], ids[3]} <= set(w._details)
+
+
+def test_fehlende_sequenz_wird_nicht_immer_neu_gefragt(db, keep, monkeypatch):
+    """Review #196: _detail merkt sich auch Sequenzen, die es nicht gibt."""
+    sid = _add(db, ["C0"])
+    w = keep(SequenceViewWidget(db=db))
+    w.set_sequence(db, [sid, 99999], 0)
+    fragen = []
+    many = db.get_sequence_details_many
+    monkeypatch.setattr(db, "get_sequence_details_many",
+                        lambda ids: fragen.append(list(ids)) or many(ids))
+    for _ in range(3):
+        assert w._detail(99999) == SequenceViewWidget._NO_DETAIL
+    assert fragen == []

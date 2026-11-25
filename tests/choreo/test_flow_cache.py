@@ -176,8 +176,10 @@ def test_animation_gepackt_rund():
     assert isinstance(blob, bytes) and len(blob) < len(str(anim)) + 50
     back = analysis.from_cache(analysis.to_cache(res), blob)
     assert back["animation"] == anim and back["cached"] and back["card_beats"] == [4, 6]
-    assert analysis.anim_to_blob({"animation": {}}) is None
-    assert analysis.anim_to_blob({"animation": None}) is None
+    assert analysis.anim_to_blob({"animation": {}}) == analysis.NO_ANIM
+    assert analysis.anim_to_blob({"animation": None}) == analysis.NO_ANIM
+    assert analysis.anim_to_blob({"animation": {}, "transient": True}) is None
+    assert analysis.anim_from_blob(analysis.NO_ANIM) is None
     assert analysis.anim_from_blob(b"kaputt") is None
     assert analysis.from_cache(analysis.to_cache(res), b"kaputt")["animation"] is None
 
@@ -208,3 +210,51 @@ def test_neue_sitzung_mit_animation_ohne_engine(tmp_path, keep, qapp):
     assert got2[1]["animation"] == got[0]["animation"]
     assert w2.engine()._proc is None
     w2.shutdown()
+
+
+def test_marker_keine_animation_zaehlt_als_fertig(tmp_path, keep):
+    """Review #196, Punkt 1: NO_ANIM in anim_z ist vollstaendig, NULL nicht."""
+    db = _db(tmp_path, keep)
+    res = {"urteil": "rot", "card_beats": [], "animation": {}}
+    write_choreo_cache(db, 3, "h", "e", analysis.to_cache(res), analysis.anim_to_blob(res))
+    row = read_choreo_cache(db, 3)
+    assert row[3] == analysis.NO_ANIM                      # leeres Blob, nicht NULL
+    cached = analysis.from_cache(row[2], row[3])
+    assert cached["animation"] is None and analysis.cache_complete(cached, row[3])
+    write_choreo_cache(db, 3, "h", "e", analysis.to_cache(res), None)
+    row = read_choreo_cache(db, 3)
+    assert not analysis.cache_complete(analysis.from_cache(row[2], row[3]), row[3])
+
+
+def test_analyse_merkt_abbruch_ohne_engine_urteil():
+    """Review #196, Punkt 1: Timeout oder Engine-Abbruch macht das Ergebnis vorlaeufig."""
+    def _timeout(req):
+        return engine.failed_response(req, "timeout (30 s)")
+
+    res = analysis.analyse_sequence(_timeout, list(CALLS), TYPE)
+    assert res["transient"] and not res["animation"]
+    assert analysis.anim_to_blob(res) is None
+
+
+@pytest.mark.parametrize("transient, runs_expected", [(False, 1), (True, 2)])
+def test_ohne_animation_neue_sitzung(tmp_path, keep, qapp, monkeypatch,
+                                     transient, runs_expected):
+    """Review #196, Punkt 1: Liefert die Engine endgueltig keine Animation, rechnet die
+    naechste Sitzung nicht neu; nach einem Timeout schon."""
+    db_path = _db(tmp_path, keep)
+    runs = []
+
+    def _fake_analyse(_run, calls, seq_type, app):
+        runs.append(1)
+        return {"stufe1": False, "urteil": None, "card_beats": [], "animation": {},
+                "transient": transient}
+
+    monkeypatch.setattr(analysis, "analyse_sequence", _fake_analyse)
+    for tok in (1, 2):                                     # zwei Sitzungen
+        w = SquareFlowWorker(db_path, engine=_FakeEngine())
+        got, _ = _wait(qapp, w, 0)
+        w.request(tok, ("Boys Rnu",), TYPE, seq_id=11, need_animation=True)
+        _spin(qapp, got, 1, 10)
+        _spin(qapp, got, 2, 0.3)
+        w.shutdown()
+    assert len(runs) == runs_expected

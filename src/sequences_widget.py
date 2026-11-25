@@ -303,12 +303,13 @@ class SequenceViewWidget(QWidget):
 
     _PRELOAD_MAX = 3000   # groessere Listen: Abschnitte ab der gezeigten Sequenz
     _CHUNK = 200
+    _NO_DETAIL = ((), "", "")   # Sequenz nicht (mehr) in der DB
 
     def _reload_details(self):
         """Speicher neu fuellen: die ganze Liste (bis _PRELOAD_MAX), sonst ein
         Abschnitt ab der gezeigten Sequenz. Laeuft mit dem Setzen der Liste."""
         self._details, self._details_ver, self._labels = {}, None, None
-        if not self._seq_ids:
+        if not self._seq_ids or self._db is None:
             return
         if len(self._seq_ids) <= self._PRELOAD_MAX:
             self._load_details(self._seq_ids)
@@ -317,30 +318,29 @@ class SequenceViewWidget(QWidget):
                                              self._current_idx + self._CHUNK])
 
     def _load_details(self, seq_ids):
-        many = getattr(self._db, "get_sequence_details_many", None)
-        if many is None:
-            return
         ver = self._db.sequence_data_version()
         if ver != self._details_ver:
             self._details, self._details_ver = {}, ver
-        self._details.update(many(seq_ids))
+        found = self._db.get_sequence_details_many(seq_ids)
+        self._details.update(found)
+        # Nicht gefundene merken, damit _detail nicht jedes Mal neu fragt
+        for sid in seq_ids:
+            self._details.setdefault(sid, self._NO_DETAIL)
 
     def _detail(self, seq_id):
         """(calls, seq_type, difficulty) der Sequenz. Aus dem Speicher, solange
-        sich in der DB nichts geaendert hat (eine kleine Abfrage); sonst und bei
-        einer Luecke der naechste Abschnitt ab hier. Ohne Sammel-Abfrage (Test-
-        Attrappen) wie frueher einzeln."""
-        if getattr(self._db, "get_sequence_details_many", None) is None:
-            raw = self._db.get_sequence_raw(seq_id) or {}
-            return (self._db.get_sequence_calls(seq_id),
-                    raw.get("seq_type"), raw.get("difficulty"))
+        sequence_data_version gleich bleibt (eine kleine Abfrage); sonst und bei
+        einer Luecke der naechste Abschnitt ab hier. Der Zaehler steigt bei
+        Aenderungen an Sequenzen, Zuordnungen und Programmen. Aenderungen an
+        teaching_order_calls und call_text_figures zeigt erst das naechste Setzen
+        der Liste (Review #196; sie kommen nur mit Programm-Updates)."""
         if self._db.sequence_data_version() != self._details_ver:
             self._details, self._details_ver, self._labels = {}, None, None
         hit = self._details.get(seq_id)
         if hit is None:
             idx = self._current_idx
             self._load_details([seq_id] + self._seq_ids[idx:idx + self._CHUNK])
-            hit = self._details.get(seq_id, ([], "", ""))
+            hit = self._details.get(seq_id, self._NO_DETAIL)
         return hit
 
     def current_calls(self) -> list:

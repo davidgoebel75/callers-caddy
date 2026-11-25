@@ -14,7 +14,7 @@ import sqlite3
 _SQL_CHUNK = 400
 
 
-def _to_key(teaching_order):
+def _teaching_order_sort_key(teaching_order):
     """Sortierschluessel wie ORDER BY teaching_order in SQLite (NULL zuerst)."""
     return (teaching_order is not None, teaching_order or 0)
 
@@ -59,8 +59,8 @@ def read_choreo_call_names(db_path: str, call_texts=None) -> dict:
             return dict(con.execute(_SELECT_CHOREO_CALL_NAMES).fetchall())
         texts = sorted({str(t) for t in call_texts if t})
         out = {}
-        for i in range(0, len(texts), 400):              # Grenze fuer SQL-Parameter
-            part = texts[i:i + 400]
+        for i in range(0, len(texts), _SQL_CHUNK):       # Grenze fuer SQL-Parameter
+            part = texts[i:i + _SQL_CHUNK]
             out.update(con.execute(
                 _SELECT_CHOREO_CALL_NAMES
                 + f" AND m.call_text IN ({','.join('?' * len(part))})", part).fetchall())
@@ -838,15 +838,18 @@ class SequencesMixin:
                     "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
                     f"WHERE f.call_text IN ({marks})", part):
                 figure_tos.setdefault(text, {}).setdefault(eid, []).append(to)
-            # Wie get_sequence_calls: niedrigstes Band je Call-Text
-            # (ORDER BY teaching_order LIMIT 1, NULL zuerst wie in SQLite).
+            # intern#87: teaching_order_calls ist eine View mit einer Zeile je
+            # (entity_id x Programm). Deterministisch das niedrigste Band je
+            # Call-Text waehlen, NULL zuerst wie ORDER BY in SQLite (passt zu
+            # _eid_min_to). Einzige Stelle der Regel, get_sequence_calls nutzt sie.
             for text, eid, to, name in self._conn.execute(
                     "SELECT m.call_text, m.entity_id, t.teaching_order, t.canonical_name "
                     "FROM call_text_mappings m "
                     "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
                     f"WHERE m.call_text IN ({marks})", part):
                 old = mapping.get(text)
-                if old is None or _to_key(to) < _to_key(old[1]):
+                if old is None or (_teaching_order_sort_key(to)
+                                    < _teaching_order_sort_key(old[1])):
                     mapping[text] = (eid, to, name)
         out = {}
         for sid, (calls, seq_type, difficulty) in rows.items():
@@ -865,7 +868,9 @@ class SequencesMixin:
         """Gibt alle Calls einer Sequenz zurueck (via call_text_mappings).
 
         Liest die volle Callliste aus calls_json (Fallback field_1..15) und joined
-        mit call_text_mappings + teaching_order_calls.
+        mit call_text_mappings + teaching_order_calls. Laeuft ueber
+        get_sequence_details_many, damit die Regel "niedrigstes Band je Call-Text"
+        (intern#87) nur dort steht (Review #196).
 
         Returns:
             [(position, call_text, entity_id, teaching_order, canonical_name,
@@ -874,52 +879,8 @@ class SequencesMixin:
             Teaching-Orders; daraus macht program_selection.call_program_label
             das Programm-Etikett (intern#176).
         """
-        cur = self._conn.execute(
-            "SELECT calls_json, field_1, field_2, field_3, field_4, field_5, "
-            "field_6, field_7, field_8, field_9, field_10, "
-            "field_11, field_12, field_13, field_14, field_15 "
-            "FROM sequences WHERE id = ?",
-            (sequence_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return []
-
-        # calls_json ist die Quelle; falls (noch) NULL -> aus den Mirror-Feldern.
-        calls = calls_from_json(row[0]) if row[0] else clean_calls(row[1:16])
-
-        # intern#176: Teaching-Orders aller Figuren in EINER Abfrage je Sequenz.
-        figure_tos = {}  # call_text -> {entity_id: [teaching_order, ...]}
-        if calls:
-            marks = ",".join("?" * len(set(calls)))
-            for text, eid, to in self._conn.execute(
-                    "SELECT f.call_text, f.entity_id, t.teaching_order "
-                    "FROM call_text_figures f "
-                    "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
-                    f"WHERE f.call_text IN ({marks})", tuple(set(calls))):
-                figure_tos.setdefault(text, {}).setdefault(eid, []).append(to)
-
-        results = []
-        for i, text in enumerate(calls):
-            # intern#87: teaching_order_calls ist eine View mit einer Zeile je
-            # (entity_id x Programm). Ohne ORDER BY greift fetchone() willkuerlich
-            # ein Band heraus. Deterministisch das niedrigste Band waehlen
-            # (passt zu _eid_min_to).
-            cur2 = self._conn.execute(
-                "SELECT m.entity_id, t.teaching_order, t.canonical_name "
-                "FROM call_text_mappings m "
-                "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
-                "WHERE m.call_text = ? "
-                "ORDER BY t.teaching_order LIMIT 1",
-                (text,)
-            )
-            mapping = cur2.fetchone()
-            if mapping:
-                results.append((i + 1, text, mapping[0], mapping[1], mapping[2],
-                                list(figure_tos.get(text, {}).values())))
-            else:
-                results.append((i + 1, text, None, None, None, None))
-        return results
+        hit = self.get_sequence_details_many([sequence_id]).get(sequence_id)
+        return hit[0] if hit else []
 
     def get_sequence_raw(self, sequence_id: int) -> dict | None:
         """Gibt die Rohdaten einer Sequenz zurueck (fuer den Editor).
