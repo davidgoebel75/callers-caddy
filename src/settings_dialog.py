@@ -35,6 +35,7 @@ from PySide6.QtCore import QSettings
 
 import program_selection
 from i18n import _t
+from ui_helpers import tinted_icon
 
 
 # ---------------------------------------------------------------------------
@@ -571,6 +572,7 @@ _SECTION_ICONS = {
     "player":    "play",
     "playlist":  "next-song",
     "feedback":  "feedback",
+    "network":   "network",
     "sort":      "sort",
     "sequences": "sequenceview-open",
     "notes":     "pencil",
@@ -1267,9 +1269,10 @@ class SettingsDialog(QDialog):
         self._groups.append(_SectionGroup(section, group, form, rows))
         item = QListWidgetItem(title)
         icon = _SECTION_ICONS.get(section)
-        icon_dir = getattr(self._skin_mgr, "icon_dir", "")   # leer: Cache fehlgeschlagen
-        if icon and icon_dir:
-            item.setIcon(QIcon(f"{icon_dir}/{icon}.svg"))
+        if icon:
+            # Liste sitzt auf dem Eingabe-Hintergrund, nicht auf der Button-
+            # Flaeche: icon_color waere z. B. in Elegant unsichtbar
+            item.setIcon(tinted_icon(self._skin_mgr, f"{icon}.svg", "text"))
         self._nav.addItem(item)
 
     # ------------------------------------------------------------------

@@ -7,9 +7,10 @@ _PlayBarrier. Abhaengigkeiten nur auf Blatt-/Fremdmodule (perf, i18n, song_types
 """
 
 import math
+import os
 
 from PySide6.QtCore import Qt, QTimer, QEvent, QSize
-from PySide6.QtGui import QIcon, QColor
+from PySide6.QtGui import QIcon, QColor, QPixmap, QPainter
 from PySide6.QtWidgets import (
     QDialog, QDockWidget, QDoubleSpinBox, QFormLayout,
     QHBoxLayout, QLabel, QMessageBox, QPushButton, QRadioButton, QButtonGroup,
@@ -19,6 +20,28 @@ from PySide6.QtWidgets import (
 from i18n import _t
 from perf import perf_start, perf_split
 from song_types import PlayMode, has_loop_points
+
+
+def tinted_icon(skin_mgr, svg_name: str, color_key: str, px: int = 36) -> QIcon:
+    """Faerbt ein (monochromes) Cache-Icon auf eine Theme-Farbe um.
+
+    Der Cache liegt in icon_color vor, gedacht fuer die Button-Flaeche. Auf
+    dem Widget-/Listen-Hintergrund ist das je nach Theme unsichtbar (Elegant:
+    fast schwarz auf dunkel). Darum auf `color_key` (z. B. 'text') umfaerben.
+    px: Renderkante, groesser als die Anzeige -> schaerfer."""
+    icon_dir = getattr(skin_mgr, "icon_dir", "")
+    path = os.path.join(icon_dir, svg_name) if icon_dir else ""
+    if not os.path.isfile(path):
+        return QIcon()
+    base = QIcon(path).pixmap(px, px)
+    tinted = QPixmap(base.size())
+    tinted.fill(Qt.transparent)
+    p = QPainter(tinted)
+    p.drawPixmap(0, 0, base)
+    p.setCompositionMode(QPainter.CompositionMode_SourceIn)
+    p.fillRect(tinted.rect(), QColor(skin_mgr.color(color_key, "#888888")))
+    p.end()
+    return QIcon(tinted)
 
 
 # --- Reine Hilfsfunktionen + Loop-Dialog -------------------------------------

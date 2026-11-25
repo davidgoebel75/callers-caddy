@@ -16,9 +16,10 @@ import os
 
 from PySide6.QtWidgets import QWidget, QToolButton, QLabel
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PySide6.QtGui import QIcon
 
 from i18n import _t
+from ui_helpers import tinted_icon
 
 
 class StreamDeckWidget(QWidget):
@@ -100,20 +101,8 @@ class StreamDeckWidget(QWidget):
         """
         if not self._skin_mgr:
             return QIcon()
-        path = os.path.join(self._skin_mgr.icon_dir, svg_name)
-        if not os.path.isfile(path):
-            return QIcon()
-        px = self._EDIT_SIZE * 2  # groesser rendern -> schaerfer
-        base = QIcon(path).pixmap(px, px)
-        tinted = QPixmap(base.size())
-        tinted.fill(Qt.transparent)
-        p = QPainter(tinted)
-        p.drawPixmap(0, 0, base)
-        p.setCompositionMode(QPainter.CompositionMode_SourceIn)
-        p.fillRect(tinted.rect(),
-                   QColor(self._skin_mgr.color(color_key, "#888888")))
-        p.end()
-        return QIcon(tinted)
+        return tinted_icon(self._skin_mgr, svg_name, color_key,
+                           px=self._EDIT_SIZE * 2)
 
     def _on_edit_clicked(self):
         if self._edit_callback:
