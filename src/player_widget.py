@@ -1442,6 +1442,14 @@ class PlayerWidget(QWidget):
             pct = max(lo, min(hi, pct))
         self.spin_today_tempo.setValue(int(pct))
 
+    def effective_bpm(self) -> float:
+        """Tempo, mit dem der Song gerade laeuft (base_bpm * Song- * Tages-Tempo),
+        0.0 ohne bekannte BPM. Fuer Square Flow (intern#247)."""
+        if self._base_bpm <= 0:
+            return 0.0
+        return (self._base_bpm * self.spin_tempo.value() / 100.0
+                * self.spin_today_tempo.value() / 100.0)
+
     def _update_bpm_display(self):
         """BPM-Anzeige aktualisieren: base_bpm * song_tempo * today_tempo."""
         if self._base_bpm <= 0:

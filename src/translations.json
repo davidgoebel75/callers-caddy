@@ -11067,5 +11067,305 @@
     "de": "Wir messen, wie sauber der Fade-Out auf deinem System läuft. Seit v0.91 ist der Fade-Out vektorisiert und sollte auch auf schwacher CPU glatt sein.",
     "en": "We measure how smoothly the fade-out runs on your system. Since v0.91 the fade-out is vectorized and should be smooth even on a weak CPU.",
     "ja": "お使いのシステムでフェードアウトがどれだけ滑らかに動作するかを測定します。v0.91 以降、フェードアウトはベクトル化されており、性能の低い CPU でも滑らかなはずです。"
+  },
+  "dock_square_flow": {
+    "de": "Square Flow",
+    "en": "Square Flow",
+    "ja": "Square Flow"
+  },
+  "setting_section_square_flow": {
+    "de": "Square Flow",
+    "en": "Square Flow",
+    "ja": "Square Flow"
+  },
+  "setting_label_square_flow_enabled": {
+    "de": "Square Flow einschalten",
+    "en": "Enable Square Flow",
+    "ja": "Square Flow を有効にする"
+  },
+  "setting_tip_square_flow_enabled": {
+    "de": "Zeigt die Sequenz aus dem Sequenz-Detail als tanzenden Square (Taminations-Engine). Ausgeschaltet wird nichts geladen.",
+    "en": "Shows the sequence from the sequence detail as a dancing square (Taminations engine). When off, nothing is loaded.",
+    "ja": "シーケンス詳細のシーケンスを踊るスクエアとして表示します（Taminations エンジン）。オフのときは何も読み込みません。"
+  },
+  "setting_label_square_flow_frame_rate": {
+    "de": "Bildrate",
+    "en": "Frame rate",
+    "ja": "フレームレート"
+  },
+  "setting_tip_square_flow_frame_rate": {
+    "de": "Bilder pro Sekunde beim Abspielen. Weniger Bilder entlasten schwache Rechner.",
+    "en": "Frames per second during playback. Fewer frames relieve slow computers.",
+    "ja": "再生中の 1 秒あたりのフレーム数。少ないほど性能の低い PC の負荷が下がります。"
+  },
+  "setting_label_square_flow_saving_mode": {
+    "de": "Sparmodus (nur Standbilder)",
+    "en": "Saving mode (still images only)",
+    "ja": "省電力モード（静止画のみ）"
+  },
+  "setting_tip_square_flow_saving_mode": {
+    "de": "Zeigt nur die Stellung nach jedem Call, ohne Animation.",
+    "en": "Shows only the position after each call, without animation.",
+    "ja": "アニメーションなしで、各コールの後の位置だけを表示します。"
+  },
+  "setting_label_square_flow_lag_beats": {
+    "de": "Versatz im Singing Call",
+    "en": "Delay in singing calls",
+    "ja": "シンギングコールでの遅れ"
+  },
+  "setting_tip_square_flow_lag_beats": {
+    "de": "So viele Beats tanzt Square Flow im Singing Call hinter dem Lesebalken her: Zeit zum Ansagen, Hören und Verstehen des Calls.",
+    "en": "Square Flow dances this many beats behind the reading band in singing calls: time to deliver, hear and understand the call.",
+    "ja": "シンギングコールで Square Flow がリーディングバーから遅れて踊る拍数です。コールを言い、聞き、理解するための時間です。"
+  },
+  "sf_chain_reset": {
+    "de": "Figur endete nicht zu Hause: ab hier wieder mit den eigenen Partnern.",
+    "en": "Figure did not end at home: continuing with original partners.",
+    "ja": "フィギュアがホームで終わりませんでした。ここから元のパートナーで続けます。"
+  },
+  "sf_disabled": {
+    "de": "Square Flow ist ausgeschaltet. Einschalten unter Einstellungen › Square Flow.",
+    "en": "Square Flow is turned off. Turn it on under Settings › Square Flow.",
+    "ja": "Square Flow はオフです。設定 › Square Flow でオンにできます。"
+  },
+  "sf_engine_missing": {
+    "de": "Die Choreo-Engine fehlt. Square Flow ist nicht verfügbar.",
+    "en": "The choreo engine is missing. Square Flow is not available.",
+    "ja": "コレオエンジンが見つかりません。Square Flow は使用できません。"
+  },
+  "sf_no_sequence": {
+    "de": "Keine Sequenz im Sequenz-Detail.",
+    "en": "No sequence in the sequence detail.",
+    "ja": "シーケンス詳細にシーケンスがありません。"
+  },
+  "sf_calculating": {
+    "de": "Sequenz wird berechnet …",
+    "en": "Calculating sequence …",
+    "ja": "シーケンスを計算中 …"
+  },
+  "sf_result_gruen": {
+    "de": "Löst korrekt auf",
+    "en": "Resolves correctly",
+    "ja": "正しくリゾルブします"
+  },
+  "sf_result_rot": {
+    "de": "Löst nicht korrekt auf",
+    "en": "Does not resolve correctly",
+    "ja": "正しくリゾルブしません"
+  },
+  "sf_result_strittig": {
+    "de": "Auflösung unsicher, bitte selbst prüfen",
+    "en": "Resolution uncertain, please check yourself",
+    "ja": "リゾルブが不確かです。ご自身で確認してください"
+  },
+  "sf_result_nur_band_gruen": {
+    "de": "Paare stimmen, Taminations ohne Aussage",
+    "en": "Pairs match, no verdict from Taminations",
+    "ja": "ペアは一致、Taminations の判定なし"
+  },
+  "sf_result_kein_band": {
+    "de": "Für diesen Sequenz-Typ gibt es keine Prüfung",
+    "en": "No check for this sequence type",
+    "ja": "このシーケンスタイプにはチェックがありません"
+  },
+  "sf_result_abbruch": {
+    "de": "Taminations versteht Zeile {line} nicht: {error}",
+    "en": "Taminations does not understand line {line}: {error}",
+    "ja": "Taminations は {line} 行目を理解できません: {error}"
+  },
+  "sf_beats_total": {
+    "de": "{beats} Beats",
+    "en": "{beats} beats",
+    "ja": "{beats} ビート"
+  },
+  "sf_btn_restart": {
+    "de": "Zum Anfang",
+    "en": "To the start",
+    "ja": "最初へ"
+  },
+  "sf_btn_prev": {
+    "de": "Vorheriger Call",
+    "en": "Previous call",
+    "ja": "前のコール"
+  },
+  "sf_btn_play": {
+    "de": "Abspielen",
+    "en": "Play",
+    "ja": "再生"
+  },
+  "sf_btn_pause": {
+    "de": "Anhalten",
+    "en": "Pause",
+    "ja": "一時停止"
+  },
+  "sf_btn_next": {
+    "de": "Nächster Call",
+    "en": "Next call",
+    "ja": "次のコール"
+  },
+  "sf_call_label": {
+    "de": "{n}/{total} · {call}",
+    "en": "{n}/{total} · {call}",
+    "ja": "{n}/{total} · {call}"
+  },
+  "sf_call_start": {
+    "de": "Startaufstellung",
+    "en": "Starting formation",
+    "ja": "開始フォーメーション"
+  },
+  "sf_btn_edit": {
+    "de": "Sequenz bearbeiten",
+    "en": "Edit sequence",
+    "ja": "シーケンスを編集"
+  },
+  "sf_hint_abbruch": {
+    "de": "Zeile {line} „{text}“: Taminations kennt diesen Call so nicht oder nicht aus dieser Formation. Schreibweise prüfen oder den Call ausschreiben.",
+    "en": "Line {line} “{text}”: Taminations does not know this call as written or not from this formation. Check the spelling or write the call out in full.",
+    "ja": "{line} 行目「{text}」: Taminations はこの書き方、またはこのフォーメーションからのこのコールを認識できません。綴りを確認するか、コールを省略せずに書いてください。"
+  },
+  "sf_hint_rot": {
+    "de": "Am Ende stehen die Paare nicht so, wie es der Sequenz-Typ „{type}“ erwartet. Stimmen Typ und Calls?",
+    "en": "At the end the couples are not where sequence type “{type}” expects them. Are type and calls correct?",
+    "ja": "最後にカップルがシーケンスタイプ「{type}」の想定どおりに並んでいません。タイプとコールは正しいですか？"
+  },
+  "sf_hint_strittig": {
+    "de": "Die Paare stehen richtig, aber die Auflösungsprüfung von Taminations widerspricht. Bitte von Hand prüfen.",
+    "en": "The couples are in place, but Taminations' resolution check disagrees. Please check by hand.",
+    "ja": "カップルの位置は正しいですが、Taminations のリゾルブ判定が一致しません。手動で確認してください。"
+  },
+  "sf_hint_read_as": {
+    "de": "Zeile {line} gelesen als „{text}“",
+    "en": "Line {line} read as “{text}”",
+    "ja": "{line} 行目を「{text}」と解釈"
+  },
+  "sf_kind_kreis": {
+    "de": "Designator aus der Zeile davor fortgeschrieben",
+    "en": "designator carried over from the line before",
+    "ja": "前の行の指定を引き継ぎ"
+  },
+  "sf_kind_kontext": {
+    "de": "Designator dazugedacht",
+    "en": "designator assumed",
+    "ja": "指定を補完"
+  },
+  "sf_kind_app": {
+    "de": "Callname aus dem Call-Mapping",
+    "en": "call name from the call mapping",
+    "ja": "コールマッピングのコール名"
+  },
+  "sf_kind_mehrfach": {
+    "de": "in Einzel-Calls zerlegt",
+    "en": "split into single calls",
+    "ja": "個別のコールに分割"
+  },
+  "sf_hint_root": {
+    "de": "Tipp: Schreib die Zeile so, wie Taminations sie gelesen hat. Dann ist sie eindeutig, und der Hinweis verschwindet.",
+    "en": "Tip: write the line the way Taminations read it. Then it is unambiguous and the hint disappears.",
+    "ja": "ヒント: Taminations が解釈したとおりに行を書き直すと、あいまいさがなくなり、この表示は消えます。"
+  },
+  "seq_header_beats": {
+    "de": "{beats} Beats",
+    "en": "{beats} beats",
+    "ja": "{beats} ビート"
+  },
+  "seq_header_beats_tooltip": {
+    "de": "Beats nach CALLERLAB · SF = Wert aus Square Flow\nAmpel (Singer): grün ≤ 64 · gelb ≤ 68 · rot darüber · grau = Summe offen (?)\n⚠ = Square Flow weicht um 2 Beats oder mehr ab",
+    "en": "Beats per CALLERLAB · SF = value from Square Flow\nTraffic light (singer): green ≤ 64 · yellow ≤ 68 · red above · grey = total open (?)\n⚠ = Square Flow differs by 2 beats or more",
+    "ja": "CALLERLAB によるビート数 · SF = Square Flow の値\n信号（シンギング）：緑 ≤ 64 · 黄 ≤ 68 · 赤 それ以上 · 灰 = 合計未確定（?）\n⚠ = Square Flow が 2 ビート以上異なる"
+  },
+  "seq_beats_sf": {
+    "de": "SF {beats}",
+    "en": "SF {beats}",
+    "ja": "SF {beats}"
+  },
+  "seq_labels_off": {
+    "de": "Programm und Beats ausblenden",
+    "en": "Hide program and beats",
+    "ja": "プログラムとビートを隠す"
+  },
+  "seq_labels_inline": {
+    "de": "Programm und Beats hinter dem Call",
+    "en": "Program and beats after the call",
+    "ja": "プログラムとビートをコールの後ろに表示"
+  },
+  "seq_labels_below": {
+    "de": "Programm und Beats unter dem Call",
+    "en": "Program and beats below the call",
+    "ja": "プログラムとビートをコールの下に表示"
+  },
+  "seq_tam_open_btn": {
+    "de": "Taminations",
+    "en": "Taminations",
+    "ja": "Taminations"
+  },
+  "seq_tam_open_tooltip": {
+    "de": "Sequenz im Browser in Taminations ansehen",
+    "en": "View the sequence in Taminations in the browser",
+    "ja": "ブラウザーの Taminations でシーケンスを表示"
+  },
+  "seq_tam_offline_tooltip": {
+    "de": "Nur mit Internetverbindung",
+    "en": "Requires an internet connection",
+    "ja": "インターネット接続が必要です"
+  },
+  "sf_ctx_controls_below": {
+    "de": "Tasten unter dem Square",
+    "en": "Buttons below the square",
+    "ja": "ボタンをスクエアの下に"
+  },
+  "sf_ctx_controls_above": {
+    "de": "Tasten über dem Square",
+    "en": "Buttons above the square",
+    "ja": "ボタンをスクエアの上に"
+  },
+  "sf_ctx_controls_left": {
+    "de": "Tasten links vom Square",
+    "en": "Buttons left of the square",
+    "ja": "ボタンをスクエアの左に"
+  },
+  "sf_ctx_controls_right": {
+    "de": "Tasten rechts vom Square",
+    "en": "Buttons right of the square",
+    "ja": "ボタンをスクエアの右に"
+  },
+  "sf_ctx_zoom_reset": {
+    "de": "Zoom zurücksetzen",
+    "en": "Reset zoom",
+    "ja": "ズームをリセット"
+  },
+  "seq_flow_warn_tooltip": {
+    "de": "Taminations kann diese Sequenz nicht sauber tanzen. Klick zeigt Ursache und Vorschlag.",
+    "en": "Taminations cannot dance this sequence cleanly. Click for the cause and a suggestion.",
+    "ja": "Taminations はこのシーケンスを正しく踊れません。クリックで原因と改善案を表示します。"
+  },
+  "seq_flow_warn_title": {
+    "de": "Square Flow: Hinweis zur Sequenz",
+    "en": "Square Flow: note on this sequence",
+    "ja": "Square Flow：シーケンスについての注意"
+  },
+  "seq_flow_warn_engine": {
+    "de": "Die Choreo-Engine konnte diese Sequenz nicht verarbeiten ({error}). Bitte Callers Caddy neu starten; bleibt der Fehler, die Sequenz an den Support melden.",
+    "en": "The choreo engine could not process this sequence ({error}). Please restart Callers Caddy; if the error persists, report the sequence to support.",
+    "ja": "コレオエンジンはこのシーケンスを処理できませんでした（{error}）。Callers Caddy を再起動してください。続く場合はサポートにシーケンスを報告してください。"
+  },
+  "sf_ctx_pilot_colors": {
+    "de": "Farben und Namen aus dem Pilot Square anzeigen",
+    "en": "Show Pilot Square colors and names",
+    "ja": "パイロットスクエアの色と名前を表示"
+  },
+  "square.dancer_name": {
+    "de": "Name",
+    "en": "Name",
+    "ja": "名前"
+  },
+  "square.dancer_color": {
+    "de": "Farbe",
+    "en": "Color",
+    "ja": "色"
+  },
+  "square.color_none_short": {
+    "de": "Ohne Farbe",
+    "en": "No color",
+    "ja": "色なし"
   }
 }

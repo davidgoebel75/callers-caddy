@@ -29,6 +29,16 @@ class IniKey:
 CLOCK_SHOW_SECONDS = "clock/show_seconds"
 CLOCK_TWELVE_HOUR = "clock/twelve_hour"
 CLOCK_SHOW_DATE = "clock/show_date"
+# intern#164: Programm und Beats im Sequenz-Detail: off | inline | below
+SEQ_DETAIL_LABELS = "sequences/detail_labels"
+# intern#247: Square Flow (Choreo-Engine)
+SQUARE_FLOW_ENABLED = "square_flow/enabled"
+SQUARE_FLOW_FRAME_RATE = "square_flow/frame_rate"
+SQUARE_FLOW_SAVING_MODE = "square_flow/saving_mode"
+SQUARE_FLOW_LAG_BEATS = "square_flow/lag_beats"
+SQUARE_FLOW_ZOOM_PCT = "square_flow/zoom_pct"
+SQUARE_FLOW_CONTROLS_POS = "square_flow/controls_pos"
+SQUARE_FLOW_PILOT_COLORS = "square_flow/pilot_colors"
 
 
 def _k(key, typ, default, seed=False):
@@ -76,10 +86,22 @@ _ENTRIES = (
     _k("lyrics/reading_band_countdown_beats", int, 8, True),
     # intern#205: Startwert "Auch ausgeblendete Sequenzen anzeigen"
     _k("sequences/show_hidden_on_start", bool, False, True),
+    # intern#164: Etiketten im Sequenz-Detail (nur Rechtsklick, nicht im Dialog;
+    # erst beim Umschalten geschrieben): off | inline | below
+    _k(SEQ_DETAIL_LABELS, str, "inline"),
     # intern#235: Uhr-Dock, eigene Sektion [clock] (Rechtsklick + Dialog)
     _k(CLOCK_SHOW_SECONDS, bool, False, True),
     _k(CLOCK_TWELVE_HOUR, bool, False, True),
     _k(CLOCK_SHOW_DATE, bool, True, True),
+    # intern#247: Square Flow, standardmaessig aus (ohne Freigabe wird nichts geladen)
+    _k(SQUARE_FLOW_ENABLED, bool, False, True),
+    _k(SQUARE_FLOW_FRAME_RATE, int, 25, True),
+    _k(SQUARE_FLOW_SAVING_MODE, bool, False, True),
+    _k(SQUARE_FLOW_LAG_BEATS, int, 2, True),
+    # per Mausrad bzw. Rechtsklick im Dock gesetzt, nicht im Einstellungsdialog
+    _k(SQUARE_FLOW_ZOOM_PCT, int, 100),
+    _k(SQUARE_FLOW_CONTROLS_POS, str, "below"),
+    _k(SQUARE_FLOW_PILOT_COLORS, bool, True),
     # --- ohne Saat ---
     _k("lyrics/dynamic_enabled", bool, False),
     _k("lyrics/dynamic_mode", str, ""),

@@ -430,6 +430,14 @@ def main():
     else:
         print("  WARNUNG: first-steps/ nicht im Repo gefunden")
 
+    # Choreo-Engine (Square Flow, intern#247): immer mit ausgeliefert, aktiv nur per
+    # Einstellung. Bewusst nicht ueber die Spec (UPX wuerde die Dart-Exe anfassen).
+    # Quelle: Release-Asset im Repo, gepruefter Zwischenspeicher unter 3_Build/engine-cache.
+    from tam_engine import ENGINE_TAG, install as install_engine
+    engine_dst = install_engine(app_dir / "choreo", BUILD_DIR / "engine-cache")
+    print(f"  choreo/{engine_dst.name} ({ENGINE_TAG}, "
+          f"{engine_dst.stat().st_size / 1024 / 1024:.1f} MB)")
+
     # HINWEIS (ab 0.148): Referenz-/Import-Sequenzen werden bewusst NICHT mehr
     # in die Setup-ZIPs gepackt. Solche Import-Dateien sollen zentral abgelegt
     # und separat bezogen werden, damit sie das Voll- und Update-ZIP nicht

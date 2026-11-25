@@ -54,6 +54,7 @@
         "reading_band":"#ff6a2e",
         "tutorial_box_bg":   "#211a17",
         "tutorial_box_text": "#f3e9e3",
-        "alt_row_bg":        "#2c2320"
+        "alt_row_bg":        "#2c2320",
+        "squareflow_body_stroke": "#f3e9e3"
     }
 }

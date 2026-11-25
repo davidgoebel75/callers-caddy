@@ -48,6 +48,7 @@ from typing import Optional, List
 from song_db_potential import PotentialMixin
 from song_db_schema import SchemaMixin
 from song_db_sequences import SequencesMixin
+from song_db_timing import CallTimingMixin
 import song_types
 
 
@@ -406,7 +407,7 @@ def _row_to_song(row: tuple) -> Song:
     )
 
 
-class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
+class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin, CallTimingMixin):
     """SQLite-Datenbankzugriff fuer Songs, Lokationen und Abspielhistorie."""
 
     def __init__(self, db_path: Optional[str] = None):
@@ -443,6 +444,7 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin):
         self._backfill_calls_json()  # Option C: calls_json aus field_1..15 fuellen
         self._ensure_sequence_calls_index()  # enthält-Filter-Index sicherstellen
         self.reseed_reference_data()  # MS50: gebuendelte Referenz einspielen (einmalig)
+        self.seed_call_timing()  # intern#164: Beats je Call, je Version der Datei einmal
         # BL-210: Reste aelterer Versionen (kennen call_text_figures_extra nicht)
         # bei jedem Start aufraeumen, nicht erst beim naechsten Referenz-Update
         self._normalize_call_text_figures()

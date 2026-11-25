@@ -54,6 +54,7 @@ _EXCLUDED_SUFFIX = "_dock"
 _EXCLUDED_KEYS: dict[str, set] = {
     "sequences": {
         "mdb_path", "json_import_dir", "mapping_export_dir", "csds_import_dir",
+        "detail_labels",  # intern#164: nur per Rechtsklick im Sequenz-Detail
     },
     "display": {"date_format"},  # eigener Toggle im Design-Menu
     "audio": set(),  # primary/secondary_device werden als device_combo angezeigt
@@ -504,6 +505,31 @@ SETTINGS_META: dict[str, dict] = {
         "widget": "checkbox",
         "default": True,
     },
+    # --- square_flow (intern#247) ---
+    "square_flow/enabled": {
+        "label": "Square Flow einschalten",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "square_flow/frame_rate": {
+        "label": "Bildrate",
+        "widget": "spinbox",
+        "min": 5, "max": 30, "step": 5, "suffix": " fps",
+        "default": 25,
+    },
+    "square_flow/saving_mode": {
+        "label": "Sparmodus (nur Standbilder)",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "square_flow/lag_beats": {
+        "label": "Versatz im Singing Call",
+        "widget": "spinbox",
+        "min": 0, "max": 8, "step": 1, "suffix": " Beats",
+        "default": 2,
+        "tooltip": "So viele Beats tanzt Square Flow im Singing Call hinter dem "
+                   "Lesebalken her: Zeit zum Ansagen, Hören und Verstehen des Calls.",
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",
@@ -528,6 +554,7 @@ _SECTION_LABELS = {
     "notes":     "Notizen",
     "lyrics":    "Lyrics",
     "clock":     "Uhr",
+    "square_flow": "Square Flow",
     "debug":     "Debug",
     "rules":     "Rules (System)",
 }
@@ -1040,7 +1067,7 @@ class SettingsDialog(QDialog):
         sections = [s for s in top_groups if not _is_excluded_section(s, self._settings)]
 
         _ORDER = ["display", "paths", "audio", "loop", "player", "playlist",
-                  "feedback", "sort", "sequences", "notes", "lyrics", "clock", "debug",
+                  "feedback", "sort", "sequences", "notes", "lyrics", "clock", "square_flow", "debug",
                   "rules"]
         ordered = [s for s in _ORDER if s in sections]
         rest = sorted(s for s in sections if s not in _ORDER)
