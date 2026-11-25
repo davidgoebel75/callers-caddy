@@ -55,6 +55,15 @@ def test_sektionstitel_zeigt_ganze_sektion(qapp, keep, tmp_path):
     assert dlg._nav.currentRow() == dlg._groups.index(audio)
 
 
+def test_labels_gleich_breit_und_feldgroessen_nach_typ(qapp, keep, tmp_path):
+    from settings_dialog import _FIELD_WIDTHS
+    dlg = _dialog(qapp, keep, tmp_path)
+    assert len({r.label.width() for r in dlg._rows if r.label.minimumWidth()}) == 1
+    for r in dlg._rows:
+        if r._widget_type in _FIELD_WIDTHS:
+            assert r.widget.maximumWidth() == _FIELD_WIDTHS[r._widget_type]
+
+
 def test_klick_auf_letzten_eintrag_bleibt_markiert(qapp, keep, tmp_path):
     dlg = _dialog(qapp, keep, tmp_path)
     last = dlg._nav.count() - 1

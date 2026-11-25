@@ -584,6 +584,18 @@ _SECTION_ICONS = {
 }
 
 
+# intern#269: Feldbreite je Typ. S = Zahlen/Datum, M = Auswahllisten.
+# ponytail: feste px, skalieren nicht mit font_size des Themes; bei Bedarf
+# auf fontMetrics umstellen
+_FIELD_S, _FIELD_M = 120, 260
+_FIELD_WIDTHS = {
+    "spinbox": _FIELD_S,
+    "doublespinbox": _FIELD_S,
+    "dateedit": _FIELD_S,
+    "combobox": _FIELD_M,
+}
+
+
 def matches_query(query: str, text: str) -> bool:
     """intern#269: Jedes Wort der Suche muss als Teilwort im Text stehen,
     ohne Ruecksicht auf Gross-/Kleinschreibung. Leere Suche passt immer."""
@@ -948,6 +960,11 @@ class _SettingRow:
 
     def layout_widget(self) -> QWidget:
         """Gibt den Container fuer das Formular-Layout zurueck (Widget + ggf. Zusatz-Btn)."""
+        # intern#269: einheitliche Feldbreiten S/M nach Typ; alles andere (Text,
+        # Pfade, Geraete, Programme) fuellt die Breite (L), Checkboxen bleiben
+        width = _FIELD_WIDTHS.get(self._widget_type)
+        if width:
+            self.widget.setFixedWidth(width)
         extra_btn = self.browse_btn or self.picker_btn
         if extra_btn is None:
             return self.widget
@@ -1096,6 +1113,13 @@ class SettingsDialog(QDialog):
         """Wird per QTimer.singleShot(0) aufgerufen — haelt Main-Thread frei."""
         self._populate_groups()
         self._inner_layout.addStretch()
+        # intern#269: Labels ueber alle Sektionen gleich breit -> Felder fluchten
+        if self._rows:
+            for r in self._rows:
+                r.label.ensurePolished()   # Schrift aus dem Theme-StyleSheet
+            label_w = max(r.label.sizeHint().width() for r in self._rows)
+            for r in self._rows:
+                r.label.setFixedWidth(label_w)
         self._fit_width()
         if self._focus_key:
             # Erst wenn die Zeilen stehen; ein Takt spaeter hat das Layout Geometrie
