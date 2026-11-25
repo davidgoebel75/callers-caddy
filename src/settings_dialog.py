@@ -594,7 +594,7 @@ class _SectionGroup:
     section: str
     group: QGroupBox
     form: QFormLayout
-    rows: list
+    rows: list["_SettingRow"]
 
 
 # ---------------------------------------------------------------------------
@@ -991,6 +991,7 @@ class SettingsDialog(QDialog):
         row = next((r for r in self._rows if r.full_key == full_key), None)
         if row is None:
             return False
+        self._search.clear()   # intern#269: Ziel koennte weggefiltert sein
         bar = self._scroll.verticalScrollBar()
         inner = self._scroll.widget()
 
@@ -1106,28 +1107,37 @@ class SettingsDialog(QDialog):
         """Blendet Zeilen ohne Treffer und leere Sektionen aus (rechts und
         links). Passt die Suche auf den Sektionstitel, bleibt die ganze
         Sektion stehen."""
-        any_hit = False
+        first_hit = None
         for i, g in enumerate(self._groups):
-            whole = matches_query(query, g.group.title())
             hits = 0
             for row in g.rows:
-                hit = whole or matches_query(query, row.search_text)
+                # Titel zaehlt mit: "audio" zeigt die Sektion, "audio laut" die Zeile
+                hit = matches_query(query, f"{g.group.title()} {row.search_text}")
                 g.form.setRowVisible(row.label, hit)
                 hits += hit
             g.group.setVisible(hits > 0)
             self._nav.item(i).setHidden(hits == 0)
-            any_hit = any_hit or hits > 0
-        self._no_hits.setVisible(not any_hit)
-        self._scroll.setVisible(any_hit)
+            if hits and first_hit is None:
+                first_hit = i
+        self._no_hits.setVisible(first_hit is None)
+        self._scroll.setVisible(first_hit is not None)
+        # Treffer beginnen oben; die alte Position passt nach dem Filtern nicht mehr
+        self._scroll.verticalScrollBar().setValue(0)
+        if first_hit is not None:
+            self._nav.setCurrentRow(first_hit)
 
     def _on_nav_clicked(self, item: QListWidgetItem):
         group = self._groups[self._nav.row(item)].group
         self._scroll.verticalScrollBar().setValue(group.y())
+        # Kurze Sektionen am Ende erreicht die Seite nie ganz oben; die
+        # Markierung bleibt trotzdem auf dem geklickten Eintrag
+        self._nav.setCurrentItem(item)
 
     def _sync_nav(self, value: int):
         """Markiert links die Sektion, die oben auf der Seite steht."""
         current = None
         for i, g in enumerate(self._groups):
+            # +8: Gruppentitel ragt ueber den Rahmen, knapp darunter zaehlt schon
             if g.group.isVisible() and g.group.y() <= value + 8:
                 current = i
         if current is not None:

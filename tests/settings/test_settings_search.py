@@ -46,6 +46,20 @@ def test_sektionstitel_zeigt_ganze_sektion(qapp, keep, tmp_path):
     audio = next(g for g in dlg._groups if g.section == "audio")
     dlg._search.setText(audio.group.title())
     assert all(audio.form.isRowVisible(r.label) for r in audio.rows)
+    # Titel + Wort aus einer Zeile: nur diese Zeile, auch wenn ihr Label
+    # den Sektionsnamen nicht enthaelt
+    row = audio.rows[0]
+    word = row.label.text().rstrip(":").split()[0]
+    dlg._search.setText(f"{audio.group.title()} {word}")
+    assert audio.form.isRowVisible(row.label)
+    assert dlg._nav.currentRow() == dlg._groups.index(audio)
+
+
+def test_klick_auf_letzten_eintrag_bleibt_markiert(qapp, keep, tmp_path):
+    dlg = _dialog(qapp, keep, tmp_path)
+    last = dlg._nav.count() - 1
+    dlg._on_nav_clicked(dlg._nav.item(last))
+    assert dlg._nav.currentRow() == last
 
 
 def test_ohne_treffer_hinweis_und_leeren_stellt_alles_wieder_her(qapp, keep, tmp_path):
