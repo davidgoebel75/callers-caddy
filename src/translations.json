@@ -2560,6 +2560,16 @@
     "en": "Cancel",
     "ja": "キャンセル"
   },
+  "settings_search_placeholder": {
+    "de": "Einstellung suchen (Strg+F)",
+    "en": "Search settings (Ctrl+F)",
+    "ja": "設定を検索 (Ctrl+F)"
+  },
+  "settings_search_no_hits": {
+    "de": "Keine Einstellung gefunden",
+    "en": "No setting found",
+    "ja": "該当する設定がありません"
+  },
   "settings_btn_apply": {
     "de": "Übernehmen",
     "en": "Apply",
