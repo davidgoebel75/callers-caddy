@@ -1,6 +1,6 @@
-"""Song-Katalog: gescrapte Square-Dance-Songliste als Referenz (intern#126).
+"""Song-Katalog: extern gepflegte Square-Dance-Songliste als Referenz (intern#126).
 
-Der Katalog (music-for-callers, ca. 9.000 Songs) liegt als CSV unter
+Der Katalog (ca. 9.000 Songs) liegt als CSV unter
 `music-extended-data/music_extended_data.csv` und liefert zu Titel, Label und
 Plattennummer die kanonische Schreibweise plus Metadaten (Typ, Caller, Genre,
 Original Artist, Erscheinungsjahr).
@@ -11,7 +11,7 @@ Katalogdaten automatisch uebernimmt (Einzelimport), tut das nur ab der Stufe
 "sicher" (IMPORT_MIN_SCORE); alles darunter bleibt Vorschlag (Potential).
 
 Aktualisiert wird die CSV von aussen: tools/update_song_catalog.py (aufgerufen
-vom Scraper-Projekt nach jedem Update) schiebt sie per PR ins Repo.
+nach jedem Update der Songliste) schiebt sie per PR ins Repo.
 
 GUI-frei (wie song_match), damit eigenstaendig testbar. Geladen wird lazy und
 einmal pro Datei-Stand (Pfad + mtime), die Indexe liegen im Speicher.
@@ -88,7 +88,7 @@ class CatalogMatch:
 
 
 def _fix_mojibake(s: str) -> str:
-    """Repariert doppelt kodiertes UTF-8 aus dem Scraper ('Weâ€™re' -> 'We’re').
+    """Repariert doppelt kodiertes UTF-8 aus der Quelldatei ('Weâ€™re' -> 'We’re').
     Nur wenn typische Muster auftauchen und die Rueckwandlung sauber klappt."""
     if not s or ("â" not in s and "Ã" not in s):
         return s

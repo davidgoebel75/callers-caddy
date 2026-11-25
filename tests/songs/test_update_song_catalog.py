@@ -54,7 +54,7 @@ def test_diff_neu_und_entfallen(tmp_path, target):
 
 
 def test_crlf_quelle_gilt_als_unveraendert(tmp_path, target):
-    """Der Scraper schreibt CRLF, das Repo LF - inhaltlich gleich = kein PR."""
+    """Die Quelldatei hat CRLF, das Repo LF - inhaltlich gleich = kein PR."""
     src = _csv(tmp_path / "src.csv",
                [f"Song {i},Lbl,L,{i},Patter,,,," for i in range(100)], crlf=True)
     rows, err = tool.validate(src)

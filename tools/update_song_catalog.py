@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Song-Katalog ins Repo schieben: Scraper-CSV pruefen, kopieren, PR oeffnen.
+"""Song-Katalog ins Repo schieben: Quell-CSV pruefen, kopieren, PR oeffnen.
 
-Quelle ist die Ausgabe des Scraper-Projekts (music-for-callers-scraper,
-output/all_songs_merged.csv). Dessen update.py ruft dieses Skript nach jedem
-Update auf (intern#126); man kann es aber auch von Hand starten.
+Quelle ist die CSV der extern gepflegten Songliste (Pfad per --source).
+Deren Update ruft dieses Skript nach jedem Lauf auf (intern#126); man kann es
+aber auch von Hand starten.
 
 Ablauf, wenn sich der Katalog geaendert hat:
   1. CSV pruefen: Spalten wie song_catalog.COLUMNS, nicht leer, nicht drastisch
-     geschrumpft (Schutz vor einem kaputten Scrape).
+     geschrumpft (Schutz vor einer kaputten Lieferung).
   2. Branch chore/song-catalog-JJJJ-MM-TT von origin/develop anlegen.
   3. music-extended-data/music_extended_data.csv ersetzen, committen, pushen.
   4. Pull Request nach develop oeffnen (gh). Gemergt wird von Hand.
@@ -17,9 +17,9 @@ Nie direkt auf develop/main. Bricht ab, wenn das Repo getrackte, nicht
 committete Aenderungen hat (ungetrackte Dateien stoeren nicht).
 
 Aufrufe:
-    python tools/update_song_catalog.py --source <pfad/all_songs_merged.csv>
-    python tools/update_song_catalog.py --dry-run      # nur pruefen + Diff zeigen
-    python tools/update_song_catalog.py --no-pr        # Branch + Commit, kein Push/PR
+    python tools/update_song_catalog.py --source <pfad/katalog.csv>
+    python tools/update_song_catalog.py --source <pfad> --dry-run      # nur pruefen + Diff zeigen
+    python tools/update_song_catalog.py --source <pfad> --no-pr        # Branch + Commit, kein Push/PR
 
 Exit-Codes: 0 = ok/unveraendert, 1 = Pruefung fehlgeschlagen, 2 = Git/gh-Fehler.
 """
@@ -34,14 +34,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TARGET = REPO_ROOT / "music-extended-data" / "music_extended_data.csv"
-DEFAULT_SOURCE = Path.home() / ".claude" / "Projekte" / "music-for-callers-scraper" \
-    / "output" / "all_songs_merged.csv"
 BASE_BRANCH = "develop"
 
 sys.path.insert(0, str(REPO_ROOT / "src"))
 from song_catalog import COLUMNS  # noqa: E402  (Spalten an einer Stelle)
 
-# Neuer Katalog darf hoechstens so stark schrumpfen (sonst kaputter Scrape).
+# Neuer Katalog darf hoechstens so stark schrumpfen (sonst kaputte Lieferung).
 MIN_KEEP_RATIO = 0.95
 # So viele neue/entfallene Songs werden im PR namentlich gelistet.
 MAX_LISTED = 60
@@ -79,7 +77,7 @@ def validate(source: Path) -> tuple:
         _h, old = _read(TARGET)
         if old and len(rows) < len(old) * MIN_KEEP_RATIO:
             return [], (f"Katalog geschrumpft: {len(rows)} statt {len(old)} Zeilen "
-                        f"(< {MIN_KEEP_RATIO:.0%}) - Scrape pruefen, nichts uebernommen")
+                        f"(< {MIN_KEEP_RATIO:.0%}) - Quelle pruefen, nichts uebernommen")
     return rows, ""
 
 
@@ -119,13 +117,13 @@ def _pr_body(added: list, removed: list, total: int) -> str:
                 lines.append(f"- … und {len(keys) - MAX_LISTED} weitere")
             lines.append("")
     lines.append("Erzeugt von `tools/update_song_catalog.py` "
-                 "(aufgerufen vom Scraper-Update).")
+                 "(aufgerufen vom Update der Songliste).")
     return "\n".join(lines)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    ap.add_argument("--source", type=Path, required=True)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-pr", action="store_true")
     args = ap.parse_args()
@@ -134,7 +132,7 @@ def main() -> int:
     if err:
         print(f"[Katalog] FEHLER: {err}")
         return 1
-    # Inhalt vergleichen, nicht Bytes: der Scraper schreibt CRLF, das Repo LF
+    # Inhalt vergleichen, nicht Bytes: die Quelle schreibt CRLF, das Repo LF
     if TARGET.is_file() and _read(TARGET)[1] == rows:
         print(f"[Katalog] Unveraendert ({len(rows)} Songs) - nichts zu tun.")
         return 0
