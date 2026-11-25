@@ -466,7 +466,7 @@ QGroupBox {
 QGroupBox::title {
     subcontrol-origin: margin;
     padding: 0 6px;
-    color: {{title_text}};
+    color: {{text}};
 }
 
 /* --- FormLayout Labels --- */
