@@ -13,6 +13,7 @@ SRC_SKINS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file_
                          "src", "skins")
 SKINS = sorted(d for d in os.listdir(SRC_SKINS)
                if os.path.isfile(os.path.join(SRC_SKINS, d, "skin.qss")))
+assert SKINS, f"keine Skins unter {SRC_SKINS}"   # sonst liefe der Test still mit 0 Faellen
 
 
 @pytest.mark.parametrize("skin", SKINS)

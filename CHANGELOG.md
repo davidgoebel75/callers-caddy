@@ -10,6 +10,8 @@ Major nur bei großen Umbauten, Minor bei großen neuen Funktionen, Patch bei kl
 
 ### Fehlerbehebungen
 - **Eigene Regeln gehen nicht mehr verloren, wenn das Speichern abbricht.** Bisher konnte ein Absturz oder eine volle Platte beim Speichern die Datei mit den eigenen Regeln beschädigen. Beim nächsten Start fehlten dann alle eigenen Regeln ohne Hinweis, und die nächste Änderung überschrieb die Datei endgültig. Jetzt bleibt beim Abbruch die alte Datei vollständig erhalten. Ist die Datei trotzdem einmal unlesbar, legt Callers Caddy sie als Sicherung beiseite und meldet nach dem Start, wo sie liegt. Eine von Hand im Windows-Editor gespeicherte Datei (UTF-8 mit BOM) gilt dabei nicht als unlesbar und wird normal geladen.
+- **Dynamic Lyrics bleibt beim Theme-Wechsel an.** Bisher ging Dynamic Lyrics beim Wechsel des Themes aus, obwohl der Knopf eingeschaltet blieb; die Figurenfenster waren danach leer. Jetzt läuft Dynamic Lyrics nach dem Wechsel weiter.
+- **Kein weißer Streifen mehr neben den Reitern.** Neben den Reitern übereinanderliegender Fenster (und in Dialogen mit Reitern) zeigte sich in allen Themes ein weißer Streifen. Dort ist jetzt der Hintergrund des Fensters zu sehen. Selbst angelegte oder kopierte Themes brauchen dafür in ihrer `skin.qss` die Regel `QTabBar { background-color: transparent; }`.
 ### Verbesserungen
 - **Einheitlicher Name „Heutiges Tempo“.** Der Tooltip am Tempo-Regler für alle Songs sprach noch von „Session-Tempo“. Er heißt jetzt wie die Beschriftung daneben „Heutiges Tempo“ (englisch „Today's Tempo“).
 
