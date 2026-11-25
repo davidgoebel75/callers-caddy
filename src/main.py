@@ -1,6 +1,6 @@
 """Callers Caddy — Musik-Player fuer Square Dance Caller."""
 
-__version__ = "0.162"
+__version__ = "2.0.0"
 
 import sys
 import os
@@ -437,6 +437,7 @@ from reports_widget import ReportsWidget
 # (inkl. Bulk-Worker, Meta-Import/CSV-Match, Ceder-, Krabbelkiste- und
 #  Beautify-Dialoge; _ReindexWorker bleibt hier in main.)
 from potential_widget import PotentialWidget
+from caddy.bulk.bulk_worker import stop_for_shutdown
 
 
 
@@ -968,7 +969,8 @@ class P29MainWindow(QMainWindow):
 
         # --- Dock: SequenzView (Detail-Ansicht, getabbt mit Sequences) ---
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr,
-                                                       session=self.session)
+                                                       session=self.session,
+                                                       settings=self._settings)
         # MS50: Sequenz-Filter und Sequenz-Detail (intern#176) lesen die Wahl beim
         # Erzeugen selbst (Sequenzen laedt _init_sequences() erst nach window.show()).
         # Der Player-Button braucht erst die fertige Verdrahtung (DB, Sequenzen-Sync).
@@ -1015,7 +1017,7 @@ class P29MainWindow(QMainWindow):
         self.lyrics_widget.open_settings_at = \
             lambda key: self._show_settings_dialog(focus_key=key)
         self.sequence_view_widget.on_current_sequence_changed = \
-            self.lyrics_widget.refresh_dynamic_from_sequence
+            self._on_detail_sequence_changed
         # Sequenzliste geaendert → Gating des Dynamic-Buttons neu bewerten.
         self.sequence_view_widget.on_sequences_changed = \
             self.lyrics_widget.update_dynamic_button_state
@@ -1421,6 +1423,56 @@ class P29MainWindow(QMainWindow):
         self._add_view_menu_entry(self.dock_pilot_square, _t("dock_pilot_square"))
         perf_log("    PilotSquare dock", _tsq)
 
+        # --- Dock: Uhr (Digitaluhr, intern#235) — vollwertig andockbar ---
+        # Vor _restore_layout(), damit Position/Groesse/Sichtbarkeit ueber
+        # windowState wiederhergestellt werden.
+        _tclock = perf_start()
+        from caddy.clock.clock_widget import ClockWidget
+        self.clock_widget = ClockWidget(self.skin_mgr, self._settings)
+        self.dock_clock = _make_dock(
+            self, _t("dock_clock"), self.clock_widget, Qt.RightDockWidgetArea
+        )
+        self.dock_clock.setObjectName("dock_clock")
+        self.dock_clock.hide()  # Default; restoreState() stellt echten Zustand her
+        self._add_view_menu_entry(self.dock_clock, _t("dock_clock"))
+        self.tutorial_engine.register_widget("clock", self.clock_widget)
+        perf_log("    Clock dock", _tclock)
+
+        # --- Dock: Square Flow (intern#247) — vor _restore_layout() wie alle
+        # Docks. Das Widget selbst ist leicht: Worker und Engine starten erst,
+        # wenn Square Flow freigegeben und sichtbar ist. Menueeintrag nur bei
+        # Freigabe (_apply_square_flow_enabled).
+        _tsf = perf_start()
+        from caddy.choreo.square_flow_widget import SquareFlowWidget
+        self.square_flow_widget = SquareFlowWidget(
+            self.skin_mgr, self._settings, db_path=self.db.db_path,
+            bpm_source=self.player.effective_bpm)
+        self.dock_square_flow = _make_dock(
+            self, _t("dock_square_flow"), self.square_flow_widget,
+            Qt.RightDockWidgetArea)
+        self.dock_square_flow.setObjectName("dock_square_flow")
+        self.dock_square_flow.hide()
+        self._square_flow_menu_action = None
+        self._net_info = None
+        self.sequence_view_widget.on_call_clicked = self._on_sequence_call_clicked
+        self.sequence_view_widget.on_open_taminations = self._open_in_taminations
+        self.square_flow_widget.result_ready.connect(self._on_square_flow_result)
+        self.square_flow_widget.current_card_changed.connect(
+            self.sequence_view_widget.set_flow_line)
+        self.square_flow_widget.edit_requested.connect(
+            self.sequence_view_widget.request_edit)
+        # Phase 2: Takte fuer den Lesebalken nach Beats (Arbeitsspeicher oder DB-Cache)
+        self.lyrics_widget.get_flow_result = self.square_flow_widget.result_for
+        # Phase 3 (intern#249): Farben + Namen aus dem Pilot Square (einzige Ablage),
+        # Doppelklick auf einen Taenzer bearbeitet das Pilot-Square-Feld
+        self.pilot_square_widget.dancers_changed.connect(
+            self.square_flow_widget.set_pilot_data)
+        self.square_flow_widget.set_pilot_data(self.pilot_square_widget.dancer_data())
+        self.square_flow_widget.dancer_edit_requested.connect(
+            lambda couple, boy: self.pilot_square_widget.edit_dancer(
+                couple, boy, self.square_flow_widget))
+        perf_log("    Square Flow dock", _tsf)
+
         # BL-204: Kontextmenue "Frei bewegen" fuer alle Dock-Titelleisten
         self._wire_dock_context_menus()
         # #121: Floating-Geometrie-Handler auch ohne gespeichertes Layout
@@ -1430,6 +1482,9 @@ class P29MainWindow(QMainWindow):
 
         # Layout wiederherstellen
         self._restore_layout()
+        # intern#247: ohne Freigabe bleibt Square Flow versteckt, auch wenn das
+        # gespeicherte Layout ihn sichtbar hatte; Menueeintrag nur bei Freigabe.
+        self._apply_square_flow_enabled()
         # View-Menue-Haekchen nach dem Restore mit der tatsaechlichen
         # Sichtbarkeit abgleichen. restoreState() kann Docks sichtbar
         # herstellen (z. B. einen im Layout gespeicherten Loop Finder),
@@ -2721,6 +2776,11 @@ class P29MainWindow(QMainWindow):
     def _finish_startup(self):
         """Letzter Start-Schritt: Lokation vorschlagen, dann app_started (intern#222)."""
         try:
+            broken = self.rule_engine.broken_user_rules_path
+            if broken:   # intern#257: beiseitegelegte rules_user.json melden
+                QMessageBox.warning(
+                    self, _t("rule.broken_file_title"),
+                    _t("rule.broken_file_msg").replace("{path}", broken))
             self._auto_detect_location_on_startup()
         finally:
             self.rule_engine.fire_trigger("app_started")
@@ -3074,6 +3134,8 @@ class P29MainWindow(QMainWindow):
             self.notes_widget.set_first_note_factor(float(saved_factor))
         except (TypeError, ValueError):
             pass
+        self.notes_widget.set_line_spacing(
+            ini_keys.get(self._settings, "notes/line_spacing_pct"))   # intern#246
         # Default-Einfuegeposition neuer Notizen (Oben/Unten). Der Toggle in
         # der UI aendert das nur fuer die laufende Session, nicht die INI.
         # Der Default wird in _write_ini_defaults() gesaet.
@@ -3119,6 +3181,12 @@ class P29MainWindow(QMainWindow):
             return
         if not self.db.is_open():
             # intern#211: App wurde vor Ablauf des Timers geschlossen
+            return
+        if self.engine.is_playing():
+            # Der Vorbau blockiert den GUI-Thread ~1 s (erster scipy-Import in
+            # _fill_optimal). Nie waehrend der Wiedergabe (Audio-Prioritaet,
+            # TIC-0025) — spaeter erneut versuchen. Vorstufe zu intern#46.
+            QTimer.singleShot(5000, self._preload_evening_planner)
             return
         # Visibility-Handler trennen (wie im Lazy-Pfad), damit setFloating/
         # setWidget in _init_evening_planner kein re-entrantes visibilityChanged
@@ -6371,10 +6439,13 @@ class P29MainWindow(QMainWindow):
         )
 
     def _show_about(self):
-        QMessageBox.about(
-            self, _t("about_title"),
-            _t("about_text", version=_VERSION)
-        )
+        import html
+        import update_check
+        text = _t("about_text", version=_VERSION)
+        note = update_check.custom_source_note(getattr(self, "_settings", None))
+        if note:
+            text += f"<p><i>{html.escape(note)}</i></p>"
+        QMessageBox.about(self, _t("about_title"), text)
 
     def _open_diagnose_center(self):
         """Oeffnet das Diagnose-Center (Strang 3)."""
@@ -7270,6 +7341,15 @@ class P29MainWindow(QMainWindow):
                 except Exception:
                     pass
 
+            elif key.startswith("clock/"):
+                # intern#235: Uhr-Optionen aus dem Einstellungsdialog
+                self.clock_widget.reload_settings()
+
+            elif key.startswith("square_flow/"):
+                # intern#247: Freigabe, Bildrate, Sparmodus
+                self.square_flow_widget.reload_settings()
+                self._apply_square_flow_enabled()
+
             elif key == "loop/crossfade_ms":
                 try:
                     self.engine.set_loop_crossfade_ms(int(val))
@@ -7341,6 +7421,11 @@ class P29MainWindow(QMainWindow):
                 # intern#198: set_first_note_factor() faengt ungueltige Werte selbst ab
                 if self.notes_widget is not None:
                     self.notes_widget.set_first_note_factor(val)
+
+            elif key == "notes/line_spacing_pct":
+                # intern#246: set_line_spacing() faengt ungueltige Werte selbst ab
+                if self.notes_widget is not None:
+                    self.notes_widget.set_line_spacing(val)
 
             elif key == "feedback/enabled":
                 pass  # wird beim naechsten Songende frisch aus INI gelesen
@@ -7684,6 +7769,7 @@ class P29MainWindow(QMainWindow):
             self._view_menu.insertAction(before, wa)
         self._view_magnets[dock] = magnet
         self._refresh_view_magnet(dock)
+        return wa
 
     def _toggle_dock_snap(self, dock):
         """Magnet-Klick: angedockt -> frei, frei -> wieder angedockt."""
@@ -7784,6 +7870,8 @@ class P29MainWindow(QMainWindow):
         self.dock_lyrics.raise_()
         # Versteckte Fenster
         self.dock_manager.hide()
+        self.dock_clock.hide()  # intern#235: Standard versteckt
+        self.dock_square_flow.hide()  # intern#247: Standard versteckt
         self.dock_reports.setFloating(True)
         self.dock_reports.hide()
         self.dock_potential.setFloating(True)
@@ -7836,11 +7924,11 @@ class P29MainWindow(QMainWindow):
                 self.loop_finder._section_bar.update_colors()
                 self.loop_finder._waveform.set_colors(self.skin_mgr)
             # Lyrics neu sanitisieren (Theme-abhaengige Kontrastanpassung)
+            # Das Neuladen verlaesst Dynamic Lyrics; _reload_current_lyrics laedt
+            # danach wie beim Songwechsel die Sync-Punkte und wendet ein gewuenschtes
+            # Dynamic wieder an (sonst bleibt Square Flow ohne Figurenfenster stehen).
             if self.session.song:
-                if self._lyric_variant_filename:
-                    self.lyrics_widget.load_by_filename(self._lyric_variant_filename)
-                else:
-                    self.lyrics_widget.load_song(self.session.song)
+                self._reload_current_lyrics()
             # Notizen-Widget (lazy — ggf. noch nicht erstellt)
             if self.notes_widget:
                 self.notes_widget.apply_skin(self.skin_mgr)
@@ -7850,6 +7938,10 @@ class P29MainWindow(QMainWindow):
                 self.pilot_square_widget.apply_skin(self.skin_mgr)
             # Break-Pausen-Uhr (Dock + ggf. Overlay)
             self.break_widget.set_skin(self.skin_mgr)
+            # Uhr-Dock (intern#235)
+            self.clock_widget.set_skin(self.skin_mgr)
+            # Square Flow (intern#247)
+            self.square_flow_widget.set_skin(self.skin_mgr)
             # Stream Deck: Icons mit neuen Theme-Farben neu einfaerben
             if hasattr(self, 'stream_deck_widget'):
                 self.stream_deck_widget.apply_skin(self.skin_mgr)
@@ -8031,6 +8123,12 @@ class P29MainWindow(QMainWindow):
             dur = self.engine.get_original_duration()
             if dur > 0:
                 self.lyrics_widget.update_scroll(pos, dur, self.player._base_bpm)
+            # intern#247 Phase 2: Square Flow laeuft im Singing Call mit
+            _sf = getattr(self, "square_flow_widget", None)
+            if _sf is not None and _sf.enabled() and _sf.isVisible():
+                # Phase 2b: um den Versatz (Process-/Execution-Time) spaeter
+                _lp = pos - _sf.lag_seconds(self.player._base_bpm)
+                _sf.follow(self.lyrics_widget.figure_window(_lp), _lp)
 
             # Play Timer fuer Rules (alle 10 Sekunden)
             import time as _t2
@@ -8040,6 +8138,8 @@ class P29MainWindow(QMainWindow):
             if (now - self._last_play_timer_fire) >= 10:
                 self._last_play_timer_fire = now
                 self.rule_engine.fire_trigger("play_timer")
+        elif getattr(self, "square_flow_widget", None) is not None:
+            self.square_flow_widget.follow_off()   # intern#247: Song steht -> manuell
 
         # Start-Countdown-Overlay
         _cd_pos = self.engine.get_position_seconds() if is_playing else 0.0
@@ -8054,16 +8154,149 @@ class P29MainWindow(QMainWindow):
             "location": loc.name if loc else "—",
         }
 
+    # --- Square Flow (intern#247) -------------------------------------------
+
+    def _on_detail_sequence_changed(self):
+        """Sequenz-Detail zeigt eine andere Sequenz: Lyric-Feld spiegeln (BL-173)
+        und Square Flow nachziehen (rechnet nur bei Freigabe und Sichtbarkeit)."""
+        self.lyrics_widget.refresh_dynamic_from_sequence()
+        if getattr(self, "square_flow_widget", None) is not None:
+            self._push_sequence_to_square_flow()
+
+    def _on_sequence_call_clicked(self, index):
+        """Klick auf eine Zeile im Sequenz-Detail: Square Flow tanzt sie im
+        Tempo des Songs. Ohne Freigabe passiert nichts."""
+        sf = self.square_flow_widget
+        if not sf.enabled():
+            return
+        if not self.dock_square_flow.isVisible():
+            self.dock_square_flow.show()
+            self.dock_square_flow.raise_()
+        sf.play_card(index)
+
+    def _on_square_flow_result(self, calls, result):
+        """Ergebnis von Square Flow -> Takte, Abbruchzeile und Warnsymbol im
+        Sequenz-Detail (None = Sequenz gewechselt, Anzeige leeren)."""
+        from caddy.choreo import flow_info
+        _t0 = perf_start()
+        view = self.sequence_view_widget
+        view.set_flow_info(calls, flow_info.detail_info(calls, result))
+        if result is None or flow_info.engine_failed(result):
+            perf_log("SquareFlow -> Sequenz-Detail", _t0)
+            return
+        # Phase 2: Takte da -> Lesebalken nach Beats neu aufbauen (No-Op ohne Dynamic)
+        if tuple(calls) == tuple(view.current_calls() or ()):
+            self.lyrics_widget.refresh_dynamic_from_sequence()
+        perf_log("SquareFlow -> Sequenz-Detail + Lesebalken", _t0)
+
+    def _taminations_online(self):
+        """True, solange Qt keine fehlende Verbindung meldet (ohne Backend: True)."""
+        try:
+            from PySide6.QtNetwork import QNetworkInformation
+            if self._net_info is None:
+                if QNetworkInformation.loadDefaultBackend():
+                    self._net_info = QNetworkInformation.instance()
+                    self._net_info.reachabilityChanged.connect(
+                        lambda _r: self._apply_taminations_button())
+                else:
+                    self._net_info = False
+            if not self._net_info:
+                return True
+            return (self._net_info.reachability()
+                    != QNetworkInformation.Reachability.Disconnected)
+        except Exception:
+            return True
+
+    def _apply_taminations_button(self):
+        on = self.square_flow_widget.enabled()
+        # Netzwerk-Backend erst laden, wenn Square Flow freigegeben ist
+        self.sequence_view_widget.set_taminations_enabled(
+            on, self._taminations_online() if on else True)
+
+    def _open_in_taminations(self):
+        """Gezeigte Sequenz im Taminations-Sequencer im Browser oeffnen (intern#247)."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        from caddy.choreo import analysis
+        view = self.sequence_view_widget
+        calls = view.current_calls()
+        if not calls:
+            return
+        res = self.square_flow_widget.result_for(calls)
+        sent = (res.get("sent") if res else None) or analysis.prepared_calls(
+            calls, view.current_sequence_type())
+        QDesktopServices.openUrl(QUrl.fromEncoded(
+            analysis.taminations_url(sent).encode("ascii")))
+
+    def _apply_square_flow_enabled(self):
+        """Menueeintrag und Sichtbarkeit von Square Flow an die Freigabe angleichen."""
+        on = self.square_flow_widget.enabled()
+        self._apply_taminations_button()
+        if not on:
+            self.sequence_view_widget.set_flow_info((), None)
+            self.sequence_view_widget.set_flow_line(-1)
+        if on and self._square_flow_menu_action is None:
+            self._square_flow_menu_action = self._add_view_menu_entry(
+                self.dock_square_flow, _t("dock_square_flow"))
+        elif not on:
+            self.dock_square_flow.hide()
+            if self._square_flow_menu_action is not None:
+                self._view_menu.removeAction(self._square_flow_menu_action)
+                self._view_magnets.pop(self.dock_square_flow, None)
+                self._square_flow_menu_action = None
+        if on:
+            self._push_sequence_to_square_flow()
+
+    def _push_sequence_to_square_flow(self):
+        view = self.sequence_view_widget
+        self.square_flow_widget.set_sequence(view.current_calls(),
+                                             view.current_sequence_type(),
+                                             seq_id=view.current_sequence_id())
+
     def closeEvent(self, event):
-        # Update-Timer ZUERST stoppen — verhindert dass _update_all oder
-        # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
-        # die DB zugreifen (TIC-0026: Cannot operate on a closed database)
-        self.timer.stop()
-        # Layout speichern (vor engine.shutdown, das blockieren kann)
-        self._save_layout()
-        self._save_current_song()
-        self.rule_engine.close()
-        self.engine.shutdown()
+        # intern#242: laufende Massenlaeufe erst nach Rueckfrage abbrechen;
+        # gewartet wird unten, bis der aktuelle Song fertig geschrieben ist
+        pw = self.potential_widget
+        running = pw.running_workers if pw is not None else lambda: []
+        hint = None
+        if running():
+            # Schon waehrend der Rueckfrage keine Probelauf-Meldungen oder
+            # Folge-Laeufe (Review #172); bei "Nein" werden sie nachgeholt
+            pw.shutting_down = True
+            reply = QMessageBox.question(
+                self, _t("pot_bulk_close_title"), _t("pot_bulk_close_confirm"),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                event.ignore()
+                QTimer.singleShot(0, pw.resume_held_calls)   # nach closeEvent
+                return
+            self.hide()
+            # Sichtbarer Hinweis statt stillem Warten: haengt ein Worker,
+            # startet der Anwender die App nicht ein zweites Mal (Review #172)
+            hint = QProgressDialog(_t("pot_bulk_closing"), "", 0, 0)
+            hint.setWindowTitle("Callers Caddy")
+            hint.setCancelButton(None)
+            hint.setMinimumDuration(0)
+            hint.show()
+        if pw is not None:
+            pw.shutting_down = True
+        try:
+            # Update-Timer ZUERST stoppen — verhindert dass _update_all oder
+            # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
+            # die DB zugreifen (TIC-0026: Cannot operate on a closed database)
+            self.timer.stop()
+            # Layout speichern (vor engine.shutdown, das blockieren kann)
+            self._save_layout()
+            self._save_current_song()
+            self.rule_engine.close()
+            self.square_flow_widget.shutdown()   # intern#247: Engine-Prozess beenden
+            self.engine.shutdown()
+            # Liste neu holen: waehrend der Rueckfrage kann ein Probelauf
+            # einen Folge-Lauf gestartet haben (Review #172)
+            stop_for_shutdown(running)
+        finally:
+            if hint is not None:
+                hint.close()   # sonst haelt es die App am Leben
         self.db.close()
         event.accept()
 

@@ -163,6 +163,11 @@ _EN_: Search Window
 Countdown fuer die Pause zwischen zwei Tips, auf Wunsch mit Wartemusik.
 _EN_: Break Clock
 
+**Uhr**:
+Widget mit der aktuellen Uhrzeit als Digitaluhr. Nicht verwechseln mit der
+Pausen-Uhr, die rueckwaerts zaehlt.
+_EN_: Clock
+
 **Wartemusik**:
 Song, der waehrend der Pausen-Uhr laeuft (der zuletzt gespielte). Zaehlt nicht
 als gespielt und schaltet die Playlist nicht weiter.
@@ -180,7 +185,7 @@ _EN_: Today's Tempo
 _Avoid_: Session-Tempo, Global-Tempo
 
 **Massenlauf**:
-Eine Pruefung oder Reparatur im Potential-Dock, die viele Songs nacheinander
+Eine Pruefung oder Reparatur im Potential-Widget, die viele Songs nacheinander
 bearbeitet (z. B. BPM ermitteln, Loops suchen). Ab einer gewissen Menge erst ein
 Probelauf mit wenigen Songs zur Zeitschaetzung; abbrechen laesst Bearbeitetes stehen.
 _EN_: Bulk Run
@@ -329,3 +334,62 @@ erscheint, typischerweise frisch importiert. "Auch ausgeblendete Sequenzen anzei
 holt sie zurueck, ohne Typ, Schwierigkeit oder Tags anzutasten.
 _EN_: Hidden Sequence
 _Avoid_: Neueste Sequenz, versteckte Sequenz
+
+**Square Flow**:
+Fenster, das die Sequenz aus dem Sequenz-Detail als tanzenden Square zeigt und
+pruefen kann, ob sie korrekt aufloest. Optional, nur nach Freigabe in den Einstellungen.
+_EN_: Square Flow
+_Avoid_: Mitlaufender Square, Square-Ansicht
+
+**Beats je Call**:
+Wie lange ein Call dauert, in Beats nach den CALLERLAB-Timing-Charts. Ein Wert
+(Square Thru 4 = 10), ein Bereich (7–8) oder "≥ n + ?", wenn ein Teil kein Timing
+hat. Die Summe einer Sequenz steht in der Kopfzeile des Sequenz-Details.
+_EN_: Beats per Call
+_Avoid_: Takte (ein Takt sind mehrere Beats), Timing (allein)
+
+**Dynamischer Call**:
+Call, dessen Dauer vom Weg abhaengt, z. B. Swing and Promenade (8–24 Beats). Die
+Chart nennt nur einen Bereich; den genauen Wert liefert Square Flow.
+_EN_: Dynamic Call
+
+**SF-Wert**:
+Beats einer Zeile, wie Square Flow (die Choreo-Engine) sie tanzt. Steht als "SF n"
+hinter dynamischen Calls und ersetzt dort in der Summe den Bereich.
+_EN_: SF Value
+
+**Etikett**:
+Graues Kaestchen hinter (oder unter) einem Call im Sequenz-Detail mit Programm und
+Beats. Per Rechtsklick hinter dem Call, darunter oder aus.
+_EN_: Label
+_Avoid_: Badge, Tag
+
+**Ampel**:
+Farbiger Punkt hinter der Beat-Summe eines Singing Calls: gruen bis 64, gelb 65–68,
+rot darueber, grau, wenn eine Zeile ohne Timing die Summe offen laesst.
+_EN_: Traffic Light
+
+### Regeln
+
+**Regel**:
+Automatik nach dem Muster Ausloeser, Bedingung, Aktion, die bei einem Ereignis im
+Programm selbst etwas ausfuehrt, etwa beim Song-Start oder per Stream-Deck-Taste.
+_EN_: Rule
+
+**System-Regel**:
+Regel, die mit dem Programm ausgeliefert wird. Der Caller kann sie nur ein- und
+ausschalten und einer Taste zuordnen, nicht aendern oder loeschen.
+_EN_: System Rule
+
+**Eigene Regel**:
+Regel, die der Caller selbst anlegt, aendert, loescht oder importiert.
+_EN_: Custom Rule
+_Avoid_: User-Regel, Benutzerregel
+
+### Oberflaeche
+
+**Widget**:
+Teilfenster des Hauptfensters (z. B. Uhr, Potential, Lyrics), das sich ueber das
+Menue Ansicht ein- und ausblenden, verschieben und als loses Fenster herausziehen laesst.
+_EN_: Widget
+_Avoid_: Dock, Panel (Dock bleibt nur als interner Code-Bezeichner stehen)

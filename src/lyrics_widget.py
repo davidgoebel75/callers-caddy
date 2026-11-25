@@ -17,6 +17,7 @@ import singing_sections
 import reading_band_path
 import heads_sides
 import sync_point_lines
+from caddy.choreo import figure_clock
 from caddy.lyrics.sync_keys import (
     SINGING_BODY_BEATS, key_prefix, make_key, parse_key)
 from i18n import _t
@@ -801,6 +802,9 @@ class LyricsWidget(QWidget):
         self._dynamic_anchors = None       # nachgefuehrte Anker fuers Auto-Scroll
         self._pre_dynamic = None           # Snapshot fuer sauberes Zuruecksetzen
         self._dyn_part_starts = []         # Startzeit je Figuren-Teil (Sek., sortiert)
+        # intern#247: je Teil (Start, Ende, nur_Rahmen, Block-Key) von SyncPoint zu SyncPoint
+        self._dyn_part_windows = []
+        self._dyn_beat_times = frozenset()  # Zeiten der Zwischenanker nach Beats
         self._dyn_block_keys = []          # eindeutige Figuren-Bloecke (Original-Zeilen)
         self._dyn_rendered_part = 0        # bis zu welchem Figuren-Teil auto-geblaettert
         self._dyn_factor = 1.0             # Zoom-Faktor zum Zeitpunkt des Einschaltens
@@ -823,6 +827,8 @@ class LyricsWidget(QWidget):
         self.get_current_sequence_calls = None  # () -> list[str] der aktuellen Sequenz
         self.advance_sequence_view = None        # () -> im Sequence-View weiterblaettern
         self.randomize_start_sequence_view = None  # BL-182: () -> beim Dynamic-Start zufaellige erste Sequenz (falls Shuffle an)
+        # intern#247: (calls) -> Square-Flow-Ergebnis (Takte) oder None
+        self.get_flow_result = None
 
         # --- BL-161: Automatik-Erfassung (2 Klicks → 7 Abschnitte) ---
         self._auto_calc_active = False    # True = Start/Ende werden gerade erfasst
@@ -2684,6 +2690,7 @@ class LyricsWidget(QWidget):
         # (Option B: nur der ersetzte Textbereich wird kuerzer, nicht das Timing).
         base_lines = pristine.toPlainText().split("\n")  # alte Zeilen == old_offsets
         edits = []  # (content_l0, call_end, calls) — Original-Zeilen
+        edit_keys = []  # je Eintrag in edits: Block-Key (intern#247)
         # intern#127: je Block normal oder mit getauschten Heads/Sides
         flags = self._dyn_invert_flags()
         self._dyn_invert_state = flags
@@ -2695,6 +2702,7 @@ class LyricsWidget(QWidget):
             call_end = self._resolve_block_cut(key[0], key[1], base_lines,
                                                base_sections)
             edits.append((cl0, call_end, inverted if inv else calls))
+            edit_keys.append(key)
 
         clone = pristine.clone(self._browser)
         for cl0, l1, calls in sorted(edits, key=lambda e: e[0], reverse=True):
@@ -2736,6 +2744,8 @@ class LyricsWidget(QWidget):
             old_line = self._char_to_line_in(old_offsets, p)
             new_line = min(remap(old_line), last_line)
             dyn.append([sec, self._line_offsets[new_line]])
+        dyn, self._dyn_beat_times = self._add_beat_anchors(
+            dyn, calls, edits, edit_keys, remap, last_line)
         self._dynamic_anchors = dyn
 
         self._recache_original_sizes_scaled(self._dyn_factor)
@@ -2752,6 +2762,76 @@ class LyricsWidget(QWidget):
             pass
         self.refresh_section_overlay()
         self._refresh_band_after_render()
+
+    def _flow_result(self, calls):
+        """Square-Flow-Ergebnis (Takte) zur Sequenz oder None (intern#247)."""
+        if not callable(self.get_flow_result):
+            return None
+        try:
+            return self.get_flow_result(list(calls))
+        except Exception:
+            return None
+
+    def _add_beat_anchors(self, dyn, calls, edits, edit_keys, remap, last_line):
+        """Lesebalken nach Beats (intern#247): Liegen Takte zur Sequenz vor, bekommt jede
+        Call-Zeile einer Figur einen Zwischenanker, anteilig nach Beats im Fenster von
+        SyncPoint zu SyncPoint. Nur fuer Teile, in denen der Caller selbst keine weiteren
+        Anker gesetzt hat. Ohne Takte, bei Abbruch oder roter Sequenz bleibt alles wie
+        bisher (gleichmaessig nach Zeilen). -> (Anker, Zeiten der Zwischenanker)."""
+        if not self._dyn_part_windows:
+            return dyn, frozenset()
+        fractions = figure_clock.card_fractions(self._flow_result(calls), len(calls))
+        if not fractions:
+            return dyn, frozenset()
+        first_line = {key: remap(cl0) for (cl0, _l1, _c), key in zip(edits, edit_keys)}
+        extra = []
+        for t0, t1, frame_only, key in self._dyn_part_windows:
+            if not frame_only or t1 is None or key not in first_line:
+                continue
+            base = first_line[key]
+            for t, line in figure_clock.beat_anchors(
+                    t0, t1, fractions, lambda i, b=base: min(b + i, last_line)):
+                extra.append([t, self._line_offsets[line]])
+        if not extra:
+            return dyn, frozenset()
+        return dyn + extra, frozenset(t for t, _p in extra)
+
+    def figure_window(self, pos: float):
+        """Figuren-Fenster zur Songzeit fuer Square Flow (intern#247).
+
+        None:            Dynamic Lyrics aus -> Square Flow bleibt manuell.
+        (-1, k, None, None, False): ausserhalb einer Figur (Opener, Middle Break,
+                         Closer, Zwischenmusik); k = zuletzt begonnener Teil (-1 davor).
+        (k, k, t0, t1, gespiegelt): Teil k laeuft, Fenster t0..t1 (echte SyncPoint-
+                         Zeiten); gespiegelt = Heads/Sides getauscht (intern#127)."""
+        if not self._dynamic_enabled or not self._dyn_part_windows:
+            return None
+        k = -1
+        for i, w in enumerate(self._dyn_part_windows):
+            if w[0] <= pos:
+                k = i
+        if k >= 0:
+            t0, t1, _frame, key = self._dyn_part_windows[k]
+            if t1 is not None and pos < t1:
+                return (k, k, t0, t1, self._part_inverted(k, key))
+        return (-1, k, None, None, False)
+
+    def _part_inverted(self, part: int, key) -> bool:
+        """Wird Teil `part` mit getauschten Heads/Sides gezeigt? Gleiche Regel wie beim
+        Text: eigener Block = feste Figur; gemeinsamer Block nur bei genau 4 Teilen."""
+        if not self._invert_active():
+            return False
+        try:
+            figs = self._dyn_block_figs[self._dyn_block_keys.index(key)]
+        except (ValueError, IndexError):
+            return False
+        if len(figs) == 1:
+            fig = figs[0]
+        elif len(self._dyn_part_starts) == 4 and part + 1 in figs:
+            fig = part + 1
+        else:
+            return False
+        return fig in heads_sides.inverted_figures(self._invert_mode)
 
     @staticmethod
     def _char_to_line_in(offsets: list, char_pos: int) -> int:
@@ -2822,6 +2902,17 @@ class LyricsWidget(QWidget):
                     break
         self._dyn_part_starts = sorted(part_list)
 
+        # intern#247: Fenster je Teil von SyncPoint zu SyncPoint (Lesebalken nach
+        # Beats, Square Flow im Singing Call)
+        anchor_lines = sorted((float(sec), self._char_to_line_in(old_offsets, p))
+                              for sec, p in self._sync_anchors)
+        keys = self._dyn_block_keys
+
+        def block_of(line):
+            return next((k for k in keys if k[0] <= line <= k[1]), None)
+        self._dyn_part_windows = figure_clock.part_windows(
+            anchor_lines, {k[0] for k in keys}, block_of)
+
         self._dyn_render_pending = False
         self._dyn_advance_pending = False
         # Kein rueckwirkendes Vorblaettern: der aktuelle Teil zaehlt als "schon
@@ -2874,6 +2965,8 @@ class LyricsWidget(QWidget):
         self._dynamic_anchors = None
         self._pre_dynamic = None
         self._dyn_part_starts = []
+        self._dyn_part_windows = []
+        self._dyn_beat_times = frozenset()
         self._dyn_block_keys = []
         self._dyn_block_figs = []
         self._dyn_invert_state = ()
@@ -4858,12 +4951,21 @@ class LyricsWidget(QWidget):
             return self._geom_cache[1]
         layout = doc.documentLayout()
         max_pos = doc.characterCount() - 1
-        times = [sec for sec, _p in raw]
+        # intern#247: Zwischenanker nach Beats liegen oft binnen SECTION_END_GAP_SEC
+        # hintereinander. Sie zeigen immer auf die Mitte ihrer Zeile und zaehlen bei der
+        # Frage "beendet dieser Anker einen Abschnitt?" nicht mit.
+        beat_t = (self._dyn_beat_times
+                  if self._dynamic_enabled and self._dynamic_anchors is not None else ())
+        times = [sec for sec, _p in raw if sec not in beat_t]
+        real_idx = -1
         anchors, end_ys, section_ids = [], [], []
         start_y = None
         # Je Abschnitt nur einmal suchen: (erste Zeile, letzte Zeile, Ergebnis)
         spans = []
-        for i, (sec, p) in enumerate(raw):
+        for sec, p in raw:
+            is_beat = sec in beat_t
+            if not is_beat:
+                real_idx += 1
             geom = self._line_geom(p, doc, layout, max_pos)
             if geom is None:
                 continue
@@ -4876,9 +4978,11 @@ class LyricsWidget(QWidget):
                 if lo is not None:
                     spans.append((lo, hi, span))
             sid, first, last = span
-            if self._is_heading_text(text):
+            if is_beat:
+                y = top + height / 2
+            elif self._is_heading_text(text):
                 y = first if first is not None else top + height / 2
-            elif reading_band_path.ends_section(times, i):
+            elif reading_band_path.ends_section(times, real_idx):
                 y = top + height
             else:
                 y = top + height / 2

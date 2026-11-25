@@ -7,6 +7,7 @@ First Match Wins, System- und User-Rules getrennt, Loop-Schutz, Logging.
 
 import json
 import os
+import shutil
 import time
 from dataclasses import dataclass, field
 
@@ -171,6 +172,10 @@ class RuleEngine:
 
         self._rules_system: list[Rule] = []
         self._rules_user: list[Rule] = []
+        # Gesetzt, wenn load() eine unlesbare rules_user.json beiseitegelegt hat
+        self.broken_user_rules_path: str | None = None
+        # True, wenn eine unlesbare rules_user.json nicht gesichert werden konnte
+        self._user_rules_write_locked = False
 
         self.registry = RuleRegistry()
 
@@ -240,13 +245,31 @@ class RuleEngine:
 
         # System-Rules
         sys_path = os.path.join(self._rules_dir, "rules_system.json")
-        self._rules_system = self._load_json(sys_path, source="system")
+        self._rules_system = self._load_json(sys_path, source="system") or []
         self._apply_system_overrides()
         self._seed_streamdeck_defaults()
 
-        # User-Rules
+        # Eigene Regeln: eine unlesbare Datei wird beiseitegelegt, damit das
+        # naechste Speichern sie nicht mit der leeren Liste ueberschreibt
+        # (intern#257). Den Hinweis an den Caller zeigt main.py.
         usr_path = os.path.join(self._rules_dir, "rules_user.json")
         self._rules_user = self._load_json(usr_path, source="user")
+        if self._rules_user is None:
+            self._rules_user = []
+            broken = usr_path + time.strftime(".broken-%Y%m%d-%H%M%S")
+            try:
+                os.replace(usr_path, broken)
+            except OSError:
+                try:   # gesperrt: Lesen klappt oft noch
+                    shutil.copy2(usr_path, broken)
+                except OSError as e:
+                    # Ohne Sicherung darf nichts die Datei ueberschreiben
+                    self._user_rules_write_locked = True
+                    self._log("ERROR", f"Sichern von {usr_path}: {e}")
+                    broken = None
+            if broken:
+                self.broken_user_rules_path = broken
+                self._log("ERROR", f"Unlesbare Datei gesichert als {broken}")
 
         # Dynamische Trigger registrieren (Tasten, die der User selbst erstellt hat)
         self._register_missing_triggers()
@@ -256,14 +279,28 @@ class RuleEngine:
 
     def save_user_rules(self):
         """Speichert User-Rules in JSON."""
+        if self._user_rules_write_locked:
+            self._log("ERROR", "Eigene Regeln nicht gespeichert: unlesbare "
+                               "rules_user.json liess sich nicht sichern")
+            return
         os.makedirs(self._rules_dir, exist_ok=True)
         usr_path = os.path.join(self._rules_dir, "rules_user.json")
         data = {
             "version": 1,
             "rules": [r.to_dict() for r in self._rules_user],
         }
-        with open(usr_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        # Atomar: bricht das Schreiben ab, bleibt die alte Datei ganz (intern#257)
+        tmp = usr_path + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, usr_path)
+        except BaseException:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+            raise
 
     def save_system_overrides(self):
         """Speichert Overrides fuer System-Rules in INI (Aktiv + Stream Deck)."""
@@ -278,11 +315,13 @@ class RuleEngine:
             self._settings.setValue(f"{base}_button_tooltip", rule.button_tooltip)
         self._settings.sync()
 
-    def _load_json(self, path: str, source: str) -> list[Rule]:
+    def _load_json(self, path: str, source: str) -> list[Rule] | None:
+        """Regeln aus der Datei; [] wenn sie fehlt, None wenn sie unlesbar ist."""
         if not os.path.exists(path):
             return []
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            # utf-8-sig: von Hand im Windows-Editor gespeichert (mit BOM) ist nicht kaputt
+            with open(path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
             rules = []
             for rd in data.get("rules", []):
@@ -290,7 +329,7 @@ class RuleEngine:
             return rules
         except Exception as e:
             self._log("ERROR", f"Load {path}: {e}")
-            return []
+            return None
 
     def _apply_system_overrides(self):
         """Wendet INI-Overrides auf System-Rules an (Aktiv + Stream Deck)."""

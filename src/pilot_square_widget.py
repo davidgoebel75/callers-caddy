@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import (
     QColor, QTextOption, QFont, QTextDocument, QPalette,
     QPainter, QTextCursor, QTextBlockFormat)
@@ -218,6 +218,10 @@ class _PersonBox(QPlainTextEdit):
         super().showEvent(event)
         self._refit()
 
+    def fill(self) -> Optional[str]:
+        """Eigene Farbe des Taenzers oder None."""
+        return self._fill
+
     def set_fill(self, color: Optional[str]):
         self._fill = color
         self._apply_style()
@@ -355,6 +359,9 @@ class _CoupleCell(QWidget):
 class PilotSquareWidget(QWidget):
     """Pilot-Square-Widget: 8 Personenfelder als Square + Farb-Palette."""
 
+    # Farbe + Name je Taenzer nach jeder Aenderung (intern#249), Form siehe dancer_data()
+    dancers_changed = Signal(object)
+
     # Orientierung + Box-Reihenfolge je Paar (nach realer Blickrichtung).
     _LAYOUT = {
         1: ("h", ["man", "woman"]),    # unten, Blick hoch:   Mann links,  Frau rechts
@@ -386,6 +393,8 @@ class PilotSquareWidget(QWidget):
 
         for num, (orient, order) in self._LAYOUT.items():
             self._couples[num] = _CoupleCell(num, orient, order, self._select_box)
+            for box in self._couples[num].person_boxes():
+                box.textChanged.connect(self._emit_colors)
         grid.addWidget(self._couples[3], 0, 1)  # oben
         grid.addWidget(self._couples[4], 1, 0)  # links
         grid.addWidget(self._couples[2], 1, 2)  # rechts
@@ -459,6 +468,50 @@ class PilotSquareWidget(QWidget):
         if self._selected_box is None:
             return
         self._selected_box.set_fill(color)
+        self._emit_colors()
+
+    def _box(self, couple: int, boy: bool) -> Optional[_PersonBox]:
+        cell = self._couples.get(couple)
+        if cell is None:
+            return None
+        return cell.man if boy else cell.woman
+
+    def dancer_data(self) -> dict:
+        """Farbe + Name je Taenzer mit Inhalt:
+        {(Couple 1-4, Mann?): {"color": "#rrggbb" oder None, "name": str}}.
+        Der Pilot Square ist die einzige Ablage; Square Flow zeigt nur an (intern#249)."""
+        out = {}
+        for num in self._couples:
+            for boy in (True, False):
+                box = self._box(num, boy)
+                name = box.toPlainText().strip()
+                if box.fill() or name:
+                    out[(num, boy)] = {"color": box.fill(), "name": name}
+        return out
+
+    def _emit_colors(self):
+        self.dancers_changed.emit(self.dancer_data())
+
+    def edit_dancer(self, couple: int, boy: bool, parent=None) -> bool:
+        """Modales Fenster fuer Name + Farbe eines Taenzers (Doppelklick in Square Flow).
+        Schreibt direkt in das Pilot-Square-Feld; True bei OK."""
+        box = self._box(int(couple), bool(boy))
+        if box is None:
+            return False
+        from caddy.choreo.pilot_dancer_dialog import PilotDancerDialog
+        who = _t("square.man_placeholder") if boy else _t("square.woman_placeholder")
+        title = _t("square.couple_label").format(n=int(couple)) + " · " + who
+        dlg = PilotDancerDialog(title, " ".join(box.toPlainText().split()), box.fill(),
+                                _PALETTE_COLORS, self._colors, parent or self)
+        if dlg.exec() != PilotDancerDialog.Accepted:
+            return False
+        name = dlg.result_name()
+        if name != box.toPlainText().strip():
+            box.setPlainText(name)          # meldet per textChanged
+        if dlg.result_color() != box.fill():
+            box.set_fill(dlg.result_color())
+            self._emit_colors()
+        return True
 
     # ── Leeren ──
     def _all_boxes(self) -> list[_PersonBox]:
@@ -487,18 +540,20 @@ class PilotSquareWidget(QWidget):
 
     def _on_clear_colors(self):
         boxes = self._all_boxes()
-        if not self._confirm_clear(any(b._fill for b in boxes), "clear_colors"):
+        if not self._confirm_clear(any(b.fill() for b in boxes), "clear_colors"):
             return
         for b in boxes:
             b.clear_colors()
+        self._emit_colors()
 
     def _on_clear(self):
         boxes = self._all_boxes()
         if not self._confirm_clear(
-                any(b.toPlainText().strip() or b._fill for b in boxes), "clear"):
+                any(b.toPlainText().strip() or b.fill() for b in boxes), "clear"):
             return
         for b in boxes:
             b.clear_content()
+        self._emit_colors()
 
     def _on_close_clicked(self):
         if self._on_close:

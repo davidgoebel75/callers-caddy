@@ -44,6 +44,7 @@ _EXCLUDED_SECTIONS = {
     "custom-filter",
     "shortcuts",   # seit P37 ins Rules-System migriert, wird nicht mehr gelesen
     "crash",       # interner Merker: zuletzt gemeldetes Fehlerprotokoll
+    "update",      # Snooze-Merker + update/url (bewusst ohne UI)
 }
 
 # Jede Sektion deren Name dieses Suffix hat wird ebenfalls ausgeblendet
@@ -53,6 +54,7 @@ _EXCLUDED_SUFFIX = "_dock"
 _EXCLUDED_KEYS: dict[str, set] = {
     "sequences": {
         "mdb_path", "json_import_dir", "mapping_export_dir", "csds_import_dir",
+        "detail_labels",  # intern#164: nur per Rechtsklick im Sequenz-Detail
     },
     "display": {"date_format"},  # eigener Toggle im Design-Menu
     "audio": set(),  # primary/secondary_device werden als device_combo angezeigt
@@ -194,7 +196,7 @@ SETTINGS_META: dict[str, dict] = {
     "audio/alert_sound_path": {
         "label": "Hinweis-Sound (Timer-Überzug)",
         "widget": "file",
-        "file_filter": "Audio (*.mp3 *.wav *.flac *.ogg *.m4a);;Alle Dateien (*.*)",
+        "file_filter": "filter_audio_files",   # i18n-Key, wie im Oeffnen-Dialog (intern#252)
         "default": "",
         "tooltip": "Audiodatei, die beim Timer-Überzug statt des Pieps abgespielt wird. Leer = bisheriger Doppel-Piep.",
     },
@@ -346,6 +348,13 @@ SETTINGS_META: dict[str, dict] = {
         "default": 4.0,
         "tooltip": "Schriftgrössen-Faktor für die erste (oberste) offene Notiz.",
     },
+    "notes/line_spacing_pct": {
+        "label": "Zeilenabstand",
+        "widget": "spinbox",
+        "min": 100, "max": 200, "step": 10, "suffix": " %",
+        "default": 100,
+        "tooltip": "Abstand der Zeilen in mehrzeiligen Notizen. 100 % ist die normale Zeilenhöhe der Schrift.",
+    },
     "notes/insert_position": {
         "label": "Neue Notizen einfügen",
         "widget": "combobox",
@@ -480,6 +489,47 @@ SETTINGS_META: dict[str, dict] = {
         "tooltip": "Ab wie vielen Beats vor dem Abschnittswechsel der "
                    "Countdown erscheint.",
     },
+    # --- clock (intern#235) ---
+    "clock/show_seconds": {
+        "label": "Sekunden anzeigen",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "clock/twelve_hour": {
+        "label": "12-Stunden-Format (AM/PM)",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "clock/show_date": {
+        "label": "Datum anzeigen",
+        "widget": "checkbox",
+        "default": True,
+    },
+    # --- square_flow (intern#247) ---
+    "square_flow/enabled": {
+        "label": "Square Flow einschalten",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "square_flow/frame_rate": {
+        "label": "Bildrate",
+        "widget": "spinbox",
+        "min": 5, "max": 30, "step": 5, "suffix": " fps",
+        "default": 25,
+    },
+    "square_flow/saving_mode": {
+        "label": "Sparmodus (nur Standbilder)",
+        "widget": "checkbox",
+        "default": False,
+    },
+    "square_flow/lag_beats": {
+        "label": "Versatz im Singing Call",
+        "widget": "spinbox",
+        "min": 0, "max": 8, "step": 1, "suffix": " Beats",
+        "default": 2,
+        "tooltip": "So viele Beats tanzt Square Flow im Singing Call hinter dem "
+                   "Lesebalken her: Zeit zum Ansagen, Hören und Verstehen des Calls.",
+    },
     # --- debug ---
     "debug/performance_logging": {
         "label": "Performance-Logging",
@@ -503,6 +553,8 @@ _SECTION_LABELS = {
     "sequences": "Sequenzen",
     "notes":     "Notizen",
     "lyrics":    "Lyrics",
+    "clock":     "Uhr",
+    "square_flow": "Square Flow",
     "debug":     "Debug",
     "rules":     "Rules (System)",
 }
@@ -797,7 +849,8 @@ class _SettingRow:
         # BL-137: Datei-Picker wenn widget=file, sonst Ordner-Picker
         if self._widget_type == "file":
             start_dir = os.path.dirname(current) if current and os.path.isfile(current) else ""
-            file_filter = self._meta.get("file_filter", "Alle Dateien (*.*)")
+            # _t: i18n-Key oder fester Filtertext (unbekannte Keys bleiben)
+            file_filter = _t(self._meta.get("file_filter", "Alle Dateien (*.*)"))
             chosen, _ = QFileDialog.getOpenFileName(
                 None, f"Datei wählen — {self.key}", start_dir, file_filter,
             )
@@ -1014,7 +1067,7 @@ class SettingsDialog(QDialog):
         sections = [s for s in top_groups if not _is_excluded_section(s, self._settings)]
 
         _ORDER = ["display", "paths", "audio", "loop", "player", "playlist",
-                  "feedback", "sort", "sequences", "notes", "lyrics", "debug",
+                  "feedback", "sort", "sequences", "notes", "lyrics", "clock", "square_flow", "debug",
                   "rules"]
         ordered = [s for s in _ORDER if s in sections]
         rest = sorted(s for s in sections if s not in _ORDER)

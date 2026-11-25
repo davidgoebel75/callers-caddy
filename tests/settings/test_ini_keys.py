@@ -33,6 +33,7 @@ _SAAT_VORHER = {
     "feedback/enabled": "false",
     "notes/insert_position": "top",
     "notes/first_note_factor": "4.0",
+    "notes/line_spacing_pct": "100",
     "lyrics/dynamic_invert_enabled": "false",
     "lyrics/dynamic_invert_mode": "",
     "lyrics/text_jump_offset": "-4",
@@ -44,6 +45,14 @@ _SAAT_VORHER = {
     "lyrics/reading_band_countdown": "true",
     "lyrics/reading_band_countdown_beats": "8",
     "sequences/show_hidden_on_start": "false",
+    "clock/show_seconds": "false",
+    "clock/twelve_hour": "false",
+    "clock/show_date": "true",
+    # intern#247: Square Flow
+    "square_flow/enabled": "false",
+    "square_flow/frame_rate": "25",
+    "square_flow/saving_mode": "false",
+    "square_flow/lag_beats": "2",
 }
 
 
