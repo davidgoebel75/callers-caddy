@@ -155,6 +155,9 @@ def clean_db():
         # BL-210: weitere Figuren je Call-Text (Figuren-Mengen). Referenzdaten
         # wie call_text_mappings, bleibt erhalten.
         "call_text_figures_extra",
+        # intern#164: Beats je Call nach CALLERLAB. Reine Referenz aus
+        # src/callerlab_timing.json (seed_call_timing), bleibt erhalten.
+        "call_timing",
     }
     unknown = [t for (t,) in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'") if t not in known]
