@@ -13,7 +13,8 @@ Prueft:
   4. Skins in Voll- und Update-ZIP == src/skins auf main (Git)
   5. __version__ im Code-ZIP == <neu>
   6. LICENSE und licenses/THIRD_PARTY.txt in Voll- und Update-ZIP, keine
-     ASIO-DLL von PortAudio (intern#248)
+     ASIO-DLL von PortAudio (intern#248); liegt choreo/tam_cli.exe bei, nennt
+     THIRD_PARTY.txt sie samt Engine-Stand (intern#262)
 Exit-Code 0 = OK, 1 = bitte pruefen.
 """
 import os
@@ -120,6 +121,12 @@ def check_licenses(new):
         for f in ("Callers_Caddy/LICENSE", "Callers_Caddy/licenses/THIRD_PARTY.txt"):
             if f not in names:
                 bad(f"{k}: {f} fehlt")
+        third = "Callers_Caddy/licenses/THIRD_PARTY.txt"
+        if "Callers_Caddy/choreo/tam_cli.exe" in names and third in names:
+            from tam_engine import ENGINE_TAG
+            text = zipfile.ZipFile(zips(new)[k]).read(third).decode("utf-8", "replace")
+            if f"Engine version: {ENGINE_TAG}" not in text:
+                bad(f"{k}: THIRD_PARTY.txt nennt tam_cli.exe ({ENGINE_TAG}) nicht")
         for n in names:
             if "asio" in n.lower() and n.lower().endswith(".dll"):
                 bad(f"{k}: ASIO-DLL im ZIP: {n}")

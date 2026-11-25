@@ -6,9 +6,11 @@ mit ihrer Lizenzdatei. Faellt eine Zeile in `installer/requirements.txt` neu
 dazu, muss sie dort nachgetragen werden; dieser Test erinnert daran.
 """
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "installer"))
 LICENSES = ROOT / "installer" / "licenses"
 OVERVIEW = LICENSES / "THIRD_PARTY.txt"
 
@@ -43,3 +45,13 @@ def test_referenced_license_files_exist():
     assert referenced, "THIRD_PARTY.txt verweist auf keine Lizenzdatei"
     missing = sorted(f for f in referenced if not (LICENSES / f).is_file())
     assert not missing, f"Lizenzdatei fehlt in installer/licenses/: {missing}"
+
+
+def test_choreo_engine_listed_with_source():
+    """Die mitgelieferte tam_cli.exe (GPL-3.0) braucht Eintrag und Quellcode-Link
+    zum ausgelieferten Stand; ein neuer ENGINE_TAG muss hier nachgezogen werden (intern#262)."""
+    from tam_engine import ENGINE_FILE, ENGINE_TAG
+    text = OVERVIEW.read_text(encoding="utf-8")
+    assert ENGINE_FILE in text
+    assert f"Engine version: {ENGINE_TAG}" in text
+    assert f"tam-headless/tree/{ENGINE_TAG}" in text
