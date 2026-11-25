@@ -2565,6 +2565,16 @@
     "en": "Search settings (Ctrl+F)",
     "ja": "設定を検索 (Ctrl+F)"
   },
+  "settings_browse_dir_tip": {
+    "de": "Ordner auswählen",
+    "en": "Choose folder",
+    "ja": "フォルダーを選択"
+  },
+  "settings_browse_file_tip": {
+    "de": "Datei auswählen",
+    "en": "Choose file",
+    "ja": "ファイルを選択"
+  },
   "settings_search_no_hits": {
     "de": "Keine Einstellung gefunden",
     "en": "No setting found",

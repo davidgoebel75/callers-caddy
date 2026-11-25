@@ -730,6 +730,14 @@ class _SettingRow:
             self.browse_btn = QPushButton("…")
             self.browse_btn.setFixedWidth(30)
             self.browse_btn.clicked.connect(self._browse)
+            # intern#269: Ordner-Icon statt "…", sobald das Theme Icons liefert
+            icon_dir = getattr(skin_mgr, "icon_dir", "")
+            if icon_dir:
+                self.browse_btn.setText("")
+                self.browse_btn.setIcon(QIcon(f"{icon_dir}/folder.svg"))
+            self.browse_btn.setToolTip(_t(
+                "settings_browse_file_tip" if widget_type == "file"
+                else "settings_browse_dir_tip"))
 
         # MS50: Picker-Button fuer den "program_picker"-Zeilentyp
         self.picker_btn = None
@@ -977,7 +985,8 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle(_t("settings_dialog_title"))
         self.setMinimumSize(760, 500)
-        self.resize(880, 680)
+        # Breit genug, dass die Felder samt Auswahl-Buttons ohne Abschneiden passen
+        self.resize(1080, 720)
 
         self._build_ui()
 
@@ -1085,6 +1094,7 @@ class SettingsDialog(QDialog):
         """Wird per QTimer.singleShot(0) aufgerufen — haelt Main-Thread frei."""
         self._populate_groups()
         self._inner_layout.addStretch()
+        self._fit_width()
         if self._focus_key:
             # Erst wenn die Zeilen stehen; ein Takt spaeter hat das Layout Geometrie
             QTimer.singleShot(0, lambda k=self._focus_key: self.focus_row(k))
@@ -1102,6 +1112,19 @@ class SettingsDialog(QDialog):
     # ------------------------------------------------------------------
     # intern#269: Sektionsliste und Suche
     # ------------------------------------------------------------------
+
+    def _fit_width(self):
+        """Verbreitert den Dialog, bis die Felder samt Auswahl-Buttons ganz
+        sichtbar sind (die Seite scrollt nie horizontal). Labellaengen haengen
+        von Sprache und Schrift ab, darum gemessen statt fest."""
+        need = (self._scroll.widget().minimumSizeHint().width()
+                - self._scroll.viewport().width()
+                + self._scroll.verticalScrollBar().sizeHint().width())
+        if need <= 0:
+            return
+        screen = self.screen().availableGeometry().width() if self.screen() else 0
+        width = self.width() + need
+        self.resize(min(width, screen) if screen else width, self.height())
 
     def _apply_filter(self, query: str):
         """Blendet Zeilen ohne Treffer und leere Sektionen aus (rechts und
