@@ -30,6 +30,7 @@ pycaw                        MIT                      pycaw.txt
 comtypes                     MIT                      comtypes.txt
 psutil                       BSD-3-Clause             psutil.txt
 pypdf                        BSD-3-Clause             pypdf.txt
+Taminations (tam_cli.exe)    GPL-3.0-or-later         GPL-3.0.txt
 
 Notes
 -----
@@ -42,3 +43,11 @@ Notes
 - Source code of the LGPL components: https://download.qt.io,
   https://ffmpeg.org, https://github.com/libsndfile/libsndfile
 - Source code of Callers Caddy: https://github.com/davidgoebel75/callers-caddy
+- The choreography engine choreo/tam_cli.exe is a modified version of
+  Taminations Square Dance Animations, Copyright (C) 2026 Brad Christie
+  (https://github.com/bradchristie/taminations-flutter). It is a separate
+  program that Callers Caddy starts as its own process. The modification
+  removes the Flutter user interface and adds a command-line front end.
+  Engine version: tam-cli-1.6.115
+  Source code of this version:
+  https://github.com/davidgoebel75/tam-headless/tree/tam-cli-1.6.115
