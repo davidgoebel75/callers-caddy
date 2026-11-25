@@ -576,7 +576,7 @@ _SECTION_ICONS = {
     "notes":     "pencil",
     "lyrics":    "lyrics-auto-width",
     "clock":     "clock",
-    "square_flow": "choreo",
+    "square_flow": "square-flow",
     "debug":     "system-ping",
     "rules":     "toggle-manager",
 }
