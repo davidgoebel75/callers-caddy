@@ -274,6 +274,7 @@ class SequenceViewWidget(QWidget):
         self._btn_flow_warn.clicked.connect(self._show_flow_warning)
         self._btn_flow_warn.setVisible(False)
         self._tam_allowed = False
+        self._tam_online = True
 
         nav_layout.addWidget(self._btn_edit)
         nav_layout.addWidget(self._btn_flow_warn)
@@ -636,9 +637,11 @@ class SequenceViewWidget(QWidget):
     def set_taminations_enabled(self, visible, online=True):
         """Knopf "In Taminations oeffnen": sichtbar mit Square Flow, aktiv nur online."""
         self._tam_allowed = bool(visible)
+        self._tam_online = bool(online)
         self._apply_flow_warn_button()
         self._btn_tam.setVisible(visible)
-        self._btn_tam.setEnabled(visible and online)
+        # intern#275: ohne Sequenz gibt es nichts zu oeffnen
+        self._btn_tam.setEnabled(visible and online and bool(self._seq_ids))
         self._btn_tam.setToolTip(_t("seq_tam_open_tooltip") if online
                                  else _t("seq_tam_offline_tooltip"))
 
@@ -981,6 +984,8 @@ class SequenceViewWidget(QWidget):
         else:
             self._current_idx = idx
         self._update_content()
+        # intern#275: Square Flow und Lyric-Feld folgen der neu gezeigten Sequenz
+        self._notify_current_sequence_changed()
 
     def _clear_content(self):
         """Leere Liste (Filter ohne Treffer oder letzte Sequenz geloescht).
@@ -1001,14 +1006,18 @@ class SequenceViewWidget(QWidget):
         self._set_actions_enabled(False)
 
     def _set_actions_enabled(self, enabled: bool):
-        """Loeschen, Bearbeiten und +Notiz gemeinsam schalten."""
+        """Loeschen, Bearbeiten und +Notiz gemeinsam schalten, dazu "Taminations"
+        (nur mit Square Flow und online, intern#275)."""
         for btn in (self._btn_delete, self._btn_edit, self._btn_to_notes):
             btn.setEnabled(enabled)
+        self._btn_tam.setEnabled(enabled and self._tam_allowed and self._tam_online)
 
     def _show_empty(self):
         """Leert die Anzeige nach Loeschen der letzten Sequenz."""
         self._clear_content()
         self._notify_sequences_changed()
+        # intern#275: Square Flow bekommt [] und zeigt "keine Sequenz"
+        self._notify_current_sequence_changed()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Left:
