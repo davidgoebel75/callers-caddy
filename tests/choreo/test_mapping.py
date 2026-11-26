@@ -80,3 +80,30 @@ def test_kartenzeile_bei_doppeltem_text():
 def test_regel_abschaltbar_fuer_gegenprobe(monkeypatch, rule):
     monkeypatch.setattr(mapping, "RULES", set(mapping.ALL_RULES) - {rule})
     mapping.prepare(["Heads Swing Thru", "Boys Run"], "Static Set ➔ Resolve")
+
+
+class _RecordingApp(dict):
+    """Zuordnungen, die mitschreiben, welche Kartentexte mapping nachschlaegt."""
+
+    def __init__(self):
+        super().__init__({"(nie gefragt)": "x"})     # nicht leer: mapping nutzt "app or {}"
+        self.asked = set()
+
+    def get(self, key, default=None):
+        self.asked.add(str(key))
+        return super().get(key, default)
+
+
+@pytest.mark.parametrize("seq_type", [
+    "Zero Box", "Zero Line", "zero (facing couples)", "two couples (facing couples)",
+    "zero (eight chain thru)", "zero (facing lines)", "zero (parallel waves)",
+    "Singer (Corner progression)", "Get Out", ""])
+def test_synth_lines_decken_alle_eingesetzten_zeilen_ab(seq_type):
+    """Review #196: flow_worker liest Zuordnungen nur fuer die Kartenzeilen und
+    mapping.SYNTH_LINES. Jeder andere Text, den mapping nachschlaegt, waere still ohne
+    Zuordnung."""
+    calls = ["Swing Thru", "Boys Run", "Ferris Wheel", "Centers Pass Thru"]
+    app = _RecordingApp()
+    mapping.prepare(calls, seq_type, app)
+    fremd = {t for t in app.asked if t.strip() not in calls} - set(mapping.SYNTH_LINES)
+    assert not fremd

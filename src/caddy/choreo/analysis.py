@@ -6,6 +6,7 @@ engine.TamEngine.run (blockiert, nur im Hintergrund-Thread aufrufen).
 import hashlib
 import json
 import re
+import zlib
 from urllib.parse import quote
 
 from caddy.choreo import mapping, pruefband, timeline
@@ -46,21 +47,61 @@ def input_hash(calls, seq_type, app=None):
 
 
 def to_cache(result):
-    """Ergebnis ohne Animation als JSON (fuer sequence_choreo)."""
+    """Ergebnis ohne Animation als JSON (fuer sequence_choreo.result_json; die Animation
+    steht gepackt daneben in anim_z, siehe anim_to_blob)."""
     return json.dumps({k: v for k, v in result.items() if k != "animation"},
                       ensure_ascii=False)
 
 
-def from_cache(text):
+def from_cache(text, anim_z=None):
+    """Ergebnis aus sequence_choreo. Mit anim_z (intern#263) kommt die Animation dazu,
+    das Ergebnis ist dann vollstaendig; ohne (oder unlesbar) ist "animation" None."""
     try:
         res = json.loads(text)
     except (TypeError, ValueError):
         return None
     if not isinstance(res, dict):
         return None
-    res["animation"] = None
+    res["animation"] = anim_from_blob(anim_z)
     res["cached"] = True
     return res
+
+
+# anim_z fuer "die Engine hat geantwortet, aber keine Animation geliefert" (z. B. ein nicht
+# lesbarer Call): leeres Blob, in SQLite von NULL verschieden. Zaehlt als vollstaendig, damit
+# die Engine die Sequenz nicht in jeder Sitzung neu rechnet (Review #196).
+NO_ANIM = b""
+
+
+def anim_to_blob(result):
+    """Animation eines Ergebnisses zlib-gepackt fuer sequence_choreo.anim_z (intern#263).
+    Ohne Animation: NO_ANIM, wenn das Ergebnis endgueltig ist, sonst None (Timeout oder
+    Engine-Abbruch: beim naechsten Mal neu rechnen). Ca. 40 KB JSON werden zu ca. 10 KB."""
+    if not isinstance(result, dict):
+        return None
+    anim = result.get("animation")
+    if not anim:
+        return None if result.get("transient") else NO_ANIM
+    raw = json.dumps(anim, ensure_ascii=False, separators=(",", ":"))
+    return zlib.compress(raw.encode("utf-8"), 6)
+
+
+def cache_complete(cached, anim_z):
+    """Ist ein Eintrag aus sequence_choreo fertig (Animation da oder NO_ANIM)?"""
+    return bool(cached and cached.get("animation")) or (anim_z is not None
+                                                        and bytes(anim_z) == NO_ANIM)
+
+
+def anim_from_blob(blob):
+    """Gegenstueck zu anim_to_blob; None bei fehlendem, leerem (NO_ANIM) oder kaputtem
+    Eintrag."""
+    if not blob:
+        return None
+    try:
+        anim = json.loads(zlib.decompress(bytes(blob)).decode("utf-8"))
+    except (zlib.error, TypeError, ValueError, UnicodeDecodeError):
+        return None
+    return anim if isinstance(anim, dict) and anim else None
 
 
 def _card_spans(n_cards, src, end_src, call_starts, total, n_body):
@@ -140,21 +181,29 @@ def prepared_calls(calls, seq_type, app=None):
 def analyse_sequence(run, calls, seq_type, app=None, frames=FRAME_STEP):
     """-> dict (siehe unten). calls = Kartenzeilen wie im Sequenz-Detail."""
     calls = list(calls)
+    transient = []                       # Abbrueche ohne Engine-Urteil (Timeout, ...)
+
+    def run_tracked(req):
+        r = run(req)
+        if r.get("transient"):
+            transient.append(r.get("error"))
+        return r
+
     prep = mapping.prepare(calls, seq_type, app)
     hreq = mapping.heimplatz_request(prep)
-    lines, zweit, art = mapping.finish(prep, run(hreq) if hreq else None)
-    res = pruefband.analyse(run, prep["type"], prep["end"], prep["n_start"], lines, zweit, art)
+    lines, zweit, art = mapping.finish(prep, run_tracked(hreq) if hreq else None)
+    res = pruefband.analyse(run_tracked, prep["type"], prep["end"], prep["n_start"], lines, zweit, art)
     used = res["lines"]
     end = prep["end"]
     # Animation mit Aufloese-Call (Singer: Swing + Promenade); scheitert der, ohne ihn.
     anim = None
     with_end = bool(end and res["stufe1"])
     if with_end:
-        anim = run({"lines": used + [end], "frames": frames})
+        anim = run_tracked({"lines": used + [end], "frames": frames})
         if not anim.get("ok"):
             anim, with_end = None, False
     if anim is None:
-        anim = run({"lines": used, "frames": frames})
+        anim = run_tracked({"lines": used, "frames": frames})
     an = anim.get("animation") or {}
     line_beats = list(anim.get("beats") or [])
     beats_end = line_beats[len(used)] if with_end and len(line_beats) > len(used) else None
@@ -195,4 +244,6 @@ def analyse_sequence(run, calls, seq_type, app=None, frames=FRAME_STEP):
         # Beats der ganzen Animation (mit Aufloese-Call); Figuren-Uhr im Singing Call
         "anim_total": an.get("total_beats") or None,
         "beats_total": round(sum(known), 1) if known else None,
+        # True: ein Lauf brach ohne Engine-Urteil ab, das Ergebnis ist nicht endgueltig
+        "transient": bool(transient),
     }

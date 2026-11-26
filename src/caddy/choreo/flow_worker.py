@@ -7,12 +7,14 @@ dem ersten Auftrag.
 
 Zwischenspeicher in zwei Stufen:
 - im Arbeitsspeicher: komplette Ergebnisse (mit Animation) der letzten Sequenzen;
-- in der DB (sequence_choreo): Ergebnis ohne Animation. Ein Treffer wird sofort gemeldet
-  (Takte, Warnung), ohne die Engine zu starten. Wird die Animation gebraucht (Dock sichtbar),
-  rechnet der Worker danach trotzdem und meldet ein zweites Mal.
+- in der DB (sequence_choreo): Ergebnis und, seit intern#263, die Animation (zlib-gepackt).
+  Ein Treffer wird sofort gemeldet, ohne die Engine zu starten. Nur bei einem alten Eintrag
+  ohne Animation rechnet der Worker danach noch, wenn sie gebraucht wird (Dock sichtbar),
+  und meldet ein zweites Mal.
 
 Die Zuordnungen Call-Text -> Callname liest der Worker vor jedem Lauf frisch aus der DB
-(eine Abfrage, im Hintergrund-Thread). Sie gehen in den Schluessel beider Stufen ein:
+(eine Abfrage, im Hintergrund-Thread, nur fuer die Kartentexte der Sequenz, intern#263).
+Sie gehen in den Schluessel beider Stufen ein:
 Aendert sich das Call-Mapping irgendwo, passen alte Ergebnisse nicht mehr und werden neu
 gerechnet, ohne dass jede Schreibstelle Bescheid geben muss (Review #192, Punkt 7).
 """
@@ -24,7 +26,7 @@ from collections import OrderedDict
 from PySide6.QtCore import QObject, Signal
 
 import perf
-from caddy.choreo import analysis, perf_marks
+from caddy.choreo import analysis, mapping, perf_marks
 from caddy.choreo.engine import TamEngine
 
 _CACHE_SIZE = 64
@@ -71,12 +73,19 @@ class SquareFlowWorker(QObject):
 
     # --- Thread -------------------------------------------------------------
 
-    def _load_app(self):
-        """Aktuelle Zuordnungen Call-Text -> Callname (bei jedem Lauf neu gelesen)."""
+    def _load_app(self, calls):
+        """Aktuelle Zuordnungen Call-Text -> Callname (bei jedem Lauf neu gelesen), nur fuer
+        die Kartentexte dieser Sequenz (intern#263). mapping.py schlaegt die Zeilen mit
+        abgeschnittenem Leerraum nach, input_hash mit dem Text wie gegeben: beide Formen
+        lesen, dazu die Platzhalter, die mapping selbst als Zeile einsetzt."""
         if not self._db_path:
             return {}
         from song_db_sequences import read_choreo_call_names
-        return read_choreo_call_names(self._db_path)
+        texts = set(mapping.SYNTH_LINES)
+        for c in calls:
+            texts.add(c)
+            texts.add(str(c).strip())
+        return read_choreo_call_names(self._db_path, texts)
 
     def _engine_fingerprint(self):
         """Stand der Engine-Datei (ohne den Prozess zu starten)."""
@@ -119,7 +128,7 @@ class SquareFlowWorker(QObject):
 
     def _run_job(self, token, calls, seq_type, seq_id, need_anim):
         t0 = time.perf_counter()
-        app = self._load_app()
+        app = self._load_app(calls)
         ihash = analysis.input_hash(calls, seq_type, app)
         key = ihash                          # Zeilen, Typ und Call-Mapping
         result = self._cache.get(key)
@@ -140,23 +149,34 @@ class SquareFlowWorker(QObject):
             from song_db_sequences import read_choreo_cache
             row = read_choreo_cache(db, seq_id)
             if row and row[0] == ihash and row[1] == efp:
-                cached = analysis.from_cache(row[2])
+                cached = analysis.from_cache(row[2], row[3])
                 if cached is not None:
+                    complete = analysis.cache_complete(cached, row[3])
+                    if complete:                 # intern#263: Animation oder NO_ANIM -> fertig
+                        self._remember(key, cached)
                     self._emit(token, cached)
                     self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_DB)
-                    if not need_anim:
+                    if complete or not need_anim:
                         return
                     t0 = time.perf_counter()     # Engine-Lauf danach eigens messen
         starts = getattr(eng, "start_count", 0)
         result = analysis.analyse_sequence(eng.run, calls, seq_type, app)
-        self._cache[key] = result
-        while len(self._cache) > _CACHE_SIZE:
-            self._cache.popitem(last=False)
+        self._remember(key, result)
         self._emit(token, result)
         self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_ENGINE,
                    engine_started=getattr(eng, "start_count", 0) != starts,
                    error=result.get("error") if isinstance(result, dict) else None)
-        if db:
+        # Abbruch ohne Engine-Urteil (Timeout, ...) nicht in die DB: sonst lieferte die
+        # naechste Sitzung bei verstecktem Dock den abgebrochenen Lauf (Review #196).
+        # Der Speicher-Cache behaelt ihn fuer diese Sitzung.
+        if db and not (isinstance(result, dict) and result.get("transient")):
             from song_db_sequences import write_choreo_cache
-            write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result))
+            write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result),
+                               analysis.anim_to_blob(result))
+
+    def _remember(self, key, result):
+        self._cache[key] = result
+        self._cache.move_to_end(key)
+        while len(self._cache) > _CACHE_SIZE:
+            self._cache.popitem(last=False)
 

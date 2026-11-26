@@ -39,10 +39,12 @@ def find_engine():
 
 
 def failed_response(request, error):
-    """Antwort im Format von tam_cli fuer einen Abbruch ohne Engine-Ergebnis."""
+    """Antwort im Format von tam_cli fuer einen Abbruch ohne Engine-Ergebnis.
+    transient: kein Urteil der Engine (fehlt, Timeout, keine JSON-Antwort); ein neuer
+    Lauf kann anders ausgehen (intern#263, Marker "keine Animation" nur ohne)."""
     return {"id": request.get("id"), "ok": False, "fail_pos": None, "error": error,
             "warnings": [], "beats": [], "alt_used": [], "tam_calls": [],
-            "end_ok": None, "end_msg": ""}
+            "end_ok": None, "end_msg": "", "transient": True}
 
 
 class TamEngine:

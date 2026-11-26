@@ -640,6 +640,11 @@ def apply_r2(body, first_is_start):
 
 
 # ---- Startformation aus dem Sequenztyp (intern#163) ----
+# Alle Zeilen, die typ_start und map_sequence selbst vor die Kartenzeilen setzen. Fuer diese
+# Texte liest flow_worker._load_app die Zuordnungen mit (Review #196; Test in test_mapping).
+SYNTH_LINES = ("(Zero Box)", "(Zero Line)", "(implizit Zero Box)", "Step To A Wave")
+
+
 def typ_start(seq_type, calls):
     """Startformation aus sequences.type ableiten, wenn die Sequenz selbst keine
     Startangabe hat: als Pseudo-Eintrag "(Zero Box)"/"(Zero Line)" voranstellen."""
