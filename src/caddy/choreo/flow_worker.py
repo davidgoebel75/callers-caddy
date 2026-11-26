@@ -17,6 +17,12 @@ Die Zuordnungen Call-Text -> Callname liest der Worker vor jedem Lauf frisch aus
 Sie gehen in den Schluessel beider Stufen ein:
 Aendert sich das Call-Mapping irgendwo, passen alte Ergebnisse nicht mehr und werden neu
 gerechnet, ohne dass jede Schreibstelle Bescheid geben muss (Review #192, Punkt 7).
+
+Wartezeit vor der Engine (intern#272): Ein Engine-Lauf startet erst ENGINE_DELAY_S nach dem
+Auftrag. Gemessen bei 40 % Drosselung haelt ein sofortiger Lauf den GIL mitten im Programm-
+oder Filterwechsel und verlaengert den Haenger im Hauptthread. Kommt in der Wartezeit ein
+neuerer Auftrag, entfaellt der Lauf (nur der letzte Wechsel zaehlt). Treffer aus Speicher
+und DB kommen weiter sofort. Muster wie DETAILS_DELAY_S im Prefetch-Worker (intern#268).
 """
 import hashlib
 import threading
@@ -34,6 +40,7 @@ _CACHE_SIZE = 64
 
 class SquareFlowWorker(QObject):
     ready = Signal(int, object)          # (token, Ergebnis-dict oder {"error": ...})
+    ENGINE_DELAY_S = 0.3                 # intern#272: erst nach dem Wechsel rechnen
 
     def __init__(self, db_path=None, engine=None, parent=None):
         super().__init__(parent)
@@ -101,6 +108,14 @@ class SquareFlowWorker(QObject):
                 self._engine_fp = ""
         return self._engine_fp
 
+    def _superseded(self, wait=0.0):
+        """Bis zu wait Sekunden warten; True, wenn inzwischen ein neuerer Auftrag kam
+        oder der Worker beendet wird."""
+        with self._cond:
+            if wait > 0 and not self._stop and self._job is None:
+                self._cond.wait(wait)
+            return self._stop or self._job is not None
+
     def _emit(self, token, result):
         if not self._stop:
             self.ready.emit(token, result)
@@ -159,6 +174,8 @@ class SquareFlowWorker(QObject):
                     if complete or not need_anim:
                         return
                     t0 = time.perf_counter()     # Engine-Lauf danach eigens messen
+        if self._superseded(self.ENGINE_DELAY_S):
+            return                               # neuerer Auftrag oder Ende: kein Lauf
         starts = getattr(eng, "start_count", 0)
         result = analysis.analyse_sequence(eng.run, calls, seq_type, app)
         self._remember(key, result)
