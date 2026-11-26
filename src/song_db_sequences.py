@@ -20,6 +20,36 @@ def _chunks(values):
         yield values[i:i + _SQL_CHUNK]
 
 
+def _band_version_on(conn) -> int:
+    """Wert des Trigger-Zaehlers _band_cache_ver auf dieser Verbindung (0 ohne Tabelle)."""
+    try:
+        row = conn.execute("SELECT v FROM _band_cache_ver").fetchone()
+        return int(row[0]) if row else 0
+    except Exception:
+        return 0
+
+
+def _build_sequence_figures(conn) -> dict:
+    """sequence_id -> frozenset gebandeter Figuren (Regel siehe
+    SequencesMixin._sequence_figures). Laeuft auf der Haupt- oder einer
+    Worker-Verbindung (intern#268)."""
+    banded = {e for (e,) in conn.execute(
+        "SELECT DISTINCT entity_id FROM call_programs "
+        "WHERE teaching_order >= 1")}
+    text_figs = {}
+    for ct, eid in conn.execute(
+            "SELECT call_text, entity_id FROM call_text_figures"):
+        if eid in banded:
+            text_figs.setdefault(ct, []).append(eid)
+    seq_figs = {}
+    for sid, ct in conn.execute(
+            "SELECT sequence_id, call_text FROM sequence_calls"):
+        figs = text_figs.get(ct)
+        if figs:
+            seq_figs.setdefault(sid, set()).update(figs)
+    return {s: frozenset(f) for s, f in seq_figs.items()}
+
+
 def _teaching_order_sort_key(teaching_order):
     """Sortierschluessel wie ORDER BY teaching_order in SQLite (NULL zuerst)."""
     return (teaching_order is not None, teaching_order or 0)
@@ -481,8 +511,7 @@ class SequencesMixin:
     def _band_data_version(self) -> int:
         """Aktueller Wert des Trigger-Zaehlers (0 falls Tabelle fehlt)."""
         try:
-            row = self._conn.execute("SELECT v FROM _band_cache_ver").fetchone()
-            return int(row[0]) if row else 0
+            return _band_version_on(self._conn)
         except Exception:
             return 0
 
@@ -492,6 +521,11 @@ class SequencesMixin:
         sequence_calls, call_text_mappings, call_text_figures_extra und
         call_programs, also auch an Schreibstellen, die niemand Bescheid geben."""
         return self._band_data_version()
+
+    @staticmethod
+    def sequence_data_version_on_connection(conn) -> int:
+        """intern#268: sequence_data_version auf der Verbindung eines Workers."""
+        return _band_version_on(conn)
 
     def _check_band_cache_version(self):
         """Verwirft den Band-Cache, sobald sich relevante Daten geaendert haben
@@ -518,22 +552,34 @@ class SequencesMixin:
         Programmen und gehoert zu keinem. Solche Figuren zaehlen nicht als gebandet,
         sonst schloesse jeder Filler-Text die Sequenz aus jeder Programmwahl aus."""
         if self._seq_figures is None:
-            banded = {e for (e,) in self._conn.execute(
-                "SELECT DISTINCT entity_id FROM call_programs "
-                "WHERE teaching_order >= 1")}
-            text_figs = {}
-            for ct, eid in self._conn.execute(
-                    "SELECT call_text, entity_id FROM call_text_figures"):
-                if eid in banded:
-                    text_figs.setdefault(ct, []).append(eid)
-            seq_figs = {}
-            for sid, ct in self._conn.execute(
-                    "SELECT sequence_id, call_text FROM sequence_calls"):
-                figs = text_figs.get(ct)
-                if figs:
-                    seq_figs.setdefault(sid, set()).update(figs)
-            self._seq_figures = {s: frozenset(f) for s, f in seq_figs.items()}
+            self._seq_figures = _build_sequence_figures(self._conn)
         return self._seq_figures
+
+    @staticmethod
+    def build_sequence_figures_on_connection(conn):
+        """intern#268: _sequence_figures fuer einen Hintergrund-Worker aufbauen, auf
+        dessen Verbindung (open_worker_connection). -> (Datenversion, Figuren) oder
+        None, wenn sich die Daten waehrend des Aufbaus geaendert haben. Uebernommen
+        wird das Ergebnis im Hauptthread per adopt_sequence_figures."""
+        ver = _band_version_on(conn)
+        figs = _build_sequence_figures(conn)
+        if _band_version_on(conn) != ver:
+            return None
+        return ver, figs
+
+    def adopt_sequence_figures(self, ver, figs) -> bool:
+        """intern#268: Figuren aus dem Worker uebernehmen, wenn sie zur aktuellen
+        Datenversion passen und noch keine da sind. -> True, wenn uebernommen."""
+        self._check_band_cache_version()
+        if ver != self._band_cache_ver_seen or self._seq_figures is not None:
+            return False
+        self._seq_figures = figs
+        return True
+
+    def has_sequence_figures(self) -> bool:
+        """intern#268: Sind die Figuren fuer die aktuelle Datenversion schon da?"""
+        self._check_band_cache_version()
+        return self._seq_figures is not None
 
     def _cover_ids(self, bandset: frozenset, max_to: float = None) -> frozenset:
         """Menge der Sequenz-IDs, deren gemappte Figuren ALLE in mindestens einem der
@@ -624,6 +670,7 @@ class SequencesMixin:
         self._band_cover_cache = {}
         self._scope_key = None
         self._seq_figures = None
+        self._to_calls = None
         self._band_cache_ver_seen = -1
 
     def _build_sequence_where(self,
@@ -820,10 +867,16 @@ class SequencesMixin:
         Abfrage gibt den GIL ab, und waehrend der Wiedergabe kostet jedes
         Zurueckholen bis zu 5 ms, wenn andere Threads rechnen.
         Sequenzen, die es nicht gibt, fehlen im Ergebnis."""
+        return self.sequence_details_on_connection(self._conn, sequence_ids)
+
+    @staticmethod
+    def sequence_details_on_connection(conn, sequence_ids) -> dict:
+        """intern#268: get_sequence_details_many auf einer beliebigen Verbindung,
+        z. B. der eines Hintergrund-Workers (open_worker_connection)."""
         ids = list(dict.fromkeys(sequence_ids))
         rows = {}
         for part in _chunks(ids):
-            for r in self._conn.execute(
+            for r in conn.execute(
                     "SELECT id, calls_json, field_1, field_2, field_3, field_4, "
                     "field_5, field_6, field_7, field_8, field_9, field_10, "
                     "field_11, field_12, field_13, field_14, field_15, type, difficulty "
@@ -835,7 +888,7 @@ class SequencesMixin:
         mapping = {}     # call_text -> (entity_id, teaching_order, canonical_name)
         for part in _chunks(texts):
             marks = ",".join("?" * len(part))
-            for text, eid, to in self._conn.execute(
+            for text, eid, to in conn.execute(
                     "SELECT f.call_text, f.entity_id, t.teaching_order "
                     "FROM call_text_figures f "
                     "LEFT JOIN teaching_order_calls t ON t.entity_id = f.entity_id "
@@ -845,7 +898,7 @@ class SequencesMixin:
             # (entity_id x Programm). Deterministisch das niedrigste Band je
             # Call-Text waehlen, NULL zuerst wie ORDER BY in SQLite (passt zu
             # _eid_min_to). Einzige Stelle der Regel, get_sequence_calls nutzt sie.
-            for text, eid, to, name in self._conn.execute(
+            for text, eid, to, name in conn.execute(
                     "SELECT m.call_text, m.entity_id, t.teaching_order, t.canonical_name "
                     "FROM call_text_mappings m "
                     "LEFT JOIN teaching_order_calls t ON t.entity_id = m.entity_id "
@@ -1000,12 +1053,21 @@ class SequencesMixin:
 
         Returns:
             [(entity_id, canonical_name, teaching_order, program), ...]
+
+        intern#268: Aus dem Speicher, solange die Datenversion gleich bleibt (ein
+        kleiner Zaehler-Abruf statt der ganzen View). Die View liest call_programs
+        und calls; Namen in calls aendern sich nur zusammen mit call_programs
+        (Programm-Abgleich), dessen Trigger den Zaehler hochsetzt. Rueckgabe ist
+        eine Kopie, Aufrufer duerfen sie veraendern.
         """
-        cur = self._conn.execute(
-            "SELECT entity_id, canonical_name, teaching_order, program "
-            "FROM teaching_order_calls ORDER BY teaching_order"
-        )
-        return cur.fetchall()
+        ver = self._band_data_version()
+        if self._to_calls is None or self._to_calls[0] != ver:
+            cur = self._conn.execute(
+                "SELECT entity_id, canonical_name, teaching_order, program "
+                "FROM teaching_order_calls ORDER BY teaching_order"
+            )
+            self._to_calls = (ver, cur.fetchall())
+        return list(self._to_calls[1])
 
     def get_teaching_order_count(self) -> int:
         """Anzahl der Teaching-Order-Eintraege."""

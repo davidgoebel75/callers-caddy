@@ -443,6 +443,10 @@ def test_program_choice_is_written_to_ini(keep, tmp_path):
     win, settings = _ini_window(tmp_path, keep)
     win.on_changed([3, 1])
     assert settings.value("sequences/dance_programs") == "3,1"
+    # intern#268: Die Datei wird erst nach dem Wechsel geschrieben, nicht mittendrin
+    assert settings.syncs == 0
+    from PySide6.QtCore import QCoreApplication
+    QCoreApplication.processEvents()
     assert settings.syncs == 1
 
 

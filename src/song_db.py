@@ -434,6 +434,7 @@ class SongDatabase(SchemaMixin, PotentialMixin, SequencesMixin, CallTimingMixin)
         self._scope_key = None        # (frozenset bands, frozenset below), aktuell in TEMP seq_scope
         self._band_cache_ver_seen = -1  # zuletzt gesehener _band_cache_ver.v (Auto-Invalidierung)
         self._seq_figures = None      # intern#111: sequence_id -> frozenset gebandeter Figuren
+        self._to_calls = None         # intern#268: (Datenversion, get_teaching_order_calls)
         # intern#145: Was beim Update nicht klappte. main zeigt es beim Start an.
         self.schema_problems: list[str] = []
         self._migrate()         # Zuerst: bestehende Tabellen umbenennen/erweitern
