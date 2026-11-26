@@ -1,4 +1,4 @@
-"""Song-Katalog: extern gepflegte Square-Dance-Songliste als Referenz (intern#126).
+"""Song-Katalog: Square-Dance-Songs aus einer externen Quelldatei als Referenz (intern#126).
 
 Der Katalog (ca. 9.000 Songs) liegt als CSV unter
 `music-extended-data/music_extended_data.csv` und liefert zu Titel, Label und
@@ -11,7 +11,7 @@ Katalogdaten automatisch uebernimmt (Einzelimport), tut das nur ab der Stufe
 "sicher" (IMPORT_MIN_SCORE); alles darunter bleibt Vorschlag (Potential).
 
 Aktualisiert wird die CSV von aussen: tools/update_song_catalog.py (aufgerufen
-nach jedem Update der Songliste) schiebt sie per PR ins Repo.
+nach jedem Update der Quelldatei) schiebt sie per PR ins Repo.
 
 GUI-frei (wie song_match), damit eigenstaendig testbar. Geladen wird lazy und
 einmal pro Datei-Stand (Pfad + mtime), die Indexe liegen im Speicher.

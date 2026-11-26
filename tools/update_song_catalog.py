@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Song-Katalog ins Repo schieben: Quell-CSV pruefen, kopieren, PR oeffnen.
 
-Quelle ist die CSV der extern gepflegten Songliste (Pfad per --source).
+Quelle ist eine externe Quelldatei (CSV, Pfad per --source).
 Deren Update ruft dieses Skript nach jedem Lauf auf (intern#126); man kann es
 aber auch von Hand starten.
 
@@ -117,7 +117,7 @@ def _pr_body(added: list, removed: list, total: int) -> str:
                 lines.append(f"- … und {len(keys) - MAX_LISTED} weitere")
             lines.append("")
     lines.append("Erzeugt von `tools/update_song_catalog.py` "
-                 "(aufgerufen vom Update der Songliste).")
+                 "(aufgerufen vom Update der Quelldatei).")
     return "\n".join(lines)
 
 
