@@ -24,6 +24,10 @@ class SequencePrefetchWorker(QObject):
     figures_ready = Signal(object)              # (Datenversion, Figuren)
     details_ready = Signal(int, int, object)    # (Auftrag, Datenversion, Details)
 
+    DETAILS_DELAY_S = 0.3     # erst nach dem Wechsel lesen
+    DETAILS_BATCH = 50        # Sequenzen je Portion
+    DETAILS_PAUSE_S = 0.02    # Pause zwischen den Portionen
+
     def __init__(self, open_connection, parent=None):
         """open_connection: z. B. db.open_worker_connection; laeuft im Thread."""
         super().__init__(parent)
@@ -72,6 +76,29 @@ class SequencePrefetchWorker(QObject):
             self._want_figures = False
             return ("figures", None)
 
+    def _superseded(self, wait=0.0) -> bool:
+        """Bis zu wait Sekunden warten; True, wenn inzwischen ein neuerer
+        Detail-Auftrag kam oder der Worker beendet wird."""
+        with self._cond:
+            if wait > 0 and not self._stop and self._details_job is None:
+                self._cond.wait(wait)
+            return self._stop or self._details_job is not None
+
+    def _run_details(self, conn, token, ids):
+        """Gemessen bei 40 % (intern#268): Liest der Worker die ganze Liste sofort,
+        ringt er mitten im Wechsel mit dem Hauptthread um den GIL. Deshalb erst
+        DETAILS_DELAY_S warten, bis der Wechsel durch ist, dann in Portionen mit
+        Pause dazwischen. Ein neuerer Auftrag bricht ab; jede Portion kommt einzeln."""
+        if self._superseded(self.DETAILS_DELAY_S):
+            return
+        ver = SongDatabase.sequence_data_version_on_connection(conn)
+        for i in range(0, len(ids), self.DETAILS_BATCH):
+            if i and self._superseded(self.DETAILS_PAUSE_S):
+                return
+            part = ids[i:i + self.DETAILS_BATCH]
+            self.details_ready.emit(
+                token, ver, SongDatabase.sequence_details_on_connection(conn, part))
+
     def _loop(self):
         conn = None
         try:
@@ -83,10 +110,7 @@ class SequencePrefetchWorker(QObject):
                 kind, arg = job
                 try:
                     if kind == "details":
-                        token, ids = arg
-                        ver = SongDatabase.sequence_data_version_on_connection(conn)
-                        self.details_ready.emit(
-                            token, ver, SongDatabase.sequence_details_on_connection(conn, ids))
+                        self._run_details(conn, *arg)
                     else:
                         res = SongDatabase.build_sequence_figures_on_connection(conn)
                         if res is not None:

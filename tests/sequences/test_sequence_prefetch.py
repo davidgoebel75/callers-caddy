@@ -174,3 +174,30 @@ def test_ohne_worker_liest_der_hauptthread_die_liste_wie_bisher(db, keep, monkey
                         lambda ids: reads.append(list(ids)) or orig(ids))
     view.set_sequence(db, db.ids, 0)
     assert reads == [db.ids]
+
+
+def test_detail_kommt_in_portionen_nach_der_wartezeit(db, worker, qapp, monkeypatch):
+    """Gemessen bei 40 %: erst warten, dann in Portionen, damit der Worker den
+    Wechsel nicht um den GIL bremst."""
+    monkeypatch.setattr(SequencePrefetchWorker, "DETAILS_DELAY_S", 0.2)
+    monkeypatch.setattr(SequencePrefetchWorker, "DETAILS_BATCH", 2)
+    monkeypatch.setattr(SequencePrefetchWorker, "DETAILS_PAUSE_S", 0.0)
+    got = []
+    worker.details_ready.connect(lambda tok, ver, found: got.append((tok, sorted(found))))
+    t0 = time.perf_counter()
+    worker.request_details(1, db.ids)
+    assert _wait(qapp, lambda: len(got) == 3)
+    assert time.perf_counter() - t0 >= 0.2
+    assert [ids for _, ids in got] == [db.ids[0:2], db.ids[2:4], db.ids[4:6]]
+
+
+def test_neuer_auftrag_bricht_den_alten_ab(db, worker, qapp, monkeypatch):
+    monkeypatch.setattr(SequencePrefetchWorker, "DETAILS_DELAY_S", 0.3)
+    got = []
+    worker.details_ready.connect(lambda tok, ver, found: got.append(tok))
+    worker.request_details(1, db.ids[:3])
+    time.sleep(0.05)
+    worker.request_details(2, db.ids[3:])                      # waehrend der Wartezeit
+    assert _wait(qapp, lambda: 2 in got)
+    _wait(qapp, lambda: False, 0.4)
+    assert 1 not in got
