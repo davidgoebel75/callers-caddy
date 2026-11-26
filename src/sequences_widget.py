@@ -292,10 +292,8 @@ class SequenceViewWidget(QWidget):
         self._current_idx = current_idx
         self._reload_details()
         if seq_ids:
-            # Buttons reaktivieren (koennten durch _show_empty deaktiviert sein)
-            self._btn_delete.setEnabled(True)
-            self._btn_edit.setEnabled(True)
-            self._btn_to_notes.setEnabled(True)
+            # Knoepfe wieder an (_clear_content sperrt sie bei leerer Liste)
+            self._set_actions_enabled(True)
         self._update_content()
         perf_split(f"SeqView.set_sequence: update_content (list={len(seq_ids)})", _t0)
         self._notify_sequences_changed()
@@ -676,13 +674,7 @@ class SequenceViewWidget(QWidget):
 
     def _update_content(self):
         if not self._seq_ids:
-            self._flow, self._flow_line = None, -1
-            self._beats = None
-            self._text_edit.clear()
-            self._lbl_header.setText("")
-            self._lbl_pos.setText("")
-            self._btn_prev.setEnabled(False)
-            self._btn_next.setEnabled(False)
+            self._clear_content()
             return
         seq_id = self._seq_ids[self._current_idx]
         # intern#247: Square-Flow-Ergebnis gehoert zur vorigen Sequenz
@@ -990,16 +982,32 @@ class SequenceViewWidget(QWidget):
             self._current_idx = idx
         self._update_content()
 
-    def _show_empty(self):
-        """Leert die Anzeige nach Loeschen der letzten Sequenz."""
+    def _clear_content(self):
+        """Leere Liste (Filter ohne Treffer oder letzte Sequenz geloescht).
+        Auch die Calls leeren: current_calls() meldet sonst noch die vorige
+        Sequenz, und Square Flow rechnet sie ohne ID neu (intern#270)."""
         self._calls = []
-        self._text_edit.setPlainText("")
+        self._flow, self._flow_line = None, -1
+        self._beats = None
+        self._text_edit.clear()
+        # Ueber _render_header leeren: raeumt Text, Tooltip und Square-Flow-
+        # Warnknopf auf einmal auf (sonst bleiben alte Beats/Warnung stehen).
+        self._header_base = ""
+        self._seq_type = ""
+        self._render_header()
         self._lbl_pos.setText("0 / 0")
         self._btn_prev.setEnabled(False)
         self._btn_next.setEnabled(False)
-        self._btn_delete.setEnabled(False)
-        self._btn_edit.setEnabled(False)
-        self._btn_to_notes.setEnabled(False)
+        self._set_actions_enabled(False)
+
+    def _set_actions_enabled(self, enabled: bool):
+        """Loeschen, Bearbeiten und +Notiz gemeinsam schalten."""
+        for btn in (self._btn_delete, self._btn_edit, self._btn_to_notes):
+            btn.setEnabled(enabled)
+
+    def _show_empty(self):
+        """Leert die Anzeige nach Loeschen der letzten Sequenz."""
+        self._clear_content()
         self._notify_sequences_changed()
 
     def keyPressEvent(self, event):
