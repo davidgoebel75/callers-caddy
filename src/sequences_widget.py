@@ -111,6 +111,9 @@ class SequenceViewWidget(QWidget):
         self._details = {}
         self._details_ver = None
         self._labels = None   # Band -> Programmname, mit dem Speicher verworfen
+        # intern#268: liest den Speicher im Hintergrund (set_prefetch_worker)
+        self._prefetch = None
+        self._prefetch_token = 0
         # intern#176: Baender der Tanzprogramm-Wahl fuer das Programm-Etikett
         # hinter jedem Call (None = keine Wahl, z. B. im Beispiel-Betrachter).
         self._program_bands = None
@@ -305,17 +308,45 @@ class SequenceViewWidget(QWidget):
     _CHUNK = 200
     _NO_DETAIL = ((), "", "")   # Sequenz nicht (mehr) in der DB
 
+    def set_prefetch_worker(self, worker):
+        """intern#268: Hintergrund-Worker (caddy.sequences.prefetch_worker) fuer
+        den Speicher. Ohne Worker liest das Detail wie bisher im Hauptthread."""
+        self._prefetch = worker
+        if worker is not None:
+            worker.details_ready.connect(self._on_details_ready)
+
+    def _preload_ids(self, start=None):
+        """Die ganze Liste (bis _PRELOAD_MAX), sonst ein Abschnitt ab start."""
+        if len(self._seq_ids) <= self._PRELOAD_MAX:
+            return list(self._seq_ids)
+        start = self._current_idx if start is None else start
+        return self._seq_ids[start:start + self._CHUNK]
+
     def _reload_details(self):
-        """Speicher neu fuellen: die ganze Liste (bis _PRELOAD_MAX), sonst ein
-        Abschnitt ab der gezeigten Sequenz. Laeuft mit dem Setzen der Liste."""
+        """Speicher neu fuellen, laeuft mit dem Setzen der Liste. Mit Worker
+        (intern#268) liest der Hauptthread nur die gezeigte Sequenz, den Rest
+        der Worker; ohne Worker alles hier (_preload_ids)."""
         self._clear_details()
         if not self._seq_ids or self._db is None:
             return
-        if len(self._seq_ids) <= self._PRELOAD_MAX:
-            self._load_details(self._seq_ids)
-        else:
-            self._load_details(self._seq_ids[self._current_idx:
-                                             self._current_idx + self._CHUNK])
+        if self._prefetch is None:
+            self._load_details(self._preload_ids())
+            return
+        if self._current_idx < len(self._seq_ids):
+            self._load_details([self._seq_ids[self._current_idx]])
+        self._request_prefetch()
+
+    def _request_prefetch(self, start=None):
+        self._prefetch_token += 1
+        self._prefetch.request_details(self._prefetch_token, self._preload_ids(start))
+
+    def _on_details_ready(self, token, ver, found):
+        """Ergebnis des Workers: nur zur zuletzt gesetzten Liste und zur Datenversion
+        des Speichers; sonst verwerfen. Schon gelesene Eintraege bleiben."""
+        if token != self._prefetch_token or ver != self._details_ver:
+            return
+        for sid, hit in found.items():
+            self._details.setdefault(sid, hit)
 
     def _clear_details(self):
         self._details, self._details_ver, self._labels = {}, None, None
@@ -344,7 +375,12 @@ class SequenceViewWidget(QWidget):
         hit = self._details.get(seq_id)
         if hit is None:
             idx = self._current_idx
-            self._load_details([seq_id] + self._seq_ids[idx:idx + self._CHUNK])
+            if self._prefetch is None:
+                self._load_details([seq_id] + self._seq_ids[idx:idx + self._CHUNK])
+            else:                       # intern#268: nur diese hier, Rest im Worker
+                self._load_details([seq_id])
+                if len(self._seq_ids) > self._PRELOAD_MAX:
+                    self._request_prefetch(idx)
             hit = self._details.get(seq_id, self._NO_DETAIL)
         return hit
 

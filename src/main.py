@@ -674,6 +674,9 @@ class P29MainWindow(QMainWindow):
       - MDB-Import + Cached Live-Mapping
     """
 
+    # intern#268: Abstand vom Laden der Sequenzen bis zum Vorbau der Figuren
+    _FIGURES_PREFETCH_DELAY_MS = 3000
+
     # Rule-Aktionen, die beim Play/Resume den hoerbaren Audio-Start
     # zurueckhalten muessen (Layout-GIL-Block bzw. asynchroner Worker).
     # Siehe _PlayBarrier / _orchestrate_play.
@@ -971,6 +974,14 @@ class P29MainWindow(QMainWindow):
         self.sequence_view_widget = SequenceViewWidget(self.db, skin_mgr=self.skin_mgr,
                                                        session=self.session,
                                                        settings=self._settings)
+        # intern#268: Figuren und Sequenz-Detail im Hintergrund lesen (eigene
+        # Verbindung ueber open_worker_connection, SQL bleibt in song_db)
+        from caddy.sequences.prefetch_worker import SequencePrefetchWorker
+        self._seq_prefetch = SequencePrefetchWorker(self.db.open_worker_connection,
+                                                    parent=self)
+        self._seq_prefetch.figures_ready.connect(
+            lambda res: self.db.adopt_sequence_figures(*res))
+        self.sequence_view_widget.set_prefetch_worker(self._seq_prefetch)
         # MS50: Sequenz-Filter und Sequenz-Detail (intern#176) lesen die Wahl beim
         # Erzeugen selbst (Sequenzen laedt _init_sequences() erst nach window.show()).
         # Der Player-Button braucht erst die fertige Verdrahtung (DB, Sequenzen-Sync).
@@ -2718,7 +2729,8 @@ class P29MainWindow(QMainWindow):
         new = ",".join(str(i) for i in ids)
         if str(self._settings.value("sequences/dance_programs", "")) != new:
             self._settings.setValue("sequences/dance_programs", new)
-            self._settings.sync()
+            # intern#268: Datei erst nach dem Wechsel schreiben, nicht mittendrin
+            QTimer.singleShot(0, self._settings.sync)
 
     def _program_codes_label(self, ids):
         """Anzeige-String der Programm-Codes fuer eine ID-Liste (fuer Settings-Fenster)."""
@@ -6532,6 +6544,12 @@ class P29MainWindow(QMainWindow):
             if seq_ids:
                 self.sequence_view_widget.set_sequence(self.db, seq_ids, 0)
             perf_split("    _init_sequences.sequence_view prefill", _ts1)
+            # intern#268: Figuren je Sequenz vorbauen, damit ein spaeterer
+            # Programmwechsel sie nicht im Hauptthread aufbaut. Mit Abstand zum
+            # Start, damit der Aufbau nicht mit dem Startvorgang um den GIL ringt.
+            if not self.db.has_sequence_figures():
+                QTimer.singleShot(self._FIGURES_PREFETCH_DELAY_MS,
+                                  self._seq_prefetch.request_figures)
 
     def _on_export_sequences_json(self):
         """Menue: Alle Sequenzen als JSON-Datei exportieren (gleiche Struktur wie Import)."""
@@ -8294,6 +8312,7 @@ class P29MainWindow(QMainWindow):
             self._save_current_song()
             self.rule_engine.close()
             self.square_flow_widget.shutdown()   # intern#247: Engine-Prozess beenden
+            self._seq_prefetch.shutdown()        # intern#268: vor db.close()
             self.engine.shutdown()
             # Liste neu holen: waehrend der Rueckfrage kann ein Probelauf
             # einen Folge-Lauf gestartet haben (Review #172)
