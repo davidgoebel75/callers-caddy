@@ -39,7 +39,7 @@ def test_laden_felder_und_mojibake(catalog):
     assert e.release_year == "2010"
     assert e.genres == ["Oldies", "Jazz"]
     assert e.is_singing and not e.is_patter
-    # doppelt kodiertes UTF-8 aus dem Scraper wird repariert
+    # doppelt kodiertes UTF-8 aus der Quelldatei wird repariert
     assert catalog.by_label_number("STING 22209")[0].title == "I Think We’re Alone Now"
     assert catalog.by_title("Red Feather")[0].is_patter
 

@@ -6,7 +6,7 @@ Regeln, die sich am Code pruefen lassen. **Vor dem Schreiben oder Aendern von Co
 
 - Sprache im Code: Englisch (Variablen, Methoden), Deutsch (Kommentare, UI-Texte)
 - Begriffe aus `GLOSSARY.md` verwenden, nicht die Varianten aus dessen Avoid-Liste.
-- **Song-Katalog** (`music-extended-data/music_extended_data.csv`, geladen über `song_catalog.py`): nicht von Hand editieren. Aktualisiert wird er per `tools/update_song_catalog.py`, das Davids Scraper-Update aufruft und als Auto-PR `chore/song-catalog-*` einreicht. Match-Verbesserungen gehören nach `song_match.py`.
+- **Song-Katalog** (`music-extended-data/music_extended_data.csv`, geladen über `song_catalog.py`): nicht von Hand editieren. Aktualisiert wird er per `tools/update_song_catalog.py`, das nach jedem Update der externen Quelldatei aufgerufen wird und als Auto-PR `chore/song-catalog-*` einreicht. Match-Verbesserungen gehören nach `song_match.py`.
 - UI-Framework: PySide6 (Qt 6 Widgets), kein WebView
 - DB: SQLite via built-in sqlite3
 - Audio: Eigener Streaming-WSOLA (kein Rubber Band/SoundTouch)

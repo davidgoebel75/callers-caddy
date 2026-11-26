@@ -406,7 +406,7 @@ def main():
         print(f"  {folder}/ angelegt")
 
     # Music-Extended-Data: Song-Katalog (song_catalog.py, intern#126). Wird per
-    # tools/update_song_catalog.py aus dem Scraper-Projekt aktualisiert.
+    # tools/update_song_catalog.py aus der externen Quelldatei aktualisiert.
     med_src = SOURCE_DIR / "music-extended-data"
     med_dst = app_dir / "music-extended-data"
     if med_src.exists():
