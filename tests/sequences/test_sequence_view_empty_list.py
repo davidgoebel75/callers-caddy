@@ -61,7 +61,10 @@ def test_letzte_sequenz_geloescht_gleich_leerer_filter(db, keep):
 
 def test_square_flow_rechnet_bei_leerer_liste_nicht(db, keep):
     """Verdrahtet wie main._push_sequence_to_square_flow: kein Auftrag ohne Sequenz."""
-    a = db.insert_sequence(["Heads Square Thru 4", "Allemande Left"])
+    # Mit Typ: alt (calls, "Hoedown") und neu ([], "") unterscheiden sich, ohne
+    # den Fix wuerde Square Flow die alten Calls also als neue Sequenz rechnen.
+    a = db.insert_sequence(["Heads Square Thru 4", "Allemande Left"],
+                           seq_type="Hoedown")
     view = keep(SequenceViewWidget(db=db))
     flow = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
     jobs = []
@@ -79,3 +82,28 @@ def test_square_flow_rechnet_bei_leerer_liste_nicht(db, keep):
     view.set_sequence(db, [], 0)
     assert len(jobs) == 1                           # kein Lauf "seq=-"
     assert flow._seq is None
+
+
+def test_leere_liste_raeumt_kopfzeile_und_warnknopf_auf(db, keep):
+    """Review #203: Kopfzeile (Text, Tooltip) und Square-Flow-Warnknopf der
+    vorigen Sequenz duerfen bei leerer Liste nicht stehen bleiben."""
+    calls = ["Heads Square Thru 4", "Allemande Left"]
+    a = db.insert_sequence(calls, seq_type="Hoedown", difficulty="leicht")
+    for leeren in ("filter", "loeschen"):
+        w = keep(SequenceViewWidget(db=db))
+        w.set_taminations_enabled(True)
+        w.set_sequence(db, [a], 0)
+        w.set_flow_info(calls, {"beats": [8, 8], "total": 16, "singer": False,
+                                "fail_card": None, "warn": True,
+                                "warn_text": "Testwarnung"})
+        assert "Hoedown" in w._header_text
+        assert not w._btn_flow_warn.isHidden()
+
+        if leeren == "filter":
+            w.set_sequence(db, [], 0)
+        else:
+            w.remove_id_after_delete(a)
+        assert w._header_text == "" and w._lbl_header.text() == ""
+        assert w._lbl_header.toolTip() == ""
+        assert w._btn_flow_warn.isHidden()
+        assert w.current_sequence_type() == ""
