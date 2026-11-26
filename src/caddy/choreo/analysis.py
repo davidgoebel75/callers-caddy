@@ -182,29 +182,28 @@ def analyse_sequence(run, calls, seq_type, app=None, frames=FRAME_STEP):
     """-> dict (siehe unten). calls = Kartenzeilen wie im Sequenz-Detail."""
     calls = list(calls)
     transient = []                       # Abbrueche ohne Engine-Urteil (Timeout, ...)
-    _run = run
 
-    def run(req):
-        r = _run(req)
+    def run_tracked(req):
+        r = run(req)
         if r.get("transient"):
             transient.append(r.get("error"))
         return r
 
     prep = mapping.prepare(calls, seq_type, app)
     hreq = mapping.heimplatz_request(prep)
-    lines, zweit, art = mapping.finish(prep, run(hreq) if hreq else None)
-    res = pruefband.analyse(run, prep["type"], prep["end"], prep["n_start"], lines, zweit, art)
+    lines, zweit, art = mapping.finish(prep, run_tracked(hreq) if hreq else None)
+    res = pruefband.analyse(run_tracked, prep["type"], prep["end"], prep["n_start"], lines, zweit, art)
     used = res["lines"]
     end = prep["end"]
     # Animation mit Aufloese-Call (Singer: Swing + Promenade); scheitert der, ohne ihn.
     anim = None
     with_end = bool(end and res["stufe1"])
     if with_end:
-        anim = run({"lines": used + [end], "frames": frames})
+        anim = run_tracked({"lines": used + [end], "frames": frames})
         if not anim.get("ok"):
             anim, with_end = None, False
     if anim is None:
-        anim = run({"lines": used, "frames": frames})
+        anim = run_tracked({"lines": used, "frames": frames})
     an = anim.get("animation") or {}
     line_beats = list(anim.get("beats") or [])
     beats_end = line_beats[len(used)] if with_end and len(line_beats) > len(used) else None

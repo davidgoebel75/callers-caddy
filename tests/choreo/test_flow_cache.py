@@ -258,3 +258,34 @@ def test_ohne_animation_neue_sitzung(tmp_path, keep, qapp, monkeypatch,
         _spin(qapp, got, 2, 0.3)
         w.shutdown()
     assert len(runs) == runs_expected
+
+
+def test_abbruch_landet_nicht_in_der_db(tmp_path, keep, qapp, monkeypatch):
+    """Review #196 (Freigabe): Nach einem Timeout steht nichts in sequence_choreo. Die
+    naechste Sitzung rechnet auch bei verstecktem Dock neu, statt den abgebrochenen Lauf
+    zu zeigen; in der laufenden Sitzung kommt er aus dem Speicher."""
+    db_path = _db(tmp_path, keep)
+    runs = []
+
+    def _fake_analyse(_run, calls, seq_type, app):
+        runs.append(1)
+        return {"stufe1": False, "urteil": None, "card_beats": [], "animation": {},
+                "transient": True}
+
+    monkeypatch.setattr(analysis, "analyse_sequence", _fake_analyse)
+    w = SquareFlowWorker(db_path, engine=_FakeEngine())
+    got, _ = _wait(qapp, w, 0)
+    w.request(1, ("Boys Rnu",), TYPE, seq_id=12, need_animation=False)
+    _spin(qapp, got, 1, 10)
+    w.request(2, ("Boys Rnu",), TYPE, seq_id=12, need_animation=False)
+    _spin(qapp, got, 2, 10)
+    w.shutdown()
+    assert read_choreo_cache(db_path, 12) is None
+    assert len(runs) == 1                                  # zweiter Auftrag aus dem Speicher
+
+    w2 = SquareFlowWorker(db_path, engine=_FakeEngine())
+    got2, _ = _wait(qapp, w2, 0)
+    w2.request(1, ("Boys Rnu",), TYPE, seq_id=12, need_animation=False)
+    _spin(qapp, got2, 1, 10)
+    w2.shutdown()
+    assert len(runs) == 2 and not got2[0].get("cached")

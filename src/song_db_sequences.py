@@ -14,6 +14,12 @@ import sqlite3
 _SQL_CHUNK = 400
 
 
+def _chunks(values):
+    """values in Teilen zu hoechstens _SQL_CHUNK fuer IN (...)-Listen."""
+    for i in range(0, len(values), _SQL_CHUNK):
+        yield values[i:i + _SQL_CHUNK]
+
+
 def _teaching_order_sort_key(teaching_order):
     """Sortierschluessel wie ORDER BY teaching_order in SQLite (NULL zuerst)."""
     return (teaching_order is not None, teaching_order or 0)
@@ -59,8 +65,7 @@ def read_choreo_call_names(db_path: str, call_texts=None) -> dict:
             return dict(con.execute(_SELECT_CHOREO_CALL_NAMES).fetchall())
         texts = sorted({str(t) for t in call_texts if t})
         out = {}
-        for i in range(0, len(texts), _SQL_CHUNK):       # Grenze fuer SQL-Parameter
-            part = texts[i:i + _SQL_CHUNK]
+        for part in _chunks(texts):       # Grenze fuer SQL-Parameter
             out.update(con.execute(
                 _SELECT_CHOREO_CALL_NAMES
                 + f" AND m.call_text IN ({','.join('?' * len(part))})", part).fetchall())
@@ -817,8 +822,7 @@ class SequencesMixin:
         Sequenzen, die es nicht gibt, fehlen im Ergebnis."""
         ids = list(dict.fromkeys(sequence_ids))
         rows = {}
-        for i in range(0, len(ids), _SQL_CHUNK):
-            part = ids[i:i + _SQL_CHUNK]
+        for part in _chunks(ids):
             for r in self._conn.execute(
                     "SELECT id, calls_json, field_1, field_2, field_3, field_4, "
                     "field_5, field_6, field_7, field_8, field_9, field_10, "
@@ -829,8 +833,7 @@ class SequencesMixin:
         texts = sorted({t for calls, _, _ in rows.values() for t in calls})
         figure_tos = {}  # call_text -> {entity_id: [teaching_order, ...]}
         mapping = {}     # call_text -> (entity_id, teaching_order, canonical_name)
-        for i in range(0, len(texts), _SQL_CHUNK):
-            part = texts[i:i + _SQL_CHUNK]
+        for part in _chunks(texts):
             marks = ",".join("?" * len(part))
             for text, eid, to in self._conn.execute(
                     "SELECT f.call_text, f.entity_id, t.teaching_order "

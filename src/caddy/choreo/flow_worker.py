@@ -166,7 +166,10 @@ class SquareFlowWorker(QObject):
         self._mark(t0, seq_id, len(calls), perf_marks.SOURCE_ENGINE,
                    engine_started=getattr(eng, "start_count", 0) != starts,
                    error=result.get("error") if isinstance(result, dict) else None)
-        if db:
+        # Abbruch ohne Engine-Urteil (Timeout, ...) nicht in die DB: sonst lieferte die
+        # naechste Sitzung bei verstecktem Dock den abgebrochenen Lauf (Review #196).
+        # Der Speicher-Cache behaelt ihn fuer diese Sitzung.
+        if db and not (isinstance(result, dict) and result.get("transient")):
             from song_db_sequences import write_choreo_cache
             write_choreo_cache(db, seq_id, ihash, efp, analysis.to_cache(result),
                                analysis.anim_to_blob(result))

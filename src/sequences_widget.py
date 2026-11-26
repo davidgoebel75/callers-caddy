@@ -308,7 +308,7 @@ class SequenceViewWidget(QWidget):
     def _reload_details(self):
         """Speicher neu fuellen: die ganze Liste (bis _PRELOAD_MAX), sonst ein
         Abschnitt ab der gezeigten Sequenz. Laeuft mit dem Setzen der Liste."""
-        self._details, self._details_ver, self._labels = {}, None, None
+        self._clear_details()
         if not self._seq_ids or self._db is None:
             return
         if len(self._seq_ids) <= self._PRELOAD_MAX:
@@ -316,6 +316,9 @@ class SequenceViewWidget(QWidget):
         else:
             self._load_details(self._seq_ids[self._current_idx:
                                              self._current_idx + self._CHUNK])
+
+    def _clear_details(self):
+        self._details, self._details_ver, self._labels = {}, None, None
 
     def _load_details(self, seq_ids):
         ver = self._db.sequence_data_version()
@@ -331,11 +334,13 @@ class SequenceViewWidget(QWidget):
         """(calls, seq_type, difficulty) der Sequenz. Aus dem Speicher, solange
         sequence_data_version gleich bleibt (eine kleine Abfrage); sonst und bei
         einer Luecke der naechste Abschnitt ab hier. Der Zaehler steigt bei
-        Aenderungen an Sequenzen, Zuordnungen und Programmen. Aenderungen an
-        teaching_order_calls und call_text_figures zeigt erst das naechste Setzen
-        der Liste (Review #196; sie kommen nur mit Programm-Updates)."""
+        Aenderungen an sequence_calls, call_text_mappings, call_text_figures_extra
+        und call_programs; damit sind auch die Views teaching_order_calls und
+        call_text_figures abgedeckt. Nicht abgedeckt sind Aenderungen nur an
+        sequences (Typ-Migrationen in song_db_schema) und an calls.canonical_name:
+        die zeigt erst das naechste Setzen der Liste (Review #196)."""
         if self._db.sequence_data_version() != self._details_ver:
-            self._details, self._details_ver, self._labels = {}, None, None
+            self._clear_details()
         hit = self._details.get(seq_id)
         if hit is None:
             idx = self._current_idx
