@@ -674,8 +674,10 @@ class P29MainWindow(QMainWindow):
       - MDB-Import + Cached Live-Mapping
     """
 
-    # intern#268: Abstand vom Laden der Sequenzen bis zum Vorbau der Figuren
-    _FIGURES_PREFETCH_DELAY_MS = 3000
+    # intern#274: Takt, in dem der Figuren-Vorbau gezogen wird (Pull, Uebergang bis
+    # zur Idle-Warmup-Queue intern#46). Ein Pull kostet eine Mini-Abfrage; Arbeit
+    # entsteht nur nach einer Datenaenderung.
+    _FIGURES_PULL_MS = 5000
 
     # Rule-Aktionen, die beim Play/Resume den hoerbaren Audio-Start
     # zurueckhalten muessen (Layout-GIL-Block bzw. asynchroner Worker).
@@ -979,8 +981,15 @@ class P29MainWindow(QMainWindow):
         from caddy.sequences.prefetch_worker import SequencePrefetchWorker
         self._seq_prefetch = SequencePrefetchWorker(self.db.open_worker_connection,
                                                     parent=self)
-        self._seq_prefetch.figures_ready.connect(
-            lambda res: self.db.adopt_sequence_figures(*res))
+        # Review #204: ausdruecklich in die Warteschlange des Hauptthreads
+        self._seq_prefetch.figures_ready.connect(self._on_seq_figures_ready,
+                                                 Qt.QueuedConnection)
+        # intern#274: Figuren nach Datenaenderungen neu vorbauen (Pull)
+        from caddy.sequences.figures_task import FiguresPrefetchTask
+        self._figures_task = FiguresPrefetchTask(self.db, self._seq_prefetch)
+        self._figures_pull_timer = QTimer(self)
+        self._figures_pull_timer.setInterval(self._FIGURES_PULL_MS)
+        self._figures_pull_timer.timeout.connect(self._pull_figures)
         self.sequence_view_widget.set_prefetch_worker(self._seq_prefetch)
         # MS50: Sequenz-Filter und Sequenz-Detail (intern#176) lesen die Wahl beim
         # Erzeugen selbst (Sequenzen laedt _init_sequences() erst nach window.show()).
@@ -6544,12 +6553,12 @@ class P29MainWindow(QMainWindow):
             if seq_ids:
                 self.sequence_view_widget.set_sequence(self.db, seq_ids, 0)
             perf_split("    _init_sequences.sequence_view prefill", _ts1)
-            # intern#268: Figuren je Sequenz vorbauen, damit ein spaeterer
-            # Programmwechsel sie nicht im Hauptthread aufbaut. Mit Abstand zum
-            # Start, damit der Aufbau nicht mit dem Startvorgang um den GIL ringt.
-            if not self.db.has_sequence_figures():
-                QTimer.singleShot(self._FIGURES_PREFETCH_DELAY_MS,
-                                  self._seq_prefetch.request_figures)
+        # intern#268/#274: Figuren je Sequenz vorbauen, damit ein spaeterer
+        # Programmwechsel sie nicht im Hauptthread aufbaut. Der erste Pull kommt
+        # mit Abstand zum Start (kein GIL-Ringen mit dem Startvorgang), danach
+        # zieht der Takt nach jeder Datenaenderung erneut, auch nach dem ersten
+        # Import in eine bisher leere Sequenz-Sammlung.
+        self._figures_pull_timer.start()
 
     def _on_export_sequences_json(self):
         """Menue: Alle Sequenzen als JSON-Datei exportieren (gleiche Struktur wie Import)."""
@@ -8196,6 +8205,18 @@ class P29MainWindow(QMainWindow):
             self.dock_square_flow.raise_()
         sf.play_card(index)
 
+    def _on_seq_figures_ready(self, res):
+        """intern#268: Figuren aus dem Prefetch-Worker uebernehmen (Hauptthread)."""
+        self.db.adopt_sequence_figures(*res)
+
+    def _pull_figures(self):
+        """intern#274: Figuren-Vorbau ziehen. Nie bei laufender Musik: nichts darf
+        die Wiedergabe gefaehrden (TIC-0025). Wer durchgehend spielt, bekommt den
+        Vorbau erst in der naechsten Pause."""
+        if self.engine.is_playing():
+            return
+        self._figures_task.pull()
+
     def _on_square_flow_result(self, calls, result):
         """Ergebnis von Square Flow -> Takte, Abbruchzeile und Warnsymbol im
         Sequenz-Detail (None = Sequenz gewechselt, Anzeige leeren)."""
@@ -8307,6 +8328,7 @@ class P29MainWindow(QMainWindow):
             # noch ausstehende QTimer.singleShot-Callbacks nach db.close() auf
             # die DB zugreifen (TIC-0026: Cannot operate on a closed database)
             self.timer.stop()
+            self._figures_pull_timer.stop()      # intern#274: kein Vorbau mehr anstossen
             # Layout speichern (vor engine.shutdown, das blockieren kann)
             self._save_layout()
             self._save_current_song()

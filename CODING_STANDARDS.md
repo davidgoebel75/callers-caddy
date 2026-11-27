@@ -60,7 +60,7 @@ Jede neue Aktion, die >5 ms auf dem Main-Thread kosten KOENNTE, muss eines diese
 | Qt-Layout (`restoreState`, `restoreGeometry`, `setFloating`) | `QTimer.singleShot(0, lambda: self._foo_deferred(params))` | `_rule_layout_load`, `_rule_dual_view_toggle` |
 | Blockierender C-Call (`winsound.Beep`, `time.sleep`, lange `subprocess`) | `threading.Thread(target=..., daemon=True).start()` | `_rule_system_ping` |
 | Grosse Tabellen-Updates (>50 Zeilen) | Diff-basiert: `_row_by_id`-Dict, nur geaenderte Zellen schreiben | `SongListWidget.set_last_played_map` |
-| DB-Heavy-Operationen (>20 ms) | `QThread` mit Signal-Completion (NIE direkt im Trigger) | `BpmWorker`, `LoopFinderWorker` |
+| DB-Heavy-Operationen (>20 ms) | `QThread` mit Signal-Completion (NIE direkt im Trigger). Ausnahme: Ersetzt ein neuer Auftrag einen wartenden (nur der letzte zählt), ist ein `threading.Thread` mit `threading.Condition` und Qt-Signal zurück zulässig; eigene Verbindung über `open_worker_connection`, Begründung im Modul-Docstring | `BpmWorker`, `LoopFinderWorker`; Ausnahme: `caddy/sequences/prefetch_worker.py`, `caddy/choreo/flow_worker.py` |
 | Periodische UI-Refreshes | Throttling, oder `QTimer.singleShot` zur Entkopplung | (siehe `_refresh_last_played`) |
 
 ## Bekannte Qt-Fallen
