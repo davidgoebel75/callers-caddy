@@ -33,21 +33,55 @@ def _build_sequence_figures(conn) -> dict:
     """sequence_id -> frozenset gebandeter Figuren (Regel siehe
     SequencesMixin._sequence_figures). Laeuft auf der Haupt- oder einer
     Worker-Verbindung (intern#268)."""
+    return _figures_from(
+        conn,
+        conn.execute("SELECT call_text, entity_id FROM call_text_figures"),
+        conn.execute("SELECT sequence_id, call_text FROM sequence_calls"))
+
+
+def _figures_from(conn, text_rows, seq_rows) -> dict:
+    """Gemeinsamer Kern von _build_sequence_figures und
+    _build_sequence_figures_for: (call_text, entity_id)- und (sequence_id,
+    call_text)-Zeilen -> {sequence_id: frozenset gebandeter Figuren}."""
     banded = {e for (e,) in conn.execute(
         "SELECT DISTINCT entity_id FROM call_programs "
         "WHERE teaching_order >= 1")}
     text_figs = {}
-    for ct, eid in conn.execute(
-            "SELECT call_text, entity_id FROM call_text_figures"):
+    for ct, eid in text_rows:
         if eid in banded:
             text_figs.setdefault(ct, []).append(eid)
     seq_figs = {}
-    for sid, ct in conn.execute(
-            "SELECT sequence_id, call_text FROM sequence_calls"):
+    for sid, ct in seq_rows:
         figs = text_figs.get(ct)
         if figs:
             seq_figs.setdefault(sid, set()).update(figs)
     return {s: frozenset(f) for s, f in seq_figs.items()}
+
+
+# intern#278: Obergrenze fuer Platzhalter je IN (...)-Abfrage
+_IN_CHUNK = 500
+
+
+def _rows_in(conn, sql_prefix: str, values) -> list:
+    """`sql_prefix` endet auf "IN"; fragt `values` in Portionen ab."""
+    values = list(values)
+    rows = []
+    for i in range(0, len(values), _IN_CHUNK):
+        part = values[i:i + _IN_CHUNK]
+        rows += conn.execute(
+            f"{sql_prefix} ({','.join('?' * len(part))})", part).fetchall()
+    return rows
+
+
+def _build_sequence_figures_for(conn, seq_ids) -> dict:
+    """intern#278: wie _build_sequence_figures, nur fuer diese Sequenzen.
+    Sequenzen ohne gebandete Figur fehlen im Ergebnis (wie beim Vollaufbau)."""
+    seq_rows = _rows_in(conn, "SELECT sequence_id, call_text FROM sequence_calls "
+                              "WHERE sequence_id IN", seq_ids)
+    texts = {ct for _sid, ct in seq_rows}
+    text_rows = _rows_in(conn, "SELECT call_text, entity_id FROM call_text_figures "
+                               "WHERE call_text IN", texts)
+    return _figures_from(conn, text_rows, seq_rows)
 
 
 def _teaching_order_sort_key(teaching_order):
@@ -1134,7 +1168,9 @@ class SequencesMixin:
 
         BL-210: Einzel-Figur-Weg — eine bisherige Figuren-Menge des Texts wird
         dabei abgeraeumt, damit nie eine alte Menge halb stehen bleibt.
+        intern#278: zieht Ebene und Figuren der betroffenen Sequenzen nach.
         """
+        current = self._figures_current()
         self._conn.execute(
             "DELETE FROM call_text_figures_extra WHERE call_text = ?",
             (call_text,))
@@ -1143,7 +1179,9 @@ class SequencesMixin:
             "(call_text, entity_id, mapped_by) VALUES (?, ?, ?)",
             (call_text, entity_id, mapped_by)
         )
+        seq_ids = self._mapping_changed([call_text])
         self._conn.commit()
+        self._patch_sequence_figures(seq_ids, current)
 
     def set_call_text_mappings(self, pairs: list, mapped_by: str = "manual") -> int:
         """Setzt viele Mappings in EINER Transaktion (ein einziges commit).
@@ -1161,6 +1199,7 @@ class SequencesMixin:
         rows = [(ct, eid, mapped_by) for ct, eid in pairs if ct and eid]
         if not rows:
             return 0
+        current = self._figures_current()
         self._conn.executemany(
             "DELETE FROM call_text_figures_extra WHERE call_text = ?",
             [(ct,) for ct, _eid, _mb in rows]
@@ -1170,7 +1209,9 @@ class SequencesMixin:
             "(call_text, entity_id, mapped_by) VALUES (?, ?, ?)",
             rows
         )
+        seq_ids = self._mapping_changed(ct for ct, _eid, _mb in rows)   # intern#278
         self._conn.commit()
+        self._patch_sequence_figures(seq_ids, current)
         return len(rows)
 
     # ---- BL-210: Figuren-Mengen je Call-Text ----
@@ -1266,14 +1307,18 @@ class SequencesMixin:
         Leere Liste entfernt die Zuordnung (wie delete_call_text_mapping).
         Figuren ohne calls-Zeile fallen weg (siehe unknown_figures). Eine
         Transaktion: schlaegt ein Schreibschritt fehl, bleibt die bisherige
-        Menge vollstaendig stehen.
+        Menge vollstaendig stehen. intern#278: zieht Ebene und Figuren der
+        betroffenen Sequenzen nach.
         """
+        current = self._figures_current()
         try:
             self._write_call_text_figures(call_text, entity_ids, mapped_by)
+            seq_ids = self._mapping_changed([call_text])
         except Exception:
             self._conn.rollback()
             raise
         self._conn.commit()
+        self._patch_sequence_figures(seq_ids, current)
 
     def get_call_text_figures(self, call_text: str) -> list[str]:
         """Figuren eines Call-Texts, hoechste zuerst. Ohne Zuordnung: []."""
@@ -1291,16 +1336,21 @@ class SequencesMixin:
         Call-Texte zurueck (analog set_call_text_mappings).
         """
         written = 0
+        texts = []
+        current = self._figures_current()
         try:
             for call_text, entity_ids in pairs:
                 if not call_text:
                     continue
                 self._write_call_text_figures(call_text, entity_ids, mapped_by)
+                texts.append(call_text)
                 written += 1
+            seq_ids = self._mapping_changed(texts)              # intern#278
         except Exception:
             self._conn.rollback()
             raise
         self._conn.commit()
+        self._patch_sequence_figures(seq_ids, current)
         return written
 
     def _normalize_call_text_figures(self):
@@ -1602,14 +1652,18 @@ class SequencesMixin:
 
     def delete_call_text_mapping(self, call_text: str):
         """Loescht ein bestehendes Mapping fuer den gegebenen Call-Text
-        (BL-210: samt der weiteren Figuren seiner Menge)."""
+        (BL-210: samt der weiteren Figuren seiner Menge). intern#278: zieht
+        Ebene und Figuren der betroffenen Sequenzen nach."""
+        current = self._figures_current()
         self._conn.execute(
             "DELETE FROM call_text_figures_extra WHERE call_text = ?", (call_text,)
         )
         self._conn.execute(
             "DELETE FROM call_text_mappings WHERE call_text = ?", (call_text,)
         )
+        seq_ids = self._mapping_changed([call_text])
         self._conn.commit()
+        self._patch_sequence_figures(seq_ids, current)
 
     def ensure_filler_words_entity(self):
         """Stellt sicher dass der 'Filler Words'-Eintrag in teaching_order_calls existiert.
@@ -1744,10 +1798,13 @@ class SequencesMixin:
             if eid is not None:
                 rows.append((t, eid, "auto"))
         if rows:
+            current = self._figures_current()
             self._conn.executemany(
                 "INSERT OR IGNORE INTO call_text_mappings "
                 "(call_text, entity_id, mapped_by) VALUES (?, ?, ?)", rows)
+            seq_ids = self._mapping_changed(t for t, _eid, _mb in rows)   # intern#278
             self._conn.commit()
+            self._patch_sequence_figures(seq_ids, current)
         return len(rows)
 
     def _backfill_auto_mappings_once(self):
@@ -1856,20 +1913,25 @@ class SequencesMixin:
             "VALUES ('max_to_min_band', '1')")
         self._conn.commit()
 
-    def recompute_sequence_max_to(self):
+    def recompute_sequence_max_to(self, seq_ids=None, commit: bool = True):
         """Berechnet max_teaching_order fuer alle Sequenzen neu.
 
         Basiert auf call_text_figures (Mapping + Zusatzfiguren) und der fruehesten
         Teaching-Order je Figur. Konservativ: NULL wenn mindestens ein Feld
         unmapped ist.
+
+        intern#278: seq_ids begrenzt die Rechnung auf diese Sequenzen (nach einer
+        Mapping-Aenderung nur die betroffenen); commit=False laesst den Aufrufer
+        in seiner eigenen Transaktion committen.
         """
-        cur = self._conn.execute(
-            "SELECT id, calls_json, field_1, field_2, field_3, field_4, field_5, "
-            "field_6, field_7, field_8, field_9, field_10, "
-            "field_11, field_12, field_13, field_14, field_15 "
-            "FROM sequences"
-        )
-        sequences = cur.fetchall()
+        select = ("SELECT id, calls_json, field_1, field_2, field_3, field_4, field_5, "
+                  "field_6, field_7, field_8, field_9, field_10, "
+                  "field_11, field_12, field_13, field_14, field_15 "
+                  "FROM sequences")
+        if seq_ids is None:
+            sequences = self._conn.execute(select).fetchall()
+        else:
+            sequences = _rows_in(self._conn, select + " WHERE id IN", seq_ids)
 
         # Mapping-Cache laden. EIN Durchlauf ueber call_text_figures (Haupt-
         # mapping + Zusatzfiguren) mit der fruehesten Teaching-Order je Figur —
@@ -1883,14 +1945,19 @@ class SequencesMixin:
         # Programm passt. min_to ist dieselbe Regel, nach der auch der Band-Filter
         # (_cover_ids) und der Figuren-Picker gehen.
         #
-        text_to_to = _text_max_to(
-            self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED))
+        # Volle Callliste (calls_json), Fallback Mirror-Felder seq[2:17].
+        seq_calls = [(seq[0], calls_from_json(seq[1]) if seq[1] else clean_calls(seq[2:17]))
+                     for seq in sequences]
+        if seq_ids is None:
+            text_rows = self._conn.execute(_SELECT_CALL_TEXT_FIGURES_RANKED)
+        else:                    # intern#278: nur die Texte dieser Sequenzen
+            text_rows = _rows_in(self._conn, _SELECT_CALL_TEXT_FIGURES_RANKED
+                                 + " WHERE f.call_text IN",
+                                 {t for _sid, calls in seq_calls for t in calls})
+        text_to_to = _text_max_to(text_rows)
 
         updates = []
-        for seq in sequences:
-            seq_id = seq[0]
-            # Volle Callliste (calls_json), Fallback Mirror-Felder seq[2:17].
-            calls = calls_from_json(seq[1]) if seq[1] else clean_calls(seq[2:17])
+        for seq_id, calls in seq_calls:
             max_to = None
             has_unmapped = False
 
@@ -1911,7 +1978,52 @@ class SequencesMixin:
             "UPDATE sequences SET max_teaching_order = ? WHERE id = ?",
             updates
         )
-        self._conn.commit()
+        if commit:
+            self._conn.commit()
+
+    # ---- intern#278: nach Mapping-Aenderungen nur betroffene Sequenzen ----
+
+    def _figures_current(self) -> bool:
+        """Passen die Figuren je Sequenz zum aktuellen Datenstand? VOR einer
+        Mapping-Aenderung abfragen: nur dann duerfen sie nachgezogen werden."""
+        return (self._seq_figures is not None
+                and self._band_data_version() == self._band_cache_ver_seen)
+
+    def _sequences_with_texts(self, texts) -> list:
+        """Alle Sequenzen, die einen dieser Call-Texte enthalten."""
+        texts = {t for t in texts if t}
+        return sorted({sid for (sid,) in _rows_in(
+            self._conn, "SELECT DISTINCT sequence_id FROM sequence_calls "
+                        "WHERE call_text IN", texts)})
+
+    def _mapping_changed(self, texts) -> list:
+        """Nach dem Schreiben von Mappings, VOR dem commit des Aufrufers:
+        max_teaching_order aller Sequenzen mit diesen Texten nachziehen (in
+        derselben Transaktion). -> die betroffenen Sequenz-IDs."""
+        seq_ids = self._sequences_with_texts(texts)
+        if seq_ids:
+            self.recompute_sequence_max_to(seq_ids, commit=False)
+        return seq_ids
+
+    def _patch_sequence_figures(self, seq_ids, was_current: bool):
+        """Nach dem commit: Figuren der betroffenen Sequenzen nachziehen und als
+        passend zum neuen Datenstand merken. Passten sie vorher nicht
+        (was_current False), bleibt alles beim Verwerfen ueber die Version."""
+        if not was_current or self._seq_figures is None:
+            return
+        new = _build_sequence_figures_for(self._conn, seq_ids) if seq_ids else {}
+        figs = dict(self._seq_figures)      # Kopie: der Worker hat das Original gebaut
+        for sid in seq_ids:
+            if sid in new:
+                figs[sid] = new[sid]
+            else:
+                figs.pop(sid, None)
+        self._seq_figures = figs
+        # Was aus den Figuren abgeleitet ist, gilt nicht mehr (wie bei einer
+        # neuen Version in _check_band_cache_version)
+        self._band_cover_cache = {}
+        self._scope_key = None
+        self._band_cache_ver_seen = self._band_data_version()
 
     def get_unmapped_call_texts_of_sequence(self, sequence_id: int) -> list[str]:
         """intern#119: Call-Texte einer Sequenz ohne (tanzbare) Zuordnung, in
