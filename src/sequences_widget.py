@@ -330,6 +330,9 @@ class SequenceViewWidget(QWidget):
         if self._prefetch is None:
             self._load_details(self._preload_ids())
             return
+        # Review #204: Version immer setzen, auch wenn der Index (noch) hinter der
+        # Liste steht; sonst verwirft _on_details_ready jedes Worker-Ergebnis.
+        self._details_ver = self._db.sequence_data_version()
         if self._current_idx < len(self._seq_ids):
             self._load_details([self._seq_ids[self._current_idx]])
         self._request_prefetch()
@@ -365,10 +368,18 @@ class SequenceViewWidget(QWidget):
         einer Luecke der naechste Abschnitt ab hier. Der Zaehler steigt bei
         Aenderungen an sequence_calls, call_text_mappings, call_text_figures_extra
         und call_programs; damit sind auch die Views teaching_order_calls und
-        call_text_figures abgedeckt. Nicht abgedeckt sind Aenderungen nur an
-        sequences (Typ-Migrationen in song_db_schema) und an calls.canonical_name:
-        die zeigt erst das naechste Setzen der Liste (Review #196)."""
-        if self._db.sequence_data_version() != self._details_ver:
+        call_text_figures abgedeckt. calls.canonical_name aendert sich nur
+        zusammen mit call_programs (Programm-Abgleich), ist also ebenfalls
+        abgedeckt (vgl. get_teaching_order_calls). Nicht abgedeckt sind
+        Aenderungen nur an sequences (Typ-Migrationen in song_db_schema): die zeigt
+        erst das naechste Setzen der Liste (Review #196).
+
+        Mit Worker liest der Hauptthread nur diese eine Sequenz. Den Rest liest der
+        Worker nach: bei einer Luecke in langen Listen und, seit Review #204, auch
+        nach einer Datenaenderung (sonst laese der Hauptthread danach jede Sequenz
+        einzeln beim Blaettern)."""
+        changed = self._db.sequence_data_version() != self._details_ver
+        if changed:
             self._clear_details()
         hit = self._details.get(seq_id)
         if hit is None:
@@ -377,7 +388,7 @@ class SequenceViewWidget(QWidget):
                 self._load_details([seq_id] + self._seq_ids[idx:idx + self._CHUNK])
             else:                       # intern#268: nur diese hier, Rest im Worker
                 self._load_details([seq_id])
-                if len(self._seq_ids) > self._PRELOAD_MAX:
+                if changed or len(self._seq_ids) > self._PRELOAD_MAX:
                     self._request_prefetch(idx)
             hit = self._details.get(seq_id, self._NO_DETAIL)
         return hit

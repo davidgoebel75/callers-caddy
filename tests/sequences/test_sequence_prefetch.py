@@ -201,3 +201,60 @@ def test_neuer_auftrag_bricht_den_alten_ab(db, worker, qapp, monkeypatch):
     assert _wait(qapp, lambda: 2 in got)
     _wait(qapp, lambda: False, 0.4)
     assert 1 not in got
+
+
+# ---- Review #204 (intern#274) -----------------------------------------------
+
+def test_passendes_worker_ergebnis_wird_uebernommen(db, worker, keep):
+    view = keep(SequenceViewWidget(db=db))
+    view.set_prefetch_worker(worker)
+    view.set_sequence(db, db.ids[:2], 0)
+    fake = {db.ids[5]: (("x",), "Hoedown", "")}
+    view._on_details_ready(view._prefetch_token, view._details_ver, fake)
+    assert view._details[db.ids[5]] == (("x",), "Hoedown", "")
+
+
+def test_schon_gelesene_eintraege_bleiben(db, worker, keep):
+    view = keep(SequenceViewWidget(db=db))
+    view.set_prefetch_worker(worker)
+    view.set_sequence(db, db.ids[:2], 0)
+    gezeigt = view._details[db.ids[0]]
+    view._on_details_ready(view._prefetch_token, view._details_ver,
+                           {db.ids[0]: (("anders",), "", "")})
+    assert view._details[db.ids[0]] == gezeigt
+
+
+def test_version_auch_bei_index_hinter_der_liste(db, worker, keep):
+    """Review #204: Steht der Index hinter der Liste, blieb _details_ver leer und
+    jedes Worker-Ergebnis wurde verworfen."""
+    view = keep(SequenceViewWidget(db=db))
+    view.set_prefetch_worker(worker)
+    view._seq_ids, view._current_idx, view._db = list(db.ids), len(db.ids), db
+    view._reload_details()
+    assert view._details_ver == db.sequence_data_version()
+    fake = {db.ids[1]: (("x",), "", "")}
+    view._on_details_ready(view._prefetch_token, view._details_ver, fake)
+    assert db.ids[1] in view._details
+
+
+def test_nach_datenaenderung_liest_der_worker_den_rest(db, worker, keep, qapp, monkeypatch):
+    """Review #204: Nach einer Datenaenderung las der Hauptthread beim Blaettern
+    jede Sequenz einzeln. Jetzt liest er nur die gezeigte, den Rest der Worker."""
+    view = keep(SequenceViewWidget(db=db))
+    view.set_prefetch_worker(worker)
+    view.set_sequence(db, db.ids, 0)
+    assert _wait(qapp, lambda: set(db.ids) <= set(view._details))
+    db.insert_sequence([MAPPED, "Neu"])                    # Zaehler steigt
+    main_reads = []
+    orig = db.get_sequence_details_many
+    monkeypatch.setattr(db, "get_sequence_details_many",
+                        lambda ids: main_reads.append(list(ids)) or orig(ids))
+    token = view._prefetch_token
+    view._on_next()
+    assert main_reads == [[db.ids[1]]]                     # nur die gezeigte
+    assert view._prefetch_token == token + 1               # Rest beim Worker bestellt
+    assert _wait(qapp, lambda: set(db.ids) <= set(view._details))
+    main_reads.clear()
+    for _ in range(3):
+        view._on_next()
+    assert main_reads == []                                # wieder aus dem Speicher

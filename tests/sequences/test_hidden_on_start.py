@@ -40,9 +40,8 @@ def _start(db, keep, tmp_path, value=None):
     win = types.SimpleNamespace(
         db=db, sequences_widget=w, _settings=settings,
         sequence_view_widget=types.SimpleNamespace(set_sequence=lambda *a: None),
-        # intern#268: Vorbau der Figuren nach dem Start
-        _FIGURES_PREFETCH_DELAY_MS=main.P29MainWindow._FIGURES_PREFETCH_DELAY_MS,
-        _seq_prefetch=types.SimpleNamespace(request_figures=lambda: None))
+        # intern#268/#274: Pull-Takt fuer den Vorbau der Figuren nach dem Start
+        _figures_pull_timer=types.SimpleNamespace(start=lambda: None))
     win._show_hidden_on_start = lambda: main.P29MainWindow._show_hidden_on_start(win)
     main.P29MainWindow._init_sequences(win)
     return w, settings, win

@@ -509,11 +509,9 @@ class SequencesMixin:
     # ---- MS50-Perf: Band-Cover-Cache + Scope-Materialisierung ----
 
     def _band_data_version(self) -> int:
-        """Aktueller Wert des Trigger-Zaehlers (0 falls Tabelle fehlt)."""
-        try:
-            return _band_version_on(self._conn)
-        except Exception:
-            return 0
+        """Aktueller Wert des Trigger-Zaehlers (0 falls Tabelle fehlt; das faengt
+        _band_version_on selbst ab, Review #204)."""
+        return _band_version_on(self._conn)
 
     def sequence_data_version(self) -> int:
         """intern#263: Aenderungszaehler fuer Speicher ausserhalb der DB-Schicht
