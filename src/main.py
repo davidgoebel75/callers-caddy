@@ -6653,8 +6653,13 @@ class P29MainWindow(QMainWindow):
         shown = self.sequence_view_widget.shown_state()
         dlg = CallMappingDialog(self.db, self, focus_texts=focus_texts)
         if dlg.exec() == QDialog.Accepted:
-            # Remapping anstossen damit max_teaching_order aktualisiert wird
-            self.sequences_widget._do_remapping()
+            # intern#278: Ebene und Figuren der betroffenen Sequenzen zieht schon
+            # die DB-Schicht nach; global neu rechnen nur nach einer Teilung am
+            # Komma (aendert die Sequenzen selbst)
+            if dlg.split_done:
+                self.sequences_widget._do_remapping()
+            else:
+                self.sequences_widget.refresh_after_mapping()
             self.sequence_view_widget.restore_shown(shown)
         elif dlg.wrote_assignments:
             # "Optimieren" (intern#97) hat schon geschrieben und die Baender

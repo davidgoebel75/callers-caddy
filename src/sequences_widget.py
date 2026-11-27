@@ -1900,6 +1900,15 @@ class SequencesWidget(QWidget):
         self.load_sequences()
         print("[Sequenzen] Remapping: Auto-Mappings ergaenzt + max_teaching_order neu berechnet")
 
+    def refresh_after_mapping(self):
+        """intern#278: nach dem Call-Mapping. Die Schreibfunktionen der DB-Schicht
+        haben Ebene und Figuren aller Sequenzen mit geaenderten Texten schon
+        nachgezogen; hier nur Auto-Mappings ergaenzen (zieht ebenfalls nach) und
+        die Anzeige neu laden. Kein globales recompute_sequence_max_to."""
+        self.db.backfill_auto_mappings()
+        self._populate_dropdowns()
+        self.load_sequences()
+
     # ---- Dropdowns ----
 
     def _setup_search_combo(self, combo):
@@ -3241,6 +3250,7 @@ class CallMappingDialog(QDialog):
         self._pending_texts = []    # noch zu berechnende Vorschlaege (chunked)
         self._pending_pos   = 0
         self._wrote_assignments = False  # intern#97: "Optimieren" hat geschrieben
+        self._split_done = False         # intern#278: Speichern hat Call-Texte geteilt
         self.setWindowTitle(_t("call_mapping_title"))
         self.setMinimumSize(900, 600)
         self._build_ui()
@@ -3255,6 +3265,12 @@ class CallMappingDialog(QDialog):
         """True, sobald "Optimieren" Zuordnungen geschrieben hat -- dann muss
         der Aufrufer die Sequenzen auch bei Abbrechen neu mappen."""
         return self._wrote_assignments
+
+    @property
+    def split_done(self) -> bool:
+        """intern#278: True, wenn Speichern einen Call-Text am Komma geteilt hat.
+        Das aendert die Sequenzen selbst; dann rechnet der Aufrufer alle neu."""
+        return self._split_done
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -4001,9 +4017,10 @@ class CallMappingDialog(QDialog):
         if not written_sets:
             return
         # EINE Transaktion (TIC-0025: kurz genug fuer den Main-Thread)
+        # intern#278: set_call_text_figures_bulk zieht die Ebene der betroffenen
+        # Sequenzen selbst nach (kein globales recompute_sequence_max_to mehr)
         written = self.db.set_call_text_figures_bulk(written_sets.items(),
                                                      mapped_by="inferred")
-        self.db.recompute_sequence_max_to()
         _t_write = time.perf_counter()
         self._wrote_assignments = True
         # KEIN Voll-Requery (wie _on_confirm_selected): nur die geschriebenen
@@ -4052,4 +4069,5 @@ class CallMappingDialog(QDialog):
         # Ergebnis ist in Sequenzliste und Sequenz-Detail sofort sichtbar.
         print(f"[Call-Mapping] {saved} gespeichert, {deleted} entfernt, "
               f"{split_occ} Splits in {split_seqs} Sequenzen")
+        self._split_done = split_occ > 0
         self.accept()
