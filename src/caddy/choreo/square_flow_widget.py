@@ -227,6 +227,7 @@ class SquareFlowWidget(QWidget):
         self._dirty = False
         self._result = None
         self._reported = None               # zuletzt per result_ready gemeldetes Ergebnis
+        self._data_version = None           # intern#277: sequence_data_version beim letzten Lauf
         self._tl = None
         self._beat = 0.0
         self._stop_at = None                # Ende einer einzeln gespielten Kartenzeile
@@ -465,9 +466,12 @@ class SquareFlowWidget(QWidget):
 
     # --- Sequenz -------------------------------------------------------------
 
-    def set_sequence(self, calls, seq_type, seq_id=None):
+    def set_sequence(self, calls, seq_type, seq_id=None, data_version=None):
         """Sequenz aus dem Sequenz-Detail. Gerechnet wird nur, wenn Square Flow freigegeben
-        ist (auch bei geschlossenem Dock: die Takte im Sequenz-Detail brauchen das Ergebnis)."""
+        ist (auch bei geschlossenem Dock: die Takte im Sequenz-Detail brauchen das Ergebnis).
+
+        data_version: Stand von sequence_data_version(). Aendert er sich bei derselben
+        Sequenz (z. B. nach dem Call-Mapping), wird neu gerechnet (intern#277)."""
         calls = [c for c in (calls or []) if c and str(c).strip()]
         seq = (tuple(calls), seq_type or "") if calls else None
         if seq == self._seq:
@@ -475,8 +479,17 @@ class SquareFlowWidget(QWidget):
             # Warnung dabei verworfen, also das Ergebnis noch einmal melden.
             if seq is not None and self._reported is not None:
                 self.result_ready.emit(seq[0], self._reported)
+            if (seq is not None and data_version is not None
+                    and data_version != self._data_version):
+                # Daten geaendert: neu anfragen; die alte Anzeige bleibt bis zum
+                # neuen Ergebnis stehen (der Worker-Cache greift, wenn sich fuer
+                # diese Sequenz nichts geaendert hat).
+                self._data_version = data_version
+                self._dirty = True
+                self._maybe_request()
             return
         self._seq = seq
+        self._data_version = data_version
         self._reported = None
         self._seq_id = seq_id
         self.pause()
