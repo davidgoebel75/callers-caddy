@@ -199,6 +199,39 @@ def test_dieselbe_sequenz_erneut_meldet_ergebnis_wieder(keep, monkeypatch):
     assert results == []
 
 
+def test_dieselbe_sequenz_nach_datenaenderung_rechnet_neu(keep, monkeypatch):
+    """intern#277: Nach dem Call-Mapping zeigt das Sequenz-Detail dieselbe Sequenz
+    erneut. Steht sequence_data_version anders, wird neu gerechnet; bei gleichem
+    Stand bleibt es beim gemerkten Ergebnis."""
+    from caddy.choreo import flow_worker
+    monkeypatch.setattr(flow_worker, "SquareFlowWorker", _FakeWorker)
+    w = keep(SquareFlowWidget(settings=_Settings(enabled=True)))
+    calls, kind = ["Heads Square Thru 4", "Foo"], "Static Set ➔ Resolve"
+    results = []
+    w.result_ready.connect(lambda c, r: results.append(r))
+    w.set_sequence(calls, kind, seq_id=7, data_version=5)
+    rot = _result()
+    rot.update({"stufe1": False, "urteil": None, "fail_card": 1, "error": "Call Foo not found"})
+    w._on_ready(w._token, rot)
+    assert len(w._worker.jobs) == 1
+
+    w.set_sequence(calls, kind, seq_id=7, data_version=5)      # gleicher Stand
+    assert len(w._worker.jobs) == 1 and results[-1] is rot
+
+    results.clear()
+    w.set_sequence(calls, kind, seq_id=7, data_version=6)      # Mapping geaendert
+    assert len(w._worker.jobs) == 2
+    assert w._worker.jobs[-1][1:4] == (tuple(calls), kind, 7)
+    assert results == [rot]                 # bis zum neuen Ergebnis: das alte melden
+    assert w._result is rot                 # Anzeige bleibt stehen, kein Leeren
+    gruen = _result()
+    w._on_ready(w._token, gruen)
+    assert results[-1] is gruen and w._result is gruen
+
+    w.set_sequence(calls, kind, seq_id=7, data_version=6)      # wieder gleicher Stand
+    assert len(w._worker.jobs) == 2
+
+
 def test_karte_spielen_haelt_am_ende(keep):
     w = keep(SquareFlowWidget(settings=_Settings(enabled=True), bpm_source=lambda: 120.0))
     w._seq = (("A", "B"), "Static Set ➔ Resolve")

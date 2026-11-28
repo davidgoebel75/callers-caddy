@@ -8273,7 +8273,8 @@ class P29MainWindow(QMainWindow):
         view = self.sequence_view_widget
         self.square_flow_widget.set_sequence(view.current_calls(),
                                              view.current_sequence_type(),
-                                             seq_id=view.current_sequence_id())
+                                             seq_id=view.current_sequence_id(),
+                                             data_version=self.db.sequence_data_version())
 
     def closeEvent(self, event):
         # intern#242: laufende Massenlaeufe erst nach Rueckfrage abbrechen;
