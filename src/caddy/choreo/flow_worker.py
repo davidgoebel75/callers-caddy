@@ -21,8 +21,9 @@ gerechnet, ohne dass jede Schreibstelle Bescheid geben muss (Review #192, Punkt 
 Wartezeit vor der Engine (intern#272): Ein Engine-Lauf startet erst ENGINE_DELAY_S nach dem
 Auftrag. Gemessen bei 40 % Drosselung haelt ein sofortiger Lauf den GIL mitten im Programm-
 oder Filterwechsel und verlaengert den Haenger im Hauptthread. Kommt in der Wartezeit ein
-neuerer Auftrag, entfaellt der Lauf (nur der letzte Wechsel zaehlt). Treffer aus Speicher
-und DB kommen weiter sofort. Muster wie DETAILS_DELAY_S im Prefetch-Worker (intern#268).
+neuerer Auftrag, entfaellt der Lauf (nur der letzte Wechsel zaehlt), ebenso nach cancel()
+(leere Liste, Square Flow ausgeschaltet). Treffer aus Speicher und DB kommen weiter sofort.
+Muster wie DETAILS_DELAY_S im Prefetch-Worker (intern#268).
 """
 import hashlib
 import threading
@@ -50,6 +51,7 @@ class SquareFlowWorker(QObject):
         self._job = None
         self._thread = None
         self._stop = False
+        self._cancelled = False              # cancel(): wartenden Lauf nicht mehr rechnen
         self._engine_fp = None
         self._cache = OrderedDict()
 
@@ -65,10 +67,19 @@ class SquareFlowWorker(QObject):
         """Auftrag einreihen; ein noch wartender Auftrag wird ersetzt."""
         with self._cond:
             self._job = (token, tuple(calls), seq_type or "", seq_id, need_animation)
+            self._cancelled = False
             if self._thread is None:
                 self._thread = threading.Thread(target=self._loop, daemon=True,
                                                 name="square-flow-worker")
                 self._thread.start()
+            self._cond.notify()
+
+    def cancel(self):
+        """Es gibt nichts mehr zu rechnen: wartenden Auftrag verwerfen. Ein schon laufender
+        Engine-Lauf endet normal; sein Ergebnis verwirft der Empfaenger am Token."""
+        with self._cond:
+            self._job = None
+            self._cancelled = True
             self._cond.notify()
 
     def shutdown(self):
@@ -108,13 +119,15 @@ class SquareFlowWorker(QObject):
                 self._engine_fp = ""
         return self._engine_fp
 
-    def _superseded(self, wait=0.0):
-        """Bis zu wait Sekunden warten; True, wenn inzwischen ein neuerer Auftrag kam
-        oder der Worker beendet wird."""
+    def _superseded(self, wait):
+        """Bis zu wait Sekunden warten; True, wenn inzwischen ein neuerer Auftrag kam,
+        der Auftrag abgebrochen wurde oder der Worker beendet wird."""
+        def obsolete():
+            return self._stop or self._cancelled or self._job is not None
         with self._cond:
-            if wait > 0 and not self._stop and self._job is None:
+            if wait > 0 and not obsolete():
                 self._cond.wait(wait)
-            return self._stop or self._job is not None
+            return obsolete()
 
     def _emit(self, token, result):
         if not self._stop:
@@ -174,8 +187,10 @@ class SquareFlowWorker(QObject):
                     if complete or not need_anim:
                         return
                     t0 = time.perf_counter()     # Engine-Lauf danach eigens messen
+        waited = time.perf_counter()
         if self._superseded(self.ENGINE_DELAY_S):
-            return                               # neuerer Auftrag oder Ende: kein Lauf
+            return                               # ueberholt, abgebrochen oder Ende: kein Lauf
+        t0 += time.perf_counter() - waited       # Wartezeit zaehlt nicht in der Perf-Marke
         starts = getattr(eng, "start_count", 0)
         result = analysis.analyse_sequence(eng.run, calls, seq_type, app)
         self._remember(key, result)
