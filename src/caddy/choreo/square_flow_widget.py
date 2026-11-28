@@ -439,6 +439,7 @@ class SquareFlowWidget(QWidget):
             self._maybe_request()
         elif not self._enabled:
             self.pause()
+            self._cancel_request()
             self._show_message(_t("sf_disabled"))
 
     def enabled(self):
@@ -490,6 +491,7 @@ class SquareFlowWidget(QWidget):
         self.result_ready.emit(seq[0] if seq else (), None)
         self._dirty = seq is not None
         if seq is None:
+            self._cancel_request()
             self._show_message(_t("sf_no_sequence"))
         self._maybe_request()
 
@@ -519,6 +521,13 @@ class SquareFlowWidget(QWidget):
             self._show_message(_t("sf_calculating"))
         self._worker.request(self._token, *self._seq, seq_id=self._seq_id,
                              need_animation=self.isVisible())
+
+    def _cancel_request(self):
+        """Unterwegs befindlichen Auftrag entwerten, ohne einen neuen zu stellen: Das Token
+        verwirft sein Ergebnis, der Worker startet keinen wartenden Lauf mehr."""
+        self._token += 1
+        if self._worker is not None:
+            self._worker.cancel()
 
     def shutdown(self):
         self._timer.stop()

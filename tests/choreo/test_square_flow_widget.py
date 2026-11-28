@@ -139,6 +139,9 @@ class _FakeWorker:
     def request(self, token, calls, seq_type, seq_id=None, need_animation=True):
         self.jobs.append((token, calls, seq_type, seq_id, need_animation))
 
+    def cancel(self):
+        pass
+
 
 def test_freigegeben_rechnet_auch_bei_geschlossenem_dock(keep, monkeypatch):
     """Die Takte im Sequenz-Detail brauchen das Ergebnis auch ohne sichtbares Dock."""
